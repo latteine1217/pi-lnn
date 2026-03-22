@@ -2,7 +2,7 @@
 import pytest
 import torch
 import torch.nn as nn
-from pi_onet.lnn_kolmogorov import CfCCell, SpatialCfCEncoder
+from pi_onet.lnn_kolmogorov import CfCCell, SpatialCfCEncoder, TemporalCfCEncoder
 
 D = 32
 
@@ -56,3 +56,31 @@ def test_spatial_encoder_backward():
     s_t = enc(sensor_vals, sensor_pos, B)
     s_t.sum().backward()
     assert sensor_vals.grad is not None
+
+
+T = 21   # 感測器時間步數
+
+def test_temporal_encoder_output_shape():
+    """TemporalCfCEncoder: spatial_states[T, d_model] → [d_model]。"""
+    enc = TemporalCfCEncoder(d_model=D, num_layers=2)
+    states = torch.randn(T, D)
+    h_enc = enc(states, re_norm=0.0, dt_phys=1.0)
+    assert h_enc.shape == (D,)
+
+def test_temporal_encoder_dt_effect():
+    """不同 dt_phys 應產生不同 h_enc（CfC gate 依賴 Δt）。"""
+    enc = TemporalCfCEncoder(d_model=D, num_layers=1)
+    states = torch.randn(T, D)
+    with torch.no_grad():
+        h1 = enc(states, re_norm=0.0, dt_phys=1.0)
+        h2 = enc(states, re_norm=0.0, dt_phys=0.1)
+    assert not torch.allclose(h1, h2)
+
+def test_temporal_encoder_re_effect():
+    """不同 re_norm 應影響 h_enc（Re 作為初始隱藏態注入）。"""
+    enc = TemporalCfCEncoder(d_model=D, num_layers=1)
+    states = torch.randn(T, D)
+    with torch.no_grad():
+        h1 = enc(states, re_norm=0.0, dt_phys=1.0)
+        h2 = enc(states, re_norm=2.0, dt_phys=1.0)
+    assert not torch.allclose(h1, h2)

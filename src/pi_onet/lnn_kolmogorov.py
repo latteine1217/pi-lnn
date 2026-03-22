@@ -111,3 +111,50 @@ class SpatialCfCEncoder(nn.Module):
             seq = torch.stack(new_seq)   # [K, d_model] — 作為下一層輸入
 
         return seq[-1]   # 最終隱藏態 [d_model]
+
+
+class TemporalCfCEncoder(nn.Module):
+    """What: 以 CfC 序列處理 T 個空間摘要向量 → 時序編碼 h_enc。
+
+    Why: 使用物理 Δt（= 1.0 感測器時間單位），CfC 在此扮演 LTC ODE 的
+         閉合解角色：h_enc 捕捉全部 T 步的時序動態，一步等同 RK4 多步積分。
+         Re 以持續殘差（re_bias）方式加入每步輸入，確保 Re 資訊貫穿整個時序演化，
+         避免初始隱藏態影響在長序列中被沖洗掉。
+    """
+
+    def __init__(self, d_model: int, num_layers: int) -> None:
+        super().__init__()
+        self.d_model = d_model
+        self.re_proj = nn.Linear(1, d_model)
+        self.cells = nn.ModuleList([
+            CfCCell(d_model, d_model) for _ in range(num_layers)
+        ])
+
+    def forward(
+        self,
+        spatial_states: torch.Tensor,
+        re_norm: float,
+        dt_phys: float,
+    ) -> torch.Tensor:
+        """
+        spatial_states: [T, d_model]
+        re_norm:        float（正規化 Re 值）
+        dt_phys:        float（物理時間步長，= 1.0 for sensor data）
+        Returns:        [d_model]
+        """
+        re_t = torch.tensor(
+            [[re_norm]], dtype=spatial_states.dtype, device=spatial_states.device
+        )
+        re_bias = self.re_proj(re_t).squeeze(0)   # [d_model]
+        # Re 以殘差方式加入每個時間步的輸入，確保 Re 資訊貫穿整個序列
+        seq = spatial_states + re_bias.unsqueeze(0)   # [T, d_model]
+
+        for cell in self.cells:
+            h = torch.zeros(self.d_model, device=seq.device, dtype=seq.dtype)
+            new_seq = []
+            for t in range(seq.shape[0]):
+                h = cell(seq[t], h, dt=dt_phys)
+                new_seq.append(h)
+            seq = torch.stack(new_seq)   # [T, d_model]
+
+        return seq[-1]   # h_enc [d_model]
