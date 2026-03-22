@@ -1,5 +1,6 @@
 # tests/test_lnn_kolmogorov.py
 import pytest
+import numpy as np
 import torch
 import torch.nn as nn
 from pi_onet.lnn_kolmogorov import CfCCell, SpatialCfCEncoder, TemporalCfCEncoder, QueryCfCDecoder, LiquidOperator, create_lnn_model
@@ -144,3 +145,46 @@ def test_liquid_operator_backward():
     out = net(sensor_vals, sensor_pos, re_norm=0.0, dt_phys=1.0, xy=xy, t_q=t_q, c=c)
     out.sum().backward()
     assert net.query_decoder.output_head.weight.grad is not None
+
+
+RE1000_JSON = "data/kolmogorov_sensors/re1000/sensors_temporal_K50_N256_t0-20.json"
+RE1000_NPZ  = "data/kolmogorov_sensors/re1000/sensors_temporal_K50_N256_t0-20_dns_values.npz"
+RE1000_LES  = "data/kolmogorov_les/kolmogorov_les_re1000.npy"
+
+@pytest.mark.skipif(
+    not __import__("pathlib").Path(RE1000_JSON).exists(),
+    reason="資料檔案不存在"
+)
+def test_dataset_shapes():
+    """KolmogorovDataset 載入後，sensor_vals/pos 維度正確。"""
+    from pi_onet.kolmogorov_dataset import KolmogorovDataset
+    ds = KolmogorovDataset(
+        sensor_json=RE1000_JSON,
+        sensor_npz=RE1000_NPZ,
+        les_path=RE1000_LES,
+        re_value=1000.0,
+        train_ratio=0.8,
+        seed=0,
+    )
+    assert ds.sensor_vals.shape[0] == 50    # K
+    assert ds.sensor_vals.shape[2] == 3     # u,v,p
+    assert ds.sensor_pos.shape == (50, 2)
+    assert ds.dt_phys == pytest.approx(1.0)
+
+@pytest.mark.skipif(
+    not __import__("pathlib").Path(RE1000_JSON).exists(),
+    reason="資料檔案不存在"
+)
+def test_dataset_sample_train():
+    """sample_train_batch 回傳正確維度。"""
+    from pi_onet.kolmogorov_dataset import KolmogorovDataset
+    ds = KolmogorovDataset(
+        sensor_json=RE1000_JSON, sensor_npz=RE1000_NPZ,
+        les_path=RE1000_LES, re_value=1000.0, train_ratio=0.8, seed=0,
+    )
+    rng = np.random.default_rng(42)
+    xy, t_q, c, ref = ds.sample_train_batch(rng, n=64)
+    assert xy.shape == (64, 2)
+    assert t_q.shape == (64,)
+    assert c.shape == (64,)
+    assert ref.shape == (64,)
