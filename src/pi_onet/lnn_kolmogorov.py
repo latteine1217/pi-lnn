@@ -158,3 +158,127 @@ class TemporalCfCEncoder(nn.Module):
             seq = torch.stack(new_seq)   # [T, d_model]
 
         return seq[-1]   # h_enc [d_model]
+
+
+class QueryCfCDecoder(nn.Module):
+    """What: 以單步向量化 CfC 將 query (x,y,t,c) 解碼為 u/v/p。
+
+    Why: h_enc 廣播至所有 N_q query 點作為初始隱藏態；CfCCell 以 batch
+         [N_q, d_model] 一次運行，完全向量化，等同矩陣運算，無 for-loop。
+    """
+
+    def __init__(self, rff_features: int, d_model: int, d_time: int) -> None:
+        super().__init__()
+        query_in = 2 * rff_features + d_time + 8   # RFF(x,y) + time_enc + comp_emb
+        self.time_proj = nn.Linear(1, d_time)
+        self.component_emb = nn.Embedding(3, 8)
+        nn.init.normal_(self.component_emb.weight, mean=0.0, std=0.1)
+        self.query_proj = nn.Linear(query_in, d_model)
+        self.cell = CfCCell(d_model, d_model)
+        self.output_head = nn.Linear(d_model, 1, bias=True)
+        self.component_scale = nn.Parameter(torch.ones(3))
+        self.component_bias = nn.Parameter(torch.zeros(3))
+
+    def forward(
+        self,
+        xy: torch.Tensor,
+        t_q: torch.Tensor,
+        c: torch.Tensor,
+        h_enc: torch.Tensor,
+        B: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        xy:    [N_q, 2]
+        t_q:   [N_q]
+        c:     [N_q] long
+        h_enc: [d_model]
+        B:     [2, rff_features]
+        Returns: [N_q, 1]
+        """
+        rff_q = rff_encode(xy, B)                                     # [N_q, 2*rff_f]
+        time_e = self.time_proj(t_q.unsqueeze(-1))                    # [N_q, d_time]
+        emb_c = self.component_emb(c)                                 # [N_q, 8]
+        q = self.query_proj(torch.cat([rff_q, time_e, emb_c], dim=-1))  # [N_q, d_model]
+
+        # h_enc: [d_model] → unsqueeze → [1, d_model] → expand → [N_q, d_model]
+        # 單步向量化 CfC，無 for-loop，無 nn.MultiheadAttention
+        h_0 = h_enc.unsqueeze(0).expand(q.shape[0], -1).contiguous()
+        H_dec = self.cell(q, h_0, dt=1.0)                            # [N_q, d_model]
+
+        out = self.output_head(H_dec)                                 # [N_q, 1]
+        out = out * self.component_scale[c].unsqueeze(1) + self.component_bias[c].unsqueeze(1)
+        return out
+
+
+class LiquidOperator(nn.Module):
+    """What: Pi-LNN 主模型——組合 SpatialCfCEncoder + TemporalCfCEncoder + QueryCfCDecoder。
+
+    Why: 完整的 LNN 架構，無任何 MultiheadAttention 或 TransformerEncoder。
+         CfC 在 Temporal Encoder 中使用物理 Δt 加速 LTC ODE 計算。
+    """
+
+    def __init__(
+        self,
+        rff_features: int,
+        rff_sigma: float,
+        d_model: int,
+        d_time: int,
+        num_spatial_cfc_layers: int,
+        num_temporal_cfc_layers: int,
+    ) -> None:
+        super().__init__()
+        B = torch.randn(2, rff_features) * rff_sigma
+        self.register_buffer("B", B)
+        self.spatial_encoder = SpatialCfCEncoder(
+            rff_features=rff_features, d_model=d_model, num_layers=num_spatial_cfc_layers
+        )
+        self.temporal_encoder = TemporalCfCEncoder(
+            d_model=d_model, num_layers=num_temporal_cfc_layers
+        )
+        self.query_decoder = QueryCfCDecoder(
+            rff_features=rff_features, d_model=d_model, d_time=d_time
+        )
+
+    def encode(
+        self,
+        sensor_vals: torch.Tensor,
+        sensor_pos: torch.Tensor,
+        re_norm: float,
+        dt_phys: float,
+    ) -> torch.Tensor:
+        """
+        sensor_vals: [T, K, 3]
+        sensor_pos:  [K, 2]
+        Returns:     h_enc [d_model]
+        """
+        spatial_states = torch.stack([
+            self.spatial_encoder(sensor_vals[t], sensor_pos, self.B)
+            for t in range(sensor_vals.shape[0])
+        ])   # [T, d_model]
+        return self.temporal_encoder(spatial_states, re_norm, dt_phys)
+
+    def forward(
+        self,
+        sensor_vals: torch.Tensor,
+        sensor_pos: torch.Tensor,
+        re_norm: float,
+        dt_phys: float,
+        xy: torch.Tensor,
+        t_q: torch.Tensor,
+        c: torch.Tensor,
+    ) -> torch.Tensor:
+        """Returns: [N_q, 1]"""
+        h_enc = self.encode(sensor_vals, sensor_pos, re_norm, dt_phys)
+        return self.query_decoder(xy, t_q, c, h_enc, self.B)
+
+
+def create_lnn_model(cfg: dict) -> LiquidOperator:
+    """What: 從 config dict 建立 LiquidOperator。"""
+    return LiquidOperator(
+        rff_features=int(cfg["rff_features"]),
+        rff_sigma=float(cfg["rff_sigma"]),
+        d_model=int(cfg["d_model"]),
+        d_time=int(cfg["d_time"]),
+        num_spatial_cfc_layers=int(cfg["num_spatial_cfc_layers"]),
+        num_temporal_cfc_layers=int(cfg["num_temporal_cfc_layers"]),
+    )
