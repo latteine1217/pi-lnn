@@ -2,7 +2,7 @@
 import pytest
 import torch
 import torch.nn as nn
-from pi_onet.lnn_kolmogorov import CfCCell
+from pi_onet.lnn_kolmogorov import CfCCell, SpatialCfCEncoder
 
 D = 32
 
@@ -33,3 +33,26 @@ def test_cfccell_backward():
     h_new.sum().backward()
     for name, p in cell.named_parameters():
         assert p.grad is not None, f"{name} 無梯度"
+
+
+RFF_F = 16
+K = 12  # num sensors
+
+def test_spatial_encoder_output_shape():
+    """SpatialCfCEncoder: sensors[K,3] + pos[K,2] → [d_model]。"""
+    B = torch.randn(2, RFF_F)
+    enc = SpatialCfCEncoder(rff_features=RFF_F, d_model=D, num_layers=2)
+    sensor_vals = torch.randn(K, 3)
+    sensor_pos = torch.rand(K, 2) * 6.28
+    s_t = enc(sensor_vals, sensor_pos, B)
+    assert s_t.shape == (D,)
+
+def test_spatial_encoder_backward():
+    """梯度可從 s_t 流回 sensor_vals。"""
+    B = torch.randn(2, RFF_F)
+    enc = SpatialCfCEncoder(rff_features=RFF_F, d_model=D, num_layers=1)
+    sensor_vals = torch.randn(K, 3, requires_grad=True)
+    sensor_pos = torch.rand(K, 2)
+    s_t = enc(sensor_vals, sensor_pos, B)
+    s_t.sum().backward()
+    assert sensor_vals.grad is not None

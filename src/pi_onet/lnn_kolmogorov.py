@@ -70,3 +70,44 @@ class CfCCell(nn.Module):
         t_b = self.time_b(xh)
         gate = torch.sigmoid(-t_a * dt + t_b)
         return gate * f1 + (1.0 - gate) * f2
+
+
+class SpatialCfCEncoder(nn.Module):
+    """What: 在單一時間步內，以 CfC 序列處理 K 個感測器 → 空間摘要向量 s_t。
+
+    Why: 每個感測器 token 為 [RFF(x,y), u, v, p]，CfC 序列掃描取代空間注意力；
+         Δt=1.0（感測器無自然空間時序，RFF 已負責空間資訊）。
+    """
+
+    def __init__(self, rff_features: int, d_model: int, num_layers: int) -> None:
+        super().__init__()
+        sensor_in = 2 * rff_features + 3  # RFF(x,y) + u,v,p
+        self.proj = nn.Linear(sensor_in, d_model)
+        self.cells = nn.ModuleList([
+            CfCCell(d_model, d_model) for _ in range(num_layers)
+        ])
+
+    def forward(
+        self,
+        sensor_vals: torch.Tensor,
+        sensor_pos: torch.Tensor,
+        B: torch.Tensor,
+    ) -> torch.Tensor:
+        """
+        sensor_vals: [K, 3]  (u, v, p)
+        sensor_pos:  [K, 2]  (x, y) in [0, 2π]
+        B:           [2, rff_features]
+        Returns:     [d_model]
+        """
+        rff = rff_encode(sensor_pos, B)                              # [K, 2*rff_features]
+        seq = self.proj(torch.cat([rff, sensor_vals], dim=-1))       # [K, d_model]
+
+        for cell in self.cells:
+            h = torch.zeros(cell.hidden_size, device=seq.device, dtype=seq.dtype)
+            new_seq = []
+            for k in range(seq.shape[0]):
+                h = cell(seq[k], h, dt=1.0)
+                new_seq.append(h)
+            seq = torch.stack(new_seq)   # [K, d_model] — 作為下一層輸入
+
+        return seq[-1]   # 最終隱藏態 [d_model]
