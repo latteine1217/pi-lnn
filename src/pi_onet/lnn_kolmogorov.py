@@ -40,6 +40,11 @@ class CfCCell(nn.Module):
     """
 
     def __init__(self, input_size: int, hidden_size: int) -> None:
+        """
+        input_size:  維度 of input x（encoder 中 = d_model）
+        hidden_size: 維度 of hidden state h（= d_model）
+        combined:    input_size + hidden_size，作為 ff1/ff2/time_a/time_b 的輸入維度
+        """
         super().__init__()
         self.hidden_size = hidden_size
         combined = input_size + hidden_size
