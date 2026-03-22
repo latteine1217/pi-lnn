@@ -77,7 +77,7 @@ def test_temporal_encoder_dt_effect():
     assert not torch.allclose(h1, h2)
 
 def test_temporal_encoder_re_effect():
-    """不同 re_norm 應影響 h_enc（Re 作為初始隱藏態注入）。"""
+    """不同 re_norm 應影響 h_enc（Re 以殘差方式加入每步輸入，貫穿序列演化）。"""
     enc = TemporalCfCEncoder(d_model=D, num_layers=1)
     states = torch.randn(T, D)
     with torch.no_grad():
