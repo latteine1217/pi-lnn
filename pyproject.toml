@@ -18,6 +18,7 @@ dev = [
 
 [project.scripts]
 pit-ldc-train = "pi_onet.pit_ldc:main"
+lnn-kolmogorov-train = "pi_onet.lnn_kolmogorov:main"
 
 [build-system]
 requires = ["hatchling"]

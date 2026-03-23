@@ -1,0 +1,42 @@
+# configs/lnn_kolmogorov.toml
+[train]
+# 資料檔案（每個 Re 一組 JSON + NPZ + LES）
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_temporal_K50_N256_t0-20.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_temporal_K50_N256_t0-20_dns_values.npz",
+]
+les_paths = [
+  "data/kolmogorov_les/kolmogorov_les_re1000.npy",
+]
+re_values = [1000.0]
+
+# 模型
+rff_features = 64
+rff_sigma = 2.0
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 2
+num_temporal_cfc_layers = 2
+
+# 損失權重
+data_loss_weight = 1.0
+physics_loss_weight = 0.05
+continuity_weight = 1.0
+kolmogorov_k_f = 4.0
+kolmogorov_A = 0.1
+
+# 訓練
+iterations = 10000
+num_query_points = 1024
+num_physics_points = 512
+learning_rate = 1e-3
+weight_decay = 1e-4
+lr_schedule = "cosine"
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 2000
+seed = 42
+device = "auto"
+artifacts_dir = "artifacts/lnn-kolmogorov"

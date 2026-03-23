@@ -343,3 +343,66 @@ def make_lnn_model_fn(
         return net.query_decoder(xy_d, t_q_d, c_t, h_enc, net.B).to(xyt.device)
 
     return model_fn
+
+
+DEFAULT_LNN_ARGS: dict[str, Any] = {
+    "sensor_jsons": None,
+    "sensor_npzs": None,
+    "les_paths": None,
+    "re_values": None,
+    "rff_features": 64,
+    "rff_sigma": 2.0,
+    "d_model": 128,
+    "d_time": 16,
+    "num_spatial_cfc_layers": 2,
+    "num_temporal_cfc_layers": 2,
+    "data_loss_weight": 1.0,
+    "physics_loss_weight": 0.05,
+    "continuity_weight": 1.0,
+    "kolmogorov_k_f": 4.0,
+    "kolmogorov_A": 0.1,
+    "iterations": 10000,
+    "num_query_points": 1024,
+    "num_physics_points": 512,
+    "learning_rate": 1e-3,
+    "weight_decay": 1e-4,
+    "lr_schedule": "cosine",
+    "min_learning_rate": 1e-6,
+    "max_grad_norm": 1.0,
+    "checkpoint_period": 2000,
+    "seed": 42,
+    "device": "auto",
+    "artifacts_dir": "artifacts/lnn-kolmogorov",
+}
+
+_REMOVED_KEYS = {"nhead", "dim_feedforward", "attn_dropout", "num_encoder_layers"}
+
+
+def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
+    """What: 載入並驗證 TOML config。舊 PiT 欄位（nhead 等）會觸發明確錯誤。"""
+    if config_path is None:
+        return {}
+    payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    config_data = payload.get("train", payload)
+    normalized = dict(config_data)
+    # 舊 PiT 欄位 → 明確失敗（不靜默忽略）
+    obsolete = sorted(set(normalized) & _REMOVED_KEYS)
+    if obsolete:
+        raise ValueError(
+            f"Config 含有已移除的 PiT 欄位（請改用 num_spatial/temporal_cfc_layers）: {obsolete}"
+        )
+    unknown = sorted(set(normalized) - set(DEFAULT_LNN_ARGS))
+    if unknown:
+        raise ValueError(f"LNN config 含有不支援的欄位: {unknown}")
+    # 解析相對路徑
+    for list_key in ("sensor_jsons", "sensor_npzs", "les_paths"):
+        if list_key in normalized:
+            normalized[list_key] = [
+                str((config_path.parent / Path(p)).resolve())
+                for p in normalized[list_key]
+            ]
+    if "artifacts_dir" in normalized:
+        normalized["artifacts_dir"] = str(
+            (config_path.parent / Path(normalized["artifacts_dir"])).resolve()
+        )
+    return normalized
