@@ -406,3 +406,169 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
             (config_path.parent / Path(normalized["artifacts_dir"])).resolve()
         )
     return normalized
+
+
+def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
+    """What: Pi-LNN Kolmogorov flow 訓練迴圈。
+
+    Why: 對每個 Re case encode 感測器時序 → h_enc，
+         計算 data loss（LES 全場）+ physics loss（NS 殘差）並 backward。
+    """
+    from pi_onet.kolmogorov_dataset import KolmogorovDataset
+
+    device = configure_torch_runtime(args["device"])
+    torch.manual_seed(args["seed"])
+    rng = np.random.default_rng(args["seed"])
+
+    artifacts_dir   = Path(args["artifacts_dir"])
+    checkpoints_dir = artifacts_dir / "checkpoints"
+    best_dir        = artifacts_dir / "best_validation"
+    checkpoints_dir.mkdir(parents=True, exist_ok=True)
+    best_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── 資料集 ──────────────────────────────────────────────────────
+    datasets = [
+        KolmogorovDataset(
+            sensor_json=args["sensor_jsons"][i],
+            sensor_npz =args["sensor_npzs"][i],
+            les_path   =args["les_paths"][i],
+            re_value   =float(args["re_values"][i]),
+            train_ratio=0.8,
+            seed       =args["seed"],
+        )
+        for i in range(len(args["re_values"]))
+    ]
+    num_re = len(datasets)
+
+    # 預先轉換感測器資料至 device（靜態）
+    # ds.sensor_vals: [K, T, 3]（dataset 儲存格式）
+    # transpose → [T, K, 3]（LiquidOperator.encode 所需格式）
+    sensor_vals_list = [
+        torch.tensor(ds.sensor_vals.transpose(1, 0, 2), dtype=torch.float32, device=device)
+        for ds in datasets
+    ]
+    sensor_pos_list = [
+        torch.tensor(ds.sensor_pos, dtype=torch.float32, device=device)
+        for ds in datasets
+    ]
+
+    # ── 模型 ────────────────────────────────────────────────────────
+    net = create_lnn_model(args).to(device)
+    print("=== Configuration ===")
+    print(f"trainable_parameters: {count_parameters(net)}")
+
+    # ── Optimizer + LR scheduler ────────────────────────────────────
+    optimizer = torch.optim.AdamW(
+        net.parameters(), lr=args["learning_rate"], weight_decay=args["weight_decay"]
+    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=args["iterations"], eta_min=args["min_learning_rate"]
+    ) if args["lr_schedule"] == "cosine" else None
+
+    best_val_metric = float("inf")
+    k_f = float(args["kolmogorov_k_f"])
+    A   = float(args["kolmogorov_A"])
+
+    print("=== Training ===")
+    print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'L_total':>12}")
+
+    for step in range(1, args["iterations"] + 1):
+        net.train()
+        optimizer.zero_grad()
+
+        # ── Data loss ───────────────────────────────────────────────
+        l_data = torch.zeros(1, device=device)
+        for i, ds in enumerate(datasets):
+            xy_np, t_np, c_np, ref_np = ds.sample_train_batch(
+                rng, n=args["num_query_points"]
+            )
+            xy  = torch.tensor(xy_np,  device=device)
+            t_q = torch.tensor(t_np,   device=device)
+            c   = torch.tensor(c_np,   dtype=torch.long, device=device)
+            ref = torch.tensor(ref_np, device=device)
+            pred = net(
+                sensor_vals_list[i], sensor_pos_list[i],
+                re_norm=ds.re_norm, dt_phys=ds.dt_phys,
+                xy=xy, t_q=t_q, c=c,
+            ).squeeze(1)
+            l_data = l_data + torch.mean((pred - ref) ** 2)
+        l_data = l_data / num_re
+
+        # ── Physics loss ─────────────────────────────────────────────
+        net.eval()
+        l_ns_total   = torch.zeros(1, device=device)
+        l_cont_total = torch.zeros(1, device=device)
+        for i, ds in enumerate(datasets):
+            xy_np, t_np = ds.sample_physics_points(rng, n=args["num_physics_points"])
+            xyt = torch.tensor(
+                np.concatenate([xy_np, t_np[:, None]], axis=1),
+                device=device, requires_grad=True,
+            )
+            model_fn = make_lnn_model_fn(
+                net, sensor_vals_list[i], sensor_pos_list[i],
+                re_norm=ds.re_norm, dt_phys=ds.dt_phys, device=device,
+            )
+            u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
+            v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
+            p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
+            ns_x, ns_y, cont = unsteady_ns_residuals(
+                u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A
+            )
+            l_ns_total   = l_ns_total   + torch.mean(ns_x**2) + torch.mean(ns_y**2)
+            l_cont_total = l_cont_total + torch.mean(cont**2)
+        net.train()
+
+        l_ns_total   = l_ns_total   / num_re
+        l_cont_total = l_cont_total / num_re
+        l_physics    = l_ns_total + args["continuity_weight"] * l_cont_total
+        l_total = (
+            args["data_loss_weight"]    * l_data
+            + args["physics_loss_weight"] * l_physics
+        )
+        l_total.backward()
+        torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+        optimizer.step()
+        if scheduler is not None:
+            scheduler.step()
+
+        if step % max(1, args["iterations"] // 10) == 0 or step == 1:
+            print(
+                f"{step:<8} {l_data.item():>12.4e}"
+                f" {l_physics.item():>12.4e} {l_total.item():>12.4e}"
+            )
+
+        # ── Checkpoint ───────────────────────────────────────────────
+        if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
+            ckpt = checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"
+            torch.save(net.state_dict(), str(ckpt))
+
+    final = artifacts_dir / "lnn_kolmogorov_final.pt"
+    torch.save(net.state_dict(), str(final))
+    write_json(artifacts_dir / "experiment_manifest.json", {
+        "configuration": {k: v for k, v in args.items()
+                          if k not in ("sensor_jsons", "sensor_npzs", "les_paths")},
+        "final_checkpoint": str(final),
+    })
+    print("=== Done ===")
+
+
+def main() -> None:
+    """What: Entry point for lnn-kolmogorov-train CLI。"""
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Train Pi-LNN on Kolmogorov flow (full-field reconstruction)."
+    )
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None)
+    cli_args = parser.parse_args()
+
+    config = dict(DEFAULT_LNN_ARGS)
+    config.update(load_lnn_config(cli_args.config))
+    if cli_args.device is not None:
+        config["device"] = cli_args.device
+
+    train_lnn_kolmogorov(config)
+
+
+if __name__ == "__main__":
+    main()

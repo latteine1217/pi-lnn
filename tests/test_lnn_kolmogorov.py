@@ -216,3 +216,46 @@ def test_physics_loss_exact_solution():
     assert ns_x.abs().max().item() < 1e-4
     assert ns_y.abs().max().item() < 1e-4
     assert cont.abs().max().item() < 1e-5
+
+
+@pytest.mark.skipif(
+    not __import__("pathlib").Path(RE1000_JSON).exists(),
+    reason="資料檔案不存在"
+)
+def test_smoke_train(tmp_path):
+    """3 步訓練產生 checkpoint，loss 無 NaN。"""
+    import subprocess, sys
+    from pathlib import Path as _Path
+    abs_json = str(_Path(RE1000_JSON).resolve())
+    abs_npz  = str(_Path(RE1000_NPZ).resolve())
+    abs_les  = str(_Path(RE1000_LES).resolve())
+    cfg = f"""
+[train]
+sensor_jsons = ["{abs_json}"]
+sensor_npzs  = ["{abs_npz}"]
+les_paths    = ["{abs_les}"]
+re_values    = [1000.0]
+rff_features = 8
+rff_sigma    = 1.0
+d_model      = 16
+d_time       = 4
+num_spatial_cfc_layers  = 1
+num_temporal_cfc_layers = 1
+iterations           = 3
+num_query_points     = 8
+num_physics_points   = 4
+checkpoint_period    = 2
+seed                 = 0
+device               = "cpu"
+artifacts_dir        = "{tmp_path}/artifacts"
+"""
+    cfg_path = tmp_path / "smoke.toml"
+    cfg_path.write_text(cfg)
+    result = subprocess.run(
+        [sys.executable, "-m", "pi_onet.lnn_kolmogorov", "--config", str(cfg_path)],
+        capture_output=True, text=True, timeout=300,
+    )
+    assert result.returncode == 0, f"stderr:\n{result.stderr}"
+    assert "nan" not in result.stdout.lower(), f"NaN 出現:\n{result.stdout}"
+    ckpts = list((tmp_path / "artifacts" / "checkpoints").glob("*.pt"))
+    assert len(ckpts) > 0
