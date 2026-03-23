@@ -282,3 +282,64 @@ def create_lnn_model(cfg: dict) -> LiquidOperator:
         num_spatial_cfc_layers=int(cfg["num_spatial_cfc_layers"]),
         num_temporal_cfc_layers=int(cfg["num_temporal_cfc_layers"]),
     )
+
+
+def unsteady_ns_residuals(
+    u_fn: Callable,
+    v_fn: Callable,
+    p_fn: Callable,
+    xyt: torch.Tensor,
+    re: float,
+    k_f: float = 4.0,
+    A:   float = 0.1,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """What: 2D incompressible unsteady NS + continuity residuals at collocation points.
+
+    Why: Kolmogorov flow 加入體積力 f_x = A·sin(k_f·y)（正弦強迫），
+         ∂u/∂t 項是與 LDC steady-state 的關鍵差異。
+    xyt: [N, 3] = (x, y, t) with requires_grad=True
+    Returns: ns_x [N,1], ns_y [N,1], cont [N,1]
+    """
+    u, v, p = u_fn(xyt), v_fn(xyt), p_fn(xyt)
+    u_xyt = _grad(u, xyt)
+    v_xyt = _grad(v, xyt)
+    p_xyt = _grad(p, xyt)
+    du_dx, du_dy, du_dt = u_xyt[:, 0:1], u_xyt[:, 1:2], u_xyt[:, 2:3]
+    dv_dx, dv_dy, dv_dt = v_xyt[:, 0:1], v_xyt[:, 1:2], v_xyt[:, 2:3]
+    dp_dx, dp_dy         = p_xyt[:, 0:1], p_xyt[:, 1:2]
+    du_dx2 = _grad(du_dx, xyt)[:, 0:1]
+    du_dy2 = _grad(du_dy, xyt)[:, 1:2]
+    dv_dx2 = _grad(dv_dx, xyt)[:, 0:1]
+    dv_dy2 = _grad(dv_dy, xyt)[:, 1:2]
+    nu  = 1.0 / float(re)
+    f_x = A * torch.sin(k_f * xyt[:, 1:2])   # Kolmogorov forcing
+    ns_x = du_dt + u * du_dx + v * du_dy + dp_dx - nu * (du_dx2 + du_dy2) - f_x
+    ns_y = dv_dt + u * dv_dx + v * dv_dy + dp_dy - nu * (dv_dx2 + dv_dy2)
+    cont = du_dx + dv_dy
+    return ns_x, ns_y, cont
+
+
+def make_lnn_model_fn(
+    net: LiquidOperator,
+    sensor_vals: torch.Tensor,
+    sensor_pos: torch.Tensor,
+    re_norm: float,
+    dt_phys: float,
+    device: torch.device,
+) -> Callable:
+    """What: 回傳 closure (xyt, c) → [N,1]，供物理損失計算使用。
+
+    Why: 物理損失對 xyt 做 autograd；closure 捕捉 sensor 資料與 Re 條件。
+         h_enc 可在計算所有 component 前 encode 一次，節省重複計算。
+    """
+    net_device = next(iter(net.buffers())).device
+
+    def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
+        xyt_d = xyt.to(net_device)
+        xy_d  = xyt_d[:, :2]
+        t_q_d = xyt_d[:, 2]
+        h_enc = net.encode(sensor_vals, sensor_pos, re_norm, dt_phys)
+        c_t   = torch.full((xyt_d.shape[0],), c, dtype=torch.long, device=net_device)
+        return net.query_decoder(xy_d, t_q_d, c_t, h_enc, net.B).to(xyt.device)
+
+    return model_fn

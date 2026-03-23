@@ -188,3 +188,31 @@ def test_dataset_sample_train():
     assert t_q.shape == (64,)
     assert c.shape == (64,)
     assert ref.shape == (64,)
+
+
+def test_physics_loss_exact_solution():
+    """u=sin(y), v=0, p=0 是 Kolmogorov NS 的精確解（忽略 forcing）。
+
+    NS_x: u·∂u/∂x + v·∂u/∂y + ∂p/∂x - ν·(∂²u/∂x² + ∂²u/∂y²) = f_x
+    對 u=sin(y), v=0, p=0:
+      ∂u/∂t = 0, u·du/dx = 0, v·du/dy = 0, dp/dx = 0
+      Laplacian(u) = -sin(y)  → ν·(-sin(y)) = -ν·sin(y)
+      f_x = A·sin(k_f·y) = A·sin(4y)
+      若 k_f=1, A=ν: NS_x = -ν·sin(y) - (-ν·sin(y)) = 0 ✓
+    """
+    from pi_onet.lnn_kolmogorov import unsteady_ns_residuals
+
+    def u_fn(xyt): return torch.sin(xyt[:, 1:2])          # u = sin(y)
+    def v_fn(xyt): return torch.zeros_like(xyt[:, 0:1])   # v = 0
+    def p_fn(xyt): return torch.zeros_like(xyt[:, 0:1])   # p = 0
+
+    nu = 0.01   # ν = 1/Re
+    # 用 k_f=1, A=ν，使得 forcing 恰好抵消黏性項
+    xyt = torch.rand(20, 3, requires_grad=True)
+    xyt.data[:, 2] *= 20.0   # t in [0, 20]
+    ns_x, ns_y, cont = unsteady_ns_residuals(
+        u_fn, v_fn, p_fn, xyt, re=1.0/nu, k_f=1.0, A=nu
+    )
+    assert ns_x.abs().max().item() < 1e-4
+    assert ns_y.abs().max().item() < 1e-4
+    assert cont.abs().max().item() < 1e-5
