@@ -1,14 +1,13 @@
 # src/pi_onet/lnn_kolmogorov.py
-"""Pi-LNN: Physics-informed Liquid Neural Network for Kolmogorov flow.
+"""Pi-LNN: core DeepONet + CfC model and training loop for Kolmogorov flow.
 
-What: 以 CfC (Closed-form Continuous-time) 取代 LTC ODE 的數值求解器，
-      實現 Spatial CfC Encoder + Temporal CfC Encoder + Query CfC Decoder。
-Why:  CfC 閉合解 h_new = gate·f1 + (1-gate)·f2 在一步內模擬連續時間動態，
-      不需要 sub-stepping，加速推論同時保留 LNN 的時序誘導偏差。
+What: 以 CfC 作為 branch-side temporal encoder，並以 DeepONet trunk 解碼 query。
+Why:  CFC 保留連續時間時序偏置；DeepONet 提供更清晰的 operator factorization，
+      方便後續 branch/trunk 解耦與架構擴充。
 """
 from __future__ import annotations
 
-import json
+import math
 import os
 import tomllib
 from pathlib import Path
@@ -20,72 +19,201 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 import numpy as np
 import torch
 import torch.nn as nn
-from deepxde import config as dde_config
+import torch.nn.functional as F
 
 from pi_onet.pit_ldc import (
-    rff_encode,
+    _grad,
     configure_torch_runtime,
     count_parameters,
+    rff_encode,
     write_json,
-    _grad,
 )
 
 
 class CfCCell(nn.Module):
-    """What: CfC（Closed-form Continuous-time）遞迴單元，no-gate 模式。
+    """What: Closed-form Continuous-time recurrent cell.
 
-    Why: 以閉合解取代 LTC ODE 數值積分：
-         h_new = sigmoid(-t_a·Δt + t_b) · f1(x,h) + (1 - sigmoid(...)) · f2(x,h)
-         使用真實物理 Δt，一步直達目標態，加速 LNN 的 ODE 計算。
+    Why: 以閉合解近似連續時間動態，避免 LTC 的數值 ODE 求解成本。
     """
 
     def __init__(self, input_size: int, hidden_size: int) -> None:
-        """
-        input_size:  維度 of input x（encoder 中 = d_model）
-        hidden_size: 維度 of hidden state h（= d_model）
-        combined:    input_size + hidden_size，作為 ff1/ff2/time_a/time_b 的輸入維度
-        """
         super().__init__()
-        self.hidden_size = hidden_size
         combined = input_size + hidden_size
         self.ff1 = nn.Linear(combined, hidden_size)
         self.ff2 = nn.Linear(combined, hidden_size)
-        self.time_a = nn.Linear(combined, hidden_size)
+        self.log_tau_a = nn.Parameter(torch.linspace(-1.0, 1.0, hidden_size))
         self.time_b = nn.Linear(combined, hidden_size)
-        # Xavier init，確保初始 gate ≈ 0.5，避免 sigmoid 飽和
-        for layer in (self.time_a, self.time_b):
-            nn.init.xavier_uniform_(layer.weight)
-            nn.init.zeros_(layer.bias)
+        nn.init.xavier_uniform_(self.time_b.weight)
+        nn.init.zeros_(self.time_b.bias)
 
-    def forward(self, x: torch.Tensor, h: torch.Tensor, dt: float = 1.0) -> torch.Tensor:
-        """
-        x: [..., input_size]
-        h: [..., hidden_size]
-        Returns: [..., hidden_size]
-        """
+    def forward(
+        self,
+        x: torch.Tensor,
+        h: torch.Tensor,
+        dt: float | torch.Tensor = 1.0,
+    ) -> torch.Tensor:
         xh = torch.cat([x, h], dim=-1)
         f1 = torch.tanh(self.ff1(xh))
         f2 = torch.tanh(self.ff2(xh))
-        t_a = self.time_a(xh)
+        tau_a = torch.exp(self.log_tau_a)
         t_b = self.time_b(xh)
-        gate = torch.sigmoid(-t_a * dt + t_b)
+        if isinstance(dt, torch.Tensor) and dt.dim() > 0:
+            dt = dt.unsqueeze(-1)
+        gate = torch.sigmoid(-tau_a * dt + t_b)
         return gate * f1 + (1.0 - gate) * f2
 
 
-class SpatialCfCEncoder(nn.Module):
-    """What: 在單一時間步內，以 CfC 序列處理 K 個感測器 → 空間摘要向量 s_t。
+class ResidualMLPBlock(nn.Module):
+    """What: 輕量殘差 MLP block。
 
-    Why: 每個感測器 token 為 [RFF(x,y), u, v, p]，CfC 序列掃描取代空間注意力；
-         Δt=1.0（感測器無自然空間時序，RFF 已負責空間資訊）。
+    Why: 在 trunk path 上保留基本非線性表達力，同時維持局部可推理性。
     """
 
-    def __init__(self, rff_features: int, d_model: int, num_layers: int) -> None:
+    def __init__(self, d_model: int, hidden_dim: int) -> None:
         super().__init__()
-        sensor_in = 2 * rff_features + 3  # RFF(x,y) + u,v,p
-        self.proj = nn.Linear(sensor_in, d_model)
-        self.cells = nn.ModuleList([
-            CfCCell(d_model, d_model) for _ in range(num_layers)
+        self.norm = nn.LayerNorm(d_model)
+        self.fc1 = nn.Linear(d_model, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, d_model)
+        self.act = nn.SiLU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = self.norm(x)
+        y = self.fc1(y)
+        y = self.act(y)
+        y = self.fc2(y)
+        return x + y
+
+
+class TokenSelfAttentionBlock(nn.Module):
+    """What: 在 token 集合內做一次輕量自注意力訊息傳遞。
+
+    Why: 讓感測器 token 在進入 temporal CfC 前先交換空間上下文，避免每個 token
+         只攜帶局部量測歷史而缺少鄰域耦合資訊。
+    """
+
+    def __init__(self, d_model: int, num_heads: int = 4) -> None:
+        super().__init__()
+        if d_model % num_heads != 0:
+            raise ValueError(f"d_model={d_model} 必須能被 num_heads={num_heads} 整除")
+        self.norm1 = nn.LayerNorm(d_model)
+        self.attn = nn.MultiheadAttention(
+            embed_dim=d_model,
+            num_heads=num_heads,
+            batch_first=True,
+        )
+        self.norm2 = nn.LayerNorm(d_model)
+        self.ff = nn.Sequential(
+            nn.Linear(d_model, 2 * d_model),
+            nn.SiLU(),
+            nn.Linear(2 * d_model, d_model),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = self.norm1(x)
+        attn_out, _ = self.attn(y, y, y, need_weights=False)
+        x = x + attn_out
+        y = self.norm2(x)
+        return x + self.ff(y)
+
+
+class SpatialSetEncoder(nn.Module):
+    """What: 將單一時刻的感測器集合編碼成保留局部 identity 的 sensor tokens。
+
+    Why: 先保留每個 sensor 的 RFF(x,y)+u,v,p 局部訊息，不在 spatial branch
+         提前做混合；同時加入局部幾何與差分特徵，讓 token 除了點值外也攜帶
+         局部梯度趨勢，讓 decoder 負責主要的 cross-attention 與讀取。
+    """
+
+    def __init__(
+        self,
+        rff_features: int,
+        d_model: int,
+        num_layers: int,
+        num_latent_tokens: int,
+        use_local_struct_features: bool = False,
+        sensor_knn_k: int = 4,
+    ) -> None:
+        super().__init__()
+        if sensor_knn_k < 1:
+            raise ValueError(f"sensor_knn_k 必須 >= 1，收到 {sensor_knn_k}")
+        self.use_local_struct_features = use_local_struct_features
+        self.sensor_knn_k = sensor_knn_k
+        base_in = 2 * rff_features + 3
+        hidden = 2 * d_model
+        depth = max(num_layers, 1)
+        self.base_norm = nn.LayerNorm(base_in)
+        self.neighbor_embed = nn.Sequential(
+            nn.LayerNorm(6),
+            nn.Linear(6, d_model),
+            nn.SiLU(),
+            nn.Linear(d_model, d_model),
+        )
+        self.geom_proj = nn.Sequential(
+            nn.LayerNorm(7),
+            nn.Linear(7, d_model),
+            nn.SiLU(),
+            nn.Linear(d_model, d_model),
+        )
+        sensor_in = base_in + (3 * d_model if use_local_struct_features else 0)
+        self.token_in = nn.Sequential(
+            nn.LayerNorm(sensor_in),
+            nn.Linear(sensor_in, hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, d_model),
+        )
+        self.blocks = nn.ModuleList([
+            ResidualMLPBlock(d_model=d_model, hidden_dim=2 * d_model)
+            for _ in range(depth)
         ])
+        self.out_proj = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, 2 * d_model),
+            nn.SiLU(),
+            nn.Linear(2 * d_model, d_model),
+        )
+
+    def _local_features(
+        self,
+        sensor_vals: torch.Tensor,
+        sensor_pos: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """What: 建立 kNN 局部差分與近似梯度特徵。
+
+        Why: 讓 token 在進入 temporal model 前就具備局部形變趨勢，而不只是單點數值。
+        """
+        num_tokens = sensor_pos.shape[0]
+        k = min(self.sensor_knn_k, max(num_tokens - 1, 1))
+        dmat = torch.cdist(sensor_pos, sensor_pos, p=2)
+        knn_idx = torch.topk(dmat, k=k + 1, largest=False).indices[:, 1:]
+
+        nbr_pos = sensor_pos[knn_idx]
+        nbr_vals = sensor_vals[knn_idx]
+        pos_ctr = sensor_pos.unsqueeze(1)
+        val_ctr = sensor_vals.unsqueeze(1)
+
+        rel_pos = (nbr_pos - pos_ctr) / (2.0 * math.pi)
+        rel_dist = torch.linalg.norm(rel_pos, dim=-1, keepdim=True)
+        rel_vals = nbr_vals - val_ctr
+
+        nbr_raw = torch.cat([rel_pos, rel_dist, rel_vals], dim=-1)
+        nbr_emb = self.neighbor_embed(nbr_raw)
+        nbr_mean = nbr_emb.mean(dim=1)
+        nbr_max = nbr_emb.max(dim=1).values
+
+        a = rel_pos
+        eye = torch.eye(2, device=sensor_pos.device, dtype=sensor_pos.dtype).unsqueeze(0)
+        ata = torch.matmul(a.transpose(1, 2), a) + 1.0e-4 * eye
+        grads = []
+        for comp in range(3):
+            b = rel_vals[..., comp:comp + 1]
+            atb = torch.matmul(a.transpose(1, 2), b)
+            grad = torch.linalg.solve(ata, atb).squeeze(-1)
+            grads.append(grad)
+        grad_u, grad_v, grad_p = grads
+        vort = (grad_v[:, 0] - grad_u[:, 1]).unsqueeze(-1)
+        geom = torch.cat([grad_u, grad_v, grad_p, vort], dim=-1)
+        geom_emb = self.geom_proj(geom)
+        return nbr_mean, nbr_max, geom_emb
 
     def forward(
         self,
@@ -93,89 +221,155 @@ class SpatialCfCEncoder(nn.Module):
         sensor_pos: torch.Tensor,
         B: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        sensor_vals: [K, 3]  (u, v, p)
-        sensor_pos:  [K, 2]  (x, y) in [0, 2π]
-        B:           [2, rff_features]
-        Returns:     [d_model]
-        """
-        rff = rff_encode(sensor_pos, B)                              # [K, 2*rff_features]
-        seq = self.proj(torch.cat([rff, sensor_vals], dim=-1))       # [K, d_model]
-
-        for cell in self.cells:
-            h = torch.zeros(cell.hidden_size, device=seq.device, dtype=seq.dtype)
-            new_seq = []
-            for k in range(seq.shape[0]):
-                h = cell(seq[k], h, dt=1.0)
-                new_seq.append(h)
-            seq = torch.stack(new_seq)   # [K, d_model] — 作為下一層輸入
-
-        return seq[-1]   # 最終隱藏態 [d_model]
+        rff = rff_encode(sensor_pos, B)
+        base = torch.cat([rff, sensor_vals], dim=-1)
+        pieces = [self.base_norm(base)]
+        if self.use_local_struct_features:
+            nbr_mean, nbr_max, geom_emb = self._local_features(sensor_vals, sensor_pos)
+            pieces.extend([nbr_mean, nbr_max, geom_emb])
+        tokens = self.token_in(torch.cat(pieces, dim=-1))
+        for block in self.blocks:
+            tokens = block(tokens)
+        return self.out_proj(tokens)
 
 
 class TemporalCfCEncoder(nn.Module):
-    """What: 以 CfC 序列處理 T 個空間摘要向量 → 時序編碼 h_enc。
+    """What: 以 CfC 演化 sensor token 序列，產生 causal token states。
 
-    Why: 使用物理 Δt（= 1.0 感測器時間單位），CfC 在此扮演 LTC ODE 的
-         閉合解角色：h_enc 捕捉全部 T 步的時序動態，一步等同 RK4 多步積分。
-         Re 以持續殘差（re_bias）方式加入每步輸入，確保 Re 資訊貫穿整個時序演化，
-         避免初始隱藏態影響在長序列中被沖洗掉。
+    Why: 保留每個 sensor token 的連續時間動態，讓 decoder 能直接讀取感測器級上下文。
     """
 
-    def __init__(self, d_model: int, num_layers: int) -> None:
+    def __init__(
+        self,
+        d_model: int,
+        num_layers: int,
+        num_token_attention_layers: int = 1,
+        token_attention_heads: int = 4,
+    ) -> None:
         super().__init__()
         self.d_model = d_model
         self.re_proj = nn.Linear(1, d_model)
-        self.cells = nn.ModuleList([
-            CfCCell(d_model, d_model) for _ in range(num_layers)
+        self.token_blocks = nn.ModuleList([
+            TokenSelfAttentionBlock(d_model=d_model, num_heads=token_attention_heads)
+            for _ in range(max(num_token_attention_layers, 0))
         ])
+        self.cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+
+    def _re_bias(self, re_norm: float, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        re_t = torch.tensor([[re_norm]], dtype=dtype, device=device)
+        return self.re_proj(re_t).squeeze(0)
 
     def forward(
         self,
         spatial_states: torch.Tensor,
         re_norm: float,
-        dt_phys: float,
+        sensor_time: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        spatial_states: [T, d_model]
-        re_norm:        float（正規化 Re 值）
-        dt_phys:        float（物理時間步長，= 1.0 for sensor data）
-        Returns:        [d_model]
-        """
-        re_t = torch.tensor(
-            [[re_norm]], dtype=spatial_states.dtype, device=spatial_states.device
-        )
-        re_bias = self.re_proj(re_t).squeeze(0)   # [d_model]
-        # Re 以殘差方式加入每個時間步的輸入，確保 Re 資訊貫穿整個序列
-        seq = spatial_states + re_bias.unsqueeze(0)   # [T, d_model]
-
+        dts = torch.cat([sensor_time[:1], sensor_time[1:] - sensor_time[:-1]])
+        seq = spatial_states
+        for block in self.token_blocks:
+            seq = block(seq)
+        re_bias = self._re_bias(re_norm, spatial_states.device, spatial_states.dtype).view(1, 1, -1)
+        seq = seq + re_bias
         for cell in self.cells:
-            h = torch.zeros(self.d_model, device=seq.device, dtype=seq.dtype)
-            new_seq = []
+            h = torch.zeros(seq.shape[1], self.d_model, device=seq.device, dtype=seq.dtype)
+            outputs = []
             for t in range(seq.shape[0]):
-                h = cell(seq[t], h, dt=dt_phys)
-                new_seq.append(h)
-            seq = torch.stack(new_seq)   # [T, d_model]
+                h = cell(seq[t], h, dt=dts[t])
+                outputs.append(h)
+            seq = torch.stack(outputs)
+        return seq
 
-        return seq[-1]   # h_enc [d_model]
+    def init_hidden(
+        self,
+        num_tokens: int,
+        device: torch.device,
+        dtype: torch.dtype,
+    ) -> list[torch.Tensor]:
+        return [torch.zeros(num_tokens, self.d_model, device=device, dtype=dtype) for _ in self.cells]
+
+    def step(
+        self,
+        spatial_state: torch.Tensor,
+        h_list: list[torch.Tensor],
+        re_norm: float,
+        dt: float,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        inp = spatial_state.unsqueeze(0)
+        for block in self.token_blocks:
+            inp = block(inp)
+        inp = inp.squeeze(0) + self._re_bias(
+            re_norm,
+            spatial_state.device,
+            spatial_state.dtype,
+        ).view(1, -1)
+        new_h_list: list[torch.Tensor] = []
+        for cell, h in zip(self.cells, h_list):
+            new_h = cell(inp, h, dt=dt)
+            inp = new_h
+            new_h_list.append(new_h)
+        return new_h_list[-1], new_h_list
 
 
-class QueryCfCDecoder(nn.Module):
-    """What: 以單步向量化 CfC 將 query (x,y,t,c) 解碼為 u/v/p。
+class DeepONetCfCDecoder(nn.Module):
+    """What: 以 CfC token states 作 branch、以 query 作 trunk 的 DeepONet 解碼器。
 
-    Why: h_enc 廣播至所有 N_q query 點作為初始隱藏態；CfCCell 以 batch
-         [N_q, d_model] 一次運行，完全向量化，等同矩陣運算，無 for-loop。
+    Why: query 先從 branch tokens 做 cross-attention 取回需要的時空上下文，
+         再與 trunk basis 融合，比單一 hidden state 更符合 sparse-sensor operator learning。
     """
 
-    def __init__(self, rff_features: int, d_model: int, d_time: int) -> None:
+    def __init__(
+        self,
+        rff_features: int,
+        d_model: int,
+        d_time: int,
+        num_query_mlp_layers: int = 0,
+        query_mlp_hidden_dim: int = 256,
+        output_head_gain: float = 1.0,
+        operator_rank: int | None = None,
+        fusion_temperature_init: float | None = None,
+    ) -> None:
         super().__init__()
-        query_in = 2 * rff_features + d_time + 8   # RFF(x,y) + time_enc + comp_emb
+        query_in = 2 * rff_features + d_time + 8
+        rank = d_model if operator_rank is None else operator_rank
+        if rank <= 0:
+            raise ValueError(f"operator_rank 必須 > 0，收到 {rank}")
+        self.rank = rank
         self.time_proj = nn.Linear(1, d_time)
         self.component_emb = nn.Embedding(3, 8)
         nn.init.normal_(self.component_emb.weight, mean=0.0, std=0.1)
-        self.query_proj = nn.Linear(query_in, d_model)
-        self.cell = CfCCell(d_model, d_model)
-        self.output_head = nn.Linear(d_model, 1, bias=True)
+        self.trunk_in = nn.Linear(query_in, query_mlp_hidden_dim)
+        self.trunk_blocks = nn.ModuleList([
+            ResidualMLPBlock(d_model=query_mlp_hidden_dim, hidden_dim=query_mlp_hidden_dim)
+            for _ in range(num_query_mlp_layers)
+        ])
+        if query_mlp_hidden_dim % 4 != 0:
+            raise ValueError(
+                f"query_mlp_hidden_dim 必須能被 4 整除，收到 {query_mlp_hidden_dim}"
+            )
+        self.branch_token_proj = nn.Linear(d_model, query_mlp_hidden_dim)
+        self.branch_norm = nn.LayerNorm(query_mlp_hidden_dim)
+        self.branch_attn = nn.MultiheadAttention(
+            query_mlp_hidden_dim,
+            num_heads=4,
+            batch_first=True,
+        )
+        self.branch_context = nn.Sequential(
+            nn.LayerNorm(query_mlp_hidden_dim),
+            nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim),
+            nn.SiLU(),
+            nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim),
+        )
+        self.trunk_out = nn.Linear(query_mlp_hidden_dim, 3 * rank)
+        self.branch_proj = nn.Linear(query_mlp_hidden_dim, 3 * rank)
+        nn.init.xavier_normal_(self.trunk_out.weight, gain=output_head_gain)
+        nn.init.zeros_(self.trunk_out.bias)
+        nn.init.xavier_normal_(self.branch_proj.weight, gain=output_head_gain)
+        nn.init.zeros_(self.branch_proj.bias)
+        temp_init = (1.0 / math.sqrt(rank)) if fusion_temperature_init is None else fusion_temperature_init
+        if temp_init <= 0.0:
+            raise ValueError(f"fusion_temperature_init 必須 > 0，收到 {temp_init}")
+        self.log_fusion_temperature = nn.Parameter(torch.tensor(math.log(temp_init), dtype=torch.float32))
         self.component_scale = nn.Parameter(torch.ones(3))
         self.component_bias = nn.Parameter(torch.zeros(3))
 
@@ -184,37 +378,46 @@ class QueryCfCDecoder(nn.Module):
         xy: torch.Tensor,
         t_q: torch.Tensor,
         c: torch.Tensor,
-        h_enc: torch.Tensor,
+        h_states: torch.Tensor,
+        sensor_time: torch.Tensor,
         B: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        xy:    [N_q, 2]
-        t_q:   [N_q]
-        c:     [N_q] long
-        h_enc: [d_model]
-        B:     [2, rff_features]
-        Returns: [N_q, 1]
-        """
-        rff_q = rff_encode(xy, B)                                     # [N_q, 2*rff_f]
-        time_e = self.time_proj(t_q.unsqueeze(-1))                    # [N_q, d_time]
-        emb_c = self.component_emb(c)                                 # [N_q, 8]
-        q = self.query_proj(torch.cat([rff_q, time_e, emb_c], dim=-1))  # [N_q, d_model]
+        idx = torch.searchsorted(sensor_time.contiguous(), t_q.contiguous(), right=True) - 1
+        idx = idx.clamp(0, h_states.shape[0] - 1)
+        h_branch_tokens = h_states[idx]
+        dt_to_query = (t_q - sensor_time[idx]).clamp(min=0.0)
 
-        # h_enc: [d_model] → unsqueeze → [1, d_model] → expand → [N_q, d_model]
-        # 單步向量化 CfC，無 for-loop，無 nn.MultiheadAttention
-        h_0 = h_enc.unsqueeze(0).expand(q.shape[0], -1).contiguous()
-        H_dec = self.cell(q, h_0, dt=1.0)                            # [N_q, d_model]
+        rff_q = rff_encode(xy, B)
+        time_e = self.time_proj(dt_to_query.unsqueeze(-1))
+        emb_c = self.component_emb(c)
+        trunk_feat = F.silu(self.trunk_in(torch.cat([rff_q, time_e, emb_c], dim=-1)))
+        for block in self.trunk_blocks:
+            trunk_feat = block(trunk_feat)
 
-        out = self.output_head(H_dec)                                 # [N_q, 1]
-        out = out * self.component_scale[c].unsqueeze(1) + self.component_bias[c].unsqueeze(1)
-        return out
+        trunk_basis = self.trunk_out(trunk_feat).view(-1, 3, self.rank)
+        branch_tokens = self.branch_token_proj(h_branch_tokens)
+        branch_query = self.branch_norm(trunk_feat).unsqueeze(1)
+        branch_ctx, _ = self.branch_attn(
+            branch_query,
+            branch_tokens,
+            branch_tokens,
+            need_weights=False,
+        )
+        branch_ctx = branch_ctx.squeeze(1)
+        branch_ctx = branch_ctx + self.branch_context(branch_ctx)
+        branch_basis = self.branch_proj(branch_ctx).view(-1, 3, self.rank)
+        comp_idx = c.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.rank)
+        trunk_sel = trunk_basis.gather(1, comp_idx).squeeze(1)
+        branch_sel = branch_basis.gather(1, comp_idx).squeeze(1)
+        fusion_temperature = torch.exp(self.log_fusion_temperature).to(trunk_sel.dtype)
+        out = torch.sum(trunk_sel * branch_sel, dim=1, keepdim=True) * fusion_temperature
+        return out * self.component_scale[c].unsqueeze(1) + self.component_bias[c].unsqueeze(1)
 
 
 class LiquidOperator(nn.Module):
-    """What: Pi-LNN 主模型——組合 SpatialCfCEncoder + TemporalCfCEncoder + QueryCfCDecoder。
+    """What: 核心 Pi-LNN 模型。
 
-    Why: 完整的 LNN 架構，無任何 MultiheadAttention 或 TransformerEncoder。
-         CfC 在 Temporal Encoder 中使用物理 Δt 加速 LTC ODE 計算。
+    Why: 僅保留資料 -> Spatial encoder -> Temporal CfC branch -> DeepONet trunk 的最短主線。
     """
 
     def __init__(
@@ -225,18 +428,54 @@ class LiquidOperator(nn.Module):
         d_time: int,
         num_spatial_cfc_layers: int,
         num_temporal_cfc_layers: int,
+        use_local_struct_features: bool = False,
+        sensor_knn_k: int = 4,
+        num_token_attention_layers: int = 1,
+        token_attention_heads: int = 4,
+        num_query_mlp_layers: int = 0,
+        query_mlp_hidden_dim: int = 256,
+        num_query_cfc_layers: int = 1,
+        query_gate_bias_span: float = 1.0,
+        output_head_gain: float = 1.0,
+        operator_rank: int | None = None,
+        fusion_temperature_init: float | None = None,
+        num_latent_tokens: int = 8,
+        rff_sigma_bands: list[tuple[int, float]] | None = None,
     ) -> None:
         super().__init__()
-        B = torch.randn(2, rff_features) * rff_sigma
+        if rff_sigma_bands is not None:
+            total = sum(n for n, _ in rff_sigma_bands)
+            if total != rff_features:
+                raise ValueError(
+                    f"rff_sigma_bands 的 n_freqs 總和 ({total}) != rff_features ({rff_features})"
+                )
+            B = torch.cat([torch.randn(2, n) * sigma for n, sigma in rff_sigma_bands], dim=1)
+        else:
+            B = torch.randn(2, rff_features) * rff_sigma
         self.register_buffer("B", B)
-        self.spatial_encoder = SpatialCfCEncoder(
-            rff_features=rff_features, d_model=d_model, num_layers=num_spatial_cfc_layers
+        self.spatial_encoder = SpatialSetEncoder(
+            rff_features,
+            d_model,
+            num_spatial_cfc_layers,
+            num_latent_tokens=num_latent_tokens,
+            use_local_struct_features=use_local_struct_features,
+            sensor_knn_k=sensor_knn_k,
         )
         self.temporal_encoder = TemporalCfCEncoder(
-            d_model=d_model, num_layers=num_temporal_cfc_layers
+            d_model,
+            num_temporal_cfc_layers,
+            num_token_attention_layers=num_token_attention_layers,
+            token_attention_heads=token_attention_heads,
         )
-        self.query_decoder = QueryCfCDecoder(
-            rff_features=rff_features, d_model=d_model, d_time=d_time
+        self.query_decoder = DeepONetCfCDecoder(
+            rff_features=rff_features,
+            d_model=d_model,
+            d_time=d_time,
+            num_query_mlp_layers=num_query_mlp_layers,
+            query_mlp_hidden_dim=query_mlp_hidden_dim,
+            output_head_gain=output_head_gain,
+            operator_rank=operator_rank,
+            fusion_temperature_init=fusion_temperature_init,
         )
 
     def encode(
@@ -244,43 +483,81 @@ class LiquidOperator(nn.Module):
         sensor_vals: torch.Tensor,
         sensor_pos: torch.Tensor,
         re_norm: float,
-        dt_phys: float,
-    ) -> torch.Tensor:
-        """
-        sensor_vals: [T, K, 3]
-        sensor_pos:  [K, 2]
-        Returns:     h_enc [d_model]
-        """
+        sensor_time: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         spatial_states = torch.stack([
             self.spatial_encoder(sensor_vals[t], sensor_pos, self.B)
             for t in range(sensor_vals.shape[0])
-        ])   # [T, d_model]
-        return self.temporal_encoder(spatial_states, re_norm, dt_phys)
+        ])
+        return self.temporal_encoder(spatial_states, re_norm, sensor_time), sensor_time
+
+    def update_state(
+        self,
+        sensor_vals_t: torch.Tensor,
+        sensor_pos: torch.Tensor,
+        re_norm: float,
+        dt: float,
+        h_list: list[torch.Tensor],
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        spatial = self.spatial_encoder(sensor_vals_t, sensor_pos, self.B)
+        return self.temporal_encoder.step(spatial, h_list, re_norm, dt)
+
+    def predict(
+        self,
+        xy: torch.Tensor,
+        t_q: torch.Tensor,
+        c: torch.Tensor,
+        h_out: torch.Tensor,
+        t_last: float,
+    ) -> torch.Tensor:
+        h_states = h_out.unsqueeze(0)
+        s_time = torch.tensor([t_last], device=h_out.device, dtype=h_out.dtype)
+        return self.query_decoder(xy, t_q, c, h_states, s_time, self.B)
 
     def forward(
         self,
         sensor_vals: torch.Tensor,
         sensor_pos: torch.Tensor,
         re_norm: float,
-        dt_phys: float,
+        sensor_time: torch.Tensor,
         xy: torch.Tensor,
         t_q: torch.Tensor,
         c: torch.Tensor,
     ) -> torch.Tensor:
-        """Returns: [N_q, 1]"""
-        h_enc = self.encode(sensor_vals, sensor_pos, re_norm, dt_phys)
-        return self.query_decoder(xy, t_q, c, h_enc, self.B)
+        h_states, s_time = self.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
+        return self.query_decoder(xy, t_q, c, h_states, s_time, self.B)
 
 
-def create_lnn_model(cfg: dict) -> LiquidOperator:
-    """What: 從 config dict 建立 LiquidOperator。"""
+def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
+    """What: 從 config 建立核心 LiquidOperator。"""
+    bands_raw = cfg.get("rff_sigma_bands")
+    rff_sigma_bands = [(int(n), float(s)) for n, s in bands_raw] if bands_raw else None
     return LiquidOperator(
         rff_features=int(cfg["rff_features"]),
-        rff_sigma=float(cfg["rff_sigma"]),
+        rff_sigma=float(cfg.get("rff_sigma", 32.0)),
         d_model=int(cfg["d_model"]),
         d_time=int(cfg["d_time"]),
         num_spatial_cfc_layers=int(cfg["num_spatial_cfc_layers"]),
         num_temporal_cfc_layers=int(cfg["num_temporal_cfc_layers"]),
+        use_local_struct_features=bool(cfg.get("use_local_struct_features", False)),
+        sensor_knn_k=int(cfg.get("sensor_knn_k", 4)),
+        num_token_attention_layers=int(cfg.get("num_token_attention_layers", 1)),
+        token_attention_heads=int(cfg.get("token_attention_heads", 4)),
+        num_query_mlp_layers=int(cfg.get("num_query_mlp_layers", 0)),
+        query_mlp_hidden_dim=int(cfg.get("query_mlp_hidden_dim", 256)),
+        num_query_cfc_layers=int(cfg.get("num_query_cfc_layers", 1)),
+        query_gate_bias_span=float(cfg.get("query_gate_bias_span", 1.0)),
+        output_head_gain=float(cfg.get("output_head_gain", 1.0)),
+        operator_rank=(
+            int(cfg["operator_rank"]) if "operator_rank" in cfg and cfg["operator_rank"] is not None else None
+        ),
+        fusion_temperature_init=(
+            float(cfg["fusion_temperature_init"])
+            if "fusion_temperature_init" in cfg and cfg["fusion_temperature_init"] is not None
+            else None
+        ),
+        num_latent_tokens=int(cfg.get("num_latent_tokens", 8)),
+        rff_sigma_bands=rff_sigma_bands,
     )
 
 
@@ -291,28 +568,22 @@ def unsteady_ns_residuals(
     xyt: torch.Tensor,
     re: float,
     k_f: float = 4.0,
-    A:   float = 0.1,
+    A: float = 0.1,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """What: 2D incompressible unsteady NS + continuity residuals at collocation points.
-
-    Why: Kolmogorov flow 加入體積力 f_x = A·sin(k_f·y)（正弦強迫），
-         ∂u/∂t 項是與 LDC steady-state 的關鍵差異。
-    xyt: [N, 3] = (x, y, t) with requires_grad=True
-    Returns: ns_x [N,1], ns_y [N,1], cont [N,1]
-    """
+    """What: 2D incompressible unsteady Navier-Stokes residuals."""
     u, v, p = u_fn(xyt), v_fn(xyt), p_fn(xyt)
     u_xyt = _grad(u, xyt)
     v_xyt = _grad(v, xyt)
     p_xyt = _grad(p, xyt)
     du_dx, du_dy, du_dt = u_xyt[:, 0:1], u_xyt[:, 1:2], u_xyt[:, 2:3]
     dv_dx, dv_dy, dv_dt = v_xyt[:, 0:1], v_xyt[:, 1:2], v_xyt[:, 2:3]
-    dp_dx, dp_dy         = p_xyt[:, 0:1], p_xyt[:, 1:2]
+    dp_dx, dp_dy = p_xyt[:, 0:1], p_xyt[:, 1:2]
     du_dx2 = _grad(du_dx, xyt)[:, 0:1]
     du_dy2 = _grad(du_dy, xyt)[:, 1:2]
     dv_dx2 = _grad(dv_dx, xyt)[:, 0:1]
     dv_dy2 = _grad(dv_dy, xyt)[:, 1:2]
-    nu  = 1.0 / float(re)
-    f_x = A * torch.sin(k_f * xyt[:, 1:2])   # Kolmogorov forcing
+    nu = 1.0 / float(re)
+    f_x = A * torch.sin(k_f * xyt[:, 1:2])
     ns_x = du_dt + u * du_dx + v * du_dy + dp_dx - nu * (du_dx2 + du_dy2) - f_x
     ns_y = dv_dt + u * dv_dx + v * dv_dy + dp_dy - nu * (dv_dx2 + dv_dy2)
     cont = du_dx + dv_dy
@@ -324,41 +595,80 @@ def make_lnn_model_fn(
     sensor_vals: torch.Tensor,
     sensor_pos: torch.Tensor,
     re_norm: float,
-    dt_phys: float,
+    sensor_time: torch.Tensor,
     device: torch.device,
 ) -> Callable:
-    """What: 回傳 closure (xyt, c) → [N,1]，供物理損失計算使用。
-
-    Why: 物理損失對 xyt 做 autograd；closure 捕捉 sensor 資料與 Re 條件。
-         h_enc 可在計算所有 component 前 encode 一次，節省重複計算。
-    """
+    """What: 建立物理 loss 所需的 closure。"""
     net_device = next(iter(net.buffers())).device
+    h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
 
     def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
         xyt_d = xyt.to(net_device)
-        xy_d  = xyt_d[:, :2]
+        xy_d = xyt_d[:, :2]
         t_q_d = xyt_d[:, 2]
-        h_enc = net.encode(sensor_vals, sensor_pos, re_norm, dt_phys)
-        c_t   = torch.full((xyt_d.shape[0],), c, dtype=torch.long, device=net_device)
-        return net.query_decoder(xy_d, t_q_d, c_t, h_enc, net.B).to(xyt.device)
+        c_t = torch.full((xyt_d.shape[0],), c, dtype=torch.long, device=net_device)
+        return net.query_decoder(xy_d, t_q_d, c_t, h_states, s_time, net.B).to(xyt.device)
 
     return model_fn
+
+
+def physics_weight_at_step(
+    step: int,
+    final_weight: float,
+    warmup_steps: int,
+    ramp_steps: int,
+) -> float:
+    """What: 線性 physics warmup/ramp。"""
+    if step < 1:
+        raise ValueError(f"step 必須從 1 開始，收到 {step}")
+    if final_weight < 0.0:
+        raise ValueError(f"final_weight 不可為負，收到 {final_weight}")
+    if warmup_steps < 0 or ramp_steps < 0:
+        raise ValueError(
+            f"warmup_steps / ramp_steps 不可為負，收到 {warmup_steps}, {ramp_steps}"
+        )
+    if final_weight == 0.0:
+        return 0.0
+    if step <= warmup_steps:
+        return 0.0
+    if ramp_steps == 0:
+        return final_weight
+    progress = min((step - warmup_steps) / ramp_steps, 1.0)
+    return float(final_weight * progress)
 
 
 DEFAULT_LNN_ARGS: dict[str, Any] = {
     "sensor_jsons": None,
     "sensor_npzs": None,
-    "les_paths": None,
+    "dns_paths": None,
     "re_values": None,
     "rff_features": 64,
-    "rff_sigma": 2.0,
+    "rff_sigma": 32.0,
+    "rff_sigma_bands": None,
     "d_model": 128,
     "d_time": 16,
     "num_spatial_cfc_layers": 2,
     "num_temporal_cfc_layers": 2,
+    "use_local_struct_features": False,
+    "sensor_knn_k": 4,
+    "num_token_attention_layers": 1,
+    "token_attention_heads": 4,
+    "num_query_mlp_layers": 0,
+    "query_mlp_hidden_dim": 256,
+    "num_query_cfc_layers": 1,
+    "query_gate_bias_span": 1.0,
+    "output_head_gain": 1.0,
+    "operator_rank": None,
+    "fusion_temperature_init": None,
+    "num_latent_tokens": 8,
     "data_loss_weight": 1.0,
     "physics_loss_weight": 0.05,
+    "physics_loss_warmup_steps": 0,
+    "physics_loss_ramp_steps": 0,
     "continuity_weight": 1.0,
+    "time_marching": False,
+    "time_marching_start": 2.0,
+    "time_marching_warmup": 0.5,
     "kolmogorov_k_f": 4.0,
     "kolmogorov_A": 0.1,
     "iterations": 10000,
@@ -379,13 +689,12 @@ _REMOVED_KEYS = {"nhead", "dim_feedforward", "attn_dropout", "num_encoder_layers
 
 
 def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
-    """What: 載入並驗證 TOML config。舊 PiT 欄位（nhead 等）會觸發明確錯誤。"""
+    """What: 載入並驗證核心 LNN config。"""
     if config_path is None:
         return {}
     payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
     config_data = payload.get("train", payload)
     normalized = dict(config_data)
-    # 舊 PiT 欄位 → 明確失敗（不靜默忽略）
     obsolete = sorted(set(normalized) & _REMOVED_KEYS)
     if obsolete:
         raise ValueError(
@@ -394,55 +703,40 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
     unknown = sorted(set(normalized) - set(DEFAULT_LNN_ARGS))
     if unknown:
         raise ValueError(f"LNN config 含有不支援的欄位: {unknown}")
-    # 解析相對路徑
-    for list_key in ("sensor_jsons", "sensor_npzs", "les_paths"):
+    base = Path.cwd()
+    for list_key in ("sensor_jsons", "sensor_npzs", "dns_paths"):
         if list_key in normalized:
-            normalized[list_key] = [
-                str((config_path.parent / Path(p)).resolve())
-                for p in normalized[list_key]
-            ]
+            normalized[list_key] = [str((base / Path(p)).resolve()) for p in normalized[list_key]]
     if "artifacts_dir" in normalized:
-        normalized["artifacts_dir"] = str(
-            (config_path.parent / Path(normalized["artifacts_dir"])).resolve()
-        )
+        normalized["artifacts_dir"] = str((base / Path(normalized["artifacts_dir"])).resolve())
     return normalized
 
 
 def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
-    """What: Pi-LNN Kolmogorov flow 訓練迴圈。
-
-    Why: 對每個 Re case encode 感測器時序 → h_enc，
-         計算 data loss（LES 全場）+ physics loss（NS 殘差）並 backward。
-    """
+    """What: 核心 Pi-LNN 訓練迴圈。"""
     from pi_onet.kolmogorov_dataset import KolmogorovDataset
 
     device = configure_torch_runtime(args["device"])
     torch.manual_seed(args["seed"])
     rng = np.random.default_rng(args["seed"])
 
-    artifacts_dir   = Path(args["artifacts_dir"])
+    artifacts_dir = Path(args["artifacts_dir"])
     checkpoints_dir = artifacts_dir / "checkpoints"
-    best_dir        = artifacts_dir / "best_validation"
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
-    best_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── 資料集 ──────────────────────────────────────────────────────
     datasets = [
         KolmogorovDataset(
             sensor_json=args["sensor_jsons"][i],
-            sensor_npz =args["sensor_npzs"][i],
-            les_path   =args["les_paths"][i],
-            re_value   =float(args["re_values"][i]),
+            sensor_npz=args["sensor_npzs"][i],
+            dns_path=args["dns_paths"][i],
+            re_value=float(args["re_values"][i]),
             train_ratio=0.8,
-            seed       =args["seed"],
+            seed=args["seed"],
         )
         for i in range(len(args["re_values"]))
     ]
     num_re = len(datasets)
 
-    # 預先轉換感測器資料至 device（靜態）
-    # ds.sensor_vals: [K, T, 3]（dataset 儲存格式）
-    # transpose → [T, K, 3]（LiquidOperator.encode 所需格式）
     sensor_vals_list = [
         torch.tensor(ds.sensor_vals.transpose(1, 0, 2), dtype=torch.float32, device=device)
         for ds in datasets
@@ -451,80 +745,120 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
         torch.tensor(ds.sensor_pos, dtype=torch.float32, device=device)
         for ds in datasets
     ]
+    sensor_time_list = [
+        torch.tensor(ds.sensor_time, dtype=torch.float32, device=device)
+        for ds in datasets
+    ]
 
-    # ── 模型 ────────────────────────────────────────────────────────
     net = create_lnn_model(args).to(device)
     print("=== Configuration ===")
     print(f"trainable_parameters: {count_parameters(net)}")
 
-    # ── Optimizer + LR scheduler ────────────────────────────────────
     optimizer = torch.optim.AdamW(
-        net.parameters(), lr=args["learning_rate"], weight_decay=args["weight_decay"]
+        net.parameters(),
+        lr=args["learning_rate"],
+        weight_decay=args["weight_decay"],
     )
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=args["iterations"], eta_min=args["min_learning_rate"]
-    ) if args["lr_schedule"] == "cosine" else None
+    scheduler = (
+        torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=args["iterations"],
+            eta_min=args["min_learning_rate"],
+        )
+        if args["lr_schedule"] == "cosine"
+        else None
+    )
 
-    best_val_metric = float("inf")
     k_f = float(args["kolmogorov_k_f"])
-    A   = float(args["kolmogorov_A"])
+    A = float(args["kolmogorov_A"])
+    base_phys_weight = float(args["physics_loss_weight"])
+    phys_warmup_steps = int(args["physics_loss_warmup_steps"])
+    phys_ramp_steps = int(args["physics_loss_ramp_steps"])
+    use_tm = bool(args["time_marching"])
+    tm_t_start = float(args["time_marching_start"])
+    tm_t_end = float(datasets[0].sensor_time[-1])
+    tm_warmup = int(args["time_marching_warmup"] * args["iterations"])
 
     print("=== Training ===")
-    print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'L_total':>12}")
+    if use_tm:
+        print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps")
+    if phys_warmup_steps > 0 or phys_ramp_steps > 0:
+        print(
+            "  physics_ramp:"
+            f" warmup={phys_warmup_steps} steps,"
+            f" ramp={phys_ramp_steps} steps,"
+            f" final_weight={base_phys_weight:.4f}"
+        )
+    print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
+          + ("  t_max" if use_tm else ""))
 
     for step in range(1, args["iterations"] + 1):
+        if use_tm:
+            progress = min(step / max(tm_warmup, 1), 1.0)
+            t_max: float | None = tm_t_start + (tm_t_end - tm_t_start) * progress
+        else:
+            t_max = None
+
         net.train()
         optimizer.zero_grad()
 
-        # ── Data loss ───────────────────────────────────────────────
         l_data = torch.zeros(1, device=device)
         for i, ds in enumerate(datasets):
-            xy_np, t_np, c_np, ref_np = ds.sample_train_batch(
-                rng, n=args["num_query_points"]
+            h_states, s_time = net.encode(
+                sensor_vals_list[i], sensor_pos_list[i], ds.re_norm, sensor_time_list[i]
             )
-            xy  = torch.tensor(xy_np,  device=device)
-            t_q = torch.tensor(t_np,   device=device)
-            c   = torch.tensor(c_np,   dtype=torch.long, device=device)
+            xy_np, t_np, c_np, ref_np = ds.sample_train_batch(
+                rng, n=args["num_query_points"], t_max=t_max
+            )
+            xy = torch.tensor(xy_np, device=device)
+            t_q = torch.tensor(t_np, device=device)
+            c = torch.tensor(c_np, dtype=torch.long, device=device)
             ref = torch.tensor(ref_np, device=device)
-            pred = net(
-                sensor_vals_list[i], sensor_pos_list[i],
-                re_norm=ds.re_norm, dt_phys=ds.dt_phys,
-                xy=xy, t_q=t_q, c=c,
-            ).squeeze(1)
+            pred = net.query_decoder(xy, t_q, c, h_states, s_time, net.B).squeeze(1)
             l_data = l_data + torch.mean((pred - ref) ** 2)
         l_data = l_data / num_re
 
-        # ── Physics loss ─────────────────────────────────────────────
-        net.eval()
-        l_ns_total   = torch.zeros(1, device=device)
-        l_cont_total = torch.zeros(1, device=device)
-        for i, ds in enumerate(datasets):
-            xy_np, t_np = ds.sample_physics_points(rng, n=args["num_physics_points"])
-            xyt = torch.tensor(
-                np.concatenate([xy_np, t_np[:, None]], axis=1),
-                device=device, requires_grad=True,
-            )
-            model_fn = make_lnn_model_fn(
-                net, sensor_vals_list[i], sensor_pos_list[i],
-                re_norm=ds.re_norm, dt_phys=ds.dt_phys, device=device,
-            )
-            u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
-            v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
-            p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
-            ns_x, ns_y, cont = unsteady_ns_residuals(
-                u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A
-            )
-            l_ns_total   = l_ns_total   + torch.mean(ns_x**2) + torch.mean(ns_y**2)
-            l_cont_total = l_cont_total + torch.mean(cont**2)
-        net.train()
-
-        l_ns_total   = l_ns_total   / num_re
-        l_cont_total = l_cont_total / num_re
-        l_physics    = l_ns_total + args["continuity_weight"] * l_cont_total
-        l_total = (
-            args["data_loss_weight"]    * l_data
-            + args["physics_loss_weight"] * l_physics
+        phys_weight = physics_weight_at_step(
+            step=step,
+            final_weight=base_phys_weight,
+            warmup_steps=phys_warmup_steps,
+            ramp_steps=phys_ramp_steps,
         )
+        if phys_weight > 0.0 and int(args["num_physics_points"]) > 0:
+            net.eval()
+            l_ns_total = torch.zeros(1, device=device)
+            l_cont_total = torch.zeros(1, device=device)
+            for i, ds in enumerate(datasets):
+                xy_np, t_np = ds.sample_physics_points(rng, n=args["num_physics_points"], t_max=t_max)
+                xyt = torch.tensor(
+                    np.concatenate([xy_np, t_np[:, None]], axis=1),
+                    device=device,
+                    requires_grad=True,
+                )
+                model_fn = make_lnn_model_fn(
+                    net,
+                    sensor_vals_list[i],
+                    sensor_pos_list[i],
+                    re_norm=ds.re_norm,
+                    sensor_time=sensor_time_list[i],
+                    device=device,
+                )
+                u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
+                v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
+                p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
+                ns_x, ns_y, cont = unsteady_ns_residuals(
+                    u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A
+                )
+                l_ns_total = l_ns_total + torch.mean(ns_x ** 2) + torch.mean(ns_y ** 2)
+                l_cont_total = l_cont_total + torch.mean(cont ** 2)
+            net.train()
+            l_ns_total = l_ns_total / num_re
+            l_cont_total = l_cont_total / num_re
+            l_physics = l_ns_total + args["continuity_weight"] * l_cont_total
+        else:
+            l_physics = torch.zeros(1, device=device)
+
+        l_total = args["data_loss_weight"] * l_data + phys_weight * l_physics
         l_total.backward()
         torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
         optimizer.step()
@@ -532,31 +866,31 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
             scheduler.step()
 
         if step % max(1, args["iterations"] // 10) == 0 or step == 1:
+            tm_str = f"  t≤{t_max:5.1f}" if use_tm and t_max is not None else ""
             print(
                 f"{step:<8} {l_data.item():>12.4e}"
-                f" {l_physics.item():>12.4e} {l_total.item():>12.4e}"
+                f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
+                f" {l_total.item():>12.4e}{tm_str}"
             )
 
-        # ── Checkpoint ───────────────────────────────────────────────
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
-            ckpt = checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"
-            torch.save(net.state_dict(), str(ckpt))
+            torch.save(net.state_dict(), str(checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"))
 
     final = artifacts_dir / "lnn_kolmogorov_final.pt"
     torch.save(net.state_dict(), str(final))
     write_json(artifacts_dir / "experiment_manifest.json", {
-        "configuration": {k: v for k, v in args.items()
-                          if k not in ("sensor_jsons", "sensor_npzs", "les_paths")},
+        "configuration": {k: v for k, v in args.items() if k not in ("sensor_jsons", "sensor_npzs", "dns_paths")},
         "final_checkpoint": str(final),
     })
     print("=== Done ===")
 
 
 def main() -> None:
-    """What: Entry point for lnn-kolmogorov-train CLI。"""
+    """What: CLI entry point for core LNN training."""
     import argparse
+
     parser = argparse.ArgumentParser(
-        description="Train Pi-LNN on Kolmogorov flow (full-field reconstruction)."
+        description="Train core Pi-LNN on Kolmogorov flow."
     )
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None)
@@ -566,7 +900,6 @@ def main() -> None:
     config.update(load_lnn_config(cli_args.config))
     if cli_args.device is not None:
         config["device"] = cli_args.device
-
     train_lnn_kolmogorov(config)
 
 

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local environment
+.DS_Store
+.python-version
+
+# Artifacts and datasets
+artifacts/
+data/
+
+# Editor / local settings
+.claude/

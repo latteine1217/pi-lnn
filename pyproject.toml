@@ -1,7 +1,7 @@
 [project]
 name = "pi-o-net"
 version = "0.1.0"
-description = "Physics-informed Transformer (PiT) for multi-Re Lid-Driven Cavity flow."
+description = "Sparse-data DeepONet + CfC for Kolmogorov flow reconstruction."
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [

@@ -1,134 +1,158 @@
-# pi-o-net — PiT LDC
+# pi-o-net
 
-Physics-informed Transformer (PiT) 用於多 Re 穩態 Lid-Driven Cavity (LDC) 流場預測。
+以 **DeepONet + CfC** 實作的 sparse-data 物理資訊模型，目標是用少量感測器時序資料重建 2D Kolmogorov flow 場。
 
-## 架構：PiT CrossAttentionOperator
+目前主線不是舊的 PiT LDC，而是：
 
-以 Cross-Attention 取代 DeepONet 的 branch-trunk 點積，讓每個查詢點只關注相關感測器。
+- **thin sensor tokens**
+- **token self-attention**
+- **temporal CfC encoder**
+- **DeepONet-style query decoder with cross-attention**
+- **sparse-data training rule**
 
-```
-Sensors [N_s × 5]          Query points [N_q × 2]
-(x, y, u, v, p)            (x, y) + component c ∈ {0,1,2}
-       │                            │
-  SensorEncoder               QueryEncoder
-  ─────────────               ────────────
-  RFF(x,y) → concat          RFF(x,y) shared B
-  Linear → [N_s, d_model]    Embedding(c) → concat
-  prepend re_token            Linear → Q [N_q, d_model]
-  TransformerEncoder × 2
-  → K, V [N_s+1, d_model]
-       │                            │
-       └──────── CrossAttention ────┘
-                 MHA(Q, K, V)
-                 LayerNorm
-                 Linear(d_model → 1)
-                 ComponentScaler
-                      │
-                 output [N_q, 1]
-```
+也就是：訓練只依賴真實觀測與 PDE，本身不把 vorticity / spectrum / energy / enstrophy 當 supervision。
 
-### 關鍵設計選擇
+## 目前架構
 
-| 元件 | 說明 |
-|------|------|
-| **RFF** | Random Fourier Features 編碼空間座標，提供豐富頻率基底 |
-| **re_token** | 可學習 Re 標記，prepend 至感測器序列，讓 attention 獲得全局 Re 資訊 |
-| **ComponentScaler** | 獨立縮放 u/v/p 輸出，解決各分量量級差異 |
-| **Shared B** | SensorEncoder 與 QueryEncoder 共享 RFF 隨機矩陣，確保座標空間一致 |
+資料流如下：
 
-### 超參數（Run 4）
-
-```toml
-d_model = 128
-nhead = 4
-num_encoder_layers = 2
-dim_feedforward = 256
-rff_features = 64
-rff_sigma = 5.0
-num_interior_sensors = 80
-num_boundary_sensors = 20
-num_query_points = 2048
-num_physics_points = 1024
+```text
+sensor_vals[t, k, {u,v,p}] + sensor_pos[k, {x,y}]
+    -> RFF(x,y) + token_in
+    -> thin sensor tokens
+    -> token self-attention
+    -> temporal CfC over time
+    -> causal branch tokens h_states[t, k, d]
+    -> query trunk (x, y, t, component)
+    -> cross-attention(query, branch tokens)
+    -> branch/trunk fusion
+    -> u / v / p
 ```
 
-## 訓練設定
+對應實作在：
 
-```toml
-optimizer = "adamw"
-learning_rate = 0.001
-weight_decay = 0.0001
-lr_schedule = "cosine"        # CosineAnnealingLR
-min_learning_rate = 1e-5
-iterations = 10000
-batch_size = 3                # Re cases per step
-max_grad_norm = 1.0
-```
+- [`src/pi_onet/lnn_kolmogorov.py`](src/pi_onet/lnn_kolmogorov.py)
+- [`src/pi_onet/kolmogorov_dataset.py`](src/pi_onet/kolmogorov_dataset.py)
 
-**Loss 函數：**
+互動式架構文件在：
 
-```
-L_total = L_data + 0.1 × (L_NS_x + L_NS_y) + L_cont + L_BC + L_gauge
-```
+- [`docs/lnn_architecture.html`](docs/lnn_architecture.html)
 
-**資料：** LDC steady-state，Re ∈ {3000, 4000, 5000}，mat 格式 256×256 均勻網格。
+## Sparse-data 訓練原則
 
-## 結果
+主線只保留這些 loss：
 
-| Run | LR Schedule | Best val rel_L2 | Step |
-|-----|-------------|-----------------|------|
-| Run 3 | StepLR (×0.9 / 1k) | 0.0845 | 10k |
-| **Run 4** | **Cosine 1e-3 → 1e-5** | **0.0757** | **10k** |
+- `L_data`: 真實量到的資料點值誤差
+- `L_momentum`: Navier-Stokes momentum residual
+- `L_continuity`: incompressibility residual
 
-Run 4 相較 Run 3 改善 **10.4%**，cosine annealing 消除了 StepLR 在 step 7k 的 loss bump。
+保留但只作診斷、不作訓練 supervision 的量：
 
-### Run 4 Checkpoint 進程
+- vorticity
+- energy spectrum
+- kinetic energy
+- enstrophy
 
-| Step | val rel_L2 | 備註 |
-|------|-----------|------|
-| 1,000 | 0.9496 | 初期訓練 |
-| 2,000 | 0.6897 | — |
-| 3,000 | 0.3294 | 急速下降 |
-| 4,000 | 0.2029 | — |
-| 5,000 | 0.1163 | — |
-| 6,000 | 0.1018 | — |
-| 7,000 | 0.0900 | 平滑（無 bump） |
-| 8,000 | 0.0813 | — |
-| 9,000 | 0.0772 | — |
-| 10,000 | **0.0757** | **最佳** |
+這是刻意的設計選擇。若場景只有少量感測器，這些統計量或導數量通常不是可直接取得的真實 supervision。
+
+## 目前建議配置
+
+目前主線基準是：
+
+- `rff_sigma = 4.0`
+- `use_local_struct_features = false`
+- `num_token_attention_layers = 1`
+- `physics_loss_weight = 0.01`
+- `physics_loss_warmup_steps = 500`
+- `physics_loss_ramp_steps = 1500`
+- `time_marching = true`
+
+參考 config：
+
+- [`configs/deeponet_cfc_smoke.toml`](configs/deeponet_cfc_smoke.toml)
+- [`configs/deeponet_cfc_midlong_sigma4_tokenattn.toml`](configs/deeponet_cfc_midlong_sigma4_tokenattn.toml)
+- [`configs/deeponet_cfc_long.toml`](configs/deeponet_cfc_long.toml)
 
 ## 安裝
 
 ```bash
-uv sync --python 3.11
-uv run pytest
+uv sync
+```
+
+如果只想確認 Python 檔案可被解譯：
+
+```bash
+uv run python -m py_compile \
+  src/pi_onet/lnn_kolmogorov.py \
+  src/pi_onet/kolmogorov_dataset.py \
+  scripts/train_deeponet_cfc.py \
+  scripts/evaluate_deeponet_cfc.py
 ```
 
 ## 訓練
 
+Smoke：
+
 ```bash
-uv run pit-ldc-train --config configs/pit_ldc_run4_cosine.toml
+uv run python scripts/train_deeponet_cfc.py \
+  --config configs/deeponet_cfc_smoke.toml
 ```
 
-可用 configs：
+中長訓練：
 
-| 檔案 | 說明 |
-|------|------|
-| `pit_ldc.toml` | 基礎設定 |
-| `pit_ldc_run3.toml` | Run 3（StepLR） |
-| `pit_ldc_run4_cosine.toml` | Run 4（Cosine，目前最佳） |
-| `transformer_re1000.toml` | Re=1000 實驗 |
+```bash
+uv run python scripts/train_deeponet_cfc.py \
+  --config configs/deeponet_cfc_midlong_sigma4_tokenattn.toml
+```
+
+## Evaluation / 診斷
+
+```bash
+uv run python scripts/evaluate_deeponet_cfc.py \
+  --config configs/deeponet_cfc_midlong_sigma4_tokenattn.toml \
+  --checkpoint artifacts/deeponet-cfc-midlong-sigma4-tokenattn/lnn_kolmogorov_final.pt \
+  --output-dir artifacts/deeponet-cfc-eval-midlong-sigma4-tokenattn
+```
+
+目前 evaluation 會輸出：
+
+- `field_comparison_tXX.png`
+- `vorticity_comparison_tXX.png`
+- `energy_spectrum.png`
+- `kinetic_energy_vs_time.png`
+- `enstrophy_vs_time.png`
+- `summary.json`
 
 ## 專案結構
 
-```
-src/pi_onet/
-  pit_ldc.py        # PiT 模型、訓練迴圈、physics loss
-  ldc_dataset.py    # LDC .mat 載入、感測器採樣
-configs/            # TOML 訓練設定
-tests/
-  test_pit_ldc.py   # 單元測試（13 個）
+```text
+configs/
+  deeponet_cfc_smoke.toml
+  deeponet_cfc_midlong_sigma4_tokenattn.toml
+  deeponet_cfc_long.toml
+  lnn_kolmogorov.toml
+  lnn_kolmogorov_quick.toml
+
 docs/
-  pit_architecture.html  # 互動式架構說明文件
+  lnn_architecture.html
+
+scripts/
+  train_deeponet_cfc.py
+  evaluate_deeponet_cfc.py
+
+src/pi_onet/
+  kolmogorov_dataset.py
+  lnn_kolmogorov.py
+  pit_ldc.py
 ```
 
-`data/` 與 `artifacts/` 不納入版本控制（`.gitignore`）。
+## 現況
+
+目前最重要的研究結論是：
+
+- 單一 global hidden state 容易 collapse
+- 保留 sensor-level local identity 比提早 pooling 更合理
+- token self-attention 能改善訓練穩定性
+- sparse-data 主線不應依賴 dense derivative / spectrum supervision
+
+因此目前 repo 已收斂到「**先把 sparse-data 主線做乾淨，再談更高階結構對齊**」的方向。

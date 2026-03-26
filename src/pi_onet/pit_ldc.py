@@ -22,7 +22,8 @@ import torch
 import torch.nn as nn
 from deepxde import config as dde_config
 
-from pi_onet.ldc_dataset import RE_MEAN, RE_STD
+RE_MEAN: float = 5500.0
+RE_STD: float = 4000.0
 
 
 # ── Torch runtime ─────────────────────────────────────────────────────────────
