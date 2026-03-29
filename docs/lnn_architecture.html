@@ -1065,9 +1065,9 @@ body::before {
   <!-- Header -->
   <div class="header">
     <div class="header-inner">
-      <div class="header-tag">Technical Reference — 2026-03-27</div>
+      <div class="header-tag">Technical Reference — 2026-03-29</div>
       <h1>Pi-LNN &nbsp;·&nbsp; DeepONet + CfC Sparse-Data</h1>
-      <p>Thin sensor tokens, token self-attention, temporal CfC, and query-conditioned cross-attention under sparse-data training rules</p>
+      <p>uvomega sparse-data baseline: thin sensor tokens, token self-attention, temporal CfC, and query-conditioned cross-attention under PDE-constrained training</p>
     </div>
   </div>
 
@@ -1083,11 +1083,11 @@ body::before {
             <div class="module-tag">Inputs</div>
             <div class="module-title">Sparse Sensor Stream</div>
             <div class="module-detail">
-              sensor_vals <span class="hi">[T, K, 3]</span><br>
+              sensor_obs <span class="hi">[T, K, 3]</span><br>
               sensor_pos <span class="hi">[K, 2]</span><br>
               re_norm + sensor_time
             </div>
-            <div class="shape-badge">K = 50, T = 21</div>
+            <div class="shape-badge">K = 100, T = 101</div>
           </div>
           <div class="arrow-col">
             <div class="arrow-line"></div>
@@ -1098,7 +1098,7 @@ body::before {
             <div class="module-title">Thin Sensor Tokens</div>
             <div class="module-detail">
               每個 sensor 保留自己的<br>
-              <span class="hi">RFF(x,y) + u,v,p</span><br>
+              <span class="hi">RFF(x,y) + u,v,omega</span><br>
               不先做 pooling，不先壓成單向量
             </div>
             <div class="shape-badge">[T, K, d_model]</div>
@@ -1227,7 +1227,7 @@ body::before {
           <div class="detail-card-title" style="margin-bottom:12px;">Sparse-data design rule</div>
           <div class="module-detail" style="line-height:1.8;">
             訓練主線只允許使用：<br>
-            <span class="hi">1.</span> 真實量到的 sensor data<br>
+            <span class="hi">1.</span> 真實量到的 sensor data (`u,v,omega`)<br>
             <span class="hi">2.</span> momentum residual<br>
             <span class="hi">3.</span> continuity residual<br>
             <span class="hi">4.</span> causal / time-marching training rule<br>
@@ -1279,7 +1279,7 @@ body::before {
             <div class="step-num">2</div>
             <div>
               <div class="step-title">Sample sparse supervised queries</div>
-              <div class="step-desc">只在實際允許的 data supervision 上做點值監督；主線假設資料是 sparse，不依賴 full-field gradient labels。</div>
+              <div class="step-desc">只在實際量到的 sparse observations 上做點值監督；目前觀測通道是 u, v, omega，不依賴 full-field gradient labels。</div>
               <div class="step-code">num_query_points = 512</div>
             </div>
           </div>
@@ -1288,7 +1288,7 @@ body::before {
             <div class="step-num">3</div>
             <div>
               <div class="step-title">Decode from branch tokens</div>
-              <div class="step-desc">query trunk feature 對 branch tokens 做 cross-attention，再經 branch/trunk fusion 輸出 u / v / p。</div>
+              <div class="step-desc">query trunk feature 對 branch tokens 做 cross-attention，再經 branch/trunk fusion 輸出 latent field u / v / p。</div>
             </div>
           </div>
 
@@ -1296,7 +1296,7 @@ body::before {
             <div class="step-num">4</div>
             <div>
               <div class="step-title">Pointwise sensor/data consistency</div>
-              <div class="step-desc">L_data 只對真實量測或允許的 supervised query 點做 MSE，不引入任何 dense derivative target。</div>
+              <div class="step-desc">L_data 只對真實量測通道做 MSE；若觀測是 omega，則由模型的 u,v 導數現算，不假設 sensor 直接提供 p。</div>
               <div class="step-code">data_loss_weight = 1.0</div>
             </div>
           </div>
@@ -1432,8 +1432,8 @@ body::before {
         <div class="detail-card">
           <div class="detail-card-title">Domain</div>
           <div class="detail-item"><span class="detail-key">flow type</span><span class="detail-val">Kolmogorov (2D periodic)</span></div>
-          <div class="detail-item"><span class="detail-key">spatial</span><span class="detail-val">[0, 2π]² periodic</span></div>
-          <div class="detail-item"><span class="detail-key">DNS source</span><span class="detail-val">512×512, T=201</span></div>
+          <div class="detail-item"><span class="detail-key">spatial</span><span class="detail-val">[0, 1]² periodic</span></div>
+          <div class="detail-item"><span class="detail-key">DNS source</span><span class="detail-val">N=128, T=101, t∈[0,5]</span></div>
           <div class="detail-item"><span class="detail-key">kinematic ν</span><span class="detail-val">1/Re</span></div>
         </div>
       </div>
@@ -1450,7 +1450,7 @@ body::before {
         </div>
         <div class="hp-card">
           <div class="hp-name">rff_sigma</div>
-          <div class="hp-value">4.0</div>
+          <div class="hp-value">32.0</div>
         </div>
         <div class="hp-card">
           <div class="hp-name">d_time</div>
@@ -1610,7 +1610,7 @@ body::before {
   <!-- Footer -->
   <div class="footer">
     <span>Pi-LNN &nbsp;·&nbsp; DeepONet + CfC &nbsp;·&nbsp; Sparse-Data Mainline</span>
-    <span>2026-03-27 &nbsp;·&nbsp; thin token / token-attn / temporal CfC</span>
+    <span>2026-03-29 &nbsp;·&nbsp; uvomega / thin token / token-attn / temporal CfC</span>
   </div>
 
 </div><!-- /page -->
