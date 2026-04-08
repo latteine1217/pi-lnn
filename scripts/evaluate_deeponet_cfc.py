@@ -106,6 +106,19 @@ def spectrum_value_at_k(k_vals: np.ndarray, e_vals: np.ndarray, k_target: float)
     return float(e_vals[idx])
 
 
+def forcing_mode_coeff_u(u: np.ndarray, y: np.ndarray, k_forcing: float) -> tuple[float, float]:
+    """What: 擷取 x-平均後 u(y) 在 forcing mode 的複數 Fourier 係數。
+
+    Why: 目前關鍵問題不是場完全崩潰，而是主模態是否被正確學到。
+         直接量 amplitude / phase，比只看總能譜更容易判斷是沒學到還是相位錯。
+    """
+    u_bar = u.mean(axis=0)
+    phase_arg = -2.0 * np.pi * float(k_forcing) * y
+    basis = np.exp(1j * phase_arg)
+    coeff = np.mean(u_bar * basis)
+    return float(np.abs(coeff)), float(np.angle(coeff))
+
+
 def plot_field_comparison(
     output_path: Path,
     u_ref: np.ndarray,
@@ -230,6 +243,50 @@ def plot_metric_vs_time(
     plt.close(fig)
 
 
+def plot_uv_error_vs_time(
+    output_path: Path,
+    time_vals: np.ndarray,
+    u_err: np.ndarray,
+    v_err: np.ndarray,
+) -> None:
+    """What: 輸出 u / v RMSE 隨時間的變化圖。
+
+    Why: 單看平均 RMSE 會掩蓋模型是否只在前段或後段時間失真，
+         需要明確看到兩個速度分量的誤差如何隨時間演化。
+    """
+    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
+    ax.plot(time_vals, u_err, marker="o", label="u RMSE")
+    ax.plot(time_vals, v_err, marker="s", label="v RMSE")
+    ax.set_title("Velocity Error vs Time")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("RMSE")
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
+def plot_mode_vs_time(
+    output_path: Path,
+    time_vals: np.ndarray,
+    ref_vals: np.ndarray,
+    pred_vals: np.ndarray,
+    title: str,
+    y_label: str,
+) -> None:
+    """What: 輸出 forcing mode amplitude / phase 的時間演化比較圖。"""
+    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
+    ax.plot(time_vals, ref_vals, marker="o", label="DNS")
+    ax.plot(time_vals, pred_vals, marker="s", label="LNN")
+    ax.set_title(title)
+    ax.set_xlabel("Time")
+    ax.set_ylabel(y_label)
+    ax.grid(True, alpha=0.25)
+    ax.legend()
+    fig.savefig(output_path, dpi=180)
+    plt.close(fig)
+
+
 def main() -> None:
     args = parse_args()
     output_dir = args.output_dir.resolve()
@@ -239,7 +296,14 @@ def main() -> None:
     device = choose_device(args.device)
     model = create_lnn_model(cfg).to(device)
     state = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    state = state["model"] if isinstance(state, dict) and "model" in state else state
+    if isinstance(state, dict) and "model_state_dict" in state:
+        state = state["model_state_dict"]
+    elif isinstance(state, dict) and "model" in state:
+        state = state["model"]
+    # 相容舊 checkpoint：log_fusion_temperature 由 0-dim 改為 shape (1,)
+    lft_key = "query_decoder.log_fusion_temperature"
+    if lft_key in state and state[lft_key].dim() == 0:
+        state[lft_key] = state[lft_key].unsqueeze(0)
     model.load_state_dict(state, strict=False)
     model.eval()
 
@@ -248,14 +312,17 @@ def main() -> None:
     dns = np.load(cfg["dns_paths"][0], allow_pickle=True).item()
 
     sensor_pos = np.array(sensor_json["selected_coordinates"], dtype=np.float32)
-    sensor_vals = np.stack(
-        [
-            sensor_npz["u"].astype(np.float32),
-            sensor_npz["v"].astype(np.float32),
-            sensor_npz["p"].astype(np.float32),
-        ],
-        axis=2,
-    )  # [K, T, 3]
+    requested = tuple(cfg.get("observed_sensor_channels", ["u", "v"]))
+    observed_fields = []
+    for key in requested:
+        if key in sensor_npz:
+            observed_fields.append(sensor_npz[key].astype(np.float32))
+    if not observed_fields:
+        raise ValueError(f"sensor_npz 不含指定感測器通道 {requested}。")
+    sensor_vals = np.stack(observed_fields, axis=2)  # [K, T, C_obs]
+    sensor_mean = sensor_vals.mean(axis=(0, 1), keepdims=True)
+    sensor_std = np.maximum(sensor_vals.std(axis=(0, 1), keepdims=True), 1.0e-6)
+    sensor_vals = ((sensor_vals - sensor_mean) / sensor_std).astype(np.float32)
     sensor_time = sensor_npz["time"].astype(np.float32)
 
     x_g = dns["x"][::2].astype(np.float32)
@@ -282,11 +349,11 @@ def main() -> None:
                 bs = end - start
                 t_b = torch.full((bs,), t_val, dtype=torch.float32, device=device)
                 c_b = torch.full((bs,), comp_idx, dtype=torch.long, device=device)
-                out = model.query_decoder(xy_b, t_b, c_b, h_states, s_time, model.B)
+                out = model.query_decoder(xy_b, t_b, c_b, h_states, s_time, sp_t)
                 parts.append(out.squeeze(1).cpu().numpy())
         return np.concatenate(parts).reshape(len(x_g), len(y_g))
 
-    dx = float(dns["config"]["L"]) / len(x_g)
+    dx = float(x_g[1] - x_g[0]) if len(x_g) > 1 else 1.0
     u_rmse = []
     v_rmse = []
     ke_rel_err = []
@@ -297,6 +364,10 @@ def main() -> None:
     ke_pred_series = []
     ens_ref_series = []
     ens_pred_series = []
+    kf_amp_ref_series = []
+    kf_amp_pred_series = []
+    kf_phase_ref_series = []
+    kf_phase_pred_series = []
 
     summary_steps: list[dict[str, float]] = []
     for t_val in sensor_time:
@@ -312,6 +383,8 @@ def main() -> None:
         ke_ref = kinetic_energy(u_ref, v_ref)
         ens_pred = enstrophy_fd(u_pred, v_pred, dx)
         ens_ref = enstrophy_fd(u_ref, v_ref, dx)
+        amp_ref, phase_ref = forcing_mode_coeff_u(u_ref, y_g, float(cfg["kolmogorov_k_f"]))
+        amp_pred, phase_pred = forcing_mode_coeff_u(u_pred, y_g, float(cfg["kolmogorov_k_f"]))
         ke_err = abs(ke_pred - ke_ref) / max(ke_ref, 1e-12)
         ens_err = abs(ens_pred - ens_ref) / max(ens_ref, 1e-12)
 
@@ -325,6 +398,10 @@ def main() -> None:
         ke_pred_series.append(float(ke_pred))
         ens_ref_series.append(float(ens_ref))
         ens_pred_series.append(float(ens_pred))
+        kf_amp_ref_series.append(amp_ref)
+        kf_amp_pred_series.append(amp_pred)
+        kf_phase_ref_series.append(phase_ref)
+        kf_phase_pred_series.append(phase_pred)
         summary_steps.append(
             {
                 "time": float(t_val),
@@ -334,6 +411,10 @@ def main() -> None:
                 "v_std": float(v_pred.std()),
                 "ke_rel_err": float(ke_err),
                 "ens_rel_err": float(ens_err),
+                "kf_amp_ref": amp_ref,
+                "kf_amp_pred": amp_pred,
+                "kf_phase_ref": phase_ref,
+                "kf_phase_pred": phase_pred,
             }
         )
 
@@ -390,6 +471,28 @@ def main() -> None:
         title="Enstrophy vs Time",
         y_label="Enstrophy",
     )
+    plot_uv_error_vs_time(
+        output_dir / "uv_error_vs_time.png",
+        sensor_time,
+        np.asarray(u_rmse),
+        np.asarray(v_rmse),
+    )
+    plot_mode_vs_time(
+        output_dir / "kf_mode_amplitude_vs_time.png",
+        sensor_time,
+        np.asarray(kf_amp_ref_series),
+        np.asarray(kf_amp_pred_series),
+        title=f"Forcing Mode Amplitude (k={float(cfg['kolmogorov_k_f']):.1f})",
+        y_label="Amplitude",
+    )
+    plot_mode_vs_time(
+        output_dir / "kf_mode_phase_vs_time.png",
+        sensor_time,
+        np.unwrap(np.asarray(kf_phase_ref_series)),
+        np.unwrap(np.asarray(kf_phase_pred_series)),
+        title=f"Forcing Mode Phase (k={float(cfg['kolmogorov_k_f']):.1f})",
+        y_label="Phase [rad]",
+    )
 
     summary = {
         "config": str(args.config.resolve()),
@@ -402,6 +505,12 @@ def main() -> None:
         "ke_rel_err_mean": float(np.mean(ke_rel_err)),
         "ens_rel_err_mean": float(np.mean(ens_rel_err)),
         "ek_ratio_kf_last": float(ek_ratio),
+        "kf_amp_ref_last": float(kf_amp_ref_series[-1]),
+        "kf_amp_pred_last": float(kf_amp_pred_series[-1]),
+        "kf_amp_ratio_last": float(kf_amp_pred_series[-1] / max(kf_amp_ref_series[-1], 1e-12)),
+        "kf_phase_ref_last": float(kf_phase_ref_series[-1]),
+        "kf_phase_pred_last": float(kf_phase_pred_series[-1]),
+        "kf_phase_err_last": float(np.angle(np.exp(1j * (kf_phase_pred_series[-1] - kf_phase_ref_series[-1])))),
         "steps": summary_steps,
     }
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
@@ -415,12 +524,15 @@ def main() -> None:
     print(f"KE rel-err mean  = {summary['ke_rel_err_mean']:.4e}")
     print(f"Ens rel-err mean = {summary['ens_rel_err_mean']:.4e}")
     print(f"E(k_f={float(cfg['kolmogorov_k_f']):.1f}) ratio @ last = {summary['ek_ratio_kf_last']:.4e}")
+    print(f"k_f amplitude ratio @ last = {summary['kf_amp_ratio_last']:.4e}")
+    print(f"k_f phase error @ last = {summary['kf_phase_err_last']:.4e} rad")
     print(f"summary_json: {output_dir / 'summary.json'}")
     print(f"field_comparison: {output_dir / f'field_comparison_t{int(round(t_last))}.png'}")
     print(f"vorticity_comparison: {output_dir / f'vorticity_comparison_t{int(round(t_last))}.png'}")
     print(f"energy_spectrum: {output_dir / 'energy_spectrum.png'}")
     print(f"kinetic_energy_plot: {output_dir / 'kinetic_energy_vs_time.png'}")
     print(f"enstrophy_plot: {output_dir / 'enstrophy_vs_time.png'}")
+    print(f"uv_error_plot: {output_dir / 'uv_error_vs_time.png'}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,70 @@
+# configs/deeponet_cfc_re10000_normalize_only.toml
+# What: EXP-036 — 與 EXP-031 相同設定（d=128, random-32），
+#       僅加入 physics_residual_normalize=true。
+#
+# Why: EXP-035（chebyshev + normalize）KE=66.1%，遠差於 EXP-031（39.4%）。
+#      需拆開兩個變更確認各自影響。本實驗只加 normalize，不動 collocation 策略。
+#      若 KE 優於 EXP-031（39.4%），表示 normalize 有益；
+#      若 KE 更差，表示 normalize 是 EXP-035 失敗的主因。
+#
+# Hypothesis: normalize 使 continuity 梯度量級恢復，KE < 37%（小幅改善）。
+# Falsifiability: 若 KE > 0.40，表示 normalize 有害或無效。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128
+output_head_gain = 1.0
+operator_rank = 128
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = true
+num_physics_points = 32
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-normalize-only-3000"

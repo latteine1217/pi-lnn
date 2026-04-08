@@ -1,0 +1,83 @@
+# configs/deeponet_cfc_re10000_wide_v2.toml
+# What: EXP-031 — Re=10000 架構升級版，從 Re=1000 EXP-030 最佳設定出發，
+#       調整容量以應對更複雜湍流動態。
+#
+# 相對 Re=1000 主線（EXP-030）的變更：
+#   fourier_harmonics  : 8  → 16   （覆蓋 Re=10000 更小空間尺度）
+#   d_model            : 64 → 128  （EXP-018 已驗證部分有效）
+#   d_time             : 8  → 16   （更高維的絕對時間座標）
+#   operator_rank      : 64 → 128  （提升 branch-trunk 分解能力）
+#   query_mlp_hidden_dim: 64 → 128
+#   num_token_attention_layers: 1 → 2 （更多感測器空間交互）
+#   優化器             : SOAP + Schedule-Free（與 EXP-028/030 一致）
+#
+# TODO: data 路徑待新資料產出後更新。
+#       目前暫用既有 Re=10000 資料（dt=0.125, 41 frames），
+#       新資料預期 dt=0.05（與 Re=1000 一致），屆時替換 sensor_jsons/npzs/dns_paths。
+#
+# Hypothesis: 升級後 KE rel-err < 40%（vs 舊架構 EXP-019 的 53.6%），
+#             early-time max phase_err@t<=1.0 < 0.5 rad（vs EXP-018 的 0.71 rad）。
+# Falsifiability: 若 KE > 0.50 或 early-time phase_err > 1.0 rad，
+#                 表示資料時間密度仍是主因，架構升級不足以補償。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 空間編碼：週期 Fourier（與 Re=1000 主線一致），harmonics 加倍覆蓋更小尺度
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+
+# 模型容量：全面加倍
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128
+output_head_gain = 1.0
+operator_rank = 128
+
+# Physics loss（與 Re=1000 主線一致）
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+# Time marching（與 Re=1000 主線一致）
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# 訓練策略：SOAP + Schedule-Free（Re=1000 EXP-030 最佳優化器）
+iterations = 3000
+num_query_points = 128
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-wide-v2-3000"

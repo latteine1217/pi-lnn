@@ -1,0 +1,79 @@
+# configs/deeponet_cfc_re10000_chebyshev.toml
+# What: EXP-035 — 與 EXP-031 相同的容量（d_model=128，1-layer），
+#       但 physics collocation 從 random-32 換成 Chebyshev-256（16×16 格點），
+#       並啟用 physics_residual_normalize。從 step 0 重新訓練。
+#
+# Why: 用小模型隔離機制變更效果，避免容量差異混淆對照結果。
+#      EXP-031（d=128, random-32）= KE 39.4%，是本實驗的直接對照組。
+#      若機制有效，d=128 下就應看到改善；若無效，再用 d=256 確認是否容量掩蓋了機制。
+#
+# 機制變更：
+#   physics_collocation_strategy = "chebyshev"：
+#     16×16 Gauss-Chebyshev 格點，Nyquist k~16（vs random-32 的 k~5）。
+#   physics_residual_normalize = true：
+#     各殘差除以自身批次 RMS，momentum / continuity 梯度量級對齊。
+#   num_physics_points = 256：配合 16×16 grid。
+#
+# Hypothesis: KE rel-err < 34%（優於 EXP-031 的 39.4%），amp ratio > 0.6。
+# Falsifiability: 若 KE > 0.39，表示 k=5~16 的 physics 約束不是主要瓶頸，
+#                 問題在模型容量或資料本身的資訊量限制。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128
+output_head_gain = 1.0
+operator_rank = 128
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+# 機制變更（C）
+physics_collocation_strategy = "chebyshev"
+physics_residual_normalize = true
+num_physics_points = 256
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-chebyshev-3000"
