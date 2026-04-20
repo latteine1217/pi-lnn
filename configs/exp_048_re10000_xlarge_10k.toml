@@ -1,0 +1,72 @@
+# configs/exp_048_re10000_xlarge_10k.toml
+# What: EXP-048 — resume EXP-043（d_model=256, 5000 steps, KE=27.2%）至 10000 steps。
+#
+# Why: EXP-043（5000 steps）KE=27.2%，較 EXP-033（3000 steps）改善 4.3%，loss 仍在下降。
+#      延長訓練是目前風險最低、確定有效的方向。
+#      單一變量：僅延長步數，架構與超參完全不變。
+#
+# Hypothesis: KE rel-err < 23%（EXP-043 5k=27.2% 的進一步改善）。
+# Falsifiability: 若 7500 步後 KE 改善 < 2%（絕對值），表示收斂已近飽和，
+#                 需引入架構或 loss 層面的變更。
+#
+# 對照基準：EXP-043（KE=27.2%，5000 steps）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-5000/lnn_kolmogorov_final.pt"

@@ -1,0 +1,88 @@
+# configs/exp_047_re10000_xlarge_gradnorm4.toml
+# What: EXP-047 — Re=10000 d_model=256 + GradNorm 4-task，從頭訓練 3000 steps。
+#
+# Why: EXP-046（KE=59.9%，GradNorm 3 tasks）失敗：w_cont→0.750，
+#      GradNorm 等梯度範數目標不等同物理可行性；
+#      NS x/y 混在一起也無法感知 Kolmogorov forcing 的不對稱性。
+#      → 拆成 [data, ns_u, ns_v, cont] 4 tasks，初始 [1.0, 0.01, 0.01, 0.01]，
+#        讓 GradNorm 從 physics << data 開始，與 EXP-033 固定權重起點一致。
+#
+# Hypothesis: 4-task GradNorm 從低初始 ns/cont 權重出發，能在保留散度約束的同時
+#             讓 NS x/y 各自適應 forcing 的不對稱，優於 EXP-033（KE=31.5%）。
+# Falsifiability:
+#   - 若 w_cont 在訓練中持續下降（< 0.005），表示 GradNorm 仍壓制散度。
+#   - 若 w_ns_u ≈ w_ns_v 而非出現分歧，表示 forcing 不對稱性沒有被捕捉。
+#   - 若 KE ≥ 31.5%（EXP-033），表示改動無效。
+#
+# 對照基準：EXP-033（KE=31.5%，fixed phys_w=0.01，cont_w=1.0，3000 steps）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構（與 EXP-043 完全相同）
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# 物理損失（GradNorm 模式下不使用 physics_loss_weight 作乘數，
+# 只要 num_physics_points > 0 即啟用物理計算）
+data_loss_weight = 1.0
+physics_loss_weight = 0.01   # 非 GradNorm 路徑用；GradNorm 模式下忽略
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0      # 非 GradNorm 路徑用；GradNorm 模式下忽略
+poisson_loss_weight = 0.0
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+num_physics_points = 32
+
+# GradNorm — 4 tasks: [data, ns_u, ns_v, cont]
+use_gradnorm = true
+gradnorm_alpha = 1.5                              # 回歸任務的標準值
+gradnorm_lr = 1e-3                                # GradNorm weight optimizer lr
+gradnorm_update_freq = 200                        # 每 200 steps 更新一次（二階梯度昂貴）
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]  # 與 EXP-033 固定權重起點一致
+gradnorm_ema_momentum = 0.5                       # EMA 平滑：new = 0.5*old + 0.5*computed
+
+# 時間推進
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# 優化器（與 EXP-043 相同）
+iterations = 3000
+num_query_points = 128
+learning_rate = 1e-3
+weight_decay = 1e-4
+lr_schedule = "none"
+use_schedule_free = true
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-gradnorm4-3000"

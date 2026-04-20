@@ -1,14 +1,18 @@
-# configs/deeponet_cfc_re10000_chebyshev_only.toml
-# What: EXP-037 — 與 EXP-031 相同設定（d=128），
-#       僅將 physics collocation 從 random-32 換成 chebyshev-256，不加 normalize。
+# configs/exp_038_re10000_poisson.toml
+# What: EXP-038 — 與 EXP-031 相同設定（d=128, random-32, SOAP+SF 3k），
+#       新增壓力 Poisson 方程作為額外 physics 約束。
 #
-# Why: EXP-035（chebyshev + normalize）KE=66.1%，EXP-036（random + normalize）KE=86.7%。
-#      physics_residual_normalize 已確認有害（自毀正反饋）。
-#      本實驗單獨測試 chebyshev collocation 的效果，排除 normalize 干擾。
+# Why: EXP-031 的 primitive-variable NS loss 中，p 沒有資料監督，
+#      模型可藉由任意調整 p 讓 momentum residual 歸零（壓力自由度問題）。
+#      壓力 Poisson 方程 ∇²p = -(∂u/∂x)² - (∂v/∂y)² - 2(∂u/∂y)(∂v/∂x)
+#      直接從 NS + ∇·u=0 推導，要求 p 必須與 u, v 的速度梯度結構一致。
+#      加入此約束後，momentum loss 中 p 不能再自由漂移，
+#      使 momentum 殘差真正約束 u, v 的動力學。
 #
-# Hypothesis: chebyshev 格點提升 k=5~16 的 physics 約束，KE < 37%（優於 EXP-031 的 39.4%）。
-# Falsifiability: 若 KE > 0.39，表示 collocation 結構化本身對此問題也無效，
-#                 physics loss 的空間覆蓋不是主要瓶頸。
+# Hypothesis: 壓力 Poisson 去除 p 的自由度後，momentum loss 能有效指導
+#             Re=10000 的動量方程，KE rel-err < 36%（優於 EXP-031 的 39.4%）。
+# Falsifiability: 若 KE > 0.39，表示壓力自由度不是主要問題，
+#                 Re=10000 的瓶頸在模型表達力或資訊量本身。
 
 [train]
 sensor_jsons = [
@@ -43,10 +47,11 @@ physics_loss_weight = 0.01
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 1.0
+poisson_loss_weight = 1.0
 
-physics_collocation_strategy = "chebyshev"
+physics_collocation_strategy = "random"
 physics_residual_normalize = false
-num_physics_points = 256
+num_physics_points = 32
 
 time_marching = true
 time_marching_start = 0.5
@@ -67,4 +72,4 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-chebyshev-only-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-poisson-3000"

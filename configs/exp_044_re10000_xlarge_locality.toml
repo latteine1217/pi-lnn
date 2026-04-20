@@ -1,0 +1,79 @@
+# configs/exp_044_re10000_xlarge_locality.toml
+# What: EXP-044 — EXP-043 架構（d=256）+ 可學習距離衰減（log_locality_decay）。
+#
+# Why: EXP-043（3k→5k steps）KE 改善 4.3%（31.5%→27.2%），接近但未達 5% falsification 門檻。
+#      amp ratio 從 0.875 → 0.931 仍在上升，但改善速率趨緩。
+#      從頭訓練（非 resume）以消除 EXP-043 optimizer 狀態對新參數的干擾——
+#      log_locality_decay 是新 Parameter，resume 時 optimizer 無其歷史，
+#      與其他參數更新速率不對齊，比從頭訓練更難收斂。
+#
+# 機制：在 cross-attention softmax 前加入 log-space 距離懲罰：
+#   score_ij += -α * r_ij，α = exp(log_locality_decay)
+#   初始 log_locality_decay = -2.0 → α ≈ 0.135（接近中性）
+#   若收斂至大正值：強近鄰優先（locality 有效）
+#   若收斂至負無窮：locality 無益（等同 EXP-043）
+#
+# Hypothesis: locality decay 引入正確 inductive bias，KE < 27.2%（優於 EXP-043）。
+# Falsifiability: 若 KE >= 27.2%，或 log_locality_decay 收斂至 << -2（decay 消失），
+#                 表示 Re=10000 湍流的非局域性使 locality bias 無益。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+use_locality_decay = true
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+num_physics_points = 32
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-locality-3000"

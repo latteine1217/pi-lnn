@@ -1,0 +1,75 @@
+# configs/exp_040_re10000_transfer.toml
+# What: EXP-040 — Re=10000 fine-tune，從 EXP-030（Re=1000 主線）weights 初始化。
+#
+# Why: EXP-031（隨機初始化，d=128）KE=39.4%。
+#      EXP-030 已學會稀疏感測器聚合、低頻流場重建、time-marching 等技能，
+#      這些技能與 Re 無關，有機會加速 Re=10000 的收斂並改善低頻基礎。
+#      使用 lnn_kolmogorov_final.pt（只有 model weights）確保 optimizer 從頭開始，
+#      避免 Re=1000 的 optimizer 狀態干擾 Re=10000 訓練。
+#
+# 架構與 EXP-031 完全相同（d=128），保證對照乾淨。
+#
+# Hypothesis: Transfer 加速低頻收斂，KE rel-err < 36%（優於 EXP-031 的 39.4%）。
+# Falsifiability: 若 KE > 0.39，表示 Re=1000 的 inductive bias（低頻偏向、
+#                 長相關時間）對 Re=10000 產生負遷移，transfer 無益。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128
+output_head_gain = 1.0
+operator_rank = 128
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+num_physics_points = 32
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-transfer-3000"
+resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-5000/lnn_kolmogorov_final.pt"

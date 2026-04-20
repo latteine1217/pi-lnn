@@ -1,0 +1,75 @@
+# configs/exp_054_re10000_xlarge_rar_1k.toml
+# What: EXP-054 — resume EXP-048 step_9500，RAR 每 1000 步更新一次，再跑 10000 步至 step 19500。
+#
+# Why: EXP-053（RAR update_freq=50）KE=25.2%，比 EXP-048 退步 3.4pp。
+#      診斷：每 50 步更新一次 collocation pool 頻率過高，強制改變 loss landscape
+#      導致已收斂的 EXP-048 優化路徑被破壞（L_phys 7.96→19.27，L_data 上升）。
+#      降低更新頻率至 1000 步，讓模型在固定 collocation 上充分收斂後再重新採樣。
+#
+# Hypothesis: KE rel-err < 21.8%（EXP-048 基準）；L_phys 不應持續爆漲
+# Falsifiability: 若 step_19500 的 KE > 22%，低頻 RAR 在此設定亦無益。
+#
+# 對照基準：EXP-048（KE=21.8%），EXP-053（KE=25.2%，RAR freq=50）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "rar"
+rar_update_freq = 1000
+rar_pool_multiplier = 10
+rar_exploration_ratio = 0.2
+physics_residual_normalize = false
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 19500
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp054-rar-1k"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/checkpoints/lnn_kolmogorov_step_9500.pt"

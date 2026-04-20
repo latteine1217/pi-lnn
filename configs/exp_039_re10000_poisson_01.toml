@@ -1,0 +1,75 @@
+# configs/exp_039_re10000_poisson_01.toml
+# What: EXP-039 — 與 EXP-038 相同，但 poisson_loss_weight=0.1（vs EXP-038 的 1.0）。
+#
+# Why: EXP-038（poisson_weight=1.0）KE=56.0%，差於 EXP-031（39.4%）。
+#      診斷：Poisson 殘差在 physics group 內佔 100x，主導訓練，壓制 momentum。
+#      amp ratio=0.884 暗示 Poisson 對能量重建有正面效果，但 weight 過大破壞平衡。
+#      poisson_weight=0.1 使 Poisson 與 momentum（l_ns）同量級，作為輔助約束。
+#
+# physics loss 結構：
+#   l_physics = l_ns + continuity_weight(1.0) * l_cont + poisson_weight(0.1) * l_poisson
+#   最終貢獻：physics_loss_weight(0.01) * l_physics
+#
+# Hypothesis: Poisson 作為輔助約束移除壓力自由度，KE < 37%（優於 EXP-031 的 39.4%）。
+# Falsifiability: 若 KE > 0.39，表示即使在合理 weight 下，壓力 Poisson 也無法改善
+#                 Re=10000 的動量約束效果。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 128
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128
+output_head_gain = 1.0
+operator_rank = 128
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.1
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+num_physics_points = 32
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-poisson-01-3000"

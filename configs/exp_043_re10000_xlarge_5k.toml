@@ -1,9 +1,14 @@
-# configs/deeponet_cfc_re10000_xlarge.toml
-# What: EXP-033 — d_model=256, operator_rank=256, 1-layer CfC，其他與 EXP-031 相同。
-# Why: EXP-031（d_model=128）KE=39.4%；EXP-032（2-layer CfC）退步至 55.1%，
-#      確認深度無益。測試單純加寬（×2 容量）是否是 Re=10000 的主要瓶頸。
-# Hypothesis: KE rel-err < 35%（優於 EXP-031），amp ratio > 0.55。
-# Falsifiability: 若 KE > 0.40，表示容量不是主因，問題在資料本身的資訊量限制。
+# configs/exp_043_re10000_xlarge_5k.toml
+# What: EXP-043 — resume EXP-033（d_model=256, 1-layer CfC）至 5000 steps。
+#
+# Why: EXP-033（3000 steps）KE=31.5%，目前 Re=10000 最佳。
+#      Transfer learning（EXP-040~042）全線失敗後，回歸容量主線。
+#      參考 Re=1000 歷史（EXP-028→EXP-030，3k→5k 降幅 ~22%），d=256 在 3k 可能仍欠收斂。
+#      單一變量：僅延長步數，不改動架構，確認 d=256 容量上限。
+#
+# Hypothesis: KE rel-err < 26%（EXP-033 3k=31.5% 的 -20% 目標），amp ratio > 0.9。
+# Falsifiability: 若 KE 在 3k→5k 改善 < 5%（絕對值），表示 d=256 在 3k 已接近收斂，
+#                 需引入架構變更（EXP-044，如 locality decay）。
 
 [train]
 sensor_jsons = [
@@ -38,6 +43,10 @@ physics_loss_weight = 0.01
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
 
 time_marching = true
 time_marching_start = 0.5
@@ -46,7 +55,7 @@ domain_length = 1.0
 kolmogorov_k_f = 2.0
 kolmogorov_A = 0.1
 
-iterations = 3000
+iterations = 5000
 num_query_points = 128
 num_physics_points = 32
 learning_rate = 3e-3
@@ -59,4 +68,5 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-5000"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-3000/lnn_kolmogorov_final.pt"

@@ -8,14 +8,19 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 matplotlib.use("Agg")
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from pi_onet.lnn_kolmogorov import create_lnn_model, load_lnn_config
+from lnn_kolmogorov import create_lnn_model, load_lnn_config
 
 
 def parse_args() -> argparse.Namespace:
@@ -54,16 +59,32 @@ def choose_device(name: str) -> torch.device:
         return torch.device("mps")
     if name == "cpu":
         return torch.device("cpu")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
     if torch.cuda.is_available():
         return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
     return torch.device("cpu")
 
 
 def block_avg(field: np.ndarray) -> np.ndarray:
     n_half = field.shape[0] // 2
     return field.reshape(n_half, 2, n_half, 2).mean(axis=(1, 3))
+
+
+def coarse_reference_grid(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """What: 產生與 2x2 block average 對齊的 coarse query grid。
+
+    Why: `block_avg()` 代表的是 coarse cell 的平均值，不是原始 fine grid node。
+         若仍在 `x[::2], y[::2]` 上 query，prediction 與 reference 會固定錯半格，
+         系統性污染 RMSE、渦度與頻譜診斷。
+    """
+    if len(x) % 2 != 0 or len(y) % 2 != 0:
+        raise ValueError(
+            f"coarse_reference_grid 需要偶數長度 grid，收到 len(x)={len(x)}, len(y)={len(y)}"
+        )
+    x_coarse = 0.5 * (x[0::2] + x[1::2])
+    y_coarse = 0.5 * (y[0::2] + y[1::2])
+    return x_coarse.astype(np.float32), y_coarse.astype(np.float32)
 
 
 def kinetic_energy(u: np.ndarray, v: np.ndarray) -> float:
@@ -87,7 +108,8 @@ def vorticity_fd(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
 
 def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndarray, np.ndarray]:
     n = u.shape[0]
-    k1d = np.fft.fftfreq(n, d=dx / (2 * np.pi))
+    # ordinary wavenumber k（cycles/domain），與 k_f=2.0 的單位一致
+    k1d = np.fft.fftfreq(n, d=dx)
     uh = np.fft.fft2(u) / n**2
     vh = np.fft.fft2(v) / n**2
     e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
@@ -97,13 +119,83 @@ def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndar
     e_k = np.zeros(len(edges) - 1, dtype=np.float64)
     for i in range(len(e_k)):
         mask = (kk >= edges[i]) & (kk < edges[i + 1])
-        e_k[i] = np.sum(e2d[mask]) * n**2
+        e_k[i] = np.sum(e2d[mask])
     return 0.5 * (edges[:-1] + edges[1:]), e_k
 
 
 def spectrum_value_at_k(k_vals: np.ndarray, e_vals: np.ndarray, k_target: float) -> float:
     idx = int(np.argmin(np.abs(k_vals - k_target)))
     return float(e_vals[idx])
+
+
+def validate_single_dataset_eval(cfg: dict[str, Any]) -> None:
+    """What: 驗證 evaluator 僅面對單一 dataset config。
+
+    Why: 訓練端支援多 dataset，但目前 evaluator 的輸出 schema 與圖像流程只針對單一 dataset。
+         若靜默只取 index 0，會產生看似完整、實際只評第一組資料的錯誤結論。
+    """
+    lengths = {
+        key: len(cfg.get(key, []))
+        for key in ("sensor_jsons", "sensor_npzs", "dns_paths", "re_values")
+    }
+    unique_lengths = set(lengths.values())
+    if unique_lengths != {1}:
+        raise ValueError(
+            "evaluate_deeponet_cfc.py 目前只支援單一 dataset；"
+            f"收到 sensor_jsons={lengths['sensor_jsons']}, "
+            f"sensor_npzs={lengths['sensor_npzs']}, "
+            f"dns_paths={lengths['dns_paths']}, "
+            f"re_values={lengths['re_values']}"
+        )
+
+
+def extract_model_state(checkpoint_payload: Any) -> dict[str, torch.Tensor]:
+    """What: 從 checkpoint payload 萃取純模型 state_dict。
+
+    Why: 評估腳本必須 fail fast。未知 checkpoint dict 若直接丟給 load_state_dict(strict=False)，
+         可能只印 warning 就繼續產出 summary，這在評估流程中不可接受。
+    """
+    if not isinstance(checkpoint_payload, dict):
+        raise ValueError(f"不支援的 checkpoint 格式：預期 dict，收到 {type(checkpoint_payload).__name__}")
+
+    if "model_state_dict" in checkpoint_payload:
+        state = checkpoint_payload["model_state_dict"]
+    elif "model" in checkpoint_payload:
+        state = checkpoint_payload["model"]
+    else:
+        tensor_like_values = all(torch.is_tensor(v) for v in checkpoint_payload.values())
+        if tensor_like_values and checkpoint_payload:
+            state = checkpoint_payload
+        else:
+            raise ValueError(
+                "不支援的 checkpoint 格式：dict 內缺少 `model_state_dict` / `model`，"
+                "且本體也不是純 state_dict。"
+            )
+
+    if not isinstance(state, dict) or not state:
+        raise ValueError("checkpoint 中的模型權重為空或格式錯誤。")
+    if not all(isinstance(k, str) for k in state):
+        raise ValueError("checkpoint state_dict key 必須全部為字串。")
+    if not all(torch.is_tensor(v) for v in state.values()):
+        raise ValueError("checkpoint state_dict value 必須全部為 tensor。")
+    return state
+
+
+def load_model_weights_strict(model: torch.nn.Module, state: dict[str, torch.Tensor]) -> None:
+    """What: 以嚴格模式載入模型權重。
+
+    Why: 對評估腳本而言，missing/unexpected keys 不是 warning，而是直接代表結果不可相信。
+    """
+    lft_key = "query_decoder.log_fusion_temperature"
+    if lft_key in state and state[lft_key].dim() == 0:
+        state = dict(state)
+        state[lft_key] = state[lft_key].unsqueeze(0)
+    load_result = model.load_state_dict(state, strict=False)
+    if load_result.missing_keys or load_result.unexpected_keys:
+        raise RuntimeError(
+            "checkpoint 與模型參數不一致："
+            f"missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}"
+        )
 
 
 def forcing_mode_coeff_u(u: np.ndarray, y: np.ndarray, k_forcing: float) -> tuple[float, float]:
@@ -293,18 +385,12 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     cfg = load_lnn_config(args.config)
+    validate_single_dataset_eval(cfg)
     device = choose_device(args.device)
     model = create_lnn_model(cfg).to(device)
-    state = torch.load(args.checkpoint, map_location=device, weights_only=False)
-    if isinstance(state, dict) and "model_state_dict" in state:
-        state = state["model_state_dict"]
-    elif isinstance(state, dict) and "model" in state:
-        state = state["model"]
-    # 相容舊 checkpoint：log_fusion_temperature 由 0-dim 改為 shape (1,)
-    lft_key = "query_decoder.log_fusion_temperature"
-    if lft_key in state and state[lft_key].dim() == 0:
-        state[lft_key] = state[lft_key].unsqueeze(0)
-    model.load_state_dict(state, strict=False)
+    checkpoint_payload = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    state = extract_model_state(checkpoint_payload)
+    load_model_weights_strict(model, state)
     model.eval()
 
     sensor_json = json.loads(Path(cfg["sensor_jsons"][0]).read_text(encoding="utf-8"))
@@ -325,8 +411,10 @@ def main() -> None:
     sensor_vals = ((sensor_vals - sensor_mean) / sensor_std).astype(np.float32)
     sensor_time = sensor_npz["time"].astype(np.float32)
 
-    x_g = dns["x"][::2].astype(np.float32)
-    y_g = dns["y"][::2].astype(np.float32)
+    x_g, y_g = coarse_reference_grid(
+        dns["x"].astype(np.float32),
+        dns["y"].astype(np.float32),
+    )
     xx, yy = np.meshgrid(x_g, y_g, indexing="ij")
     xy_flat = np.stack([xx.ravel(), yy.ravel()], axis=1).astype(np.float32)
     xy_t = torch.tensor(xy_flat, dtype=torch.float32, device=device)
@@ -335,7 +423,8 @@ def main() -> None:
     sv_t = torch.tensor(sensor_vals.transpose(1, 0, 2), dtype=torch.float32, device=device)
     sp_t = torch.tensor(sensor_pos, dtype=torch.float32, device=device)
     st_t = torch.tensor(sensor_time, dtype=torch.float32, device=device)
-    re_norm = float((1000.0 - 5500.0) / 4000.0)
+    re_value = float(cfg.get("re_values", [1000.0])[0])
+    re_norm = float((re_value - 5500.0) / 4000.0)
 
     with torch.no_grad():
         h_states, s_time = model.encode(sv_t, sp_t, re_norm, st_t)
@@ -371,7 +460,7 @@ def main() -> None:
 
     summary_steps: list[dict[str, float]] = []
     for t_val in sensor_time:
-        dns_idx = int(np.argmin(np.abs(dns["time"].astype(np.float32) - t_val)))
+        dns_idx = int(np.argmin(np.abs(dns["time"].astype(np.float64) - float(t_val))))
         u_pred = query_field(0, float(t_val))
         v_pred = query_field(1, float(t_val))
         u_ref = block_avg(dns["u"][dns_idx].astype(np.float32))
@@ -419,7 +508,7 @@ def main() -> None:
         )
 
     t_last = float(sensor_time[-1])
-    dns_idx_last = int(np.argmin(np.abs(dns["time"].astype(np.float32) - t_last)))
+    dns_idx_last = int(np.argmin(np.abs(dns["time"].astype(np.float64) - float(t_last))))
     u_last = query_field(0, t_last)
     v_last = query_field(1, t_last)
     u_ref_last = block_avg(dns["u"][dns_idx_last].astype(np.float32))

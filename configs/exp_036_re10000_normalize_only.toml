@@ -1,11 +1,14 @@
-# configs/deeponet_cfc_re10000_xlarge_5000.toml
-# What: EXP-034 — resume EXP-033（d_model=256, 1-layer CfC）至 5000 steps。
-# Why: EXP-033 在 3000 steps 達到 KE=31.5%（最佳 Re=10000）；
-#      EXP-030 的 Re=1000 經驗顯示 3k→5k 可帶來 ~20% KE 降幅（12.24%→9.61%）。
-#      d_model=256 容量正確方向已驗證，值得延長優化。
-# Hypothesis: KE rel-err < 26%（EXP-033 3k=31.5% 的 -20% 目標），amp ratio > 0.9。
-# Falsifiability: 若 KE > 0.32（未優於 3k），表示 5k 對此容量的 SOAP+SF 無邊際收益，
-#                 需考慮更換 loss 結構或加入 physics 監督。
+# configs/exp_036_re10000_normalize_only.toml
+# What: EXP-036 — 與 EXP-031 相同設定（d=128, random-32），
+#       僅加入 physics_residual_normalize=true。
+#
+# Why: EXP-035（chebyshev + normalize）KE=66.1%，遠差於 EXP-031（39.4%）。
+#      需拆開兩個變更確認各自影響。本實驗只加 normalize，不動 collocation 策略。
+#      若 KE 優於 EXP-031（39.4%），表示 normalize 有益；
+#      若 KE 更差，表示 normalize 是 EXP-035 失敗的主因。
+#
+# Hypothesis: normalize 使 continuity 梯度量級恢復，KE < 37%（小幅改善）。
+# Falsifiability: 若 KE > 0.40，表示 normalize 有害或無效。
 
 [train]
 sensor_jsons = [
@@ -24,22 +27,26 @@ fourier_harmonics = 16
 use_temporal_anchor = true
 T_total = 5.0
 temporal_anchor_harmonics = 2
-d_model = 256
+d_model = 128
 d_time = 16
 num_spatial_cfc_layers = 1
 num_temporal_cfc_layers = 1
 num_token_attention_layers = 2
 token_attention_heads = 4
 num_query_mlp_layers = 1
-query_mlp_hidden_dim = 256
+query_mlp_hidden_dim = 128
 output_head_gain = 1.0
-operator_rank = 256
+operator_rank = 128
 
 data_loss_weight = 1.0
 physics_loss_weight = 0.01
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 1.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = true
+num_physics_points = 32
 
 time_marching = true
 time_marching_start = 0.5
@@ -48,9 +55,8 @@ domain_length = 1.0
 kolmogorov_k_f = 2.0
 kolmogorov_A = 0.1
 
-iterations = 5000
+iterations = 3000
 num_query_points = 128
-num_physics_points = 32
 learning_rate = 3e-3
 weight_decay = 1e-4
 lr_schedule = "soap"
@@ -61,5 +67,4 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-5000"
-resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-3000/checkpoints/lnn_kolmogorov_step_3000.pt"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-normalize-only-3000"

@@ -1,4 +1,4 @@
-# src/pi_onet/kolmogorov_dataset.py
+# src/kolmogorov_dataset.py
 """KolmogorovDataset: 載入感測器時序 + DNS ground truth，提供 sparse-data 採樣。
 
 What: 從 JSON（感測器位置）、NPZ（感測器時序）、DNS NPY（全場 ground truth）

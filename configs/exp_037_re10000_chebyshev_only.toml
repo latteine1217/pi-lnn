@@ -1,22 +1,14 @@
-# configs/deeponet_cfc_re10000_chebyshev.toml
-# What: EXP-035 — 與 EXP-031 相同的容量（d_model=128，1-layer），
-#       但 physics collocation 從 random-32 換成 Chebyshev-256（16×16 格點），
-#       並啟用 physics_residual_normalize。從 step 0 重新訓練。
+# configs/exp_037_re10000_chebyshev_only.toml
+# What: EXP-037 — 與 EXP-031 相同設定（d=128），
+#       僅將 physics collocation 從 random-32 換成 chebyshev-256，不加 normalize。
 #
-# Why: 用小模型隔離機制變更效果，避免容量差異混淆對照結果。
-#      EXP-031（d=128, random-32）= KE 39.4%，是本實驗的直接對照組。
-#      若機制有效，d=128 下就應看到改善；若無效，再用 d=256 確認是否容量掩蓋了機制。
+# Why: EXP-035（chebyshev + normalize）KE=66.1%，EXP-036（random + normalize）KE=86.7%。
+#      physics_residual_normalize 已確認有害（自毀正反饋）。
+#      本實驗單獨測試 chebyshev collocation 的效果，排除 normalize 干擾。
 #
-# 機制變更：
-#   physics_collocation_strategy = "chebyshev"：
-#     16×16 Gauss-Chebyshev 格點，Nyquist k~16（vs random-32 的 k~5）。
-#   physics_residual_normalize = true：
-#     各殘差除以自身批次 RMS，momentum / continuity 梯度量級對齊。
-#   num_physics_points = 256：配合 16×16 grid。
-#
-# Hypothesis: KE rel-err < 34%（優於 EXP-031 的 39.4%），amp ratio > 0.6。
-# Falsifiability: 若 KE > 0.39，表示 k=5~16 的 physics 約束不是主要瓶頸，
-#                 問題在模型容量或資料本身的資訊量限制。
+# Hypothesis: chebyshev 格點提升 k=5~16 的 physics 約束，KE < 37%（優於 EXP-031 的 39.4%）。
+# Falsifiability: 若 KE > 0.39，表示 collocation 結構化本身對此問題也無效，
+#                 physics loss 的空間覆蓋不是主要瓶頸。
 
 [train]
 sensor_jsons = [
@@ -52,9 +44,8 @@ physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 1.0
 
-# 機制變更（C）
 physics_collocation_strategy = "chebyshev"
-physics_residual_normalize = true
+physics_residual_normalize = false
 num_physics_points = 256
 
 time_marching = true
@@ -76,4 +67,4 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-chebyshev-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-chebyshev-only-3000"

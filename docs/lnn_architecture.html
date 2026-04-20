@@ -3,1626 +3,2423 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pi-LNN — DeepONet + CfC Sparse-Data Architecture</title>
+<title>Pi-LNN Mainline Architecture</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ──────────────────────────────────────────
-   Theme tokens
-────────────────────────────────────────── */
 :root {
-  --transition: 0.28s cubic-bezier(0.4,0,0.2,1);
+  --transition: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* DARK — blueprint */
 [data-theme="dark"] {
-  --bg:           #0a0c10;
-  --bg-alt:       #080a0e;
-  --surface:      #111318;
-  --surface2:     #0d0f14;
-  --border:       #1e2330;
-  --border-mid:   #252d42;
-  --border-hi:    #2e3550;
-  --accent:       #4af0c4;
-  --accent2:      #f0a24a;
-  --accent3:      #a24af0;
-  --accent4:      #4a8ff0;
-  --text:         #c8d0e0;
-  --text-dim:     #4a5470;
-  --text-mid:     #8090b0;
-  --text-hi:      #e8f0ff;
-  --grid-line:    rgba(78,140,255,0.04);
-  --tag-bg:       rgba(255,255,255,0.04);
-  --badge-bg:     rgba(255,255,255,0.04);
-  --formula-bg:   rgba(255,255,255,0.02);
-  --hp-bg:        #0d0f14;
-  --row-div:      rgba(255,255,255,0.03);
-  --shadow:       none;
-  --shadow-card:  none;
-  --font-head:    'IBM Plex Mono', monospace;
-  --font-body:    'IBM Plex Sans', sans-serif;
-  --font-mono:    'IBM Plex Mono', monospace;
+  --bg: #090c11;
+  --bg-alt: #0e1219;
+  --panel: rgba(14, 18, 25, 0.88);
+  --panel-2: rgba(18, 24, 34, 0.92);
+  --panel-3: rgba(10, 14, 22, 0.9);
+  --border: rgba(132, 151, 181, 0.16);
+  --border-strong: rgba(132, 151, 181, 0.32);
+  --text: #d0d8e6;
+  --text-mid: #93a1b8;
+  --text-dim: #66738a;
+  --text-hi: #f3f7ff;
+  --blue: #63a7ff;
+  --teal: #5ee5c4;
+  --orange: #f5ad63;
+  --red: #ff8e8e;
+  --chip: rgba(255, 255, 255, 0.05);
+  --shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
+  --grid: rgba(99, 167, 255, 0.06);
+  --page-glow: radial-gradient(circle at top left, rgba(94, 229, 196, 0.1), transparent 32%),
+               radial-gradient(circle at top right, rgba(99, 167, 255, 0.1), transparent 28%);
 }
 
-/* LIGHT — liquid.ai / onnx inspired */
 [data-theme="light"] {
-  --bg:           #f5f6f8;
-  --bg-alt:       #eef0f4;
-  --surface:      #ffffff;
-  --surface2:     #f9fafb;
-  --border:       #e4e7ef;
-  --border-mid:   #d0d5e4;
-  --border-hi:    #bec5d6;
-  --accent:       #0aa87a;
-  --accent2:      #d97706;
-  --accent3:      #7c3aed;
-  --accent4:      #2563eb;
-  --text:         #374151;
-  --text-dim:     #9ca3b8;
-  --text-mid:     #6b7280;
-  --text-hi:      #111827;
-  --grid-line:    rgba(37,99,235,0.04);
-  --tag-bg:       rgba(0,0,0,0.04);
-  --badge-bg:     rgba(37,99,235,0.06);
-  --formula-bg:   rgba(37,99,235,0.03);
-  --hp-bg:        #f9fafb;
-  --row-div:      rgba(0,0,0,0.04);
-  --shadow:       0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-card:  0 1px 4px rgba(0,0,0,0.07);
-  --font-head:    'Plus Jakarta Sans', sans-serif;
-  --font-body:    'Plus Jakarta Sans', sans-serif;
-  --font-mono:    'DM Mono', monospace;
+  --bg: #f3f5f8;
+  --bg-alt: #ffffff;
+  --panel: rgba(255, 255, 255, 0.95);
+  --panel-2: rgba(250, 251, 253, 0.98);
+  --panel-3: rgba(246, 248, 251, 0.98);
+  --border: rgba(37, 55, 88, 0.12);
+  --border-strong: rgba(37, 55, 88, 0.24);
+  --text: #415067;
+  --text-mid: #627188;
+  --text-dim: #8592a7;
+  --text-hi: #101722;
+  --blue: #2563eb;
+  --teal: #089981;
+  --orange: #d97706;
+  --red: #dc2626;
+  --chip: rgba(16, 23, 34, 0.04);
+  --shadow: 0 18px 40px rgba(34, 48, 74, 0.08);
+  --grid: rgba(37, 99, 235, 0.05);
+  --page-glow: radial-gradient(circle at top left, rgba(8, 153, 129, 0.08), transparent 30%),
+               radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 24%);
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html {
-  transition: background var(--transition), color var(--transition);
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-head);
   min-height: 100vh;
-  overflow-x: hidden;
+  font-family: "IBM Plex Sans", sans-serif;
+  color: var(--text);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 20%),
+    var(--page-glow),
+    var(--bg);
   transition: background var(--transition), color var(--transition);
 }
 
-/* grid background */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 40px 40px;
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 36px 36px;
   pointer-events: none;
   z-index: 0;
-  transition: opacity var(--transition);
 }
-[data-theme="light"] body::before { opacity: 0.6; }
+
+a {
+  color: inherit;
+}
 
 .page {
   position: relative;
   z-index: 1;
-  max-width: 1200px;
+  width: min(1280px, calc(100vw - 40px));
   margin: 0 auto;
-  padding: 48px 32px;
+  padding: 40px 0 56px;
 }
 
-/* ──────────────────────────────────────────
-   Theme Toggle
-────────────────────────────────────────── */
 .theme-toggle {
   position: fixed;
-  top: 24px;
-  right: 28px;
-  z-index: 100;
-  cursor: pointer;
-  background: var(--surface);
-  border: 1px solid var(--border-hi);
-  border-radius: 24px;
-  padding: 6px 14px;
-  display: flex;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
+  gap: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  color: var(--text-mid);
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 11px;
-  color: var(--text-mid);
-  letter-spacing: 0.05em;
-  transition: background var(--transition), border-color var(--transition),
-              color var(--transition), box-shadow var(--transition);
-  box-shadow: var(--shadow-card);
-  user-select: none;
-}
-.theme-toggle:hover {
-  border-color: var(--accent4);
-  color: var(--text-hi);
-}
-.toggle-icon {
-  font-size: 13px;
-  transition: transform 0.4s ease;
-}
-[data-theme="light"] .toggle-icon { transform: rotate(180deg); }
-
-/* ──────────────────────────────────────────
-   Header
-────────────────────────────────────────── */
-.header {
-  margin-bottom: 56px;
-  display: flex;
-  align-items: flex-start;
-  gap: 0;
-}
-[data-theme="dark"] .header {
-  border-left: 3px solid var(--accent);
-  padding-left: 20px;
-}
-[data-theme="light"] .header {
-  border-left: none;
-  padding-left: 0;
-}
-[data-theme="light"] .header::before {
-  content: '';
-  display: block;
-  width: 4px;
-  height: 100%;
-  background: linear-gradient(180deg, var(--accent4) 0%, var(--accent) 100%);
-  border-radius: 2px;
-  margin-right: 20px;
-  min-height: 60px;
-  flex-shrink: 0;
-}
-.header-inner { flex: 1; }
-.header-tag {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.25em;
-  color: var(--accent);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-bottom: 8px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .header-tag {
-  color: var(--accent4);
-  font-weight: 500;
-}
-.header h1 {
-  font-family: var(--font-head);
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-hi);
-  letter-spacing: -0.02em;
-  transition: color var(--transition);
-}
-[data-theme="light"] .header h1 {
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #111827 0%, #374151 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.header p {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin-top: 6px;
-  font-family: var(--font-body);
-  transition: color var(--transition);
-}
-[data-theme="light"] .header p {
-  color: var(--text-mid);
-  font-weight: 400;
-}
-
-/* ──────────────────────────────────────────
-   Section labels
-────────────────────────────────────────── */
-.section-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  transition: color var(--transition);
-}
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border);
-  transition: background var(--transition);
-}
-[data-theme="light"] .section-label {
-  color: var(--text-mid);
-  font-weight: 500;
-  letter-spacing: 0.15em;
-}
-
-/* ──────────────────────────────────────────
-   Shared diagram containers
-────────────────────────────────────────── */
-.diagram-section { margin-bottom: 64px; }
-
-.arch-diagram, .flow-diagram {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 40px;
-  position: relative;
-  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
-}
-[data-theme="light"] .arch-diagram,
-[data-theme="light"] .flow-diagram {
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  cursor: pointer;
+  backdrop-filter: blur(18px);
   box-shadow: var(--shadow);
 }
 
-/* ──────────────────────────────────────────
-   Model Architecture
-────────────────────────────────────────── */
-.module-box {
-  border: 1px solid var(--border-hi);
-  border-radius: 3px;
-  padding: 16px;
-  position: relative;
-  background: var(--bg);
-  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
-}
-[data-theme="light"] .module-box {
-  background: var(--surface);
-  border-radius: 8px;
-  box-shadow: var(--shadow-card);
-  border-color: var(--border);
-}
-
-.module-box.sensor { border-color: var(--accent4); }
-.module-box.query  { border-color: var(--accent3); }
-.module-box.cross  { border-color: var(--accent); border-width: 2px; }
-.module-box.output { border-color: var(--accent2); }
-
-[data-theme="light"] .module-box.sensor {
-  border-color: var(--border);
-  border-top: 3px solid var(--accent4);
-}
-[data-theme="light"] .module-box.query {
-  border-color: var(--border);
-  border-top: 3px solid var(--accent3);
-}
-[data-theme="light"] .module-box.cross {
-  border-color: var(--border);
-  border-top: 3px solid var(--accent);
-  border-width: 1px;
-  border-top-width: 3px;
-}
-[data-theme="light"] .module-box.output {
-  border-color: var(--border);
-  border-top: 3px solid var(--accent2);
-}
-
-.module-tag {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  transition: color var(--transition);
-}
-.sensor .module-tag { color: var(--accent4); }
-.query  .module-tag { color: var(--accent3); }
-.cross  .module-tag { color: var(--accent);  }
-.output .module-tag { color: var(--accent2); }
-
-.module-title {
-  font-size: 14px;
-  font-weight: 600;
+.theme-toggle:hover {
   color: var(--text-hi);
-  margin-bottom: 10px;
-  font-family: var(--font-head);
-  transition: color var(--transition);
+  border-color: var(--blue);
 }
-[data-theme="light"] .module-title { font-size: 13px; }
 
-.module-detail {
+.theme-toggle .icon {
+  font-size: 14px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 28px;
+}
+
+.hero-card,
+.panel,
+.figure-card,
+.code-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.hero-main {
+  padding: 28px 30px 28px;
+}
+
+.eyebrow,
+.section-label,
+.mini-label,
+.chip,
+.code-meta,
+.metric-label,
+.table-wrap thead th {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.eyebrow {
+  color: var(--teal);
   font-size: 11px;
-  color: var(--text-dim);
-  line-height: 1.7;
-  font-family: var(--font-mono);
-  transition: color var(--transition);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
-[data-theme="light"] .module-detail {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
+
+.hero-main h1 {
+  color: var(--text-hi);
+  font-size: clamp(32px, 4vw, 56px);
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  margin-bottom: 14px;
+}
+
+.hero-main p {
   color: var(--text-mid);
-}
-.module-detail .hi {
-  color: var(--text);
-  transition: color var(--transition);
-}
-[data-theme="light"] .module-detail .hi { color: var(--text-hi); }
-
-.shape-badge {
-  display: inline-block;
-  background: var(--badge-bg);
-  border: 1px solid var(--border-hi);
-  border-radius: 2px;
-  padding: 2px 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-dim);
-  margin-top: 8px;
-  transition: all var(--transition);
-}
-[data-theme="light"] .shape-badge {
-  background: rgba(37,99,235,0.06);
-  border-color: rgba(37,99,235,0.15);
-  color: var(--accent4);
-  border-radius: 4px;
+  font-size: 15px;
+  line-height: 1.85;
+  max-width: 62ch;
 }
 
-/* arrows */
-.arrow-col {
+.chip-row {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--chip);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--text-mid);
+  letter-spacing: 0.04em;
+}
+
+.chip b {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.hero-side {
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.stat-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 18px 16px;
+}
+
+.metric-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.metric-value {
+  color: var(--text-hi);
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.metric-value.good {
+  color: var(--teal);
+}
+
+.metric-value.warn {
+  color: var(--orange);
+}
+
+.metric-note {
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.55;
+  margin-top: 10px;
+}
+
+.section {
+  margin-top: 20px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.section-label::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, var(--border-strong), transparent);
+}
+
+.panel {
+  padding: 24px;
+}
+
+.panel-title {
+  color: var(--text-hi);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.panel-desc {
+  color: var(--text-mid);
+  font-size: 14px;
+  line-height: 1.8;
+  margin-bottom: 20px;
+}
+
+.architecture-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+.parallel-arch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.92fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.lane {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.lane.sensor-lane {
+  border-color: rgba(99, 167, 255, 0.28);
+}
+
+.lane.query-lane {
+  border-color: rgba(245, 173, 99, 0.28);
+}
+
+.lane-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.lane-title {
+  color: var(--text-hi);
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.lane-sub {
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.lane-desc {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+  margin-bottom: 16px;
+}
+
+.lane-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.lane-step {
+  position: relative;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 16px 14px 52px;
+}
+
+.lane-step::before {
+  content: "";
+  position: absolute;
+  left: 22px;
+  top: 0;
+  bottom: -12px;
+  width: 2px;
+  background: var(--border-strong);
+}
+
+.lane-step:last-child::before {
+  bottom: 0;
+}
+
+.lane-step.sensor-step::before {
+  background: linear-gradient(180deg, var(--blue), rgba(99, 167, 255, 0.15));
+}
+
+.lane-step.query-step::before {
+  background: linear-gradient(180deg, var(--orange), rgba(245, 173, 99, 0.15));
+}
+
+.lane-index {
+  position: absolute;
+  left: 10px;
+  top: 16px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  color: var(--text-hi);
 }
-.arrow-line {
-  width: 100%;
-  height: 1px;
-  background: var(--border-hi);
+
+.sensor-step .lane-index {
+  border-color: rgba(99, 167, 255, 0.3);
+  color: var(--blue);
+}
+
+.query-step .lane-index {
+  border-color: rgba(245, 173, 99, 0.3);
+  color: var(--orange);
+}
+
+.lane-step h3 {
+  color: var(--text-hi);
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+
+.lane-step p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.shape-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.merge-panel {
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 14px;
+}
+
+.merge-card {
+  background: linear-gradient(135deg, rgba(94, 229, 196, 0.08), rgba(99, 167, 255, 0.06));
+  border: 1px solid rgba(94, 229, 196, 0.18);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.nozzle-wrap {
   position: relative;
-  transition: background var(--transition);
+  padding: 8px 0 4px;
 }
-.arrow-line::after {
-  content: '▶';
-  position: absolute;
-  right: -6px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 8px;
-  color: var(--border-hi);
-  transition: color var(--transition);
+
+.nozzle-flow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 10px;
 }
-.arrow-label {
-  font-family: var(--font-mono);
-  font-size: 9px;
+
+.nozzle-inlet {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-3);
+  padding: 12px 14px;
+}
+
+.nozzle-inlet.sensor-inlet {
+  border-color: rgba(99, 167, 255, 0.28);
+}
+
+.nozzle-inlet.query-inlet {
+  border-color: rgba(245, 173, 99, 0.28);
+}
+
+.nozzle-label {
   color: var(--text-dim);
-  letter-spacing: 0.05em;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.nozzle-inlet p,
+.nozzle-outlet p {
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.nozzle-core {
+  position: relative;
+  margin: 0 auto;
+  width: min(100%, 340px);
+  padding: 18px 20px 20px;
+  background: linear-gradient(135deg, rgba(94, 229, 196, 0.14), rgba(99, 167, 255, 0.08));
+  border: 1px solid rgba(94, 229, 196, 0.24);
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+}
+
+.nozzle-core h3 {
+  color: var(--text-hi);
+  font-size: 18px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.nozzle-core p {
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.75;
+  text-align: center;
+}
+
+.nozzle-outlet {
+  margin: 10px auto 0;
+  width: min(100%, 220px);
+  border: 1px solid rgba(94, 229, 196, 0.24);
+  border-radius: 999px;
+  background: var(--panel-3);
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.comfy-board {
+  position: relative;
+  overflow-x: auto;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 18px 18px, rgba(99, 167, 255, 0.16) 1px, transparent 1px),
+    linear-gradient(135deg, rgba(99, 167, 255, 0.04), rgba(94, 229, 196, 0.025));
+  background-size: 26px 26px, auto;
+}
+
+.comfy-canvas {
+  position: relative;
+  min-width: 1120px;
+  height: 760px;
+}
+
+.graph-links {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.graph-link {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.82;
+}
+
+.graph-link[data-kind="sensor"] {
+  stroke: var(--blue);
+}
+
+.graph-link[data-kind="query"] {
+  stroke: var(--orange);
+}
+
+.graph-link[data-kind="merge"] {
+  stroke: var(--teal);
+}
+
+.graph-link[data-kind="blocked"] {
+  stroke: var(--red);
+  stroke-dasharray: 8 8;
+  opacity: 0.5;
+}
+
+.graph-node {
+  position: absolute;
+  z-index: 2;
+  width: 220px;
+  min-height: 158px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: rgba(14, 18, 25, 0.94);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+[data-theme="light"] .graph-node {
+  background: rgba(255, 255, 255, 0.97);
+}
+
+.graph-node.sensor {
+  border-color: rgba(99, 167, 255, 0.34);
+}
+
+.graph-node.query {
+  border-color: rgba(245, 173, 99, 0.34);
+}
+
+.graph-node.memory,
+.graph-node.decoder,
+.graph-node.output {
+  border-color: rgba(94, 229, 196, 0.34);
+}
+
+.graph-node.blocked {
+  border-color: rgba(255, 142, 142, 0.28);
+  opacity: 0.75;
+}
+
+.node-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(90deg, rgba(99, 167, 255, 0.12), transparent);
+}
+
+.graph-node.query .node-titlebar {
+  background: linear-gradient(90deg, rgba(245, 173, 99, 0.13), transparent);
+}
+
+.graph-node.memory .node-titlebar,
+.graph-node.decoder .node-titlebar,
+.graph-node.output .node-titlebar {
+  background: linear-gradient(90deg, rgba(94, 229, 196, 0.13), transparent);
+}
+
+.graph-node.blocked .node-titlebar {
+  background: linear-gradient(90deg, rgba(255, 142, 142, 0.12), transparent);
+}
+
+.node-titlebar h3 {
+  color: var(--text-hi);
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.node-type {
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* input boxes */
-.input-box {
-  border: 1px dashed var(--border-hi);
-  border-radius: 3px;
-  padding: 10px 14px;
-  background: rgba(255,255,255,0.01);
-  transition: all var(--transition);
-}
-[data-theme="light"] .input-box {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  border-style: dashed;
-}
-.input-box .input-name {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text);
-  margin-bottom: 3px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .input-box .input-name { color: var(--text-hi); font-weight: 500; }
-.input-box .input-shape {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-dim);
-  transition: color var(--transition);
-}
-[data-theme="light"] .input-box .input-shape { color: var(--text-mid); }
-
-/* cross-attention inner */
-.cross-inner {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.cross-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  transition: color var(--transition);
-}
-.cross-row .role {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  padding: 2px 4px;
-  border-radius: 2px;
-  font-weight: 600;
-  font-family: var(--font-mono);
-}
-.role.q  { background: rgba(162,74,240,0.2); color: var(--accent3); }
-.role.kv { background: rgba(74,143,240,0.2); color: var(--accent4); }
-[data-theme="light"] .role.q  { background: rgba(124,58,237,0.1); border-radius: 4px; }
-[data-theme="light"] .role.kv { background: rgba(37,99,235,0.1); border-radius: 4px; }
-
-/* ──────────────────────────────────────────
-   Module step list (mstep-*)
-────────────────────────────────────────── */
-.module-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 10px 0 8px;
-}
-.mstep {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  line-height: 1.5;
-  padding: 3px 0;
-  border-bottom: 1px solid var(--row-div);
-}
-.mstep.mstep-final { border-bottom: none; }
-.mstep.mstep-inject { background: rgba(240,162,74,.03); border-radius: 3px; padding: 3px 5px; margin: 0 -5px; border-bottom: none; }
-.mstep-n {
-  font-size: 9px;
-  color: var(--text-dim);
-  min-width: 18px;
-  text-align: right;
-  flex-shrink: 0;
-  font-weight: 600;
-  letter-spacing: .05em;
-  transition: color var(--transition);
-}
-.mstep-body { display: flex; align-items: baseline; gap: 5px; flex-wrap: nowrap; }
-.mstep-op   { color: var(--text); font-weight: 500; white-space: nowrap; transition: color var(--transition); }
-.mstep-arr  { color: var(--text-dim); opacity: .5; }
-.mstep-shape{ color: var(--text-dim); font-size: 9.5px; white-space: nowrap; transition: color var(--transition); }
-.mstep-note { font-size: 8.5px; padding: 0 5px; border-radius: 2px; white-space: nowrap; }
-.mstep-note.teal   { color: var(--accent); background: rgba(74,240,196,.08); }
-.mstep-note.orange { color: var(--accent2); background: rgba(240,162,74,.08); }
-[data-theme="light"] .mstep-op    { color: var(--text-hi); }
-[data-theme="light"] .mstep-shape { color: var(--text-mid); }
-
-/* ──────────────────────────────────────────
-   Pipeline diagram (pe-*)
-────────────────────────────────────────── */
-.pe-pipeline { display:flex; flex-direction:column; gap:0; margin-bottom:32px; overflow-x:auto; }
-.pe-section  { display:flex; flex-direction:column; gap:8px; padding:14px 0 10px; }
-.pe-header   { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; opacity:.85; }
-.pe-hbar     { display:inline-block; width:3px; height:14px; border-radius:2px; flex-shrink:0; }
-.pe-row      { display:flex; align-items:center; flex-wrap:nowrap; gap:0; }
-
-.pe-step {
-  display:flex; flex-direction:column; gap:3px;
-  padding:8px 12px; border-radius:3px;
-  border:1px solid var(--border-mid);
-  background:rgba(255,255,255,.015);
-  min-width:90px; flex-shrink:0;
-  transition:all var(--transition);
-}
-[data-theme="light"] .pe-step { background:var(--surface2); border-radius:6px; box-shadow:var(--shadow-card); }
-.pe-step.pe-blue   { border-color:rgba(74,143,240,.45); }
-.pe-step.pe-teal   { border-color:rgba(74,240,196,.45); }
-.pe-step.pe-purple { border-color:rgba(162,74,240,.45); }
-.pe-step.pe-hi     { border-color:var(--accent4); background:rgba(74,143,240,.05); }
-.pe-step.pe-small  { min-width:80px; padding:6px 10px; }
-.pe-step.pe-re-inject { border-color:var(--accent2) !important; background:rgba(240,162,74,.04) !important; }
-
-.pe-op     { font-family:var(--font-mono); font-size:11px; font-weight:500; color:var(--text-hi); white-space:nowrap; transition:color var(--transition); }
-.pe-shape  { font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); white-space:nowrap; transition:color var(--transition); }
-.pe-detail { font-family:var(--font-mono); font-size:9px; color:var(--text-dim); opacity:.7; white-space:nowrap; transition:color var(--transition); }
-.pe-detail.pe-orange { color:var(--accent2); opacity:.9; }
-.pe-shared { font-family:var(--font-mono); font-size:9px; color:var(--accent); font-weight:600; white-space:nowrap; }
-.pe-re-tag { font-family:var(--font-mono); font-size:8px; font-weight:700; color:var(--accent2); letter-spacing:.1em; text-transform:uppercase; background:rgba(240,162,74,.14); padding:1px 5px; border-radius:2px; align-self:flex-start; margin-bottom:2px; }
-
-.pe-arr        { font-size:14px; padding:0 6px; opacity:.6; flex-shrink:0; align-self:center; font-family:var(--font-mono); transition:color var(--transition); }
-.pe-arr-blue   { color:var(--accent4); opacity:.7; }
-.pe-arr-purple { color:var(--accent3); opacity:.7; }
-.pe-arr-orange { color:var(--accent2); opacity:.8; }
-
-.pe-role-badge { width:38px; height:38px; border-radius:50%; border:2px solid; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:12px; font-weight:700; flex-shrink:0; transition:all var(--transition); }
-.pe-kv { border-color:var(--accent4); color:var(--accent4); }
-.pe-q  { border-color:var(--accent3); color:var(--accent3); }
-
-.pe-input-stack, .pe-encode-stack { display:flex; flex-direction:column; gap:4px; flex-shrink:0; }
-
-/* Shared B connector */
-.pe-sharedB       { display:flex; align-items:center; padding-left:220px; height:24px; }
-.pe-sharedB-line  { display:flex; flex-direction:column; align-items:center; gap:1px; }
-.pe-sharedB-track { width:1px; height:8px; background:repeating-linear-gradient(to bottom, var(--accent) 0,var(--accent) 3px,transparent 3px,transparent 6px); opacity:.5; }
-.pe-sharedB-label { font-family:var(--font-mono); font-size:8.5px; color:var(--accent); opacity:.75; letter-spacing:.05em; white-space:nowrap; }
-
-/* CrossAttention block */
-.pe-cross-section   { display:flex; flex-direction:column; gap:8px; padding-top:16px; border-top:1px solid var(--border); margin-top:8px; }
-.pe-cross-converge  { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; }
-.pe-kv-tag  { color:var(--accent4); font-weight:700; }
-.pe-q-tag   { color:var(--accent3); font-weight:700; }
-.pe-shape-sm{ color:var(--text-dim); font-size:9.5px; }
-.pe-plus    { color:var(--text-dim); }
-.pe-down-arr{ color:var(--text-dim); margin-left:6px; }
-
-.pe-cross-block {
-  border:1px solid var(--border-mid); border-radius:4px;
-  padding:14px 16px;
-  background:rgba(74,240,196,.025);
-  transition:all var(--transition);
-}
-[data-theme="light"] .pe-cross-block { background:var(--surface2); border-radius:8px; border-color:var(--border); }
-.pe-cross-label { font-family:var(--font-mono); font-size:9px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
-.pe-cross-row   { display:flex; align-items:center; flex-wrap:nowrap; gap:0; }
-
-.pe-cstep {
-  padding:8px 14px; border:1px solid var(--border-mid); border-radius:3px;
-  font-family:var(--font-mono); font-size:11px; color:var(--text);
-  line-height:1.4; flex-shrink:0; background:rgba(255,255,255,.015);
-  text-align:center; white-space:nowrap;
-  transition:all var(--transition);
-}
-[data-theme="light"] .pe-cstep { background:var(--surface); border-radius:6px; box-shadow:var(--shadow-card); border-color:var(--border); }
-.pe-cstep.pe-orange { border-color:rgba(240,162,74,.5); color:var(--accent2); background:rgba(240,162,74,.04); }
-.pe-cdetail { font-size:9px; color:var(--text-dim); display:block; }
-.pe-carr    { font-size:14px; color:var(--accent); padding:0 8px; opacity:.6; flex-shrink:0; }
-
-.pe-out-box   { padding:8px 16px; border:2px solid var(--accent2); border-radius:3px; background:rgba(240,162,74,.06); text-align:center; flex-shrink:0; transition:all var(--transition); }
-[data-theme="light"] .pe-out-box { border-radius:6px; }
-.pe-out-label { font-family:var(--font-mono); font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent2); margin-bottom:3px; }
-.pe-out-shape { font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--accent2); }
-
-/* ──────────────────────────────────────────
-   Training Flow
-────────────────────────────────────────── */
-.flow-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 32px;
+.node-body {
+  padding: 13px 14px 14px;
 }
 
-.flow-col-title {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
-  transition: color var(--transition), border-color var(--transition);
-}
-[data-theme="light"] .flow-col-title {
-  font-size: 9.5px;
-  font-weight: 600;
-  letter-spacing: 0.15em;
-}
-.col-data  .flow-col-title { color: var(--accent4); }
-.col-phys  .flow-col-title { color: var(--accent);  }
-.col-opt   .flow-col-title { color: var(--accent2); }
-
-.flow-step {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 14px;
-  position: relative;
-}
-.step-num {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 600;
-  margin-top: 2px;
-  transition: all var(--transition);
-}
-.col-data  .step-num { background: rgba(74,143,240,0.15); color: var(--accent4); border: 1px solid rgba(74,143,240,0.3); }
-.col-phys  .step-num { background: rgba(74,240,196,0.12); color: var(--accent);  border: 1px solid rgba(74,240,196,0.3); }
-.col-opt   .step-num { background: rgba(240,162,74,0.12); color: var(--accent2); border: 1px solid rgba(240,162,74,0.3); }
-
-[data-theme="light"] .col-data  .step-num { background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.2); }
-[data-theme="light"] .col-phys  .step-num { background: rgba(10,168,122,0.08); border-color: rgba(10,168,122,0.2); }
-[data-theme="light"] .col-opt   .step-num { background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.2); }
-
-.step-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-hi);
-  margin-bottom: 3px;
-  font-family: var(--font-head);
-  transition: color var(--transition);
-}
-[data-theme="light"] .step-title { font-size: 12px; }
-.step-desc {
-  font-size: 10.5px;
-  color: var(--text-dim);
-  line-height: 1.6;
-  font-family: var(--font-body);
-  transition: color var(--transition);
-}
-[data-theme="light"] .step-desc { color: var(--text-mid); }
-.step-code {
-  display: inline-block;
-  background: var(--tag-bg);
-  border: 1px solid var(--border-hi);
-  border-radius: 2px;
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  color: var(--text);
-  margin-top: 4px;
-  transition: all var(--transition);
-}
-[data-theme="light"] .step-code {
-  background: var(--surface2);
-  border-color: var(--border-mid);
-  color: var(--accent4);
-  border-radius: 4px;
-}
-
-/* loss formula */
-.loss-formula {
-  margin-top: 32px;
-  padding: 20px 24px;
-  background: var(--formula-bg);
-  border: 1px solid var(--border-hi);
-  border-radius: 3px;
-  transition: all var(--transition);
-}
-[data-theme="light"] .loss-formula {
-  background: linear-gradient(135deg, rgba(37,99,235,0.03) 0%, rgba(10,168,122,0.03) 100%);
-  border-radius: 8px;
-  border-color: var(--border);
-}
-.loss-formula-title {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 12px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .loss-formula-title { color: var(--text-mid); font-weight: 500; }
-.loss-eq {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--text-hi);
-  line-height: 2;
-  transition: color var(--transition);
-}
-.w  { color: var(--text-dim); font-size: 11px; }
-.ld { color: var(--accent4); }
-.lp { color: var(--accent);  }
-.lb { color: var(--accent2); }
-.lg { color: var(--accent3); }
-
-/* hyperparams */
-.hp-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  margin-top: 32px;
-}
-.hp-card {
-  background: var(--hp-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 12px 14px;
-  transition: all var(--transition);
-}
-[data-theme="light"] .hp-card {
-  background: var(--surface2);
-  border-radius: 8px;
-  border-color: var(--border);
-  box-shadow: var(--shadow-card);
-}
-.hp-name {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .hp-name { color: var(--text-mid); font-weight: 500; }
-.hp-value {
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--text-hi);
-  font-weight: 500;
-  transition: color var(--transition);
-}
-[data-theme="light"] .hp-value { font-weight: 600; }
-.hp-unit {
-  font-size: 10px;
-  color: var(--text-dim);
-  margin-left: 2px;
-  transition: color var(--transition);
-}
-
-/* ──────────────────────────────────────────
-   Detail cards
-────────────────────────────────────────── */
-.sensor-detail {
-  margin-top: 28px;
-  padding-top: 28px;
-  border-top: 1px solid var(--border);
-  transition: border-color var(--transition);
-}
-.detail-row {
-  display: flex;
-  gap: 16px;
-  align-items: stretch;
-  flex-wrap: wrap;
-}
-.detail-card {
-  flex: 1;
-  min-width: 200px;
-  background: var(--hp-bg);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 14px 16px;
-  transition: all var(--transition);
-}
-[data-theme="light"] .detail-card {
-  background: var(--surface);
-  border-radius: 8px;
-  box-shadow: var(--shadow-card);
-}
-.detail-card-title {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 10px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .detail-card-title {
+.node-body p {
   color: var(--text-mid);
-  font-weight: 500;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  line-height: 1.65;
 }
-.detail-item {
+
+.node-chip-row {
   display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--row-div);
-  gap: 12px;
-  font-family: var(--font-mono);
-  transition: border-color var(--transition);
-}
-.detail-item:last-child { border-bottom: none; }
-.detail-key {
-  color: var(--text-dim);
-  transition: color var(--transition);
-}
-[data-theme="light"] .detail-key { color: var(--text-mid); }
-.detail-val {
-  color: var(--text);
-  text-align: right;
-  transition: color var(--transition);
-}
-[data-theme="light"] .detail-val { color: var(--text-hi); font-weight: 500; }
-.detail-val.accent  { color: var(--accent);  }
-.detail-val.accent2 { color: var(--accent2); }
-.detail-val.accent3 { color: var(--accent3); }
-.detail-val.accent4 { color: var(--accent4); }
-
-/* ──────────────────────────────────────────
-   Footer
-────────────────────────────────────────── */
-.footer {
-  margin-top: 48px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-dim);
-  letter-spacing: 0.08em;
-  transition: all var(--transition);
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
 }
 
-/* ──────────────────────────────────────────
-   Inline arrow helpers
-────────────────────────────────────────── */
-.arr-blue { color: var(--accent4); }
-.arr-purple { color: var(--accent3); }
-.arr-teal { color: var(--accent); }
-.arr-orange { color: var(--accent2); }
-.arr-h1 { height: 1px; background: var(--accent4); transition: background var(--transition); }
-.arr-h2 { height: 1px; background: var(--accent3); transition: background var(--transition); }
-.arr-h3 { height: 1px; background: var(--accent2); transition: background var(--transition); }
-
-/* ──────────────────────────────────────────
-   SVG Charts
-────────────────────────────────────────── */
-.chart-wrap { margin-top: 32px; }
-.chart-title {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em;
-  text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .chart-title { color: var(--text-mid); font-weight: 500; }
-.chart-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
-@media (max-width: 720px) { .chart-pair { grid-template-columns: 1fr; } }
-.chart-box {
-  background: var(--hp-bg); border: 1px solid var(--border); border-radius: 3px;
-  padding: 18px; transition: all var(--transition);
-}
-[data-theme="light"] .chart-box { background: var(--surface2); border-radius: 8px; box-shadow: var(--shadow-card); }
-.chart-box svg { width: 100%; height: auto; display: block; }
-.chart-box-title {
-  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-dim); margin-bottom: 10px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .chart-box-title { color: var(--text-mid); font-weight: 500; }
-/* SVG primitives */
-.sv-axis  { stroke: var(--border-hi); stroke-width: 1; fill: none; }
-.sv-grid  { stroke: var(--border); stroke-width: 0.5; fill: none; stroke-dasharray: 3,3; }
-.sv-teal  { stroke: var(--accent);  stroke-width: 1.8; fill: none; }
-.sv-blue  { stroke: var(--accent4); stroke-width: 1.8; fill: none; }
-.sv-orange { stroke: var(--accent2); stroke-width: 1.5; fill: none; stroke-dasharray: 6,4; }
-.sv-purple { stroke: var(--accent3); stroke-width: 1.8; fill: none; }
-.sv-fill-teal   { fill: var(--accent);  opacity: 0.07; stroke: none; }
-.sv-fill-blue   { fill: var(--accent4); opacity: 0.07; stroke: none; }
-.sv-fill-purple { fill: var(--accent3); opacity: 0.07; stroke: none; }
-.sv-fill-blue   { fill: var(--accent4); opacity: 0.08; stroke: none; }
-.sv-dot-blue    { fill: var(--accent4); stroke: var(--hp-bg); stroke-width: 1.5; }
-.sv-dot-teal   { fill: var(--accent);  stroke: var(--hp-bg); stroke-width: 1.5; }
-.sv-dot-blue   { fill: var(--accent4); stroke: var(--hp-bg); stroke-width: 1.5; }
-.sv-dot-orange { fill: var(--accent2); stroke: var(--hp-bg); stroke-width: 1.5; }
-.sv-dot-purple { fill: var(--accent3); stroke: var(--hp-bg); stroke-width: 1.5; }
-.sv-label { font-family: var(--font-mono); font-size: 9px; fill: var(--text-dim); }
-.sv-legend { font-family: var(--font-mono); font-size: 9px; fill: var(--text-mid); }
-
-/* ──────────────────────────────────────────
-   Sensor Map
-────────────────────────────────────────── */
-.sensor-map-wrap { margin-top: 10px; }
-.sensor-map-wrap svg { width: 100%; height: auto; display: block; }
-.sv-domain { fill: none; stroke: var(--border-hi); stroke-width: 1.5; }
-.sv-lid-line { stroke: var(--accent2); stroke-width: 2.5; stroke-dasharray: none; }
-.sv-int { fill: var(--accent4); }
-.sv-bnd { fill: var(--accent2); }
-.sv-bnd-lid { fill: var(--accent); }
-
-/* ──────────────────────────────────────────
-   Annotation strip
-────────────────────────────────────────── */
-.anno-strip {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;
-  margin-top: 28px; padding-top: 22px;
-  border-top: 1px dashed var(--border-mid);
-  transition: border-color var(--transition);
-}
-.anno-item { display: flex; flex-direction: column; gap: 5px; }
-.anno-marker {
-  display: flex; align-items: center; gap: 8px;
-  font-family: var(--font-mono); font-size: 10px; color: var(--accent3);
-  letter-spacing: 0.05em; font-weight: 600;
-  transition: color var(--transition);
-}
-.anno-marker::before {
-  content: ''; display: inline-block; width: 20px; height: 1px;
-  background: var(--accent3); flex-shrink: 0;
-}
-.anno-desc {
-  font-family: var(--font-body); font-size: 10.5px; color: var(--text-dim);
-  line-height: 1.55; padding-left: 28px; transition: color var(--transition);
-}
-[data-theme="light"] .anno-desc { color: var(--text-mid); }
-
-/* ──────────────────────────────────────────
-   Comparison Table
-────────────────────────────────────────── */
-.comp-wrap { margin-top: 32px; overflow-x: auto; }
-.comp-title {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em;
-  text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .comp-title { color: var(--text-mid); font-weight: 500; }
-.comp-table { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 11px; }
-.comp-table th {
-  padding: 8px 16px; text-align: left; font-size: 9px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--text-dim);
-  border-bottom: 1px solid var(--border-hi); font-weight: 500;
-}
-.comp-table td {
-  padding: 9px 16px; border-bottom: 1px solid var(--row-div);
-  color: var(--text); transition: background var(--transition), color var(--transition);
-}
-.comp-table tr:hover td { background: var(--tag-bg); }
-.comp-table .better { color: var(--accent); font-weight: 600; }
-.comp-table .worse  { color: var(--text-dim); }
-.comp-table .na     { color: var(--text-dim); opacity: 0.5; }
-.comp-table .delta-good { color: var(--accent); font-size: 10px; }
-.comp-table .delta-bad  { color: var(--accent2); font-size: 10px; }
-[data-theme="light"] .comp-table th { color: var(--text-mid); }
-[data-theme="light"] .comp-table td { color: var(--text-hi); }
-
-/* ──────────────────────────────────────────
-   Step Timeline
-────────────────────────────────────────── */
-.tl-wrap { margin-top: 32px; }
-.tl-title {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.15em;
-  text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px;
-  transition: color var(--transition);
-}
-[data-theme="light"] .tl-title { color: var(--text-mid); font-weight: 500; }
-.tl-wrap svg { width: 100%; height: auto; display: block; }
-.tl-track  { stroke: var(--border-mid); stroke-width: 2; fill: none; }
-.tl-track2 { stroke: var(--border-hi); stroke-width: 1.5; fill: none; stroke-dasharray: 4,3; }
-.tl-node-teal   { fill: var(--accent);  stroke: var(--surface); stroke-width: 2; }
-.tl-node-blue   { fill: var(--accent4); stroke: var(--surface); stroke-width: 2; }
-.tl-node-orange { fill: var(--accent2); stroke: var(--surface); stroke-width: 2; }
-.tl-node-dim    { fill: var(--border-mid); stroke: var(--surface); stroke-width: 2; }
-.tl-label { font-family: var(--font-mono); font-size: 9px; fill: var(--text-dim); }
-.tl-val-teal  { font-family: var(--font-mono); font-size: 10px; font-weight: 600; fill: var(--accent); }
-.tl-val-orange { font-family: var(--font-mono); font-size: 10px; font-weight: 600; fill: var(--accent2); }
-.tl-run-label { font-family: var(--font-mono); font-size: 8.5px; fill: var(--text-dim); letter-spacing: 0.05em; text-transform: uppercase; }
-.tl-lr-mark { stroke: var(--accent3); stroke-width: 1; stroke-dasharray: 2,2; fill: none; opacity: 0.6; }
-
-/* ──────────────────────────────────────────
-   Code Block
-────────────────────────────────────────── */
-.code-block {
-  border: 1px solid var(--border); border-radius: 3px; overflow: hidden;
-  font-family: var(--font-mono); font-size: 11px; transition: all var(--transition);
-}
-[data-theme="light"] .code-block { border-radius: 8px; box-shadow: var(--shadow-card); }
-.code-header {
-  background: var(--surface2); border-bottom: 1px solid var(--border);
-  padding: 8px 16px; display: flex; align-items: center; gap: 10px;
-  font-size: 10px; color: var(--text-dim); letter-spacing: 0.04em;
-  transition: all var(--transition);
-}
-[data-theme="light"] .code-header { background: var(--bg-alt); }
-.code-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.cd-r { background: #ff5f57; } .cd-y { background: #ffbd2e; } .cd-g { background: #28c941; }
-.code-filename { flex: 1; text-align: center; color: var(--text-dim); }
-.code-body {
-  background: var(--bg); padding: 12px 0; overflow-x: auto; line-height: 1.75;
-  transition: background var(--transition);
-}
-[data-theme="light"] .code-body { background: #fafbfc; }
-.code-line { display: flex; padding: 0; }
-.code-line:hover { background: var(--tag-bg); }
-.ln {
-  width: 36px; min-width: 36px; text-align: right; padding: 0 12px 0 0;
-  color: var(--text-dim); font-size: 10px; user-select: none; opacity: 0.45;
-}
-.ct { flex: 1; padding: 0 16px; color: var(--text); white-space: pre; }
-.tkw { color: var(--accent3); }
-.tkf { color: var(--accent4); }
-.tks { color: var(--accent2); }
-.tkn { color: var(--accent); }
-.tkc { color: var(--text-dim); font-style: italic; }
-.tka { color: var(--text-hi); }
-.tkt { color: var(--accent); opacity: 0.85; }
-
-/* result badge */
-.result-badge {
+.node-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(74,240,196,0.08);
-  border: 1px solid rgba(74,240,196,0.2);
-  border-radius: 3px;
-  padding: 3px 8px;
-  font-family: var(--font-mono);
+  min-height: 24px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text-hi);
+  font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
-  color: var(--accent);
-  transition: all var(--transition);
 }
-[data-theme="light"] .result-badge {
-  background: rgba(10,168,122,0.08);
-  border-color: rgba(10,168,122,0.2);
-  border-radius: 6px;
+
+.graph-port {
+  position: absolute;
+  z-index: 3;
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 0 1px var(--border-strong), 0 0 18px currentColor;
+}
+
+.graph-port.in {
+  left: -7px;
+}
+
+.graph-port.out {
+  right: -7px;
+}
+
+.graph-port[data-kind="sensor"] {
+  color: var(--blue);
+  background: var(--blue);
+}
+
+.graph-port[data-kind="query"] {
+  color: var(--orange);
+  background: var(--orange);
+}
+
+.graph-port[data-kind="merge"] {
+  color: var(--teal);
+  background: var(--teal);
+}
+
+.graph-port[data-kind="blocked"] {
+  color: var(--red);
+  background: var(--red);
+}
+
+.graph-lane-label {
+  position: absolute;
+  z-index: 2;
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.graph-note-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.graph-note {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--panel-2);
+  padding: 13px 14px;
+}
+
+.graph-note h4 {
+  color: var(--text-hi);
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.graph-note p {
+  color: var(--text-mid);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.merge-card h3 {
+  color: var(--text-hi);
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+
+.merge-card p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.merge-list {
+  display: grid;
+  gap: 10px;
+}
+
+.merge-item {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+
+.merge-item h4 {
+  color: var(--text-hi);
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.merge-item p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.arch-card {
+  position: relative;
+  padding: 18px 18px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  min-height: 240px;
+}
+
+.arch-card::after {
+  content: "";
+  position: absolute;
+  top: 32px;
+  right: -16px;
+  width: 16px;
+  height: 2px;
+  background: var(--border-strong);
+}
+
+.arch-card:last-child::after {
+  display: none;
+}
+
+.arch-card.blue { border-color: rgba(99, 167, 255, 0.28); }
+.arch-card.teal { border-color: rgba(94, 229, 196, 0.28); }
+.arch-card.orange { border-color: rgba(245, 173, 99, 0.28); }
+
+.mini-label {
+  display: inline-block;
+  margin-bottom: 12px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.arch-card h3 {
+  color: var(--text-hi);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.arch-card p,
+.feature-card p,
+.note-card p,
+.figure-caption,
+.bullet-list li {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.shape {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--chip);
+  color: var(--text-hi);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+
+.detail-grid,
+.feature-grid,
+.note-grid,
+.config-grid,
+.signal-grid,
+.figure-grid,
+.code-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.feature-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.note-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.config-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.signal-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 18px;
+}
+
+.time-grid,
+.zoom-grid,
+.gallery-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.case-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.case-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.time-grid {
+  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
+}
+
+.case-card,
+.time-card,
+.zoom-card,
+.gallery-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.case-card h3,
+.time-card h3,
+.zoom-card h3,
+.gallery-card h3 {
+  color: var(--text-hi);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.case-card p,
+.time-card p,
+.zoom-card p,
+.gallery-card p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.param-card {
+  min-height: 154px;
+}
+
+.param-value {
+  color: var(--text-hi);
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.param-value code {
+  font-size: 0.82em;
+}
+
+.case-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.case-visual img {
+  width: 100%;
+  display: block;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel-3);
+}
+
+.case-caption {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.78;
+}
+
+.time-axis {
+  position: relative;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel-3);
+}
+
+.time-rail {
+  position: relative;
+  height: 188px;
+  overflow: hidden;
+}
+
+.time-track {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 96px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(99, 167, 255, 0.2), rgba(99, 167, 255, 0.28));
+}
+
+.time-window-active {
+  position: absolute;
+  top: 86px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(94, 229, 196, 0.16), rgba(245, 173, 99, 0.16));
+  border: 1px solid rgba(94, 229, 196, 0.22);
+}
+
+.time-window-blocked {
+  position: absolute;
+  top: 52px;
+  bottom: 18px;
+  border-radius: 14px;
+  background: rgba(245, 173, 99, 0.06);
+  border: 1px dashed rgba(245, 173, 99, 0.28);
+}
+
+.time-window-label,
+.time-blocked-label {
+  position: absolute;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  line-height: 1.25;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.time-window-label {
+  top: 58px;
+  color: var(--teal);
+}
+
+.time-blocked-label {
+  top: 22px;
+  color: var(--orange);
+}
+
+.time-events {
+  position: absolute;
+  inset: 0;
+}
+
+.time-event {
+  position: absolute;
+  top: 30px;
+  width: 68px;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.time-event.query-event {
+  width: 70px;
+}
+
+.time-tag {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--text-hi);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.time-event.query-event .time-tag {
+  border-color: rgba(245, 173, 99, 0.35);
+  color: var(--orange);
+}
+
+.time-event.memory-event .time-tag {
+  border-color: rgba(99, 167, 255, 0.28);
+  color: var(--blue);
+}
+
+.time-marker {
+  position: relative;
+  margin: 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 3px solid rgba(99, 167, 255, 0.45);
+  background: var(--panel);
+  z-index: 2;
+}
+
+.time-event.query-event .time-marker {
+  width: 22px;
+  height: 22px;
+  border-color: rgba(245, 173, 99, 0.72);
+  background: rgba(245, 173, 99, 0.08);
+}
+
+.time-event.future-event .time-marker {
+  border-style: dashed;
+  border-color: rgba(132, 151, 181, 0.35);
+}
+
+.time-caption {
+  margin-top: 14px;
+  color: var(--text-mid);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.time-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.time-legend {
+  padding: 12px 13px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--panel-2);
+}
+
+.time-legend strong {
+  display: block;
+  color: var(--text-hi);
+  font-size: 13px;
+  margin-bottom: 5px;
+}
+
+.time-legend p {
+  color: var(--text-mid);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.time-rule-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.time-rule {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+}
+
+.zoom-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.zoom-stage {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 16px 14px;
+}
+
+.zoom-stage h3 {
+  color: var(--text-hi);
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+
+.zoom-stage p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.75;
+}
+
+.zoom-stage.blue { border-color: rgba(99, 167, 255, 0.28); }
+.zoom-stage.orange { border-color: rgba(245, 173, 99, 0.28); }
+.zoom-stage.teal { border-color: rgba(94, 229, 196, 0.28); }
+
+.gallery-stack {
+  margin-top: 18px;
+}
+
+.gallery-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.gallery-sub {
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.figure-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.code-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.feature-card,
+.note-card,
+.config-card,
+.signal-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.feature-card h3,
+.note-card h3,
+.figure-card h3,
+.code-card h3 {
+  color: var(--text-hi);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.bullet-list {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.bullet-list li {
+  position: relative;
+  padding-left: 16px;
+}
+
+.bullet-list li::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--teal);
+}
+
+.formula {
+  display: block;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--panel-3);
+  color: var(--text-hi);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.config-card .metric-value {
+  font-size: 22px;
+}
+
+.config-card .metric-note {
+  margin-top: 8px;
+}
+
+.signal-card .metric-value {
+  font-size: 24px;
+}
+
+.signal-card .metric-note {
+  margin-top: 8px;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel-2);
+  margin-top: 18px;
+}
+
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrap thead th {
+  color: var(--text-dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table-wrap tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.table-wrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-wrap .strong {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.table-wrap .good {
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.table-wrap .warn {
+  color: var(--orange);
+  font-weight: 600;
+}
+
+.figure-card {
+  overflow: hidden;
+}
+
+.figure-head {
+  padding: 18px 18px 0;
+}
+
+.figure-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  background: var(--panel-3);
+}
+
+.figure-caption {
+  padding: 14px 18px 18px;
+}
+
+.result-banner {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.callout {
+  background: linear-gradient(135deg, rgba(94, 229, 196, 0.08), rgba(99, 167, 255, 0.05));
+  border: 1px solid rgba(94, 229, 196, 0.18);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.callout h3 {
+  color: var(--text-hi);
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.callout p {
+  color: var(--text-mid);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.code-card {
+  padding: 18px;
+}
+
+.code-meta {
+  color: var(--blue);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--panel-3);
+  border: 1px solid var(--border);
+  color: var(--text-hi);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+code {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.footer {
+  margin-top: 22px;
+  padding: 20px 6px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--text-dim);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1120px) {
+  .hero,
+  .result-banner,
+  .case-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .architecture-flow,
+  .config-grid,
+  .case-grid,
+  .graph-note-strip,
+  .signal-grid,
+  .time-grid,
+  .zoom-grid,
+  .note-grid,
+  .detail-grid,
+  .feature-grid,
+  .figure-grid,
+  .gallery-grid,
+  .code-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .arch-card::after {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    width: min(100vw - 24px, 1280px);
+    padding-top: 78px;
+  }
+
+  .theme-toggle {
+    top: 12px;
+    right: 12px;
+  }
+
+  .hero-side,
+  .case-layout,
+  .architecture-flow,
+  .config-grid,
+  .case-grid,
+  .graph-note-strip,
+  .signal-grid,
+  .time-grid,
+  .zoom-grid,
+  .note-grid,
+  .detail-grid,
+  .feature-grid,
+  .figure-grid,
+  .gallery-grid,
+  .code-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .time-points {
+    grid-template-columns: 1fr;
+  }
+
+  .time-legend-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-main,
+  .panel,
+  .figure-card,
+  .code-card {
+    border-radius: 18px;
+  }
+
+  .footer {
+    flex-direction: column;
+  }
 }
 </style>
 </head>
 <body>
 
-<!-- Toggle Button -->
-<button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-  <span class="toggle-icon">◑</span>
-  <span id="toggle-label">light</span>
+<button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+  <span class="icon">◑</span>
+  <span id="theme-label">light</span>
 </button>
 
 <div class="page">
 
-  <!-- Header -->
-  <div class="header">
-    <div class="header-inner">
-      <div class="header-tag">Technical Reference — 2026-03-29</div>
-      <h1>Pi-LNN &nbsp;·&nbsp; DeepONet + CfC Sparse-Data</h1>
-      <p>uvomega sparse-data baseline: thin sensor tokens, token self-attention, temporal CfC, and query-conditioned cross-attention under PDE-constrained training</p>
+  <section class="hero">
+    <div class="hero-card hero-main">
+      <div class="eyebrow">Technical Reference · April 9, 2026</div>
+      <h1>Pi-LNN Mainline<br>DeepONet + CfC for Sparse Kolmogorov Flow</h1>
+      <p>
+        這是一頁面向展示的技術簡報：用 100 個稀疏感測器的 <code>u, v</code> 時序，
+        在週期邊界 Kolmogorov flow 上重建任意 <code>(x, y, t)</code> 的
+        <code>u, v, p</code>。頁面聚焦於當前主線模型本身、LNN/CfC 的角色，
+        以及已產出的結果圖。
+      </p>
+      <div class="chip-row">
+        <div class="chip"><b>Demo Model</b> EXP-030 / Re=1000</div>
+        <div class="chip"><b>Observed</b> u, v only</div>
+        <div class="chip"><b>Space</b> periodic Fourier (8 harmonics)</div>
+        <div class="chip"><b>Attention Bias</b> isotropic distance only</div>
+        <div class="chip"><b>Temporal</b> CfC + temporal anchor</div>
+        <div class="chip"><b>Optimizer</b> SOAP + Schedule-Free</div>
+      </div>
     </div>
-  </div>
 
-  <!-- ── Section 1: Model Architecture ── -->
-  <div class="diagram-section">
-    <div class="section-label">01 &nbsp; Model Architecture</div>
+    <div class="hero-card hero-side">
+      <div class="stat-card">
+        <div class="metric-label">KE Relative Error</div>
+        <div class="metric-value good">9.61%</div>
+        <div class="metric-note">全時段平均 kinetic energy 相對誤差，首次突破 10% 門檻。</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">u RMSE Mean</div>
+        <div class="metric-value good">5.68e-2</div>
+        <div class="metric-note">目前主線的最低 u 分量平均誤差尺度。</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">k_f Amp Ratio</div>
+        <div class="metric-value good">1.027</div>
+        <div class="metric-note">Kolmogorov forcing 主模態振幅略高於 DNS，但仍維持在可接受區間。</div>
+      </div>
+      <div class="stat-card">
+        <div class="metric-label">Baseline Status</div>
+        <div class="metric-value good">EXP-030</div>
+        <div class="metric-note">SOAP 曲率估計加上 Schedule-Free / Polyak 推理，取代 EXP-025 成為當前主線。</div>
+      </div>
+    </div>
+  </section>
 
-    <div class="arch-diagram">
-      <div style="margin-bottom:28px;">
-        <div class="detail-card-title" style="margin-bottom:14px;">Current mainline — sparse sensors → branch tokens → field query</div>
-        <div style="display:grid; grid-template-columns: 1.1fr 80px 1.25fr 80px 1.35fr 80px 1.2fr; gap:12px; align-items:stretch;">
-          <div class="module-box sensor">
-            <div class="module-tag">Inputs</div>
-            <div class="module-title">Sparse Sensor Stream</div>
-            <div class="module-detail">
-              sensor_obs <span class="hi">[T, K, 3]</span><br>
-              sensor_pos <span class="hi">[K, 2]</span><br>
-              re_norm + sensor_time
-            </div>
-            <div class="shape-badge">K = 100, T = 101</div>
+  <section class="section">
+    <div class="section-label">01 · Target Case</div>
+    <div class="panel">
+      <h2 class="panel-title">What physical case this demo is solving</h2>
+      <p class="panel-desc">
+        在看模型之前，必須先知道它對應的是哪一個物理問題。這頁展示的是
+        <code>Re = 1000</code> 的 2D Kolmogorov flow，資料與 loss 都圍繞同一組
+        forcing、週期邊界與稀疏觀測設定建立。
+      </p>
+
+      <div class="case-layout">
+        <div class="case-grid">
+          <div class="case-card param-card">
+            <div class="mini-label">Flow</div>
+            <div class="param-value">2D Kolmogorov</div>
+            <p>
+              Periodic box on <code>[0,1]^2</code>，本頁所有圖都只對應這個單一主線 case。
+            </p>
           </div>
-          <div class="arrow-col">
-            <div class="arrow-line"></div>
-            <div class="arrow-label">RFF + token_in</div>
+          <div class="case-card param-card">
+            <div class="mini-label">Reynolds</div>
+            <div class="param-value">Re = 1000</div>
+            <p>
+              黏性尺度固定，結果圖不混入其他 Reynolds number 的對照輸出。
+            </p>
           </div>
-          <div class="module-box sensor">
-            <div class="module-tag">Branch / Spatial</div>
-            <div class="module-title">Thin Sensor Tokens</div>
-            <div class="module-detail">
-              每個 sensor 保留自己的<br>
-              <span class="hi">RFF(x,y) + u,v,omega</span><br>
-              不先做 pooling，不先壓成單向量
-            </div>
-            <div class="shape-badge">[T, K, d_model]</div>
+          <div class="case-card param-card">
+            <div class="mini-label">Forcing</div>
+            <div class="param-value"><code>f_x = 0.1 sin(4π y)</code></div>
+            <p>
+              等價寫法為 <code>A = 0.1</code>、<code>k_f = 2</code>、<code>L = 1</code>，且 <code>f_y = 0</code>。
+            </p>
           </div>
-          <div class="arrow-col">
-            <div class="arrow-line"></div>
-            <div class="arrow-label">message passing</div>
+          <div class="case-card param-card">
+            <div class="mini-label">Boundary</div>
+            <div class="param-value">Periodic x / y</div>
+            <p>
+              x 與 y 方向皆為 strict periodic boundary condition，這也是 Fourier 編碼成立的前提。
+            </p>
           </div>
-          <div class="module-box cross">
-            <div class="module-tag">Branch / Temporal</div>
-            <div class="module-title">Token Self-Attn + Temporal CfC</div>
-            <div class="module-detail">
-              token self-attention 先做空間訊息交換<br>
-              再用 CfC 沿時間演化每個 sensor token<br>
-              <span class="hi">不再是 single-vector branch</span>
-            </div>
-            <div class="shape-badge">h_states [T, K, d_model]</div>
+          <div class="case-card param-card">
+            <div class="mini-label">Time Span</div>
+            <div class="param-value"><code>t ∈ [0,5]</code></div>
+            <p>
+              共 <code>101</code> 個時間點，<code>dt = 0.05</code>；decoder 的 <code>dt_to_query</code> 就是在這個時間軸上定義。
+            </p>
           </div>
-          <div class="arrow-col">
-            <div class="arrow-line"></div>
-            <div class="arrow-label">cross-attend</div>
+          <div class="case-card param-card">
+            <div class="mini-label">Observation</div>
+            <div class="param-value"><code>K = 100</code> sparse sensors</div>
+            <p>
+              來自 <code>128 × 128</code> DNS 的 <code>QR pivoting</code> 取樣；主線只觀測 <code>u, v</code>，輸出重建 <code>u, v, p</code>。
+            </p>
           </div>
-          <div class="module-box query">
-            <div class="module-tag">Trunk + Decode</div>
-            <div class="module-title">DeepONet Query Decoder</div>
-            <div class="module-detail">
-              query: <span class="hi">(x, y, t, c)</span><br>
-              trunk MLP 產生 query feature<br>
-              對 branch tokens 做 cross-attention 後再做 branch/trunk fusion
-            </div>
-            <div class="shape-badge">u / v / p [N_q, 1]</div>
+        </div>
+
+        <div class="case-card case-visual">
+          <div>
+            <div class="mini-label">DNS Snapshot</div>
+            <h3>Kolmogorov Flow Vorticity at t = 5.0</h3>
           </div>
+          <img src="assets/kolmogorov_dns_vorticity_t5.png" alt="DNS vorticity field at t equals 5">
+          <p class="case-caption">
+            這張圖提供 target case 的直接空間參考。後面的 field、vorticity、spectrum 與 forcing-mode 圖，
+            都是在嘗試逼近這個 Re = 1000 周期流場所呈現的主渦旋帶與正負渦度分區。
+          </p>
         </div>
       </div>
+    </div>
+  </section>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:20px;">
-        <div style="border:1px solid var(--accent4); border-radius:3px; overflow:hidden;">
-          <div style="background:rgba(74,143,240,0.08); padding:10px 14px; border-bottom:1px solid rgba(74,143,240,0.2);">
-            <div style="font-family:var(--font-mono); font-size:9px; color:var(--accent4); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:3px;">Stage 1</div>
-            <div style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-hi);">SpatialSetEncoder</div>
-            <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); margin-top:2px;">問：每個 sensor 的局部 identity 是什麼？</div>
-          </div>
-          <div style="padding:12px 14px;">
-            <div class="detail-item"><span class="detail-key">IN</span><span class="detail-val accent4">sensor_vals[t] [K,3]</span></div>
-            <div class="detail-item"><span class="detail-key">位置編碼</span><span class="detail-val">RFF(sensor_pos, B)</span></div>
-            <div class="detail-item"><span class="detail-key">主線設定</span><span class="detail-val">thin token, no handcrafted gradients</span></div>
-            <div class="detail-item"><span class="detail-key">目的</span><span class="detail-val">保留 sensor identity，避免提早平均化</span></div>
-            <div class="detail-item" style="border-bottom:none;"><span class="detail-key">OUT</span><span class="detail-val accent4">sensor tokens [K,d]</span></div>
-          </div>
-        </div>
+  <section class="section">
+    <div class="section-label">02 · Current Mainline Architecture</div>
+    <div class="panel">
+      <h2 class="panel-title">Two parallel paths: memory construction and query readout</h2>
+      <p class="panel-desc">
+        這個模型不是單一路徑把資料一路往下丟，而是兩條平行工作路徑同時存在：
+        左側先建立 sensor memory，右側為每個查詢點建立 query feature；
+        兩條路徑最後在 decoder 交會，完成場值讀取與輸出。
+      </p>
 
-        <div style="border:1px solid var(--accent); border-radius:3px; overflow:hidden;">
-          <div style="background:rgba(74,240,196,0.06); padding:10px 14px; border-bottom:1px solid rgba(74,240,196,0.2);">
-            <div style="font-family:var(--font-mono); font-size:9px; color:var(--accent); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:3px;">Stage 2</div>
-            <div style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-hi);">TemporalCfCEncoder</div>
-            <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); margin-top:2px;">問：這些 sensor token 隨時間怎麼演化？</div>
-          </div>
-          <div style="padding:12px 14px;">
-            <div class="detail-item"><span class="detail-key">pre-step</span><span class="detail-val">1-layer token self-attention</span></div>
-            <div class="detail-item"><span class="detail-key">CfC loop</span><span class="detail-val">t = 0..T−1, Δt = sensor_time diff</span></div>
-            <div class="detail-item"><span class="detail-key">Re bias</span><span class="detail-val accent2">re_proj(re_norm) 每步注入</span></div>
-            <div class="detail-item"><span class="detail-key">表示型態</span><span class="detail-val">causal token states，不壓成單一 h_enc</span></div>
-            <div class="detail-item" style="border-bottom:none;"><span class="detail-key">OUT</span><span class="detail-val accent">h_states [T,K,d]</span></div>
-          </div>
-        </div>
+      <div class="comfy-board" aria-label="ComfyUI-style model architecture graph">
+        <div class="comfy-canvas">
+          <svg class="graph-links" aria-hidden="true">
+            <path class="graph-link" data-from="sensor-stream:out" data-to="spatial:in" data-kind="sensor"></path>
+            <path class="graph-link" data-from="spatial:out" data-to="temporal:in" data-kind="sensor"></path>
+            <path class="graph-link" data-from="temporal:out" data-to="memory:in" data-kind="merge"></path>
+            <path class="graph-link" data-from="query-request:out" data-to="query-conditioning:in" data-kind="query"></path>
+            <path class="graph-link" data-from="query-conditioning:out" data-to="decoder:query-in" data-kind="query"></path>
+            <path class="graph-link" data-from="memory:out" data-to="decoder:memory-in" data-kind="merge"></path>
+            <path class="graph-link" data-from="decoder:out" data-to="field:in" data-kind="merge"></path>
+            <path class="graph-link" data-from="memory:in" data-to="future:in" data-kind="blocked"></path>
+          </svg>
 
-        <div style="border:1px solid var(--accent3); border-radius:3px; overflow:hidden;">
-          <div style="background:rgba(162,74,240,0.06); padding:10px 14px; border-bottom:1px solid rgba(162,74,240,0.2);">
-            <div style="font-family:var(--font-mono); font-size:9px; color:var(--accent3); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:3px;">Stage 3</div>
-            <div style="font-family:var(--font-head); font-size:13px; font-weight:600; color:var(--text-hi);">DeepONetCfCDecoder</div>
-            <div style="font-family:var(--font-mono); font-size:9.5px; color:var(--text-dim); margin-top:2px;">問：某個 query 點應該從哪些 tokens 讀資訊？</div>
-          </div>
-          <div style="padding:12px 14px;">
-            <div class="detail-item"><span class="detail-key">Query</span><span class="detail-val accent3">(x,y,t,c) → trunk feature</span></div>
-            <div class="detail-item"><span class="detail-key">Lookup</span><span class="detail-val">用 sensor_time 對齊 causal h_states</span></div>
-            <div class="detail-item"><span class="detail-key">Readout</span><span class="detail-val">trunk query 對 branch tokens 做 cross-attention</span></div>
-            <div class="detail-item"><span class="detail-key">Fusion</span><span class="detail-val">branch/trunk basis dot-product × learned temperature</span></div>
-            <div class="detail-item" style="border-bottom:none;"><span class="detail-key">OUT</span><span class="detail-val accent2">u / v / p [N_q,1]</span></div>
-          </div>
-        </div>
-      </div>
+          <div class="graph-lane-label" style="left: 42px; top: 34px;">Sensor Memory Path</div>
+          <div class="graph-lane-label" style="left: 42px; top: 500px;">Query Path</div>
 
-    </div><!-- /arch-diagram -->
-  </div>
-
-  <!-- ── Section 2: CfC Cell ── -->
-  <div class="diagram-section">
-    <div class="section-label">02 &nbsp; CfC + Attention Roles</div>
-
-    <div class="arch-diagram">
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:32px; align-items:start;">
-
-        <div>
-          <div class="detail-card-title" style="margin-bottom:16px;">Why CfC stays in the temporal branch</div>
-          <div class="module-detail" style="line-height:2; margin-bottom:20px;">
-            這條主線不是把 Transformer 與 CfC 二選一，而是分工：<br>
-            <span class="hi">Transformer / attention</span> 負責 token 間的讀取與訊息交換；<br>
-            <span class="hi">CfC</span> 負責處理不規則時間步長下的連續時間演化。<br>
-            <br>
-            目前 CfC 仍然是 closed-form recurrent update，而非數值 ODE solver。
-          </div>
-
-          <div class="loss-formula" style="margin-top:0;">
-            <div class="loss-formula-title">CfC forward</div>
-            <div class="loss-eq">
-              <span class="ld">xh</span>  = cat([x, h], dim=−1)<br>
-              <span class="ld">f1</span>  = tanh(<span class="tka">W₁</span> · xh + <span class="tka">b₁</span>)<br>
-              <span class="ld">f2</span>  = tanh(<span class="tka">W₂</span> · xh + <span class="tka">b₂</span>)<br>
-              <span class="lp">τ_a</span> = exp(log_tau_a)<br>
-              <span class="lp">t_b</span> = <span class="tka">W_b</span> · xh + <span class="tka">b_b</span><br>
-              <span class="lb">gate</span> = σ(−<span class="lp">τ_a</span> · Δt + <span class="lp">t_b</span>)<br>
-              <span class="lg">h_new</span> = <span class="lb">gate</span> · <span class="ld">f1</span> + (1 − <span class="lb">gate</span>) · <span class="ld">f2</span>
+          <article class="graph-node sensor" style="left: 40px; top: 82px;">
+            <span class="graph-port out" data-port="sensor-stream:out" data-kind="sensor" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>Sparse Sensor Stream</h3>
+              <div class="node-type">input</div>
             </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="detail-card-title" style="margin-bottom:16px;">Who does what in the current model</div>
-          <div class="detail-card" style="margin-bottom:16px;">
-            <div class="detail-item"><span class="detail-key">Token self-attention</span><span class="detail-val">先讓 sensors 交換空間上下文</span></div>
-            <div class="detail-item"><span class="detail-key">Temporal CfC</span><span class="detail-val accent2">對每個 token 做 causal time evolution</span></div>
-            <div class="detail-item"><span class="detail-key">Decoder cross-attention</span><span class="detail-val">讓 query 自己決定該讀哪些 branch tokens</span></div>
-          </div>
-
-          <div class="detail-card-title" style="margin-bottom:12px;">Sparse-data design rule</div>
-          <div class="module-detail" style="line-height:1.8;">
-            訓練主線只允許使用：<br>
-            <span class="hi">1.</span> 真實量到的 sensor data (`u,v,omega`)<br>
-            <span class="hi">2.</span> momentum residual<br>
-            <span class="hi">3.</span> continuity residual<br>
-            <span class="hi">4.</span> causal / time-marching training rule<br>
-            <br>
-            不把 vorticity / spectrum / energy / enstrophy 放進 training loss；<br>
-            這些量只保留在 evaluation 作診斷工具。
-          </div>
-
-          <div style="margin-top:20px;">
-            <div class="anno-strip" style="grid-template-columns:1fr 1fr; border-top:1px dashed var(--border-mid); padding-top:16px; margin-top:0;">
-              <div class="anno-item">
-                <div class="anno-marker">No single-vector branch</div>
-                <div class="anno-desc">目前主線已放棄「先壓成單一 h_enc 再解碼」，改成 sensor-level branch tokens 直接被 decoder 讀取。</div>
-              </div>
-              <div class="anno-item">
-                <div class="anno-marker">Diagnostics only</div>
-                <div class="anno-desc">vorticity / spectrum / kinetic energy / enstrophy 仍然保留，但只在 evaluation 階段使用，不再作 dense supervision。</div>
+            <div class="node-body">
+              <p>真實觀測只包含 <code>u, v</code>，並保留 sensor position 與 sensor time。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">T=101</span>
+                <span class="node-chip">K=100</span>
+                <span class="node-chip">Re=1000</span>
               </div>
             </div>
-          </div>
-        </div>
+          </article>
 
-      </div>
-
-    </div><!-- /arch-diagram -->
-  </div>
-
-  <!-- ── Section 3: Training Loop ── -->
-  <div class="diagram-section">
-    <div class="section-label">03 &nbsp; Sparse-Data Training Loop</div>
-
-    <div class="flow-diagram">
-
-      <div class="flow-columns">
-
-        <!-- Data Loss -->
-        <div class="col-data">
-          <div class="flow-col-title">Sensor Data Loss</div>
-
-          <div class="flow-step">
-            <div class="step-num">1</div>
-            <div>
-              <div class="step-title">Encode sensor history</div>
-              <div class="step-desc">sensor_vals + sensor_pos 先形成 thin sensor tokens，再經 token self-attention 與 temporal CfC 得到 causal branch tokens。</div>
+          <article class="graph-node sensor" style="left: 330px; top: 82px;">
+            <span class="graph-port in" data-port="spatial:in" data-kind="sensor" style="top: 62px;"></span>
+            <span class="graph-port out" data-port="spatial:out" data-kind="sensor" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>SpatialSetEncoder</h3>
+              <div class="node-type">tokenizer</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">2</div>
-            <div>
-              <div class="step-title">Sample sparse supervised queries</div>
-              <div class="step-desc">只在實際量到的 sparse observations 上做點值監督；目前觀測通道是 u, v, omega，不依賴 full-field gradient labels。</div>
-              <div class="step-code">num_query_points = 512</div>
+            <div class="node-body">
+              <p><code>periodic_fourier_encode</code> 加上 residual MLP，把每個 sensor 轉成 token。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">fourier=8</span>
+                <span class="node-chip">tokens [K,64]</span>
+              </div>
             </div>
-          </div>
+          </article>
 
-          <div class="flow-step">
-            <div class="step-num">3</div>
-            <div>
-              <div class="step-title">Decode from branch tokens</div>
-              <div class="step-desc">query trunk feature 對 branch tokens 做 cross-attention，再經 branch/trunk fusion 輸出 latent field u / v / p。</div>
+          <article class="graph-node sensor" style="left: 620px; top: 82px;">
+            <span class="graph-port in" data-port="temporal:in" data-kind="sensor" style="top: 62px;"></span>
+            <span class="graph-port out" data-port="temporal:out" data-kind="merge" style="top: 142px;"></span>
+            <div class="node-titlebar">
+              <h3>TemporalCfCEncoder</h3>
+              <div class="node-type">memory update</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">4</div>
-            <div>
-              <div class="step-title">Pointwise sensor/data consistency</div>
-              <div class="step-desc">L_data 只對真實量測通道做 MSE；若觀測是 omega，則由模型的 u,v 導數現算，不假設 sensor 直接提供 p。</div>
-              <div class="step-code">data_loss_weight = 1.0</div>
+            <div class="node-body">
+              <p>token self-attention 後，以 <code>CfC(dt)</code> 沿時間推進 causal state。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">dt-aware</span>
+                <span class="node-chip">1 layer</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </article>
 
-        <!-- Physics Loss -->
-        <div class="col-phys">
-          <div class="flow-col-title">Physics Residual</div>
-
-          <div class="flow-step">
-            <div class="step-num">1</div>
-            <div>
-              <div class="step-title">Sample collocation pts</div>
-              <div class="step-desc">在目前開放的 time-marching 時窗內，隨機取 (x,y,t) 物理點，並開啟 requires_grad=True。</div>
-              <div class="step-code">num_physics_points = 128</div>
+          <article class="graph-node memory" style="left: 620px; top: 320px;">
+            <span class="graph-port in" data-port="memory:in" data-kind="merge" style="top: -7px; left: 103px;"></span>
+            <span class="graph-port out" data-port="memory:out" data-kind="merge" style="top: 142px;"></span>
+            <div class="node-titlebar">
+              <h3>Branch Memory Bank</h3>
+              <div class="node-type">cache</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">2</div>
-            <div>
-              <div class="step-title">Predict u, v, p</div>
-              <div class="step-desc">透過同一個 branch token 記憶與 query decoder，分別求出 u, v, p 在 collocation points 的值。</div>
+            <div class="node-body">
+              <p>保留所有可被 query 讀取的 branch states，decoder 只能讀到 causal 可用時間。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">h_states [T,K,64]</span>
+              </div>
             </div>
-          </div>
+          </article>
 
-          <div class="flow-step">
-            <div class="step-num">3</div>
-            <div>
-              <div class="step-title">Autograd PDE residuals</div>
-              <div class="step-desc">用 torch.autograd.grad 計算時間導數、空間一階與二階導數，形成 unsteady incompressible NS residual。</div>
+          <article class="graph-node query" style="left: 40px; top: 540px;">
+            <span class="graph-port out" data-port="query-request:out" data-kind="query" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>Query Request</h3>
+              <div class="node-type">input</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">4</div>
-            <div>
-              <div class="step-title">NS residual + continuity</div>
-              <div class="step-desc">L_phys = momentum residual + λ·continuity residual。這是 sparse-data 主線可直接信任的物理 supervision。</div>
-              <div class="step-code">physics_loss_weight = 0.01</div>
+            <div class="node-body">
+              <p>每個 query 指定位置、時間與要輸出的 component。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">(x,y,t,c)</span>
+                <span class="node-chip">N_q</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </article>
 
-        <!-- Optimizer / Diagnostics -->
-        <div class="col-opt">
-          <div class="flow-col-title">Optimization & Diagnostics</div>
-
-          <div class="flow-step">
-            <div class="step-num">1</div>
-            <div>
-              <div class="step-title">Total loss</div>
-              <div class="step-desc">主線只用 L = λ_d · L_data + λ_p · L_phys，不再混入 vorticity / spectrum / dense auxiliary losses。</div>
+          <article class="graph-node query" style="left: 330px; top: 540px;">
+            <span class="graph-port in" data-port="query-conditioning:in" data-kind="query" style="top: 62px;"></span>
+            <span class="graph-port out" data-port="query-conditioning:out" data-kind="query" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>Query Conditioning</h3>
+              <div class="node-type">trunk build</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">2</div>
-            <div>
-              <div class="step-title">Time marching + physics ramp</div>
-              <div class="step-desc">先限制可見時間窗，再逐步開放整段時域；同時讓 physics weight 緩慢介入，避免 early collapse。</div>
-              <div class="step-code">learning_rate = 1e-3</div>
+            <div class="node-body">
+              <p>組合週期 Fourier、temporal anchor、<code>dt_to_query</code> 與 component embedding。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">trunk [N_q,64]</span>
+              </div>
             </div>
-          </div>
+          </article>
 
-          <div class="flow-step">
-            <div class="step-num">3</div>
-            <div>
-              <div class="step-title">Diagnostics stay outside training</div>
-              <div class="step-desc">vorticity / spectrum / kinetic energy / enstrophy 全部保留在 evaluation，作為場品質與物理結構診斷，而不是 supervision。</div>
+          <article class="graph-node decoder" style="left: 620px; top: 540px;">
+            <span class="graph-port in" data-port="decoder:query-in" data-kind="query" style="top: 62px;"></span>
+            <span class="graph-port in" data-port="decoder:memory-in" data-kind="merge" style="top: -7px; left: 103px;"></span>
+            <span class="graph-port out" data-port="decoder:out" data-kind="merge" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>DeepONetCfCDecoder</h3>
+              <div class="node-type">decoder nozzle</div>
             </div>
-          </div>
-
-          <div class="flow-step">
-            <div class="step-num">4</div>
-            <div>
-              <div class="step-title">Stable optimizer path</div>
-              <div class="step-desc">AdamW + cosine LR + gradient clipping；目前目標是讓 sparse-data 主線先穩定、不 collapse，再談更強結構對齊。</div>
-              <div class="step-code">max_grad_norm = 1.0</div>
+            <div class="node-body">
+              <p>causal lookup 後做 cross-attention readout，再以 branch / trunk basis 融合輸出場值。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">attention</span>
+                <span class="node-chip">rank=64</span>
+              </div>
             </div>
-          </div>
-        </div>
+          </article>
 
-      </div><!-- /flow-columns -->
+          <article class="graph-node output" style="left: 895px; top: 540px; width: 185px;">
+            <span class="graph-port in" data-port="field:in" data-kind="merge" style="top: 62px;"></span>
+            <div class="node-titlebar">
+              <h3>Field Outlet</h3>
+              <div class="node-type">output</div>
+            </div>
+            <div class="node-body">
+              <p>在任意 <code>(x,y,t)</code> 輸出 <code>u, v, p</code>。</p>
+              <div class="node-chip-row">
+                <span class="node-chip">out [N_q,1]</span>
+              </div>
+            </div>
+          </article>
 
-      <!-- Total loss formula -->
-      <div class="loss-formula">
-        <div class="loss-formula-title">Sparse-Data Objective</div>
-        <div class="loss-eq">
-          L = <span class="w">λ_d ·</span> <span class="ld">L_data</span>
-          &nbsp;+&nbsp;
-          <span class="w">λ_p ·</span> <span class="lp">L_NS</span>
-          &nbsp;+&nbsp;
-          <span class="w">λ_c ·</span> <span class="lb">L_continuity</span>
-        </div>
-        <div style="margin-top:12px; font-family:var(--font-mono); font-size:11px; color:var(--text-dim); line-height:2;">
-          <span class="lp">L_NS</span>  = |∂u/∂t + u·∂u/∂x + v·∂u/∂y + ∂p/∂x − ν·∇²u − <span class="lb">f_x</span>|²
-          &nbsp;+&nbsp; |∂v/∂t + u·∂v/∂x + v·∂v/∂y + ∂p/∂y − ν·∇²v|²<br>
-          <span class="lb">L_continuity</span> = |∂u/∂x + ∂v/∂y|²<br>
-          <span class="lb">f_x</span>  = A · sin(k_f · y) &nbsp;&nbsp;<span style="color:var(--text-dim); font-size:10px;">Kolmogorov forcing: A=0.1, k_f=4</span><br>
-          <span style="color:var(--accent2);">No training terms from vorticity / spectrum / energy / enstrophy.</span>
+          <article class="graph-node blocked" style="left: 910px; top: 122px; width: 180px; min-height: 116px;">
+            <span class="graph-port in" data-port="future:in" data-kind="blocked" style="top: 96px;"></span>
+            <div class="node-titlebar">
+              <h3>Future State</h3>
+              <div class="node-type">blocked</div>
+            </div>
+            <div class="node-body">
+              <p><code>t_{k+1}</code> 不可被 query 讀取，避免偷看未來。</p>
+            </div>
+          </article>
         </div>
       </div>
 
-    </div><!-- /flow-diagram -->
-  </div>
-
-  <!-- ── Section 4: Data & Config ── -->
-  <div class="diagram-section">
-    <div class="section-label">04 &nbsp; Data &amp; Configuration</div>
-
-    <div class="flow-diagram">
-
-      <div class="detail-row" style="margin-bottom:24px;">
-        <div class="detail-card">
-          <div class="detail-card-title">Sensor Data (JSON + NPZ)</div>
-          <div class="detail-item"><span class="detail-key">positions</span><span class="detail-val accent4">JSON → selected_coordinates [K,2]</span></div>
-          <div class="detail-item"><span class="detail-key">values</span><span class="detail-val">NPZ → u/v/p/time [K,T,3]</span></div>
-          <div class="detail-item"><span class="detail-key">sensors K</span><span class="detail-val">50</span></div>
-          <div class="detail-item"><span class="detail-key">timesteps T</span><span class="detail-val">21 (t=0..20)</span></div>
-          <div class="detail-item"><span class="detail-key">dt_phys</span><span class="detail-val accent2">sensor_time[1]−sensor_time[0]</span></div>
+      <div class="graph-note-strip">
+        <div class="graph-note">
+          <h4>Memory Path</h4>
+          <p>上方藍線負責把 sensor stream 轉成 causal branch memory。</p>
         </div>
-
-        <div class="detail-card">
-          <div class="detail-card-title">DNS Field (NPY)</div>
-          <div class="detail-item"><span class="detail-key">format</span><span class="detail-val">dict with u/v/p/x/y/time</span></div>
-          <div class="detail-item"><span class="detail-key">resolution</span><span class="detail-val">T=201, H=256, W=256</span></div>
-          <div class="detail-item"><span class="detail-key">role</span><span class="detail-val accent">reference / diagnostics</span></div>
-          <div class="detail-item"><span class="detail-key">Re</span><span class="detail-val">1000 (single-Re run)</span></div>
-          <div class="detail-item"><span class="detail-key">re_norm</span><span class="detail-val accent2">(Re−5500)/4000</span></div>
+        <div class="graph-note">
+          <h4>Query Path</h4>
+          <p>下方橘線負責把每個 <code>(x,y,t,c)</code> 轉成 trunk query。</p>
         </div>
-
-        <div class="detail-card">
-          <div class="detail-card-title">Domain</div>
-          <div class="detail-item"><span class="detail-key">flow type</span><span class="detail-val">Kolmogorov (2D periodic)</span></div>
-          <div class="detail-item"><span class="detail-key">spatial</span><span class="detail-val">[0, 1]² periodic</span></div>
-          <div class="detail-item"><span class="detail-key">DNS source</span><span class="detail-val">N=128, T=101, t∈[0,5]</span></div>
-          <div class="detail-item"><span class="detail-key">kinematic ν</span><span class="detail-val">1/Re</span></div>
+        <div class="graph-note">
+          <h4>Decoder Merge</h4>
+          <p>綠線表示 memory 與 query 在 decoder 匯流，而不是單一路徑直通。</p>
         </div>
-      </div>
-
-      <!-- Hyperparams grid -->
-      <div class="hp-grid" style="grid-template-columns:repeat(5,1fr);">
-        <div class="hp-card">
-          <div class="hp-name">d_model</div>
-          <div class="hp-value">128</div>
+        <div class="graph-note">
+          <h4>Causality</h4>
+          <p>紅色虛線代表被封鎖的 future state，對應 <code>searchsorted</code> 的 causal lookup。</p>
         </div>
-        <div class="hp-card">
-          <div class="hp-name">rff_features</div>
-          <div class="hp-value">64</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">rff_sigma</div>
-          <div class="hp-value">32.0</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">d_time</div>
-          <div class="hp-value">16</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">token self-attn</div>
-          <div class="hp-value">1</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">spatial token blocks</div>
-          <div class="hp-value">2</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">temporal CfC layers</div>
-          <div class="hp-value">2</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">iterations</div>
-          <div class="hp-value">10000</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">lr</div>
-          <div class="hp-value">1e-3</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">λ_data</div>
-          <div class="hp-value">1.0</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">λ_physics</div>
-          <div class="hp-value">0.01</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">operator_rank</div>
-          <div class="hp-value">128</div>
-        </div>
-        <div class="hp-card">
-          <div class="hp-name">thin token</div>
-          <div class="hp-value">true</div>
-        </div>
-      </div>
-
-    </div><!-- /flow-diagram -->
-  </div>
-
-  <!-- ── Section 5: Key Code ── -->
-  <div class="diagram-section">
-    <div class="section-label">05 &nbsp; Key Code</div>
-
-    <div class="code-block" style="margin-bottom:28px;">
-      <div class="code-header">
-        <span class="code-dot cd-r"></span>
-        <span class="code-dot cd-y"></span>
-        <span class="code-dot cd-g"></span>
-        <span class="code-filename">src/pi_onet/lnn_kolmogorov.py — CfCCell.forward</span>
-      </div>
-      <div class="code-body">
-        <div class="code-line"><span class="ln">1</span><span class="ct"><span class="tkw">def</span> <span class="tkf">forward</span>(<span class="tka">self</span>, x, h, dt=<span class="tks">1.0</span>):</span></div>
-        <div class="code-line"><span class="ln">2</span><span class="ct">    xh   = torch.cat([x, h], dim=<span class="tks">-1</span>)</span></div>
-        <div class="code-line"><span class="ln">3</span><span class="ct">    f1   = torch.tanh(<span class="tka">self</span>.ff1(xh))          <span class="tkc"># [*, d_model]</span></span></div>
-        <div class="code-line"><span class="ln">4</span><span class="ct">    f2   = torch.tanh(<span class="tka">self</span>.ff2(xh))</span></div>
-        <div class="code-line"><span class="ln">5</span><span class="ct">    tau_a = torch.exp(<span class="tka">self</span>.log_tau_a)</span></div>
-        <div class="code-line"><span class="ln">6</span><span class="ct">    t_b   = <span class="tka">self</span>.time_b(xh)</span></div>
-        <div class="code-line"><span class="ln">7</span><span class="ct">    gate  = torch.sigmoid(−tau_a * dt + t_b)    <span class="tkc"># physical Δt controls gate</span></span></div>
-        <div class="code-line"><span class="ln">8</span><span class="ct">    <span class="tkw">return</span> gate * f1 + (<span class="tks">1.0</span> − gate) * f2       <span class="tkc"># closed-form ODE solution</span></span></div>
       </div>
     </div>
+  </section>
 
-    <div class="code-block" style="margin-bottom:28px;">
-      <div class="code-header">
-        <span class="code-dot cd-r"></span>
-        <span class="code-dot cd-y"></span>
-        <span class="code-dot cd-g"></span>
-        <span class="code-filename">src/pi_onet/lnn_kolmogorov.py — LiquidOperator.encode</span>
-      </div>
-      <div class="code-body">
-        <div class="code-line"><span class="ln">1</span><span class="ct"><span class="tkw">def</span> <span class="tkf">encode</span>(<span class="tka">self</span>, sensor_vals, sensor_pos, re_norm, sensor_time):</span></div>
-        <div class="code-line"><span class="ln">2</span><span class="ct">    spatial_states = torch.stack([</span></div>
-        <div class="code-line"><span class="ln">3</span><span class="ct">        <span class="tka">self</span>.spatial_encoder(sensor_vals[t], sensor_pos, <span class="tka">self</span>.B)</span></div>
-        <div class="code-line"><span class="ln">4</span><span class="ct">        <span class="tkw">for</span> t <span class="tkw">in</span> range(sensor_vals.shape[<span class="tks">0</span>])</span></div>
-        <div class="code-line"><span class="ln">5</span><span class="ct">    ])                                           <span class="tkc"># [T, K, d_model]</span></span></div>
-        <div class="code-line"><span class="ln">6</span><span class="ct">    h_states = <span class="tka">self</span>.temporal_encoder(spatial_states, re_norm, sensor_time)</span></div>
-        <div class="code-line"><span class="ln">7</span><span class="ct">    <span class="tkw">return</span> h_states, sensor_time</span></div>
-      </div>
-    </div>
+  <section class="section">
+    <div class="section-label">03 · Time Logic</div>
+    <div class="panel">
+      <h2 class="panel-title">How time enters the model and constrains the readout</h2>
+      <p class="panel-desc">
+        這個模型有兩種和時間有關的處理：memory path 會沿著感測器時間序列遞推，
+        query path 則在任意查詢時刻 <code>t_q</code> 上建立讀取條件。兩者在 decoder 中透過
+        causal lookup 對齊。
+      </p>
 
-    <div class="code-block" style="margin-bottom:28px;">
-      <div class="code-header">
-        <span class="code-dot cd-r"></span>
-        <span class="code-dot cd-y"></span>
-        <span class="code-dot cd-g"></span>
-        <span class="code-filename">src/pi_onet/lnn_kolmogorov.py — DeepONetCfCDecoder.forward</span>
-      </div>
-      <div class="code-body">
-        <div class="code-line"><span class="ln">1</span><span class="ct">idx = torch.searchsorted(sensor_time, t_q, right=<span class="tkw">True</span>) − <span class="tks">1</span></span></div>
-        <div class="code-line"><span class="ln">2</span><span class="ct">h_branch_tokens = h_states[idx]                 <span class="tkc"># [N_q, K, d]</span></span></div>
-        <div class="code-line"><span class="ln">3</span><span class="ct">trunk_feat = trunk_mlp(RFF(xy) + time_proj(dt) + emb(c))</span></div>
-        <div class="code-line"><span class="ln">4</span><span class="ct">branch_ctx, _ = branch_attn(query=trunk_feat, key=branch_tokens, value=branch_tokens)</span></div>
-        <div class="code-line"><span class="ln">5</span><span class="ct">trunk_basis  = trunk_out(trunk_feat)</span></div>
-        <div class="code-line"><span class="ln">6</span><span class="ct">branch_basis = branch_proj(branch_ctx)</span></div>
-        <div class="code-line"><span class="ln">7</span><span class="ct">out = sum(trunk_basis * branch_basis) * fusion_temperature</span></div>
-      </div>
-    </div>
+      <div class="time-grid">
+        <div class="time-card">
+          <h3>Sensor timeline and query time</h3>
+          <p>
+            branch memory 是以感測器取樣時間建立的，因此 query 並不是直接跨到任意未來狀態，
+            而是先找到當下可用的 memory，再補上 <code>dt_to_query</code> 做局部讀取。
+          </p>
+          <div class="time-axis">
+            <div class="time-rail">
+              <div class="time-track"></div>
+              <div class="time-window-active" style="left:58%; width:14%;"></div>
+              <div class="time-window-label" style="left:58%; width:14%; text-align:center;">dt_to_query</div>
+              <div class="time-window-blocked" style="left:76%; width:16%;"></div>
+              <div class="time-blocked-label" style="left:76%; width:16%; text-align:center;">blocked</div>
 
-    <div class="code-block">
-      <div class="code-header">
-        <span class="code-dot cd-r"></span>
-        <span class="code-dot cd-y"></span>
-        <span class="code-dot cd-g"></span>
-        <span class="code-filename">src/pi_onet/lnn_kolmogorov.py — unsteady_ns_residuals</span>
-      </div>
-      <div class="code-body">
-        <div class="code-line"><span class="ln">1</span><span class="ct"><span class="tkw">def</span> <span class="tkf">unsteady_ns_residuals</span>(u, v, p, xy, t, re, k_f, A):</span></div>
-        <div class="code-line"><span class="ln">2</span><span class="ct">    grads = <span class="tkw">lambda</span> f, xs: torch.autograd.grad(</span></div>
-        <div class="code-line"><span class="ln">3</span><span class="ct">        f.sum(), xs, create_graph=<span class="tkw">True</span>)[<span class="tks">0</span>]</span></div>
-        <div class="code-line"><span class="ln">4</span><span class="ct">    u_x, u_y = grads(u, xy).unbind(dim=<span class="tks">-1</span>)</span></div>
-        <div class="code-line"><span class="ln">5</span><span class="ct">    v_x, v_y = grads(v, xy).unbind(dim=<span class="tks">-1</span>)</span></div>
-        <div class="code-line"><span class="ln">6</span><span class="ct">    p_x = grads(p, xy)[..., <span class="tks">0</span>];  p_y = grads(p, xy)[..., <span class="tks">1</span>]</span></div>
-        <div class="code-line"><span class="ln">7</span><span class="ct">    u_t = grads(u, t);             v_t = grads(v, t)</span></div>
-        <div class="code-line"><span class="ln">8</span><span class="ct">    nu  = <span class="tks">1.0</span> / re</span></div>
-        <div class="code-line"><span class="ln">9</span><span class="ct">    f_x = A * torch.sin(k_f * xy[..., <span class="tks">1</span>])       <span class="tkc"># Kolmogorov forcing</span></span></div>
-        <div class="code-line"><span class="ln">10</span><span class="ct">    res_x = u_t + u*u_x + v*u_y + p_x − nu*(grads(u_x,xy)[..,<span class="tks">0</span>] + grads(u_y,xy)[..,<span class="tks">1</span>]) − f_x</span></div>
-        <div class="code-line"><span class="ln">11</span><span class="ct">    res_y = v_t + u*v_x + v*v_y + p_y − nu*(grads(v_x,xy)[..,<span class="tks">0</span>] + grads(v_y,xy)[..,<span class="tks">1</span>])</span></div>
-        <div class="code-line"><span class="ln">12</span><span class="ct">    cont  = u_x + v_y</span></div>
-        <div class="code-line"><span class="ln">13</span><span class="ct">    <span class="tkw">return</span> res_x, res_y, cont</span></div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="diagram-section">
-    <div class="section-label">06 &nbsp; Diagnostics</div>
-    <div class="flow-diagram">
-      <div class="detail-row">
-        <div class="detail-card">
-          <div class="detail-card-title">Evaluation-only Diagnostics</div>
-          <div class="detail-item"><span class="detail-key">field comparison</span><span class="detail-val">DNS vs LNN vs error field</span></div>
-          <div class="detail-item"><span class="detail-key">vorticity</span><span class="detail-val">vorticity_comparison_tXX.png</span></div>
-          <div class="detail-item"><span class="detail-key">energy spectrum</span><span class="detail-val">energy_spectrum.png</span></div>
-          <div class="detail-item"><span class="detail-key">kinetic energy</span><span class="detail-val">kinetic_energy_vs_time.png</span></div>
-          <div class="detail-item"><span class="detail-key">enstrophy</span><span class="detail-val">enstrophy_vs_time.png</span></div>
+              <div class="time-events">
+                <div class="time-event memory-event" style="left:8%;">
+                  <div class="time-tag">t₀</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">sensor start</div>
+                </div>
+                <div class="time-event memory-event" style="left:26%;">
+                  <div class="time-tag">t₁</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">CfC update</div>
+                </div>
+                <div class="time-event memory-event" style="left:43%;">
+                  <div class="time-tag">t₂</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">CfC update</div>
+                </div>
+                <div class="time-event memory-event" style="left:58%;">
+                  <div class="time-tag">tₖ</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">valid memory</div>
+                </div>
+                <div class="time-event query-event" style="left:72%;">
+                  <div class="time-tag">t_q</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">query time</div>
+                </div>
+                <div class="time-event future-event" style="left:88%;">
+                  <div class="time-tag">tₖ₊₁</div>
+                  <div class="time-marker"></div>
+                  <div class="time-caption">not readable</div>
+                </div>
+              </div>
+            </div>
+            <div class="time-legend-grid">
+              <div class="time-legend">
+                <strong>1. Memory is sampled</strong>
+                <p><code>TemporalCfCEncoder</code> 只沿 sensor time 產生 <code>h_k</code>。</p>
+              </div>
+              <div class="time-legend">
+                <strong>2. Query reads backward</strong>
+                <p><code>searchsorted</code> 選到不晚於 <code>t_q</code> 的最新 memory。</p>
+              </div>
+              <div class="time-legend">
+                <strong>3. Future is blocked</strong>
+                <p><code>t_{k+1}</code> 尚不可讀，避免 query 偷看未來狀態。</p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="detail-card">
-          <div class="detail-card-title">Interpretation Boundary</div>
-          <div class="module-detail" style="line-height:1.8;">
-            這些量用來回答「場是否有能量、渦旋是否存在、主模態是否回來」，<br>
-            但它們不是 sparse-data 主線的 supervision。<br><br>
-            訓練只信任：<span class="hi">觀測值</span> 與 <span class="hi">PDE</span>。<br>
-            診斷才看：<span class="hi">vorticity / spectrum / energy / enstrophy</span>。
+
+        <div class="time-card">
+          <h3>Three timing rules</h3>
+          <div class="time-rule-list">
+            <div class="time-rule">
+              <div class="mini-label">Rule 1</div>
+              <p><code>TemporalCfCEncoder</code> 依 <code>sensor_time</code> 的相鄰差值更新 token memory。</p>
+            </div>
+            <div class="time-rule">
+              <div class="mini-label">Rule 2</div>
+              <p>decoder 先用 <code>searchsorted(sensor_time, t_q)</code> 找到可用的 branch state index。</p>
+            </div>
+            <div class="time-rule">
+              <div class="mini-label">Rule 3</div>
+              <p><code>dt_to_query = t_q - sensor_time[idx]</code> 進入 trunk，補充 query 與 memory 的時間差。</p>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Footer -->
-  <div class="footer">
-    <span>Pi-LNN &nbsp;·&nbsp; DeepONet + CfC &nbsp;·&nbsp; Sparse-Data Mainline</span>
-    <span>2026-03-29 &nbsp;·&nbsp; uvomega / thin token / token-attn / temporal CfC</span>
-  </div>
+  <section class="section">
+    <div class="section-label">04 · Decoder Zoom-In</div>
+    <div class="panel">
+      <h2 class="panel-title">Inside the decoder: from conditional readout to field value</h2>
+      <p class="panel-desc">
+        decoder 不是單一線性層，而是一個有明確步驟的 readout block。它先決定能讀哪個時間片，再決定該讀哪些 token，
+        最後才做 operator fusion 生成輸出。
+      </p>
 
-</div><!-- /page -->
+      <div class="zoom-grid">
+        <div class="zoom-stage blue">
+          <div class="mini-label">Step A</div>
+          <h3>Causal Indexing</h3>
+          <p>
+            以 <code>searchsorted(sensor_time, t_q)</code> 找到 query 當下對應的 branch memory，
+            先確定能讀哪一段時間。
+          </p>
+          <div class="shape">h_branch_tokens [N_q, K, d]</div>
+        </div>
+        <div class="zoom-stage orange">
+          <div class="mini-label">Step B</div>
+          <h3>Trunk Feature Build</h3>
+          <p>
+            用週期 Fourier、<code>dt_to_query</code>、temporal anchor 與 component embedding
+            組成 query feature。
+          </p>
+          <div class="shape">trunk_feat [N_q, d]</div>
+        </div>
+        <div class="zoom-stage teal">
+          <div class="mini-label">Step C</div>
+          <h3>Cross-Attention Readout</h3>
+          <p>
+            trunk query 對 branch tokens 做 attention scoring，加上 isotropic relative bias，
+            取回 query-specific branch context。
+          </p>
+          <div class="shape">branch_ctx [N_q, d]</div>
+        </div>
+        <div class="zoom-stage teal">
+          <div class="mini-label">Step D</div>
+          <h3>Operator Fusion</h3>
+          <p>
+            branch basis 與 trunk basis 做 dot-product fusion，再依 component scale / bias
+            輸出最終 <code>u, v, p</code>。
+          </p>
+          <div class="shape">out [N_q, 1]</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">05 · LNN / CfC Traits</div>
+    <div class="panel">
+      <h2 class="panel-title">Continuous-time operator memory with query-driven readout</h2>
+      <p class="panel-desc">
+        LNN 的角色是提供連續時間記憶；DeepONet decoder 的角色是把這份記憶轉成任意查詢位置的場值。
+        這兩者在本模型中是分工合作，而不是彼此替代。
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Closed-form Continuous Update</h3>
+          <p>
+            CfC 用可學習的時間尺度控制 gate，避免 LTC-style 數值 ODE solver 的額外 sub-stepping 成本。
+          </p>
+          <div class="formula">xh    = cat([x, h], dim=-1)
+f1    = tanh(W1 · xh)
+f2    = tanh(W2 · xh)
+tau_a = exp(log_tau_a)
+t_b   = Wb · xh + b
+gate  = sigmoid(-tau_a · dt + t_b)
+h_new = gate · f1 + (1 - gate) · f2</div>
+        </div>
+
+        <div class="feature-card">
+          <h3>dt-aware Token Memory</h3>
+          <p>
+            <code>sensor_time</code> 不只是索引。CfC 直接使用相鄰時間差
+            <code>dt = sensor_time[t] - sensor_time[t-1]</code>，所以狀態轉移對時間尺度敏感，
+            可以明確表達 causal time evolution。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Temporal Anchor for Query Time</h3>
+          <p>
+            主線開啟 <code>use_temporal_anchor=true</code>，把
+            <code>sin/cos(2π n t / T_total)</code> 注入 trunk，目的不是硬塞 supervision，
+            而是降低 query time 相位辨識的模糊性。
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Isotropic Relative Bias</h3>
+          <p>
+            decoder 的 attention bias 現在只用距離 <code>|rel|</code>，
+            不再用方向向量 <code>(rel_x, rel_y)</code>。這是因為 sensor x 分佈不均，
+            方向資訊會把感測器佈局偏差注入成 x-direction stripe artifact。
+          </p>
+        </div>
+      </div>
+
+      <div class="note-grid" style="margin-top: 18px;">
+        <div class="note-card">
+          <h3>Tokenized Branch Memory</h3>
+          <p>
+            branch 保留成 token 序列，讓不同 query 能讀到不同的 sensor group 與時間片段，
+            更符合 sparse operator reconstruction 的需求。
+          </p>
+        </div>
+        <div class="note-card">
+          <h3>Query-driven Readout</h3>
+          <p>
+            每個 query 都會依自己的位置、時間與分量，對 branch tokens 做條件式 cross-attention，
+            所以讀出的上下文會隨查詢而變化。
+          </p>
+        </div>
+        <div class="note-card">
+          <h3>Physics-aligned Output</h3>
+          <p>
+            decoder 最終輸出的是 <code>u, v, p</code>，並透過 momentum + continuity 殘差約束，
+            讓場重建不只貼近量測，也維持物理解釋性。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">06 · Training Objective & Mainline Config</div>
+    <div class="panel">
+      <h2 class="panel-title">Training rules behind the demonstration</h2>
+      <p class="panel-desc">
+        這個展示頁對應的是一個可重跑的訓練設定：觀測 supervision 只來自真實 sensor，
+        物理約束來自 unsteady Navier-Stokes 殘差，而頻譜、渦度與能量曲線則留在展示與驗證階段使用。
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>Data Loss</h3>
+          <ul class="bullet-list">
+            <li>只在真實觀測通道上做 MSE，目前為 <code>u, v</code>。</li>
+            <li><code>num_query_points = 128</code>，保持稀疏 supervision。</li>
+            <li>不將 diagnostics 量直接併入 training objective。</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h3>Physics Loss</h3>
+          <ul class="bullet-list">
+            <li>使用 primitive momentum + continuity form。</li>
+            <li><code>physics_loss_weight = 0.01</code>，<code>continuity_weight = 1.0</code>。</li>
+            <li><code>k_f = 2</code>、<code>A = 0.1</code>，與現在資料條件對齊。</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h3>Optimization</h3>
+          <ul class="bullet-list">
+            <li><code>SOAP + Schedule-Free</code>，<code>learning_rate = 3e-3</code>。</li>
+            <li><code>use_schedule_free = true</code>，<code>soap_precondition_frequency = 10</code>。</li>
+            <li><code>iterations = 5000</code>，主線為 EXP-028 step 3000 resume 後的收斂版本。</li>
+          </ul>
+        </div>
+        <div class="feature-card">
+          <h3>Time Integrity</h3>
+          <ul class="bullet-list">
+            <li><code>time_marching = true</code>，保留 causal rollout 訓練規則。</li>
+            <li><code>time_marching_start = 0.5</code>，<code>time_marching_warmup = 0.5</code>。</li>
+            <li>query 以 <code>searchsorted(sensor_time, t_q)</code> 做 causal lookup。</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="config-grid" style="margin-top: 18px;">
+        <div class="config-card">
+          <div class="metric-label">Observed Channels</div>
+          <div class="metric-value">u, v</div>
+          <div class="metric-note">主線已移除 omega data supervision。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Fourier Harmonics</div>
+          <div class="metric-value">8</div>
+          <div class="metric-note">週期 Fourier 共 32 維空間特徵。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Temporal Anchor</div>
+          <div class="metric-value">2</div>
+          <div class="metric-note">兩組 sin/cos 絕對時間基底。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Query Hidden</div>
+          <div class="metric-value">64</div>
+          <div class="metric-note"><code>query_mlp_hidden_dim = 64</code></div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Operator Rank</div>
+          <div class="metric-value">64</div>
+          <div class="metric-note">branch/trunk fusion 的共用 rank。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Token Attn Heads</div>
+          <div class="metric-value">4</div>
+          <div class="metric-note">每步先做一次 sensor token message passing。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Physics Points</div>
+          <div class="metric-value">32</div>
+          <div class="metric-note">每 step 的 PDE collocation 數量。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">Learning Rate</div>
+          <div class="metric-value">3e-3</div>
+          <div class="metric-note"><code>lr_schedule = "soap"</code> 並開啟 <code>use_schedule_free</code>。</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">07 · Current Result Figures</div>
+    <div class="panel">
+      <h2 class="panel-title">Demonstration figures from the current validated run</h2>
+      <p class="panel-desc">
+        下方圖像直接引用目前工作樹內已存在的 <code>artifacts/deeponet-cfc-re1000-soap-sf-5000-eval</code>，
+        因此這頁展示的是實際輸出，而不是手工拼接示意圖。
+      </p>
+
+      <div class="result-banner">
+        <div class="callout">
+          <h3>What This Demo Shows</h3>
+          <p>
+            這組圖展示的是同一個模型在場重建、渦度結構、能量演化、頻譜分佈與 forcing mode
+            上的整體表現，目的在於讓讀者一眼看出這個 operator 的重建品質。
+          </p>
+        </div>
+        <div class="callout">
+          <h3>How To Read It</h3>
+          <p>
+            先看 field 與 vorticity 圖確認空間形狀，再看時間序列與頻譜確認能量尺度與模態行為，
+            最後用 forcing mode 幅值與相位補充動態一致性。
+          </p>
+        </div>
+      </div>
+
+      <div class="signal-grid">
+        <div class="signal-card">
+          <div class="metric-label">u RMSE</div>
+          <div class="metric-value good">5.68e-2</div>
+          <div class="metric-note">目前全部主線中最低的 u 分量平均誤差。</div>
+        </div>
+        <div class="signal-card">
+          <div class="metric-label">v RMSE</div>
+          <div class="metric-value good">5.87e-2</div>
+          <div class="metric-note">u / v 兩分量誤差尺度仍維持一致。</div>
+        </div>
+        <div class="signal-card">
+          <div class="metric-label">KE Rel.err</div>
+          <div class="metric-value good">9.61%</div>
+          <div class="metric-note">SOAP+SF 主線首次把 KE 壓到 10% 以下。</div>
+        </div>
+        <div class="signal-card">
+          <div class="metric-label">Ens Rel.err</div>
+          <div class="metric-value good">11.85%</div>
+          <div class="metric-note">較 EXP-025 略高，但仍維持在可接受區間。</div>
+        </div>
+        <div class="signal-card">
+          <div class="metric-label">k_f Amp Ratio</div>
+          <div class="metric-value good">1.027</div>
+          <div class="metric-note">主模態振幅略高於 1，但比 EXP-025 更接近主線最佳平衡點。</div>
+        </div>
+      </div>
+
+      <div class="gallery-stack">
+        <div class="gallery-card">
+          <div class="gallery-head">
+            <h3>Field Structure</h3>
+            <div class="gallery-sub">shape and vortex texture</div>
+          </div>
+          <p>先看空間結構是否成形，再看誤差是否集中在高梯度或渦旋邊界。</p>
+          <div class="gallery-grid" style="margin-top: 14px;">
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Field</div>
+                <h3>Velocity Field Comparison at t = 5.0</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/field_comparison_t5.png" alt="Field comparison at t equals 5">
+              <figcaption class="figure-caption">
+                直接看主場重建、預測與誤差分佈。這張圖用來回答「整體場形狀是否仍對得上」。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Vorticity</div>
+                <h3>Vorticity Comparison at t = 5.0</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/vorticity_comparison_t5.png" alt="Vorticity comparison at t equals 5">
+              <figcaption class="figure-caption">
+                用來檢查小尺度渦旋是否被過度平滑，以及誤差是否仍集中成方向性假影。
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <div class="gallery-head">
+            <h3>Temporal Behavior</h3>
+            <div class="gallery-sub">error and energy over time</div>
+          </div>
+          <p>這組圖回答模型在整段時間上是否穩定，以及能量尺度有沒有逐步偏離。</p>
+          <div class="gallery-grid" style="margin-top: 14px;">
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Error</div>
+                <h3>UV Error vs Time</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/uv_error_vs_time.png" alt="UV error versus time">
+              <figcaption class="figure-caption">
+                直接看整段時間上速度誤差如何演化，確認模型沒有在後段快速失真。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Time Series</div>
+                <h3>Kinetic Energy vs Time</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kinetic_energy_vs_time.png" alt="Kinetic energy versus time">
+              <figcaption class="figure-caption">
+                SOAP+SF 主線在整段時間都更貼近 DNS，且整體 KE 已壓到 9.61%。
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <div class="gallery-head">
+            <h3>Mode and Spectrum</h3>
+            <div class="gallery-sub">global structure diagnostics</div>
+          </div>
+          <p>最後看主模態與頻譜，確認全域結構沒有因局部誤差改善而失真。</p>
+          <div class="gallery-grid" style="margin-top: 14px;">
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Spectrum</div>
+                <h3>Energy Spectrum</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/energy_spectrum.png" alt="Energy spectrum">
+              <figcaption class="figure-caption">
+                這張圖專門檢查頻譜是否過度平滑；若高波數端快速掉光，通常代表表達力或 bias 設計有問題。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Forcing Mode</div>
+                <h3>k_f Amplitude vs Time</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kf_mode_amplitude_vs_time.png" alt="Kolmogorov forcing mode amplitude versus time">
+              <figcaption class="figure-caption">
+                forcing mode amplitude ratio 目前為 1.027，代表主模態強度略高但仍緊貼 DNS。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Forcing Mode</div>
+                <h3>k_f Phase vs Time</h3>
+              </div>
+              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kf_mode_phase_vs_time.png" alt="Kolmogorov forcing mode phase versus time">
+              <figcaption class="figure-caption">
+                phase 仍受 t=3.5∼4.5 chaotic divergence 主導，不能單靠 phase 圖否定當前主線。
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">08 · Code Anchors</div>
+    <div class="panel">
+      <h2 class="panel-title">The page points back to the real implementation</h2>
+      <p class="panel-desc">
+        這兩段不是偽碼，而是對應目前工作樹中的核心邏輯：CfC 的 closed-form update，以及
+        等向相對位置 bias 的設計理由。
+      </p>
+
+      <div class="code-grid">
+        <article class="code-card">
+          <div class="code-meta">src/pi_onet/lnn_kolmogorov.py · CfCCell.forward</div>
+          <h3>Closed-form temporal update</h3>
+          <pre><code>xh = torch.cat([x, h], dim=-1)
+f1 = torch.tanh(self.ff1(xh))
+f2 = torch.tanh(self.ff2(xh))
+tau_a = torch.exp(self.log_tau_a)
+t_b = self.time_b(xh)
+gate = torch.sigmoid(-tau_a * dt + t_b)
+return gate * f1 + (1.0 - gate) * f2</code></pre>
+        </article>
+
+        <article class="code-card">
+          <div class="code-meta">src/pi_onet/lnn_kolmogorov.py · DeepONetCfCDecoder.forward</div>
+          <h3>Isotropic relative-position bias</h3>
+          <pre><code>rel = xy.unsqueeze(1) - sensor_pos.unsqueeze(0)
+rel = rel - torch.round(rel / self.domain_length) * self.domain_length
+rel_r = torch.linalg.norm(rel, dim=-1, keepdim=True)
+
+# 只用距離（等向量），移除方向分量 (rel_x, rel_y)。
+# Why: 感測器 x 分佈非均勻，方向向量會把 x-column 非均勻性
+# 注入 attention bias，造成 x 方向條紋偽影。
+rel_bias = self.relpos_bias(rel_r).squeeze(-1)</code></pre>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <span>Pi-LNN Demonstration · EXP-030 · Re=1000</span>
+    <span>DeepONet + CfC · periodic Fourier · isotropic bias · SOAP + schedule-free</span>
+  </footer>
+
+</div>
 
 <script>
-function toggleTheme() {
-  const html = document.documentElement;
-  const current = html.getAttribute('data-theme');
-  const next = current === 'dark' ? 'light' : 'dark';
-  html.setAttribute('data-theme', next);
-  document.getElementById('toggle-label').textContent = next === 'dark' ? 'light' : 'dark';
+const html = document.documentElement;
+const label = document.getElementById("theme-label");
+const toggle = document.getElementById("theme-toggle");
+const storageKey = "pi-lnn-theme";
+
+function applyTheme(theme) {
+  html.setAttribute("data-theme", theme);
+  label.textContent = theme === "dark" ? "light" : "dark";
+  requestAnimationFrame(updateGraphLinks);
 }
+
+function graphPortCenter(port, canvasRect) {
+  const rect = port.getBoundingClientRect();
+  return {
+    x: rect.left - canvasRect.left + rect.width / 2,
+    y: rect.top - canvasRect.top + rect.height / 2,
+  };
+}
+
+function graphBezier(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const mostlyVertical = Math.abs(dx) < 24 && Math.abs(dy) > 24;
+
+  if (mostlyVertical) {
+    const handle = Math.max(40, Math.abs(dy) * 0.5);
+    const y1 = from.y + Math.sign(dy || 1) * handle;
+    const y2 = to.y - Math.sign(dy || 1) * handle;
+    return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${from.x.toFixed(1)} ${y1.toFixed(1)}, ${to.x.toFixed(1)} ${y2.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+  }
+
+  const handle = Math.min(Math.max(32, Math.abs(dx) * 0.45), Math.max(24, Math.abs(dx) * 0.5));
+  const direction = Math.sign(dx || 1);
+  const x1 = from.x + direction * handle;
+  const x2 = to.x - direction * handle;
+  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${x1.toFixed(1)} ${from.y.toFixed(1)}, ${x2.toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+}
+
+function updateGraphLinks() {
+  const canvas = document.querySelector(".comfy-canvas");
+  const svg = document.querySelector(".graph-links");
+  if (!canvas || !svg) return;
+
+  const canvasRect = canvas.getBoundingClientRect();
+  svg.setAttribute("viewBox", `0 0 ${canvas.offsetWidth} ${canvas.offsetHeight}`);
+
+  document.querySelectorAll(".graph-link[data-from][data-to]").forEach((link) => {
+    const fromPort = canvas.querySelector(`[data-port="${link.dataset.from}"]`);
+    const toPort = canvas.querySelector(`[data-port="${link.dataset.to}"]`);
+    if (!fromPort || !toPort) return;
+
+    const from = graphPortCenter(fromPort, canvasRect);
+    const to = graphPortCenter(toPort, canvasRect);
+    link.setAttribute("d", graphBezier(from, to));
+  });
+}
+
+const saved = localStorage.getItem(storageKey);
+if (saved === "light" || saved === "dark") {
+  applyTheme(saved);
+} else {
+  applyTheme("dark");
+}
+
+toggle.addEventListener("click", () => {
+  const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+  localStorage.setItem(storageKey, next);
+  applyTheme(next);
+});
+
+window.addEventListener("load", updateGraphLinks);
+window.addEventListener("resize", updateGraphLinks);
+
+const comfyBoard = document.querySelector(".comfy-board");
+if (comfyBoard) {
+  comfyBoard.addEventListener("scroll", updateGraphLinks, { passive: true });
+}
+
+const comfyCanvas = document.querySelector(".comfy-canvas");
+if (comfyCanvas && "ResizeObserver" in window) {
+  new ResizeObserver(updateGraphLinks).observe(comfyCanvas);
+}
+
+requestAnimationFrame(updateGraphLinks);
 </script>
+
 </body>
 </html>

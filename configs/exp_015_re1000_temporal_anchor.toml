@@ -1,10 +1,10 @@
-# configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml
-# What: EXP-030 — 從 EXP-028 step 3000 ckpt resume，延長至 5000 steps。
-# Why: EXP-028 在 3000 步 KE 12.24%、Ens 13.35%、amp ratio 1.039，
-#      結果優於 EXP-026（SOAP 無 SF），且 Ens 改善明顯。
-#      延長至 5000 步觀察是否能進一步降低 KE/Ens，並維持 amp ratio 接近 1.0。
-# Hypothesis: 5000 步後 KE < 12%、Ens < 12%，amp ratio 維持 0.98~1.05。
-# Falsifiability: 若 KE > 0.13 或 Ens 上升，確認 SOAP+SF 在此規模 3k 已飽和。
+# configs/exp_015_re1000_temporal_anchor.toml
+# What: EXP-014 主線 + temporal phase anchor（絕對時間注入 trunk）。
+# Why: EXP-014 的 trunk 只有相對時間 dt_to_query，在 chaotic Re=1000 流場中，
+#      相同 dt 但不同絕對時間 t 的動態完全不同。
+#      注入 sin/cos(2π n t / T_total) 提供絕對時間定位，目標降低 t=3.5∼4.5 的 phase 高峰。
+# Hypothesis: t=3.5∼4.5 的 phase 偏差高峰來自模型缺乏絕對時間感，
+#             而非 branch 容量不足或訓練步數問題。
 
 [train]
 sensor_jsons = [
@@ -19,7 +19,10 @@ dns_paths = [
 re_values = [1000.0]
 observed_sensor_channels = ["u", "v"]
 
-fourier_harmonics = 8
+rff_features = 32
+rff_sigma = 4.0
+rff_sigma_bands = [[16, 4.0], [8, 8.0], [8, 16.0]]
+use_phase_anchor = true
 use_temporal_anchor = true
 T_total = 5.0
 temporal_anchor_harmonics = 2
@@ -47,18 +50,17 @@ domain_length = 1.0
 kolmogorov_k_f = 2.0
 kolmogorov_A = 0.1
 
-iterations = 5000
+iterations = 3000
 num_query_points = 128
 num_physics_points = 32
-learning_rate = 3e-3
+learning_rate = 1e-3
 weight_decay = 1e-4
-lr_schedule = "soap"
-use_schedule_free = true
-soap_precondition_frequency = 10
+lr_schedule = "step"
+lr_decay_steps = 500
+lr_decay_gamma = 0.9
 min_learning_rate = 1e-6
 max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-3000/checkpoints/lnn_kolmogorov_step_3000.pt"
-artifacts_dir = "artifacts/deeponet-cfc-re1000-soap-sf-5000"
+artifacts_dir = "artifacts/deeponet-cfc-midlong-uvomega-small-temporal-anchor-3000"

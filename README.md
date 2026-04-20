@@ -1,87 +1,73 @@
 # pi-o-net
 
-以 **DeepONet + CfC** 實作的 sparse-data 物理資訊模型，目標是用少量感測器時序資料重建 2D Kolmogorov flow 場。
+以 **DeepONet + CfC** 實作的 sparse-data 物理資訊算子學習模型，目標是用少量感測器時序資料重建 2D Kolmogorov flow 場。
 
-目前正式主線已切到新資料格式：
+目前正式主線架構：
 
-- **觀測通道：`u, v, omega`**
+- **觀測通道：`u, v`**（不使用 vorticity / spectrum / enstrophy 作為 supervision）
 - **空間 domain：`[0, 1]^2` periodic**
-- **薄 token + token self-attention**
-- **temporal CfC encoder**
+- **空間編碼：`periodic_fourier_encode`**（確定性 Fourier 編碼，嚴格週期邊界，取代早期 RFF）
+- **等向 relpos_bias**（純距離 `|rel|`，無方向分量，避免條紋偽影）
+- **temporal_anchor**（`sin/cos(2π n t/T)` 絕對時間座標，n_harmonics=2）
+- **token self-attention + temporal CfC encoder**
 - **DeepONet-style query decoder with cross-attention**
-- **訓練只依賴真實觀測與 PDE**
+- **訓練只依賴真實觀測（u, v）與 PDE 殘差（momentum + continuity）**
 
-也就是：`vorticity / spectrum / kinetic energy / enstrophy` 全部保留作診斷工具，不進 training supervision。
-
-## 目前架構
-
-資料流如下：
+## 架構資料流
 
 ```text
-sensor_obs[t, k, {u,v,omega}] + sensor_pos[k, {x,y}]
-    -> RFF(x,y) + token_in
+sensor_obs[t, k, {u,v}] + sensor_pos[k, {x,y}]
+    -> periodic_fourier_encode(x,y) + token_in
     -> thin sensor tokens
     -> token self-attention
     -> temporal CfC over time
     -> causal branch tokens h_states[t, k, d]
-    -> query trunk (x, y, t, component)
-    -> cross-attention(query, branch tokens)
-    -> branch/trunk fusion
+    -> query trunk (x, y, t, component, temporal_anchor)
+       + relpos cross-attention(query → branch tokens)
+    -> branch/trunk operator fusion
     -> latent field {u, v, p}
 ```
 
 補充：
 
-- 真實感測器不提供 `p`
-- `L_data` 只監督真實觀測通道
-- 若觀測包含 `omega`，則由模型輸出的 `u, v` 導數現算
-- `p` 只作模型內部 latent 場量，交由 PDE residual 約束
+- `p` 為模型內部 latent 場量，只由 PDE residual 約束，無資料監督
+- `omega`, KE, Enstrophy, energy spectrum 只作 evaluation 診斷，不進 training
 
 對應實作在：
 
 - [`src/pi_onet/lnn_kolmogorov.py`](src/pi_onet/lnn_kolmogorov.py)
 - [`src/pi_onet/kolmogorov_dataset.py`](src/pi_onet/kolmogorov_dataset.py)
 
-互動式架構文件在：
+## 目前最佳結果
 
-- [`docs/lnn_architecture.html`](docs/lnn_architecture.html)
+### Re=1000（主基準，EXP-030）
 
-## Sparse-data 訓練原則
+| 指標 | 數值 |
+|---|---|
+| KE rel-err | **9.61%** |
+| u RMSE | 5.68e-2 |
+| amp ratio (k_f=2) | 1.027 |
+| Enstrophy rel-err | 11.85% |
 
-主線只保留這些 loss：
+- config: [`configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml`](configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml)
+- artifact: `artifacts/deeponet-cfc-re1000-soap-sf-5000`
+- 架構：`d_model=64`, `fourier_harmonics=8`, 1-layer attn, SOAP+SF, 5000 steps
 
-- `L_data`: 真實量到的資料點值誤差
-- `L_momentum`: Navier-Stokes momentum residual
-- `L_continuity`: incompressibility residual
+### Re=10000（最佳，EXP-033）
 
-保留但只作診斷、不作訓練 supervision 的量：
+| 指標 | 數值 |
+|---|---|
+| KE rel-err | **31.5%** |
+| Enstrophy rel-err | 48.9% |
+| amp ratio (k_f=2) | 0.875 |
 
-- vorticity
-- energy spectrum
-- kinetic energy
-- enstrophy
+- config: [`configs/deeponet_cfc_re10000_xlarge.toml`](configs/deeponet_cfc_re10000_xlarge.toml)
+- artifact: `artifacts/deeponet-cfc-re10000-xlarge-3000`
+- 架構：`d_model=256`, `operator_rank=256`, SOAP+SF, 3000 steps
 
-這是刻意的設計選擇。若場景只有少量感測器，這些統計量或 dense derivative target 通常不是可直接取得的真實 supervision。
+### Re=10000（基準，EXP-031）
 
-## 目前建議配置
-
-目前 `uvomega` 主線基準是：
-
-- `observed channels = u, v, omega`
-- `domain_length = 1.0`
-- `rff_sigma = 32.0`
-- `use_local_struct_features = false`
-- `num_token_attention_layers = 1`
-- `physics_loss_weight = 0.01`
-- `time_marching = true`
-- `device = "mps"`
-
-參考 config：
-
-- [`configs/deeponet_cfc_smoke_uvomega.toml`](configs/deeponet_cfc_smoke_uvomega.toml)
-- [`configs/deeponet_cfc_midlong_uvomega.toml`](configs/deeponet_cfc_midlong_uvomega.toml)
-
-舊的 `deeponet_cfc_smoke.toml`、`deeponet_cfc_midlong_sigma4_tokenattn.toml` 仍留在 repo，主要用於過去實驗參考，不再是目前正式基線。
+KE 39.4%，`d_model=128`, SOAP+SF 3000 steps，config: [`configs/deeponet_cfc_re10000_wide_v2.toml`](configs/deeponet_cfc_re10000_wide_v2.toml)
 
 ## 安裝
 
@@ -89,7 +75,7 @@ sensor_obs[t, k, {u,v,omega}] + sensor_pos[k, {x,y}]
 uv sync
 ```
 
-如果只想確認 Python 檔案可被解譯：
+驗證可解譯：
 
 ```bash
 uv run python -m py_compile \
@@ -101,87 +87,82 @@ uv run python -m py_compile \
 
 ## 訓練
 
-Smoke：
+```bash
+uv run python scripts/run_experiment.py \
+  --config configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml \
+  --device mps
+```
+
+或只跑訓練（不自動 eval）：
 
 ```bash
 uv run python scripts/train_deeponet_cfc.py \
-  --config configs/deeponet_cfc_smoke_uvomega.toml
+  --config configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml \
+  --device mps
 ```
 
-中長訓練：
-
-```bash
-uv run python scripts/train_deeponet_cfc.py \
-  --config configs/deeponet_cfc_midlong_uvomega.toml
-```
-
-## Evaluation / 診斷
+## Evaluation
 
 ```bash
 uv run python scripts/evaluate_deeponet_cfc.py \
-  --config configs/deeponet_cfc_midlong_uvomega.toml \
-  --checkpoint artifacts/deeponet-cfc-midlong-uvomega/lnn_kolmogorov_final.pt \
-  --output-dir artifacts/deeponet-cfc-eval-midlong-uvomega
+  --config configs/deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml \
+  --checkpoint artifacts/deeponet-cfc-re1000-soap-sf-5000/lnn_kolmogorov_final.pt \
+  --output-dir artifacts/deeponet-cfc-re1000-soap-sf-5000-eval
 ```
 
-目前 evaluation 會輸出：
+輸出：
 
 - `field_comparison_tXX.png`
 - `vorticity_comparison_tXX.png`
 - `energy_spectrum.png`
 - `kinetic_energy_vs_time.png`
 - `enstrophy_vs_time.png`
+- `uv_error_vs_time.png`
 - `summary.json`
+
+## 主要 Config 說明
+
+| Config | 用途 |
+|---|---|
+| `deeponet_cfc_smoke_uvomega.toml` | 快速 smoke test（少步數） |
+| `deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml` | **Re=1000 主線基準（EXP-030）** |
+| `deeponet_cfc_re10000_wide_v2.toml` | Re=10000 基準（EXP-031, d=128） |
+| `deeponet_cfc_re10000_xlarge.toml` | Re=10000 最佳（EXP-033, d=256） |
+| `deeponet_cfc_re10000_transfer_wide.toml` | Re=10000 transfer from Re=1000（EXP-042） |
 
 ## 專案結構
 
 ```text
 configs/
   deeponet_cfc_smoke_uvomega.toml
-  deeponet_cfc_midlong_uvomega.toml
-  deeponet_cfc_smoke.toml
-  deeponet_cfc_midlong_sigma4_tokenattn.toml
-  deeponet_cfc_long.toml
-  lnn_kolmogorov.toml
-  lnn_kolmogorov_quick.toml
+  deeponet_cfc_midlong_uvomega_small_soap_sf_5000.toml   # Re=1000 主線
+  deeponet_cfc_re10000_wide_v2.toml                      # Re=10000 基準
+  deeponet_cfc_re10000_xlarge.toml                       # Re=10000 最佳
+  deeponet_cfc_re10000_transfer_wide.toml                # transfer learning
 
 docs/
+  experiment_log.md     # 實驗 state（主要歷史紀錄）
   lnn_architecture.html
 
 scripts/
   train_deeponet_cfc.py
   evaluate_deeponet_cfc.py
+  run_experiment.py     # train + eval 一體化 pipeline
+  compare_experiments.py
 
 src/pi_onet/
   kolmogorov_dataset.py
   lnn_kolmogorov.py
-  pit_ldc.py
 ```
 
-## 現行 uvomega 基線
+## 核心設計原則
 
-目前已重建出一套乾淨可跑的 `uvomega` 基線：
+- `u, v` 觀測作為唯一 data supervision；`omega`, KE 等只作診斷
+- `periodic_fourier_encode` 取代 RFF：消除角度偏差產生的條紋偽影
+- `relpos_bias` 使用純距離輸入：保持等向性，避免感測器 x 非均勻分佈注入偏差
+- `temporal_anchor` 提供絕對時間座標，改善 forcing mode 重建
+- `time_marching` 改善 causal branch token 學習
+- physics loss（momentum + continuity）以 `physics_loss_weight=0.01` 作輔助約束
+- 優化器主線：`SOAP + Schedule-Free`
 
-- smoke artifact:
-  [`artifacts/deeponet-cfc-smoke-uvomega`](/Users/latteine/Documents/coding/pi-lnn/artifacts/deeponet-cfc-smoke-uvomega)
-- midlong artifact:
-  [`artifacts/deeponet-cfc-midlong-uvomega`](/Users/latteine/Documents/coding/pi-lnn/artifacts/deeponet-cfc-midlong-uvomega)
-- checkpoint sweep:
-  [`artifacts/deeponet-cfc-eval-midlong-uvomega-sweep`](/Users/latteine/Documents/coding/pi-lnn/artifacts/deeponet-cfc-eval-midlong-uvomega-sweep)
-
-目前觀察：
-
-- 這條主線已可穩定訓練，不再是資料格式不相容狀態
-- `step_250 ~ 1000` 沒有掉回 near-zero collapse
-- 但後期仍會往低能量解收縮，`E(k_f=4)` 幾乎為 0
-- 因此它目前是「乾淨可重跑的基線」，不是「已成功收斂的模型」
-
-## 目前研究結論
-
-- 單一 global hidden state 容易 collapse
-- 保留 sensor-level local identity 比提早 pooling 更合理
-- token self-attention 能改善訓練穩定性
-- `u, v, omega` 觀測需要 per-channel normalization，否則 `omega` 會主導 `L_data`
-- sparse-data 主線不應依賴 dense derivative / spectrum supervision
-
-因此目前 repo 已收斂到「**先把 sparse-data 主線做乾淨，再談更高階結構對齊**」的方向。
+詳細實驗歷史與決策依據見 [`docs/experiment_log.md`](docs/experiment_log.md)。

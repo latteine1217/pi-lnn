@@ -1,14 +1,16 @@
-# configs/deeponet_cfc_re10000_normalize_only.toml
-# What: EXP-036 — 與 EXP-031 相同設定（d=128, random-32），
-#       僅加入 physics_residual_normalize=true。
+# configs/exp_042_re10000_transfer_wide.toml
+# What: EXP-042 — Re=10000 fine-tune，從 EXP-041（Re=1000, d=128）weights 初始化。
 #
-# Why: EXP-035（chebyshev + normalize）KE=66.1%，遠差於 EXP-031（39.4%）。
-#      需拆開兩個變更確認各自影響。本實驗只加 normalize，不動 collocation 策略。
-#      若 KE 優於 EXP-031（39.4%），表示 normalize 有益；
-#      若 KE 更差，表示 normalize 是 EXP-035 失敗的主因。
+# Why: EXP-040 因架構不匹配失敗（EXP-030 是 d=64）。
+#      EXP-041 使用與 EXP-031 完全相同的架構（d=128, harmonics=16, 2-layer attn），
+#      確保 transfer 可以直接載入。
+#      EXP-041 的 KE=24.5%（3000步未完全收斂），但 pre-trained weights 仍可能
+#      提供有用的 inductive bias（感測器聚合、低頻流場、time-marching）。
 #
-# Hypothesis: normalize 使 continuity 梯度量級恢復，KE < 37%（小幅改善）。
-# Falsifiability: 若 KE > 0.40，表示 normalize 有害或無效。
+# Hypothesis: 即使 Re=1000 的 weights 未完全收斂，transfer 仍能加速 Re=10000
+#             的低頻基礎建立，KE < 39.4%（優於 EXP-031 隨機初始化）。
+# Falsifiability: 若 KE >= 0.394，表示 24.5% 品質的 Re=1000 weights
+#                 對 Re=10000 沒有正向遷移效果，pre-training 需先達到更好品質。
 
 [train]
 sensor_jsons = [
@@ -43,9 +45,10 @@ physics_loss_weight = 0.01
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 1.0
+poisson_loss_weight = 0.0
 
 physics_collocation_strategy = "random"
-physics_residual_normalize = true
+physics_residual_normalize = false
 num_physics_points = 32
 
 time_marching = true
@@ -67,4 +70,5 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-normalize-only-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-transfer-wide-3000"
+resume_checkpoint = "artifacts/deeponet-cfc-re1000-wide-3000/lnn_kolmogorov_final.pt"

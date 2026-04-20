@@ -1,4 +1,4 @@
-# configs/deeponet_cfc_re10000_wide_v2.toml
+# configs/exp_031_re10000_wide.toml
 # What: EXP-031 — Re=10000 架構升級版，從 Re=1000 EXP-030 最佳設定出發，
 #       調整容量以應對更複雜湍流動態。
 #

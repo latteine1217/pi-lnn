@@ -1,0 +1,64 @@
+# configs/exp_026_re1000_soap.toml
+# What: EXP-026 — 以 SOAP optimizer 取代 AdamW，其他與 EXP-022 完全相同。
+# Why: SOAP（Shampoo as Adam Preconditioner）利用梯度外積估計曲率，
+#      在特徵基底中執行 Adam 更新，理論上可更快收斂至較佳極值。
+#      betas=(0.95, 0.95) 為論文建議值；lr=3e-3 為 SOAP 預設值（高於 AdamW 的 1e-3）。
+# Hypothesis: SOAP 在 3000 步達到與 EXP-022（stepLR）相當或更好的 KE rel-err；
+#             若 KE < 12%，確認二階資訊帶來顯著加速。
+# Falsifiability: 若 KE rel-err > 0.18 或訓練不穩定（NaN / loss 爆增），
+#                 表示 SOAP 在此規模的 MLP+CfC 架構上未能帶來改善。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 8
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re1000-soap-3000"

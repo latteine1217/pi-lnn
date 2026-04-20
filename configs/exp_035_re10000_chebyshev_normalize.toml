@@ -1,25 +1,22 @@
-# configs/deeponet_cfc_re10000_xlarge_chebyshev.toml
-# What: EXP-035 — 與 EXP-033 相同的容量（d_model=256，1-layer），
+# configs/exp_035_re10000_chebyshev_normalize.toml
+# What: EXP-035 — 與 EXP-031 相同的容量（d_model=128，1-layer），
 #       但 physics collocation 從 random-32 換成 Chebyshev-256（16×16 格點），
-#       並啟用 physics_residual_normalize，從 step 0 重新訓練。
+#       並啟用 physics_residual_normalize。從 step 0 重新訓練。
 #
-# Why: EXP-033（3k steps）KE=31.5%，純加容量的邊際收益遞減。
-#      診斷：32 隨機 physics 點的 Nyquist 上限 k~5，無法約束 Re=10000 的中高頻結構；
-#      momentum 殘差 O(10) vs continuity O(0.01)，不歸一化時 continuity 梯度形同虛設。
-#      這是機制問題，不是容量問題。
+# Why: 用小模型隔離機制變更效果，避免容量差異混淆對照結果。
+#      EXP-031（d=128, random-32）= KE 39.4%，是本實驗的直接對照組。
+#      若機制有效，d=128 下就應看到改善；若無效，再用 d=256 確認是否容量掩蓋了機制。
 #
 # 機制變更：
 #   physics_collocation_strategy = "chebyshev"：
-#     16×16 Gauss-Chebyshev 格點，系統性覆蓋 [0,1]²，Nyquist k~16（vs 原本 k~5）。
+#     16×16 Gauss-Chebyshev 格點，Nyquist k~16（vs random-32 的 k~5）。
 #   physics_residual_normalize = true：
-#     各殘差項除以自身批次 RMS，使 momentum / continuity 梯度量級對齊。
-#   num_physics_points = 256：配合 16×16 grid（n_dim = round(sqrt(256)) = 16）。
+#     各殘差除以自身批次 RMS，momentum / continuity 梯度量級對齊。
+#   num_physics_points = 256：配合 16×16 grid。
 #
-# Hypothesis: Chebyshev 格點讓 physics loss 能約束 k=5~16 的中頻結構；
-#             normalization 恢復 continuity 的有效梯度；
-#             KE rel-err < 28%（優於 EXP-033 3k 的 31.5%），amp ratio > 0.9。
-# Falsifiability: 若 KE > 0.32（不優於 EXP-033 3k），
-#                 表示 k=5~16 的 physics 約束不是目前的主要瓶頸。
+# Hypothesis: KE rel-err < 34%（優於 EXP-031 的 39.4%），amp ratio > 0.6。
+# Falsifiability: 若 KE > 0.39，表示 k=5~16 的 physics 約束不是主要瓶頸，
+#                 問題在模型容量或資料本身的資訊量限制。
 
 [train]
 sensor_jsons = [
@@ -38,16 +35,16 @@ fourier_harmonics = 16
 use_temporal_anchor = true
 T_total = 5.0
 temporal_anchor_harmonics = 2
-d_model = 256
+d_model = 128
 d_time = 16
 num_spatial_cfc_layers = 1
 num_temporal_cfc_layers = 1
 num_token_attention_layers = 2
 token_attention_heads = 4
 num_query_mlp_layers = 1
-query_mlp_hidden_dim = 256
+query_mlp_hidden_dim = 128
 output_head_gain = 1.0
-operator_rank = 256
+operator_rank = 128
 
 data_loss_weight = 1.0
 physics_loss_weight = 0.01
@@ -79,4 +76,4 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-chebyshev-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-chebyshev-3000"

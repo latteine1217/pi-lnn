@@ -1,0 +1,80 @@
+# configs/exp_045_re10000_xlarge_sweep_best.toml
+# What: EXP-045 — Optuna sweep v2 最佳參數（Trial #11）完整驗證，3000 steps 從頭訓練。
+#
+# Why: Sweep v2（40 trials，物理懲罰 objective）找到的最佳組合與 EXP-043 有四個關鍵差異：
+#      1. learning_rate:           3e-3  → 4.75e-3  (+58%)
+#      2. continuity_weight:       1.0   → 0.509    (-49%)
+#      3. soap_precondition_freq:  10    → 20       (×2)
+#      4. use_locality_decay:      False → True     (新增)
+#      physics_loss_weight 幾乎不變（0.010 → 0.01017）。
+#      sweep objective 為 1500-step l_data（代理指標），需以完整 3000 steps KE 驗證。
+#
+# Hypothesis: 上述四個改動共同作用，KE < 27.2%（優於 EXP-043）。
+# Falsifiability:
+#   - 若 KE ≥ 27.2%，表示 1500-step l_data 與 KE 不相關，sweep 代理指標失效。
+#   - 若 log_locality_decay 收斂至 << -2，表示 locality 無益（decay 消失）。
+#   - 若 KE 改善 < 5%（絕對值），改善可能在誤差範圍內。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構（與 EXP-043 完全相同）
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+use_locality_decay = true   # sweep 新增：Trial #11 確認有效
+
+# 物理損失（sweep 最佳：phys_w ≈ 0.010，cont_w 降至 0.509）
+data_loss_weight = 1.0
+physics_loss_weight = 0.01017
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.509   # sweep 最佳（vs EXP-043 的 1.0）
+poisson_loss_weight = 0.0
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+num_physics_points = 32
+
+# 時間推進（與 EXP-043 相同）
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# 優化器（sweep 最佳）
+iterations = 3000
+num_query_points = 128
+learning_rate = 4.75e-3      # sweep 最佳（vs EXP-043 的 3e-3）
+weight_decay = 1.149e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 20   # sweep 最佳（vs EXP-043 的 10）
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-sweep-best-3000"

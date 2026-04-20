@@ -1,0 +1,76 @@
+# configs/exp_053_re10000_xlarge_rar.toml
+# What: EXP-053 — resume EXP-048 step_9500，加入 RAR 採樣，再跑 10000 步至 step 19500。
+#
+# Why: EXP-048（KE=21.8%）的 t=0 KE 低估 58%，是目前最大殘差來源。
+#      均勻隨機採樣每步只有 32 個 collocation 點，期望落在 t≈0 的機率僅 ~2%。
+#      RAR（Residual Adaptive Refinement, Lu et al. SIAM 2021）每 50 步重新評估 320 個
+#      候選點的殘差，選 top-80% 高殘差點 + 20% 隨機點作為下一批 collocation。
+#      無架構改動，可直接 resume EXP-048，保留漸進式訓練的累積優勢。
+#
+# Hypothesis: KE rel-err < 21.8%（EXP-048 基準）；t=0 KE err < 58%
+# Falsifiability: 若 step_19500 的 KE > 22%，RAR 在此設定無益。
+#
+# 對照基準：EXP-048（KE=21.8%，SOAP+SF 10k steps）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "rar"
+rar_update_freq = 50
+rar_pool_multiplier = 10
+rar_exploration_ratio = 0.2
+physics_residual_normalize = false
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 19500
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp053-rar"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/checkpoints/lnn_kolmogorov_step_9500.pt"

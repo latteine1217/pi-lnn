@@ -1,0 +1,78 @@
+# configs/exp_049_re10000_xlarge_k200.toml
+# What: EXP-049 — 以 K=200 sensor（含壓力 p 特徵，6 特徵集）從頭訓練 xlarge 架構，
+#       對照 EXP-048（K=100）驗證擴充 sensor 數量是否改善頻譜重建能力。
+#
+# Why: 頻譜診斷顯示：
+#      - K=100：Fourier pseudo-inverse acc>0.8 的上限為 k=20
+#      - K=200：acc>0.8 的上限為 k=41（覆蓋更多 Re=10000 慣性範圍）
+#      資訊論層面，K=200 能為模型提供 k=20–41 的額外頻譜資訊。
+#      單一變量：僅更換 sensor 集（K 100→200），架構與超參與 EXP-048 完全一致。
+#
+# Hypothesis: KE rel-err < 25%（EXP-048 最終值 21.8%；若 K=200 主要改善 k>20 模態，
+#             KE 預期改善 5–10% 絕對值，但若瓶頸在網路容量而非 sensor 覆蓋，
+#             改善可能小於 5%）。
+# Expected_Change: 相較 EXP-048，高頻渦量場誤差（k=20–40）降低；低頻能量誤差影響較小。
+# Falsifiability: 若 5000 步後 KE 與 EXP-043（K=100, 5k）差距 < 2%（絕對值），
+#                 表示瓶頸不在 sensor 覆蓋，而在架構或物理 loss 設計。
+#
+# 對照基準：EXP-043（K=100，KE=27.2%，5000 steps）/ EXP-048（K=100，KE=21.8%，10000 steps）
+# 從頭訓練（無 resume），以確保 sensor 選擇差異不被 K=100 的 pretrained weight 干擾。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-k200-10000"

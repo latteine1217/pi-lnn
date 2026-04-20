@@ -1,0 +1,66 @@
+# configs/exp_021_re1000_periodicfft.toml
+# What: EXP-015 等級，將 RFF 替換為確定性週期 Fourier 編碼。
+# Why: EXP-015 的 RFF（seed=42）產生 8/32 個近純 x 方向頻率向量，
+#      造成流場輸出出現系統性直條紋偽影。
+#      改用整數倍 2π/L 諧波（fourier_harmonics=8，共 32 特徵），
+#      嚴格保證週期邊界條件，消除條紋問題。
+#      use_phase_anchor 一並移除（k_f=2 已包含在 k=2 諧波中）。
+# Hypothesis: 週期 Fourier 消除條紋後，整體物理場品質應至少持平 EXP-015；
+#             若 amplitude ratio / KE 有改善，確認條紋是額外的擬合干擾。
+# Falsifiability: 若 KE rel-err > 0.30（EXP-015 為 0.25），則週期編碼反而削弱表達力。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 8
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 3000
+num_query_points = 128
+num_physics_points = 32
+learning_rate = 1e-3
+weight_decay = 1e-4
+lr_schedule = "step"
+lr_decay_steps = 500
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re1000-periodicfft-3000"

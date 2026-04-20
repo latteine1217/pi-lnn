@@ -1,12 +1,9 @@
-# configs/deeponet_cfc_re10000_wide_v2_cfc2res.toml
-# What: EXP-032 — 在 EXP-031 基礎上加入 num_temporal_cfc_layers=2 + 層間殘差。
-# Why: EXP-029（Re=1000, 2-layer 無殘差）顯示 amp ratio 退步；
-#      現已在 TemporalCfCEncoder 實作層間殘差（layer_idx>0 時加前一層輸出），
-#      預期能兼顧 KE 與 amp ratio 改善。
-#      Re=10000 高湍流場需要更深的時間表達力。
-# Hypothesis: KE rel-err < 35%（優於 EXP-031 的 39.4%），amp ratio > 0.5。
-# Falsifiability: 若 KE > 0.40 或 amp ratio 退步，表示 2-layer CfC 對 Re=10000
-#                 在此容量下無益，容量本身是主要瓶頸。
+# configs/exp_033_re10000_xlarge.toml
+# What: EXP-033 — d_model=256, operator_rank=256, 1-layer CfC，其他與 EXP-031 相同。
+# Why: EXP-031（d_model=128）KE=39.4%；EXP-032（2-layer CfC）退步至 55.1%，
+#      確認深度無益。測試單純加寬（×2 容量）是否是 Re=10000 的主要瓶頸。
+# Hypothesis: KE rel-err < 35%（優於 EXP-031），amp ratio > 0.55。
+# Falsifiability: 若 KE > 0.40，表示容量不是主因，問題在資料本身的資訊量限制。
 
 [train]
 sensor_jsons = [
@@ -25,16 +22,16 @@ fourier_harmonics = 16
 use_temporal_anchor = true
 T_total = 5.0
 temporal_anchor_harmonics = 2
-d_model = 128
+d_model = 256
 d_time = 16
 num_spatial_cfc_layers = 1
-num_temporal_cfc_layers = 2
+num_temporal_cfc_layers = 1
 num_token_attention_layers = 2
 token_attention_heads = 4
 num_query_mlp_layers = 1
-query_mlp_hidden_dim = 128
+query_mlp_hidden_dim = 256
 output_head_gain = 1.0
-operator_rank = 128
+operator_rank = 256
 
 data_loss_weight = 1.0
 physics_loss_weight = 0.01
@@ -62,4 +59,4 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-wide-v2-cfc2res-3000"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-3000"

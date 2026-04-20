@@ -1,0 +1,68 @@
+# configs/exp_052_re10000_xlarge_lbfgs.toml
+# What: EXP-052 — 從 EXP-048 step_9500 checkpoint 接續，改用 L-BFGS 細調。
+#
+# Why: EXP-048（SOAP+SF 10k, KE=21.8%）是目前最佳，loss 可能停滯於 first-order 極值。
+#      L-BFGS（二階擬牛頓法）可利用曲率資訊，在已收斂的局部盆地內進一步細調。
+#      每個 L-BFGS meta-step 包含最多 20 次 line-search closure 評估，batch 在每步
+#      內固定（避免隨機採樣導致 Wolfe 條件失效）。
+#
+# Hypothesis: KE rel-err < 21.8%（EXP-048 基準）
+# Falsifiability: 若 500 步後 L_data 未低於 EXP-048 的 9.78e-3，L-BFGS 無益。
+#
+# 對照基準：EXP-048（KE=21.8%，SOAP+SF 10k）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+physics_collocation_strategy = "random"
+physics_residual_normalize = false
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 11500
+num_physics_points = 32
+learning_rate = 0.1
+lbfgs_max_iter = 20
+lbfgs_history_size = 10
+lr_schedule = "lbfgs"
+max_grad_norm = 1.0
+checkpoint_period = 200
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp052-lbfgs"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/checkpoints/lnn_kolmogorov_step_9500.pt"

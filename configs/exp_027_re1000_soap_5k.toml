@@ -1,0 +1,61 @@
+# configs/exp_027_re1000_soap_5k.toml
+# What: EXP-027 — 從 EXP-026 step 3000 ckpt resume，延長至 5000 steps。
+# Why: EXP-026 在 3000 步 KE 12.39% 已超越 SF 3k，但 Ens rel-err 偏高（15.23%）、
+#      amp ratio 偏低（0.925），模型未飽和（L_data 1.20e-02 仍收斂）。
+# Hypothesis: 5000 步後 Ens rel-err 降至 <12%，amp ratio 接近 1.0。
+# Falsifiability: 若 KE rel-err > 0.14 或 Ens > 0.16，確認 SOAP 在此規模飽和較快。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 8
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.5
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 5000
+num_query_points = 128
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 100
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re1000-soap-5000"

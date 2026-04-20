@@ -9,6 +9,9 @@ dependencies = [
   "numpy>=2.2",
   "scipy>=1.10",
   "torch>=2.6",
+  "schedulefree>=1.4",
+  "optuna>=4.8.0",
+  "wandb>=0.25.1",
 ]
 
 [project.optional-dependencies]
@@ -17,15 +20,14 @@ dev = [
 ]
 
 [project.scripts]
-pit-ldc-train = "pi_onet.pit_ldc:main"
-lnn-kolmogorov-train = "pi_onet.lnn_kolmogorov:main"
+lnn-kolmogorov-train = "lnn_kolmogorov:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/pi_onet"]
+packages = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

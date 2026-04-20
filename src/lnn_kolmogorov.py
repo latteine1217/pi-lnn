@@ -1,4 +1,4 @@
-# src/pi_onet/lnn_kolmogorov.py
+# src/lnn_kolmogorov.py
 """Pi-LNN: core DeepONet + CfC model and training loop for Kolmogorov flow.
 
 What: 以 CfC 作為 branch-side temporal encoder，並以 DeepONet trunk 解碼 query。
@@ -154,6 +154,84 @@ class CfCCell(nn.Module):
             dt = dt.unsqueeze(-1)
         gate = torch.sigmoid(-tau_a * dt + t_b)
         return gate * f1 + (1.0 - gate) * f2
+
+
+class GradNormWeights(nn.Module):
+    """What: GradNorm（Chen et al., 2018）的可學習 task 權重。
+
+    Why: 直接管理 [data, ns_u, ns_v, cont] 四個 task 的權重比例。
+         以 w_data = 1 為基準，physics weights 表達相對 data 的比例，
+         讓 GradNorm 能真正動態調整 physics/data 平衡，而非受限於 sum=const 的固定比例。
+         初始值 [1.0, 0.01, 0.01, 0.01] → physics 從 1% data 出發，由 GradNorm 自行決定是否加強。
+    """
+
+    def __init__(self, init_weights: list[float]) -> None:
+        super().__init__()
+        w = torch.tensor(init_weights, dtype=torch.float32)
+        self.log_weights = nn.Parameter(torch.log(w))
+
+    @property
+    def weights(self) -> torch.Tensor:
+        return torch.exp(self.log_weights)
+
+    def normalize_to_data_(self) -> None:
+        """固定 w_data = 1，其餘 task 表示相對 data 的比例。
+
+        Why: 取代 sum=const 的歸一化，避免 data weight 膨脹導致 physics weights
+             被壓縮到微小量級，使 GradNorm 真正能改變 physics/data 的比例關係。
+        """
+        with torch.no_grad():
+            self.log_weights -= self.log_weights[0].clone()
+
+
+def _gradnorm_step(
+    gn_weights: GradNormWeights,
+    losses: list[torch.Tensor],
+    ref_params: list[torch.Tensor],
+    ema_momentum: float = 0.5,
+) -> None:
+    """What: 一次 GradNorm 權重更新（直接公式 + EMA，無 optimizer）。
+
+    Why: 各 task 的目標權重直接由梯度範數反比公式算出，再以 EMA 平滑寫回。
+         不需要 create_graph=True 或獨立 optimizer，計算成本低且無 lr 調參問題。
+         有效步長 = (1 - ema_momentum)，momentum=0.5 → 每次更新走 50%。
+
+    公式：
+        G_i      = ||∇_W L_i||_2          （各 task 對 ref_params 的梯度範數）
+        mean_G   = mean(G_i)
+        w_i_raw  = mean_G / (G_i + 1e-5 * mean_G)   （梯度範數小 → 權重大）
+        w_i_norm = w_i_raw / w_i_raw[0]              （data 為基準，w_data = 1）
+        w_new    = momentum * w_old + (1 - momentum) * w_i_norm
+
+    Args:
+        losses:        [l_data, l_ns_u, l_ns_v, l_cont]（retain_graph=True 保留計算圖）
+        ref_params:    reference layer 參數（trunk_out.weight + bias）
+        ema_momentum:  EMA 動量；有效步長 = 1 - ema_momentum
+    """
+    ws_old = gn_weights.weights.detach().clone()
+
+    # 計算各 task 對 ref_params 的梯度範數（不需要 create_graph）
+    G = []
+    for l_i in losses:
+        grads = torch.autograd.grad(
+            l_i, ref_params,
+            retain_graph=True, create_graph=False, allow_unused=True,
+        )
+        g_norms = [g.reshape(-1).norm() for g in grads if g is not None]
+        G.append(torch.stack(g_norms).norm() if g_norms else torch.zeros(1, device=ws_old.device).squeeze())
+
+    G_stack = torch.stack(G).detach()
+    mean_G = G_stack.mean()
+
+    # 目標權重：梯度範數越小 → 權重越大（讓各 task 梯度貢獻拉齊）
+    w_raw = mean_G / (G_stack + 1e-5 * mean_G)
+    # 以 data 為基準歸一化：w_data = 1，physics 表達相對比例
+    w_computed = w_raw / w_raw[0].clamp(min=1e-8)
+
+    # EMA：new = momentum * old + (1 - momentum) * computed
+    w_new = ema_momentum * ws_old + (1.0 - ema_momentum) * w_computed
+    with torch.no_grad():
+        gn_weights.log_weights.copy_(torch.log(w_new.clamp(min=1e-8)))
 
 
 class ResidualMLPBlock(nn.Module):
@@ -370,8 +448,10 @@ class DeepONetCfCDecoder(nn.Module):
         output_head_gain: float = 1.0,
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
+        use_locality_decay: bool = False,
     ) -> None:
         super().__init__()
+        self.use_locality_decay = bool(use_locality_decay)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
@@ -425,6 +505,13 @@ class DeepONetCfCDecoder(nn.Module):
         self.log_fusion_temperature = nn.Parameter(torch.tensor([math.log(temp_init)], dtype=torch.float32))
         self.component_scale = nn.Parameter(torch.ones(3))
         self.component_bias = nn.Parameter(torch.zeros(3))
+        if self.use_locality_decay:
+            # log_locality_decay: α = exp(log_locality_decay) 為衰減率（α > 0）。
+            # Why: 在 softmax 前加入 log-space 距離懲罰 score += -α * r，
+            #      等效於對每個 sensor token 的 attention weight 乘以 exp(-α * r)。
+            #      初始 log_locality_decay = -2.0 → α ≈ 0.135，r=0.1 時懲罰 ≈ -0.013，
+            #      接近中性，讓模型自行學習是否需要近鄰優先。
+            self.log_locality_decay = nn.Parameter(torch.tensor([-2.0], dtype=torch.float32))
 
     def forward(
         self,
@@ -466,6 +553,11 @@ class DeepONetCfCDecoder(nn.Module):
         rel_bias = self.relpos_bias(rel_r).squeeze(-1)
         scores = torch.einsum("nd,nkd->nk", q, k) / math.sqrt(k.shape[-1])
         scores = scores + rel_bias
+        if self.use_locality_decay:
+            # log-space 距離懲罰：score += -α * r，使遠端感測器貢獻指數衰減。
+            # Why: 等效於 softmax 前乘以 exp(-α * r)，保留梯度可微性與 log-space 線性疊加。
+            decay_rate = torch.exp(self.log_locality_decay)  # shape (1,)，α > 0
+            scores = scores - decay_rate * rel_r.squeeze(-1)
         attn = torch.softmax(scores, dim=1)
         branch_ctx = torch.einsum("nk,nkd->nd", attn, v)
         branch_ctx = branch_ctx + self.branch_context(branch_ctx)
@@ -505,6 +597,7 @@ class LiquidOperator(nn.Module):
         output_head_gain: float = 1.0,
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
+        use_locality_decay: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_encoder = SpatialSetEncoder(
@@ -533,6 +626,7 @@ class LiquidOperator(nn.Module):
             output_head_gain=output_head_gain,
             operator_rank=operator_rank,
             fusion_temperature_init=fusion_temperature_init,
+            use_locality_decay=use_locality_decay,
         )
 
     def encode(
@@ -615,6 +709,7 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
             if "fusion_temperature_init" in cfg and cfg["fusion_temperature_init"] is not None
             else None
         ),
+        use_locality_decay=bool(cfg.get("use_locality_decay", False)),
     )
 
 
@@ -653,6 +748,40 @@ def unsteady_ns_residuals(
     return mom_u, mom_v, cont
 
 
+def pressure_poisson_residual(
+    u_fn: Callable,
+    v_fn: Callable,
+    p_fn: Callable,
+    xyt: torch.Tensor,
+) -> torch.Tensor:
+    """What: 2D incompressible 壓力 Poisson 方程殘差。
+
+    Why: Primitive-variable NS 中 p 沒有資料監督，模型可藉由任意調整 p 來讓
+         momentum residual 歸零，即使 u, v 是錯的（壓力自由度問題）。
+         Poisson 方程從 NS + ∇·u=0 推導而來：
+             ∇²p = -(∂u/∂x)² - (∂v/∂y)² - 2(∂u/∂y)(∂v/∂x)
+         加入此約束後，p 必須與 u, v 的二階結構一致，壓力不再能自由漂移。
+
+    數學推導：對動量方程取散度，使用 ∇·u=0 及 Kolmogorov forcing ∇·f=0 後得到。
+    不需要任何額外觀測量，僅用模型輸出的 u, v, p via autograd。
+    """
+    u, v, p = u_fn(xyt), v_fn(xyt), p_fn(xyt)
+    u_xyt = _grad(u, xyt)
+    v_xyt = _grad(v, xyt)
+    p_xyt = _grad(p, xyt)
+    du_dx = u_xyt[:, 0:1]
+    du_dy = u_xyt[:, 1:2]
+    dv_dx = v_xyt[:, 0:1]
+    dv_dy = v_xyt[:, 1:2]
+    dp_dx = p_xyt[:, 0:1]
+    dp_dy = p_xyt[:, 1:2]
+    dp_dx2 = _grad(dp_dx, xyt)[:, 0:1]   # ∂²p/∂x²
+    dp_dy2 = _grad(dp_dy, xyt)[:, 1:2]   # ∂²p/∂y²
+    laplacian_p = dp_dx2 + dp_dy2
+    rhs = -(du_dx ** 2 + dv_dy ** 2 + 2.0 * du_dy * dv_dx)
+    return laplacian_p - rhs
+
+
 def make_lnn_model_fn(
     net: LiquidOperator,
     sensor_vals: torch.Tensor,
@@ -673,6 +802,86 @@ def make_lnn_model_fn(
         return net.query_decoder(xy_d, t_q_d, c_t, h_states, s_time, sensor_pos).to(xyt.device)
 
     return model_fn
+
+
+def _rar_update_pool(
+    net,
+    datasets,
+    sensor_vals_list: list,
+    sensor_pos_list: list,
+    sensor_time_list: list,
+    rng: np.random.Generator,
+    n_select: int,
+    pool_size: int,
+    t_max: float | None,
+    k_f: float,
+    A: float,
+    domain_length: float,
+    device,
+    exploration_ratio: float = 0.2,
+) -> list[np.ndarray]:
+    """What: RAR（Residual Adaptive Refinement）pool 更新。
+
+    Why: 均勻隨機採樣可能長期錯過 t≈0 等高殘差區域；
+         每隔 rar_update_freq 步，從大候選集中選 top 殘差點，
+         讓 physics loss 集中在模型最難收斂的區域。
+         保留 exploration_ratio 比例的隨機點，防止采样退化到固定幾個點。
+
+    近似殘差：略去黏性項（Re=10000 時 ν=1e-4，黏性貢獻約 0.2%）；
+    使用 create_graph=False，僅計算一階導數，完全避免二階 autograd 建圖。
+    此近似只影響 pool 中的點排序，不影響訓練 loss 本身的精確性。
+
+    Returns:
+        list of (n_select, 3) float32 numpy arrays, one per dataset.
+    """
+    n_top = max(1, round(n_select * (1.0 - exploration_ratio)))
+    n_rand = n_select - n_top
+    kw = 2.0 * torch.pi * float(k_f) / float(domain_length)
+    result = []
+    net.eval()
+    for i, ds in enumerate(datasets):
+        xy_np, t_np = ds.sample_physics_points(rng, n=pool_size, t_max=t_max, strategy="random")
+        xyt_pool = torch.tensor(
+            np.concatenate([xy_np, t_np[:, None]], axis=1),
+            dtype=torch.float32, device=device, requires_grad=True,
+        )
+        model_fn = make_lnn_model_fn(
+            net, sensor_vals_list[i], sensor_pos_list[i],
+            re_norm=ds.re_norm, sensor_time=sensor_time_list[i], device=device,
+        )
+        u = model_fn(xyt_pool, c=0)
+        v = model_fn(xyt_pool, c=1)
+        p = model_fn(xyt_pool, c=2)
+
+        def _g1(y: torch.Tensor) -> torch.Tensor:
+            g = torch.autograd.grad(
+                y, xyt_pool, torch.ones_like(y),
+                create_graph=False, allow_unused=True,
+            )[0]
+            return g if g is not None else torch.zeros_like(xyt_pool)
+
+        u_xyt = _g1(u)
+        v_xyt = _g1(v)
+        p_xyt = _g1(p)
+
+        du_dx = u_xyt[:, 0:1]; du_dy = u_xyt[:, 1:2]; du_dt = u_xyt[:, 2:3]
+        dv_dx = v_xyt[:, 0:1]; dv_dy = v_xyt[:, 1:2]; dv_dt = v_xyt[:, 2:3]
+        dp_dx = p_xyt[:, 0:1]; dp_dy = p_xyt[:, 1:2]
+
+        forcing = float(A) * torch.sin(kw * xyt_pool[:, 1:2]).detach()
+        mom_u = du_dt + u.detach() * du_dx + v.detach() * du_dy + dp_dx - forcing
+        mom_v = dv_dt + u.detach() * dv_dx + v.detach() * dv_dy + dp_dy
+        cont  = du_dx + dv_dy
+
+        res_mag = (mom_u.detach() ** 2 + mom_v.detach() ** 2 + cont.detach() ** 2).squeeze(-1)
+        _, top_idx = torch.topk(res_mag, n_top)
+        selected = xyt_pool[top_idx].detach().cpu().numpy()
+        if n_rand > 0:
+            rxy, rt = ds.sample_physics_points(rng, n=n_rand, t_max=t_max, strategy="random")
+            selected = np.concatenate([selected, np.concatenate([rxy, rt[:, None]], axis=1)], axis=0)
+        result.append(selected.astype(np.float32))
+    net.train()
+    return result
 
 
 def observed_channel_prediction(
@@ -712,6 +921,35 @@ def observed_channel_prediction(
         pred = (raw_pred - mean) / std
         preds[mask] = pred
     return preds
+
+
+def physics_points_at_step(
+    step: int,
+    start: int,
+    end: int,
+    ramp_steps: int,
+    warmup_steps: int = 0,
+) -> int:
+    """What: 依訓練步數線性增加 physics collocation 點數（curriculum）。
+
+    Why: 訓練初期 data loss 未收斂，大量 physics 點造成梯度衝突；
+         先等 warmup_steps 讓模型有基本擬合，再花 ramp_steps 步逐步增加點數。
+
+    Args:
+        step:          當前步數（從 1 開始）
+        start:         初始點數（warmup 期間及 ramp 起始值）
+        end:           最終點數
+        ramp_steps:    從 start 線性增長至 end 所需步數；0 = warmup 後立即用 end
+        warmup_steps:  開始 ramp 前的等待步數（此期間固定用 start）
+    Returns:
+        當前步數對應的整數點數
+    """
+    if step <= warmup_steps:
+        return start
+    if ramp_steps <= 0:
+        return end
+    progress = min((step - warmup_steps) / ramp_steps, 1.0)
+    return int(round(start + (end - start) * progress))
 
 
 def physics_weight_at_step(
@@ -759,11 +997,22 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "output_head_gain": 1.0,
     "operator_rank": 64,
     "fusion_temperature_init": None,
+    "use_locality_decay": False,
     "data_loss_weight": 1.0,
+    "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
+    "t_early_threshold": 0.1,    # 早期時間定義上限
+    "lbfgs_max_iter": 20,        # L-BFGS 每步最大 line-search 次數
+    "lbfgs_history_size": 10,    # L-BFGS curvature history buffer 大小
     "physics_loss_weight": 0.01,
     "physics_loss_warmup_steps": 0,
     "physics_loss_ramp_steps": 0,
     "continuity_weight": 1.0,
+    "use_gradnorm": False,
+    "gradnorm_alpha": 1.5,   # 已棄用，保留供舊 config 相容
+    "gradnorm_lr": 1e-3,     # 已棄用，保留供舊 config 相容
+    "gradnorm_update_freq": 10,
+    "gradnorm_init_weights": [1.0, 0.01, 0.01, 0.01],
+    "gradnorm_ema_momentum": 0.9,
     "time_marching": True,
     "time_marching_start": 0.5,
     "time_marching_warmup": 0.5,
@@ -775,10 +1024,17 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "T_total": 5.0,
     "temporal_anchor_harmonics": 2,
     "iterations": 1000,
-    "num_query_points": 128,
-    "num_physics_points": 32,
+    "num_query_points": 0,        # 0 = 由 sensor K 自動決定；正整數 = override
+    "num_physics_points": 32,     # 最終（最大）collocation 點數
+    "num_physics_points_start": 0,         # curriculum 初始點數；0 = 與 num_physics_points 相同（固定）
+    "num_physics_points_warmup_steps": 0,  # ramp 開始前的等待步數
+    "num_physics_points_ramp_steps": 0,    # 線性增長步數；0 = warmup 後立即使用最終值
     "physics_collocation_strategy": "random",
+    "rar_update_freq": 50,         # RAR: 每幾步重新評估 residual pool
+    "rar_pool_multiplier": 10,     # RAR: pool 大小 = num_physics_points × multiplier
+    "rar_exploration_ratio": 0.2,  # RAR: 保留隨機點比例（防 mode collapse）
     "physics_residual_normalize": False,
+    "poisson_loss_weight": 0.0,
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
     "lr_schedule": "none",
@@ -806,10 +1062,44 @@ _REMOVED_KEYS = {
 }
 
 
+def _find_project_root(start: Path) -> Path | None:
+    """What: 從指定路徑向上尋找專案根目錄。"""
+    for parent in (start, *start.parents):
+        if (parent / "pyproject.toml").exists() or (parent / ".git").exists():
+            return parent
+    return None
+
+
+def _resolve_config_path_value(raw_path: str | Path, config_path: Path) -> str:
+    """What: 以相容既有 workflow 的方式解析 config 內路徑。
+
+    Why: 目前 repo 同時存在兩種寫法：
+         1) 相對專案根目錄（如 `data/...`）
+         2) 相對 config 檔位置（外部/臨時 config 常見）
+         若只支援其中一種會直接破壞 userspace。
+    """
+    path = Path(raw_path)
+    if path.is_absolute():
+        return str(path.resolve())
+
+    config_dir = config_path.parent
+    project_root = _find_project_root(config_dir)
+    candidates = [
+        config_dir / path,
+        *( [project_root / path] if project_root is not None else [] ),
+        Path.cwd() / path,
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+    return str(candidates[0].resolve())
+
+
 def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
     """What: 載入並驗證核心 LNN config。"""
     if config_path is None:
         return {}
+    config_path = Path(config_path).resolve()
     payload = tomllib.loads(config_path.read_text(encoding="utf-8"))
     config_data = payload.get("train", payload)
     normalized = dict(config_data)
@@ -821,18 +1111,28 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
     unknown = sorted(set(normalized) - set(DEFAULT_LNN_ARGS))
     if unknown:
         raise ValueError(f"LNN config 含有不支援的欄位: {unknown}")
-    base = Path.cwd()
     for list_key in ("sensor_jsons", "sensor_npzs", "dns_paths"):
         if list_key in normalized:
-            normalized[list_key] = [str((base / Path(p)).resolve()) for p in normalized[list_key]]
+            normalized[list_key] = [_resolve_config_path_value(p, config_path) for p in normalized[list_key]]
     if "artifacts_dir" in normalized:
-        normalized["artifacts_dir"] = str((base / Path(normalized["artifacts_dir"])).resolve())
+        normalized["artifacts_dir"] = _resolve_config_path_value(normalized["artifacts_dir"], config_path)
     return normalized
 
 
-def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
-    """What: 核心 Pi-LNN 訓練迴圈。"""
-    from pi_onet.kolmogorov_dataset import KolmogorovDataset
+def train_lnn_kolmogorov(
+    args: dict[str, Any],
+    log_fn: Callable[[int, dict[str, float]], None] | None = None,
+) -> None:
+    """What: 核心 Pi-LNN 訓練迴圈。
+
+    Args:
+        args: 訓練設定字典（見 DEFAULT_LNN_ARGS）。
+        log_fn: 可選回呼，每個訓練 step 結束後以 (step, metrics_dict) 呼叫。
+                metrics_dict 包含 l_data / l_physics / l_ns / l_cont / w_phys / t_max。
+                Why: 保持 core module 不依賴外部日誌框架（W&B、TensorBoard 等），
+                     由呼叫方（如 sweep 腳本）注入觀測邏輯。
+    """
+    from kolmogorov_dataset import KolmogorovDataset
 
     device = configure_torch_runtime(args["device"])
     torch.manual_seed(args["seed"])
@@ -899,10 +1199,11 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
     # fused AdamWScheduleFree 無此問題。
 
     use_schedulefree = bool(args.get("use_schedule_free", False)) or args["lr_schedule"] == "schedulefree"
+    is_lbfgs = args["lr_schedule"] == "lbfgs"
 
     if args["lr_schedule"] == "soap":
         import sys
-        _soap_dir = str(Path(__file__).parent.parent.parent / "SOAP")
+        _soap_dir = str(Path(__file__).parent.parent / "SOAP")
         if _soap_dir not in sys.path:
             sys.path.insert(0, _soap_dir)
         from soap import SOAP as SOAPOptimizer
@@ -919,6 +1220,16 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
             optimizer = schedulefree.ScheduleFreeWrapper(base_optimizer, momentum=0.9)
         else:
             optimizer = base_optimizer
+
+    elif is_lbfgs:
+        optimizer = torch.optim.LBFGS(
+            net.parameters(),
+            lr=float(args.get("learning_rate", 1.0)),
+            max_iter=int(args.get("lbfgs_max_iter", 20)),
+            history_size=int(args.get("lbfgs_history_size", 10)),
+            line_search_fn="strong_wolfe",
+        )
+        scheduler = None
 
     elif use_schedulefree:
         # AdamW + Schedule-Free：使用 fused 實作，支援 warmup，無 wrapper 相容性問題。
@@ -977,8 +1288,10 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
         if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
             # 完整狀態格式：model + optimizer + scheduler + step
             net.load_state_dict(_fix_ckpt_compat(ckpt["model_state_dict"]))
-            optimizer.load_state_dict(ckpt["optimizer_state_dict"])
-            _fix_optimizer_state_compat(optimizer)
+            # L-BFGS 與 checkpoint 的 optimizer 類型不同，跳過 optimizer state 載入。
+            if not is_lbfgs and "optimizer_state_dict" in ckpt:
+                optimizer.load_state_dict(ckpt["optimizer_state_dict"])
+                _fix_optimizer_state_compat(optimizer)
             if not use_schedulefree and scheduler is not None and ckpt.get("scheduler_state_dict") is not None:
                 scheduler.load_state_dict(ckpt["scheduler_state_dict"])
             start_step = int(ckpt["step"])
@@ -1005,18 +1318,43 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
     tm_t_end = float(datasets[0].sensor_time[-1])
     tm_warmup = int(args["time_marching_warmup"] * args["iterations"])
 
+    # GradNorm setup
+    use_gradnorm = bool(args.get("use_gradnorm", False))
+    gn_weights: GradNormWeights | None = None
+    gn_ref_params: list[torch.Tensor] = []
+    gn_update_freq = int(args.get("gradnorm_update_freq", 200))
+    if use_gradnorm:
+        gn_weights = GradNormWeights(
+            init_weights=args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01])
+        ).to(device)
+        gn_ref_params = list(net.query_decoder.trunk_out.parameters())
+
     print("=== Training ===")
     if use_tm:
         print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps")
-    if phys_warmup_steps > 0 or phys_ramp_steps > 0:
+    if use_gradnorm:
+        init_w = args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01])
+        print(f"  GradNorm: momentum={args.get('gradnorm_ema_momentum', 0.5):.2f}  freq={gn_update_freq}  (direct formula + EMA)")
+        print(f"  GradNorm init_weights: {init_w}  (4 tasks: data, ns_u, ns_v, cont)")
+    elif phys_warmup_steps > 0 or phys_ramp_steps > 0:
         print(
             "  physics_ramp:"
             f" warmup={phys_warmup_steps} steps,"
             f" ramp={phys_ramp_steps} steps,"
             f" final_weight={base_phys_weight:.4f}"
         )
-    print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
-          + ("  t_max" if use_tm else ""))
+    if use_gradnorm:
+        print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_ns_u':>8} {'w_ns_v':>8} {'w_cont':>8} {'L_total':>12}"
+              + ("  t_max" if use_tm else ""))
+    else:
+        print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
+              + ("  t_max" if use_tm else ""))
+
+    _is_rar = str(args.get("physics_collocation_strategy", "random")) == "rar"
+    _rar_pool_np: list[np.ndarray] | None = None
+    _rar_update_freq = int(args.get("rar_update_freq", 50))
+    _rar_pool_mult   = int(args.get("rar_pool_multiplier", 10))
+    _rar_expl_ratio  = float(args.get("rar_exploration_ratio", 0.2))
 
     for step in range(start_step + 1, args["iterations"] + 1):
         if use_tm:
@@ -1028,103 +1366,330 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
         if use_schedulefree:
             optimizer.train()
         net.train()
-        optimizer.zero_grad()
 
-        l_data = torch.zeros(1, device=device)
-        for i, ds in enumerate(datasets):
-            xy_np, t_np, c_np, ref_np = ds.sample_sensor_batch(
-                rng, n=args["num_query_points"], t_max=t_max
+        # ── L-BFGS path ──────────────────────────────────────────────────────
+        if is_lbfgs:
+            # 採樣一次：closure 被 line-search 多次呼叫時重用同一批資料。
+            _phys_weight = physics_weight_at_step(
+                step=step,
+                final_weight=base_phys_weight,
+                warmup_steps=phys_warmup_steps,
+                ramp_steps=phys_ramp_steps,
             )
-            h_states, s_time = net.encode(
-                sensor_vals_list[i], sensor_pos_list[i], ds.re_norm, sensor_time_list[i]
-            )
+            _n_phys_end   = int(args["num_physics_points"])
+            _n_phys_start = int(args.get("num_physics_points_start", 0)) or _n_phys_end
+            _n_phys_wu    = int(args.get("num_physics_points_warmup_steps", 0))
+            _n_phys_ramp  = int(args.get("num_physics_points_ramp_steps", 0))
+            _n_phys = physics_points_at_step(step, _n_phys_start, _n_phys_end, _n_phys_ramp, _n_phys_wu)
+            _phys_gate = _phys_weight > 0.0 and _n_phys_end > 0
+            _phys_strategy = str(args.get("physics_collocation_strategy", "random"))
+            _phys_normalize = bool(args.get("physics_residual_normalize", False))
+            _poisson_weight = float(args.get("poisson_loss_weight", 0.0))
 
-            xy = torch.tensor(xy_np, dtype=torch.float32, device=device)
-            t_q = torch.tensor(t_np, device=device)
-            c = torch.tensor(c_np, dtype=torch.long, device=device)
-            ref = torch.tensor(ref_np, device=device)
-            pred = observed_channel_prediction(
-                net=net,
-                xy=xy,
-                t_q=t_q,
-                c_obs=c,
-                observed_channel_names=ds.observed_channel_names,
-                observed_channel_mean=observed_mean_list[i],
-                observed_channel_std=observed_std_list[i],
-                h_states=h_states,
-                s_time=s_time,
-                sensor_pos=sensor_pos_list[i],
-            )
-            l_data = l_data + torch.mean((pred - ref) ** 2)
-        l_data = l_data / num_re
-
-        phys_weight = physics_weight_at_step(
-            step=step,
-            final_weight=base_phys_weight,
-            warmup_steps=phys_warmup_steps,
-            ramp_steps=phys_ramp_steps,
-        )
-        if phys_weight > 0.0 and int(args["num_physics_points"]) > 0:
-            net.eval()
-            l_ns_total = torch.zeros(1, device=device)
-            l_cont_total = torch.zeros(1, device=device)
-            phys_strategy = str(args.get("physics_collocation_strategy", "random"))
-            phys_normalize = bool(args.get("physics_residual_normalize", False))
+            _fixed_data: list = []
             for i, ds in enumerate(datasets):
-                xy_np, t_np = ds.sample_physics_points(
-                    rng, n=args["num_physics_points"], t_max=t_max, strategy=phys_strategy
-                )
-                xyt = torch.tensor(
-                    np.concatenate([xy_np, t_np[:, None]], axis=1),
-                    device=device,
-                    requires_grad=True,
-                )
-                model_fn = make_lnn_model_fn(
-                    net,
-                    sensor_vals_list[i],
-                    sensor_pos_list[i],
-                    re_norm=ds.re_norm,
-                    sensor_time=sensor_time_list[i],
-                    device=device,
-                )
-                u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
-                v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
-                p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
-                mom_u, mom_v, cont = unsteady_ns_residuals(
-                    u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
-                )
-                if phys_normalize:
-                    # 將每個殘差除以自身批次 RMS（detach 不參與梯度），使各項貢獻量級對齊。
-                    # Why: Re=10000 的 momentum 殘差 O(10)，continuity 可能 O(0.01)；
-                    #      不正規化時 continuity 梯度幾乎為零，無散度約束形同虛設。
-                    def _norm_r(r: torch.Tensor) -> torch.Tensor:
-                        return r / r.detach().std().clamp(min=1e-8)
-                    mom_u = _norm_r(mom_u)
-                    mom_v = _norm_r(mom_v)
-                    cont  = _norm_r(cont)
-                l_ns_total = l_ns_total + 0.5 * (torch.mean(mom_u ** 2) + torch.mean(mom_v ** 2))
-                l_cont_total = l_cont_total + torch.mean(cont ** 2)
-            net.train()
-            l_ns_total = l_ns_total / num_re
-            l_cont_total = l_cont_total / num_re
-            l_physics = l_ns_total + args["continuity_weight"] * l_cont_total
-        else:
-            l_physics = torch.zeros(1, device=device)
+                n_q = int(args.get("num_query_points", 0)) or ds.sensor_pos.shape[0]
+                xy_np, t_np, c_np, ref_np = ds.sample_sensor_batch(rng, n=n_q, t_max=t_max)
+                _fixed_data.append((
+                    torch.tensor(xy_np, dtype=torch.float32, device=device),
+                    torch.tensor(t_np, device=device),
+                    torch.tensor(c_np, dtype=torch.long, device=device),
+                    torch.tensor(ref_np, device=device),
+                ))
 
-        l_total = args["data_loss_weight"] * l_data + phys_weight * l_physics
-        l_total.backward()
-        torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
-        optimizer.step()
+            _fixed_phys: list = []
+            if _phys_gate:
+                for i, ds in enumerate(datasets):
+                    xy_np, t_np = ds.sample_physics_points(
+                        rng, n=_n_phys, t_max=t_max, strategy=_phys_strategy
+                    )
+                    _fixed_phys.append(torch.tensor(
+                        np.concatenate([xy_np, t_np[:, None]], axis=1),
+                        dtype=torch.float32, device=device, requires_grad=True,
+                    ))
+
+            _lbfgs_info: dict = {}
+
+            def closure() -> torch.Tensor:
+                optimizer.zero_grad()
+                net.train()
+                _ld = torch.zeros(1, device=device)
+                for _i, _ds in enumerate(datasets):
+                    _xy, _tq, _c, _ref = _fixed_data[_i]
+                    _h, _st = net.encode(
+                        sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
+                    )
+                    _pred = observed_channel_prediction(
+                        net=net, xy=_xy, t_q=_tq, c_obs=_c,
+                        observed_channel_names=_ds.observed_channel_names,
+                        observed_channel_mean=observed_mean_list[_i],
+                        observed_channel_std=observed_std_list[_i],
+                        h_states=_h, s_time=_st, sensor_pos=sensor_pos_list[_i],
+                    )
+                    _ld = _ld + ((_pred - _ref) ** 2).mean()
+                _ld = _ld / num_re
+
+                _lp = torch.zeros(1, device=device)
+                _lcont = torch.zeros(1, device=device)
+                if _fixed_phys:
+                    net.eval()
+                    for _i, _ds in enumerate(datasets):
+                        _xyt = _fixed_phys[_i]
+                        _mfn = make_lnn_model_fn(
+                            net, sensor_vals_list[_i], sensor_pos_list[_i],
+                            re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
+                        )
+                        _uf = lambda x, fn=_mfn: fn(x, c=0)
+                        _vf = lambda x, fn=_mfn: fn(x, c=1)
+                        _pf = lambda x, fn=_mfn: fn(x, c=2)
+                        _mu, _mv, _co = unsteady_ns_residuals(
+                            _uf, _vf, _pf, _xyt,
+                            re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
+                        )
+                        if _phys_normalize:
+                            def _nr(r: torch.Tensor) -> torch.Tensor:
+                                return r / r.detach().std().clamp(min=1e-8)
+                            _mu, _mv, _co = _nr(_mu), _nr(_mv), _nr(_co)
+                        _lp   = _lp   + torch.mean(_mu ** 2) + torch.mean(_mv ** 2)
+                        _lcont = _lcont + torch.mean(_co ** 2)
+                    net.train()
+                    _lp   = _lp   / num_re
+                    _lcont = _lcont / num_re
+
+                _lt = args["data_loss_weight"] * _ld + _phys_weight * (_lp + args["continuity_weight"] * _lcont)
+                _lt.backward()
+                _lbfgs_info["l_data"]   = _ld.item()
+                _lbfgs_info["l_phys"]   = (_lp + _lcont).item()
+                _lbfgs_info["l_total"]  = _lt.item()
+                return _lt
+
+            optimizer.step(closure)
+
+            l_data    = torch.tensor([_lbfgs_info.get("l_data",  0.0)], device=device)
+            l_physics = torch.tensor([_lbfgs_info.get("l_phys",  0.0)], device=device)
+            l_total   = torch.tensor([_lbfgs_info.get("l_total", 0.0)], device=device)
+            l_ns_u_total = torch.zeros(1, device=device)
+            l_ns_v_total = torch.zeros(1, device=device)
+            l_cont_total = torch.zeros(1, device=device)
+            phys_weight  = _phys_weight
+
+        else:
+        # ── First-order path ─────────────────────────────────────────────────
+            optimizer.zero_grad()
+
+        if not is_lbfgs:
+            l_data = torch.zeros(1, device=device)
+            for i, ds in enumerate(datasets):
+                # num_query_points 預設由 K（sensor 數）決定，可在 config 中 override。
+                n_query = int(args.get("num_query_points", 0)) or ds.sensor_pos.shape[0]
+                xy_np, t_np, c_np, ref_np = ds.sample_sensor_batch(
+                    rng, n=n_query, t_max=t_max
+                )
+                h_states, s_time = net.encode(
+                    sensor_vals_list[i], sensor_pos_list[i], ds.re_norm, sensor_time_list[i]
+                )
+                xy = torch.tensor(xy_np, dtype=torch.float32, device=device)
+                t_q = torch.tensor(t_np, device=device)
+                c = torch.tensor(c_np, dtype=torch.long, device=device)
+                ref = torch.tensor(ref_np, device=device)
+                pred = observed_channel_prediction(
+                    net=net,
+                    xy=xy,
+                    t_q=t_q,
+                    c_obs=c,
+                    observed_channel_names=ds.observed_channel_names,
+                    observed_channel_mean=observed_mean_list[i],
+                    observed_channel_std=observed_std_list[i],
+                    h_states=h_states,
+                    s_time=s_time,
+                    sensor_pos=sensor_pos_list[i],
+                )
+                per_sample_loss = (pred - ref) ** 2
+                t0_w = float(args.get("t_early_weight", 1.0))
+                if t0_w != 1.0:
+                    t0_thresh = float(args.get("t_early_threshold", 0.1))
+                    w = torch.where(t_q <= t0_thresh, torch.full_like(t_q, t0_w), torch.ones_like(t_q))
+                    per_sample_loss = per_sample_loss * w
+                l_data = l_data + per_sample_loss.mean()
+            l_data = l_data / num_re
+
+            phys_weight = physics_weight_at_step(
+                step=step,
+                final_weight=base_phys_weight,
+                warmup_steps=phys_warmup_steps,
+                ramp_steps=phys_ramp_steps,
+            )
+            poisson_weight = float(args.get("poisson_loss_weight", 0.0))
+            # GradNorm 模式下不依賴 phys_weight 作為 gate，只要 num_physics_points > 0 就計算物理項。
+            n_phys_end    = int(args["num_physics_points"])
+            n_phys_start  = int(args.get("num_physics_points_start", 0)) or n_phys_end
+            n_phys_warmup = int(args.get("num_physics_points_warmup_steps", 0))
+            n_phys_ramp   = int(args.get("num_physics_points_ramp_steps", 0))
+            n_phys = physics_points_at_step(step, n_phys_start, n_phys_end, n_phys_ramp, n_phys_warmup)
+
+            phys_gate = (use_gradnorm or phys_weight > 0.0) and n_phys_end > 0
+
+            # RAR pool update（在 net.eval() 之前，避免 eval/train 交替干擾）
+            if _is_rar and phys_gate and (_rar_pool_np is None or step % _rar_update_freq == 0):
+                _rar_pool_np = _rar_update_pool(
+                    net, datasets, sensor_vals_list, sensor_pos_list, sensor_time_list,
+                    rng=rng, n_select=n_phys,
+                    pool_size=max(n_phys * _rar_pool_mult, n_phys + 1),
+                    t_max=t_max, k_f=k_f, A=A, domain_length=domain_length, device=device,
+                    exploration_ratio=_rar_expl_ratio,
+                )
+
+            if phys_gate:
+                net.eval()
+                l_ns_u_total = torch.zeros(1, device=device)
+                l_ns_v_total = torch.zeros(1, device=device)
+                l_ns_total = torch.zeros(1, device=device)
+                l_cont_total = torch.zeros(1, device=device)
+                l_poisson_total = torch.zeros(1, device=device)
+                phys_strategy = str(args.get("physics_collocation_strategy", "random"))
+                phys_normalize = bool(args.get("physics_residual_normalize", False))
+                for i, ds in enumerate(datasets):
+                    if _is_rar and _rar_pool_np is not None:
+                        xyt = torch.tensor(_rar_pool_np[i], device=device, requires_grad=True)
+                    else:
+                        xy_np, t_np = ds.sample_physics_points(
+                            rng, n=n_phys, t_max=t_max, strategy=phys_strategy
+                        )
+                        xyt = torch.tensor(
+                            np.concatenate([xy_np, t_np[:, None]], axis=1),
+                            device=device,
+                            requires_grad=True,
+                        )
+                    model_fn = make_lnn_model_fn(
+                        net,
+                        sensor_vals_list[i],
+                        sensor_pos_list[i],
+                        re_norm=ds.re_norm,
+                        sensor_time=sensor_time_list[i],
+                        device=device,
+                    )
+                    u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
+                    v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
+                    p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
+                    mom_u, mom_v, cont = unsteady_ns_residuals(
+                        u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
+                    )
+                    if phys_normalize:
+                        # 將每個殘差除以自身批次 RMS（detach 不參與梯度），使各項貢獻量級對齊。
+                        # Why: Re=10000 的 momentum 殘差 O(10)，continuity 可能 O(0.01)；
+                        #      不正規化時 continuity 梯度幾乎為零，無散度約束形同虛設。
+                        def _norm_r(r: torch.Tensor) -> torch.Tensor:
+                            return r / r.detach().std().clamp(min=1e-8)
+                        mom_u = _norm_r(mom_u)
+                        mom_v = _norm_r(mom_v)
+                        cont  = _norm_r(cont)
+                    l_ns_u_total = l_ns_u_total + torch.mean(mom_u ** 2)
+                    l_ns_v_total = l_ns_v_total + torch.mean(mom_v ** 2)
+                    l_cont_total = l_cont_total + torch.mean(cont ** 2)
+                    if poisson_weight > 0.0:
+                        poisson_res = pressure_poisson_residual(u_fn, v_fn, p_fn, xyt)
+                        l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
+                net.train()
+                l_ns_u_total = l_ns_u_total / num_re
+                l_ns_v_total = l_ns_v_total / num_re
+                l_ns_total = l_ns_u_total + l_ns_v_total
+                l_cont_total = l_cont_total / num_re
+                l_poisson_total = l_poisson_total / num_re
+                l_physics = (
+                    l_ns_total
+                    + args["continuity_weight"] * l_cont_total
+                    + poisson_weight * l_poisson_total
+                )
+            else:
+                l_ns_u_total = torch.zeros(1, device=device)
+                l_ns_v_total = torch.zeros(1, device=device)
+                l_ns_total = torch.zeros(1, device=device)
+                l_cont_total = torch.zeros(1, device=device)
+                l_physics = torch.zeros(1, device=device)
+
+            # ── Loss 組合與 backward ────────────────────────────────────────────
+            if use_gradnorm and gn_weights is not None:
+                # GradNorm 模式：4 個可學習權重 [data, ns_u, ns_v, cont]，直接管理各 task 比例。
+                # physics_loss_weight 不再作為乘數，只有 num_physics_points > 0 才啟用物理項。
+                #
+                # 執行順序（關鍵）：
+                #   ① GradNorm weight update（autograd.grad，retain_graph=True）
+                #   ② 以更新後的 ws（detach）計算 l_total
+                #   ③ l_total.backward() → optimizer.step()
+                #
+                # Why: optimizer.step() 就地修改 trunk_out.weight（版本號遞增），
+                #      GradNorm 必須在 step() 前完成，否則 PyTorch 拋出版本衝突錯誤。
+                phys_active = int(args["num_physics_points"]) > 0
+                do_gn_update = phys_active and (step % gn_update_freq == 0)
+
+                if do_gn_update:
+                    _gradnorm_step(
+                        gn_weights,
+                        [l_data, l_ns_u_total, l_ns_v_total, l_cont_total],
+                        gn_ref_params,
+                        ema_momentum=float(args.get("gradnorm_ema_momentum", 0.5)),
+                    )
+                ws = gn_weights.weights.detach()
+
+                if phys_active:
+                    l_total = (
+                        ws[0] * l_data
+                        + ws[1] * l_ns_u_total
+                        + ws[2] * l_ns_v_total
+                        + ws[3] * l_cont_total
+                    )
+                else:
+                    l_total = ws[0] * l_data
+
+                l_total.backward()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+                optimizer.step()
+            else:
+                l_total = args["data_loss_weight"] * l_data + phys_weight * l_physics
+                l_total.backward()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+                optimizer.step()
+
         if scheduler is not None:
             scheduler.step()
 
+        if log_fn is not None:
+            extra: dict[str, float] = {}
+            if use_gradnorm and gn_weights is not None:
+                ws_vals = gn_weights.weights.detach().cpu().tolist()
+                extra = {
+                    "gn_w_data": ws_vals[0],
+                    "gn_w_ns_u": ws_vals[1],
+                    "gn_w_ns_v": ws_vals[2],
+                    "gn_w_cont": ws_vals[3],
+                }
+            log_fn(step, {
+                "l_data": l_data.item(),
+                "l_physics": l_physics.item(),
+                "l_ns": l_ns_total.item(),
+                "l_cont": l_cont_total.item(),
+                "l_total": l_total.item(),
+                "w_phys": phys_weight,
+                "t_max": t_max if t_max is not None else 0.0,
+                **extra,
+            })
+
         if step % max(1, args["iterations"] // 10) == 0 or step == 1:
             tm_str = f"  t≤{t_max:5.1f}" if use_tm and t_max is not None else ""
-            print(
-                f"{step:<8} {l_data.item():>12.4e}"
-                f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
-                f" {l_total.item():>12.4e}{tm_str}"
-            )
+            if use_gradnorm and gn_weights is not None:
+                ws_vals = gn_weights.weights.detach().cpu().tolist()
+                print(
+                    f"{step:<8} {l_data.item():>12.4e}"
+                    f" {l_physics.item():>12.4e}"
+                    f" {ws_vals[1]:>8.4f} {ws_vals[2]:>8.4f} {ws_vals[3]:>8.4f}"
+                    f" {l_total.item():>12.4e}{tm_str}"
+                )
+            else:
+                print(
+                    f"{step:<8} {l_data.item():>12.4e}"
+                    f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
+                    f" {l_total.item():>12.4e}{tm_str}"
+                )
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
             if use_schedulefree:
