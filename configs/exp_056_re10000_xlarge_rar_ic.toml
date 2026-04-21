@@ -1,15 +1,16 @@
-# configs/exp_054_re10000_xlarge_rar_1k.toml
-# What: EXP-054 — resume EXP-048 step_9500，RAR 每 1000 步更新一次，再跑 10000 步至 step 19500。
+# configs/exp_056_re10000_xlarge_rar_ic.toml
+# What: EXP-056 — resume EXP-048 step_9500，RAR freq=1000 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500。
 #
-# Why: EXP-053（RAR update_freq=50）KE=25.2%，比 EXP-048 退步 3.4pp。
-#      診斷：每 50 步更新一次 collocation pool 頻率過高，強制改變 loss landscape
-#      導致已收斂的 EXP-048 優化路徑被破壞（L_phys 7.96→19.27，L_data 上升）。
-#      降低更新頻率至 1000 步，讓模型在固定 collocation 上充分收斂後再重新採樣。
+# Why: EXP-054（RAR only）KE=19.6%；EXP-055（IC weight only）KE=17.1%。
+#      兩者均從 EXP-048 step_9500 出發，改動獨立有效。
+#      本實驗測試組合效果：RAR 偏向高殘差區域 + IC weight 強化 t≈0 監督訊號。
+#      若組合效果超加性（KE < 17.1%），說明兩機制作用在不同缺陷上互補。
+#      若次加性或無效，說明 IC weight 已解決 RAR 的主要目標。
 #
-# Hypothesis: KE rel-err < 21.8%（EXP-048 基準）；L_phys 不應持續爆漲
-# Falsifiability: 若 step_19500 的 KE > 22%，低頻 RAR 在此設定亦無益。
+# Hypothesis: KE rel-err < 17.1%（EXP-055 基準）
+# Falsifiability: 若 KE > 17.1%，RAR 與 IC weight 在此設定存在負干擾或飽和。
 #
-# 對照基準：EXP-048（KE=21.8%），EXP-053（KE=25.2%，RAR freq=50）
+# 對照基準：EXP-048（KE=21.8%），EXP-054（KE=19.6%，RAR only），EXP-055（KE=17.1%，IC only）
 
 [train]
 sensor_jsons = [
@@ -46,6 +47,9 @@ physics_loss_ramp_steps = 0
 continuity_weight = 1.0
 poisson_loss_weight = 0.0
 
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
 physics_collocation_strategy = "rar"
 rar_update_freq = 1000
 rar_pool_multiplier = 10
@@ -71,5 +75,5 @@ max_grad_norm = 1.0
 checkpoint_period = 500
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-exp054-rar-1k"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp056-rar-ic"
 resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/checkpoints/lnn_kolmogorov_step_9500.pt"

@@ -1,0 +1,76 @@
+# configs/exp_057_re10000_xlarge_cold_ic.toml
+# What: EXP-057 — 冷啟動 10000 步，IC Loss Weight（λ_IC=10，t≤0.05），無 RAR，無 resume。
+#
+# Why: EXP-055（resume EXP-048 step_9500 + IC weight）KE=17.1%。
+#      疑慮：17.1% 的成果有多少來自 resume 時繼承的 SOAP preconditioner 與
+#      Polyak 平均歷史（9500 步的 optimizer warm state），而非 IC weight 本身？
+#      本實驗隔離此變數：完全相同的 loss 設計，但從隨機初始化冷啟動。
+#      對比點：同樣 10k 步，差異純粹是 optimizer state 的起點。
+#
+# Hypothesis: 若 KE 接近 17.1% → optimizer warm state 貢獻有限，IC weight 本身夠強。
+#             若 KE 明顯更高（22%+）→ 預訓練歷史是不可或缺的 inductive bias。
+# Falsifiability: KE > 25%（EXP-033 冷啟動 3k 基準為 31.5%，冷啟動 10k EXP-051 為 27.8%）
+#                 說明 IC weight 在冷啟動下亦無明顯幫助。
+#
+# 對照基準：EXP-055（KE=17.1%，resume），EXP-051（KE=27.8%，冷啟動 10k 無 IC weight）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp057-cold-ic"

@@ -104,6 +104,9 @@
     - 根本結論：在 K=100 sparse sensors（覆蓋 k≤5）的資訊量限制下，改善 physics loss 設計無法突破資訊理論上限。下一步需從資料密度或架構表達力著手。
 24. Transfer learning 前置實驗（EXP-041，Re=1000 d=128 wide，3000 steps）：KE 24.5%，顯著差於 EXP-030（d=64，KE 9.61%）。確認在 3000 steps 內，較大架構（d=128）在 Re=1000 上未完全收斂，超參化程度造成 KE 倒退。Weights 品質次佳但仍作為 EXP-042 transfer 出發點，檢驗 pre-training 是否提供有用 inductive bias。
 25. EXP-040 Transfer 失敗（架構不匹配）：嘗試從 EXP-030（d=64, harmonics=8, 1-layer attn）transfer 至 Re=10000 Wide-v2 架構（d=128, harmonics=16, 2-layer attn），導致 `size mismatch` 與 missing keys。確認 transfer learning 要求 source 與 target 架構完全相同。
+26. RAR（Residual Adaptive Refinement）頻率是關鍵參數：freq=50（EXP-053）擾亂 SOAP+SF preconditioner，L_phys 爆漲 7.96→19.27，KE 退至 25.2%；freq=1000（EXP-054）讓模型在固定 collocation 上充分收斂後再重新採樣，KE 改善至 19.6%。
+27. IC Loss Weight（λ_IC=10，t≤0.05）單獨即可將 KE 從 21.8%（EXP-048）→17.1%（EXP-055），優於 RAR（19.6%）。kf_amp_ratio 0.970 與 E(k_f) 0.934 均為全系列最佳，確認強制學習 t≈0 IC 連帶改善 forcing mode 重建。t=0 初始條件監督訊號是目前最有效的單一改動。
+28. RAR + IC weight 組合（EXP-056）產生負干擾：KE 19.4%，差於 IC alone（17.1%）。L_data 最終 2.59e-3 為全系列最低，但 KE 反而更高，說明 RAR 週期性更新 collocation 擾動了 IC weight 依賴的穩定梯度方向。兩機制的有效性依賴不同前提（RAR 需要可適應的 loss landscape；IC weight 需要穩定的 collocation），在同一訓練中互相衝突。
 
 ---
 
@@ -133,14 +136,17 @@
 | ID | Status | 主題 | 一句結論 |
 |---|---|---|---|
 | `EXP-030` | `ACTIVE_BASELINE` | `SOAP+SF resume EXP-028 → 5000 steps` | **目前最佳主線（Re=1000）：KE 9.61%、amp 1.027、u RMSE 5.68e-2；首次突破 10%** |
-| `EXP-055` | `RUNNING` | Re=10000, resume EXP-048 step_9500 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500 | 訓練中（step_14000 / 19500）；單一變數對照 EXP-048，隔離 IC weight 效果 |
-| `EXP-054` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=1000，再跑 10000 步至 step 19500 | **KE 19.6%（突破 EXP-048 21.8%，−2.2pp）**；amp 0.961；phase 0.064 rad；RAR freq=1000 有效，為新 Re=10000 最佳基準 |
+| `EXP-058` | `RUNNING` | Re=10000, 冷啟動 10k，IC weight=10，**方案 B（CfC freerun）**，無 RAR | 架構改動：decoder branch token 用 CfC 自由積分至 t_q；對照 EXP-057 |
+| `EXP-057` | `COMPLETED` | Re=10000, 冷啟動 10k，IC weight=10，無 RAR（無 freerun） | KE 20.6%；div L2 0.796（最佳）；kf_phase 0.008 rad；優於 EXP-051（無 IC，27.8%），差於 EXP-055（resume，17.1%）→ warm state 貢獻確認 |
+| `EXP-056` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=1000 + IC weight，再跑 10000 步至 step 19500 | KE 19.4%（差於 EXP-055 17.1%）；組合產生負干擾，RAR 擾動 IC weight 的優化路徑 |
+| `EXP-055` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500 | **KE 17.1%（突破 EXP-054 19.6%，−2.5pp）**；amp 0.970；phase 0.034 rad；IC weight 確認有效，**目前 Re=10000 最佳基準** |
+| `EXP-054` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=1000，再跑 10000 步至 step 19500 | KE 19.6%（突破 EXP-048 21.8%，−2.2pp）；amp 0.961；phase 0.064 rad；RAR freq=1000 有效 |
 | `EXP-053` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=50，再跑 10000 步至 step 19500 | KE 25.2%（差於 EXP-048 21.8%）；RAR 更新頻率過高（50步），持續擾動 loss landscape，L_phys 爆漲 7.96→19.27 |
 | `EXP-052` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + L-BFGS 100步（實際完成） | KE 24.07%（差於 EXP-048 21.8%）；每 100 步耗時 68 分鐘，2000 步需 22 小時，計算成本不可行；L-BFGS 不適用於此規模的隨機 mini-batch 設定 |
 | `EXP-051` | `NEGATIVE_RESULT` | Re=10000, d_model=256, 從頭 10k，harmonics=20 + t0_boost×3 | KE 27.81%（差於 EXP-048 21.8%）；t=0 KE err 67.4%（更差）；漸進式訓練路徑（3k→5k→10k）的優勢被從頭訓練抵消，無法評估個別改動貢獻 |
 | `EXP-050` | `NEGATIVE_RESULT` | Re=10000, d_model=256, resume EXP-048 + physics curriculum (8→128)，10000 steps | KE 25.87%（差於 EXP-048 21.8%）；kf_amp_ratio 0.927→0.213 崩潰；SOAP+SF resume 無法延續學習狀態，physics curriculum 在 resume 情境有害 |
 | `EXP-049` | `NEGATIVE_RESULT` | Re=10000, d_model=256, K=200 sensor，從頭訓練 10000 steps | KE 43.9%（大幅差於 EXP-048 的 21.8%）；混淆：EXP-048 為漸進式訓練，EXP-049 為冷啟動；K=200 從頭 10k 甚至差於 K=100 從頭 3k（31.5%），sensor 覆蓋非瓶頸 |
-| `EXP-048` | `ACTIVE_REFERENCE` | Re=10000, d_model=256, resume EXP-043 → 10000 steps | KE 21.8%；amp 0.899；phase 0.039 rad；t=0 KE 低估 58%；已被 EXP-054（KE 19.6%）超越 |
+| `EXP-048` | `ACTIVE_REFERENCE` | Re=10000, d_model=256, resume EXP-043 → 10000 steps | KE 21.8%；amp 0.899；phase 0.039 rad；t=0 KE 低估 58%；已被 EXP-055（KE 17.1%）超越 |
 | `EXP-047` | `NEGATIVE_RESULT` | Re=10000, d_model=256 + GradNorm 4-task [data,ns_u,ns_v,cont]，從頭 3000 steps | KE 72.1%（最差）；GradNorm 把 w_ns 推至 0.37，物理過強壓制資料；phase err 0.009 rad（改善）但 KE/Ens 全面退步 |
 | `EXP-046` | `NEGATIVE_RESULT` | Re=10000, d_model=256 + GradNorm 3-task，從頭 3000 steps | KE 59.9%（大幅退步）；GradNorm 梯度範數平衡與物理可行性無直接對應；w_cont 降至 0.750，l_phys 全程偏高 |
 | `EXP-045` | `NEGATIVE_RESULT` | Re=10000, d_model=256 + sweep 最佳參數（lr=4.75e-3, cont_w=0.509, soap_freq=20, locality=True），3000 steps | KE 35.4%（退步，差於 EXP-043 27.2%）；sweep 1500-step l_data 代理指標與 KE 不相關 |
@@ -262,16 +268,103 @@
 
 ---
 
-## [RECORD] EXP-055
+## [RECORD] EXP-058
 
 - Status: `RUNNING`
-- Time: `2026-04-20` 啟動（目前至 step_14000 / 19500）
+- Time: `2026-04-21` 訓練啟動
+- Topic: Re=10000, 冷啟動 10000 步，IC Loss Weight（λ_IC=10，t≤0.05），無 RAR，**方案 B：CfC 自由積分（use_cfc_freerun=true）**
+- Config: [`configs/exp_058_re10000_xlarge_cfc_freerun.toml`](/Users/latteine/Documents/coding/pi-lnn/configs/exp_058_re10000_xlarge_cfc_freerun.toml)
+- Evaluated Checkpoint: TBD
+- Key Architectural Change: `DeepONetCfCDecoder` 加入 `freerun_cell = CfCCell(d_model, d_model)`；branch token 在 cross-attention 前先以 CfC 從 `sensor_time[idx]` 推進至 `t_q`（x=h 自主動態）
+- Hypothesis: CfC 自由積分改善 branch token 時間連貫性，KE rel-err 低於 EXP-057（冷啟動對照組，KE 20.6%）
+- Falsifiability: 若 KE ≥ EXP-057（20.6%），則 CfC 自由積分在此設定無助於時間連貫性
+- Compare vs EXP-057: 唯一差異 = `use_cfc_freerun`（True vs False）；其餘 config 完全相同
+
+---
+
+## [RECORD] EXP-057
+
+- Status: `COMPLETED`
+- Time: `2026-04-21` 訓練與評估完成
+- Topic: Re=10000, 冷啟動 10000 步，IC Loss Weight（λ_IC=10，t≤0.05），無 RAR，無 resume（use_cfc_freerun=false）
+- Config: [`configs/exp_057_re10000_xlarge_cold_ic.toml`](/Users/latteine/Documents/coding/pi-lnn/configs/exp_057_re10000_xlarge_cold_ic.toml)
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp057-cold-ic/checkpoints/lnn_kolmogorov_step_9500.pt`
+- Change vs EXP-055: 冷啟動（無 resume），其餘 loss 設定完全相同
+- Change vs EXP-051: 加入 IC Loss Weight（λ_IC=10，t≤0.05）
+- Hypothesis: 若 KE 接近 EXP-055（17.1%）→ optimizer warm state 貢獻有限；若明顯更高 → 預訓練歷史不可或缺
+- Metrics:
+  - `ke_rel_err_mean = 0.2063`（KE **20.6%**，差於 EXP-055 resume 17.1%，**+3.5pp**）
+  - `ens_rel_err_mean = 0.4133`（差於 EXP-055 38.4%）
+  - `u_rmse_mean = 0.1106`、`v_rmse_mean = 0.0983`
+  - `div_l2_mean = 0.796`（**全系列最低**，EXP-055 為 1.612；冷啟動不繼承 resume 的散度偏誤）
+  - `kf_amp_ratio_last = 0.981`（優於 EXP-055 的 0.970）
+  - `kf_phase_err_last = 0.008 rad`（**全系列最低**，EXP-055 為 0.034 rad）
+  - `omega_rmse_mean = 5.46`
+- Hypothesis Verdict:
+  - **optimizer warm state 有實質貢獻**（KE 差距 3.5pp）
+  - **IC weight 在冷啟動下仍有效**（vs EXP-051 冷啟動無 IC，KE=27.8%，改善 7.2pp）
+  - 物理一致性指標（div, phase）反而比 resume 更好，說明 resume 可能繼承了方向偏誤
+- Decision: **Partial Confirm**。IC weight 有效（7.2pp 改善），warm state 額外貢獻約 3.5pp。EXP-055（resume + IC）仍為 KE 最佳，但 EXP-057 在 div/phase 指標更乾淨。
+
+---
+
+## [RECORD] EXP-056
+
+- Status: `NEGATIVE_RESULT`
+- Time: `2026-04-21` 訓練與評估完成
+- Topic: Re=10000, resume EXP-048 step_9500 + RAR freq=1000 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500
+- Config: [`configs/exp_056_re10000_xlarge_rar_ic.toml`](/Users/latteine/Documents/coding/pi-lnn/configs/exp_056_re10000_xlarge_rar_ic.toml)
+- Resume Checkpoint: `artifacts/deeponet-cfc-re10000-xlarge-20000/checkpoints/lnn_kolmogorov_step_9500.pt`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp056-rar-ic/checkpoints/lnn_kolmogorov_step_19500.pt`
+- Change vs EXP-055：加入 RAR freq=1000（EXP-054 的設定）；其餘完全同 EXP-055
+- Change vs EXP-054：加入 IC Loss Weight（λ_IC=10，t≤0.05）；其餘完全同 EXP-054
+- Hypothesis: KE rel-err < 17.1%（EXP-055 基準）；組合效果超加性
+- Falsifiability: 若 KE > 17.1%，RAR 與 IC weight 存在負干擾或飽和
+- Metrics（v2 評估腳本，step_19500）：
+  - `ke_rel_err_mean = 0.1942`（KE **19.4%**，**差於 EXP-055 的 17.1%，+2.3pp**）
+  - `ens_rel_err_mean = 0.3631`（EXP-055 為 38.4%，略改善）
+  - `kf_amp_ratio_last = 0.9553`（EXP-055 為 0.970，略退步）
+  - `ek_ratio_kf_last = 0.869`（EXP-055 為 0.934，明顯退步）
+  - `kf_phase_err_last = 0.084 rad`（EXP-055 為 0.034 rad，顯著退步）
+  - `u_rmse_mean = 0.1060`、`v_rmse_mean = 0.0952`（差於 EXP-055 的 0.0936/0.0824）
+  - L_data 最終 = 2.59e-3（全系列最低，但 KE 反而更高）
+- Analysis:
+  - 組合效果次加性（19.4% > 17.1%），假設被 falsify
+  - L_data 最低但 KE 最差：RAR 把 collocation 集中在高殘差區，IC weight 的梯度訊號被 RAR 更新週期擾動，導致優化路徑衝突
+  - 根本衝突：RAR 每 1000 步重新分配 physics collocation（改變 loss landscape），而 IC weight 依賴穩定的 data loss 梯度方向；兩者在同一訓練中互相干擾
+  - EXP-055 的成功正是因為 collocation 固定（random），使 IC weight 的訊號能穩定累積
+- Decision: **Falsified**。RAR + IC weight 組合在此設定下產生負干擾。EXP-055（IC only，KE 17.1%）維持為 Re=10000 最佳基準。
+  下一步候選：提高 λ_IC（目前=10）或降低 t_early_threshold，進一步強化 IC 監督。
+
+---
+
+## [RECORD] EXP-055
+
+- Status: `POSITIVE_RESULT`
+- Time: `2026-04-20` 訓練與評估完成
 - Topic: Re=10000, resume EXP-048 step_9500 + IC Loss Weight（t≤0.05 × 10），再跑 10000 步至 step 19500
 - Config: [`configs/exp_055_re10000_xlarge_rar_ic.toml`](/Users/latteine/Documents/coding/pi-lnn/configs/exp_055_re10000_xlarge_rar_ic.toml)
 - Resume Checkpoint: `artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/checkpoints/lnn_kolmogorov_step_9500.pt`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp055-ic/checkpoints/lnn_kolmogorov_step_19500.pt`
 - Change vs EXP-048：在 data loss 中對 t≤0.05 的 query points 加乘 λ_IC=10；無 RAR（單一變數）
+- Change vs EXP-054：無 RAR；僅 IC weight（隔離 IC weight 貢獻）
 - Hypothesis: t=0 KE rel-err < 58%（EXP-048）；整體 KE rel-err < 21.8%（EXP-048 基準）
 - Falsifiability: 若 step_19500 KE > 21.8%，IC weighting 單獨無益
+- Metrics（v2 評估腳本，step_19500）：
+  - `ke_rel_err_mean = 0.1710`（KE **17.1%**，優於 EXP-054 的 19.6%，**突破基準 −2.5pp**）
+  - `ens_rel_err_mean = 0.3843`（EXP-054 為 36.4%，略差 2pp；EXP-048 為 43.7%）
+  - `kf_amp_ratio_last = 0.9703`（EXP-054 為 0.961，EXP-048 為 0.899，全實驗最佳）
+  - `ek_ratio_kf_last = 0.9336`（EXP-054 為 0.889，EXP-048 為 0.803，全實驗最佳）
+  - `kf_phase_err_last = 0.034 rad`（EXP-054 為 0.064 rad，EXP-048 為 0.039 rad）
+  - `u_rmse_mean = 0.0936`、`v_rmse_mean = 0.0824`（明顯優於 EXP-054 的 0.1064/0.0951）
+  - L_data 最終 = 4.83e-3；L_phys = 9.24e-1（w_phys=0.01）
+- Analysis:
+  - IC Loss Weight（λ_IC=10，t≤0.05）單獨即可將 KE 從 21.8% → 17.1%，超越 RAR（EXP-054 19.6%）
+  - kf_amp_ratio 0.970 與 E(k_f) 0.934 均為全系列最佳，強制學習 t≈0 IC 連帶改善 forcing mode 重建
+  - Ens rel-err 38.4% 略差於 EXP-054（36.4%），可能因 IC weight 略微犧牲中期 enstrophy 精度
+  - RMSE 大幅改善（u: 0.0936 vs 0.106），顯示 t=0 低估被修正後整體軌跡誤差下降
+- Decision: **Confirmed**。IC Loss Weight 是目前最有效的單一改動（KE −2.5pp vs EXP-054 −2.2pp）。
+  成為新 Re=10000 最佳基準。下一步候選：EXP-056 RAR + IC Weight 組合，或提高 λ_IC 進一步壓縮 t=0 誤差。
 
 ---
 

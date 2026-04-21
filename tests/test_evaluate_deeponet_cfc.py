@@ -110,3 +110,73 @@ def test_choose_device_auto_prefers_cuda_over_mps(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(eval_mod.torch.backends.mps, "is_available", lambda: True)
 
     assert eval_mod.choose_device("auto").type == "cuda"
+
+
+def test_divergence_fd_is_zero_for_incompressible_mode() -> None:
+    n = 64
+    dx = 1.0 / n
+    x = np.arange(n, dtype=np.float64) * dx
+    y = np.arange(n, dtype=np.float64) * dx
+    xx, yy = np.meshgrid(x, y, indexing="ij")
+    u = np.sin(2.0 * np.pi * xx) * np.cos(2.0 * np.pi * yy)
+    v = -np.cos(2.0 * np.pi * xx) * np.sin(2.0 * np.pi * yy)
+
+    div = eval_mod.divergence_fd(u, v, dx)
+
+    assert np.max(np.abs(div)) < 1.0e-12
+
+
+def test_ns_residual_fields_zero_for_steady_kolmogorov_solution() -> None:
+    n = 128
+    dx = 1.0 / n
+    t = np.linspace(0.0, 1.0, 5, dtype=np.float64)
+    y = np.arange(n, dtype=np.float64) * dx
+    k_f = 2.0
+    re = 1000.0
+    amplitude = 0.1
+    kw = 2.0 * np.pi * k_f
+    discrete_laplace_eigenvalue = 4.0 * np.sin(kw * dx / 2.0) ** 2 / dx**2
+    u_profile = (amplitude / ((1.0 / re) * discrete_laplace_eigenvalue)) * np.sin(kw * y)
+    u = np.broadcast_to(u_profile, (len(t), n, n)).copy()
+    v = np.zeros_like(u)
+    p = np.zeros_like(u)
+
+    mom_u, mom_v, cont = eval_mod.ns_residual_fields(
+        u_series=u,
+        v_series=v,
+        p_series=p,
+        time_vals=t,
+        dx=dx,
+        re=re,
+        k_forcing=k_f,
+        forcing_amplitude=amplitude,
+        domain_length=1.0,
+        y_coords=y,
+    )
+
+    assert np.max(np.abs(mom_u)) < 1.0e-9
+    assert np.max(np.abs(mom_v)) < 1.0e-12
+    assert np.max(np.abs(cont)) < 1.0e-12
+
+
+def test_summarize_time_local_metric_tracks_early_late_and_worst() -> None:
+    time_vals = np.linspace(0.0, 5.0, 6, dtype=np.float64)
+    values = np.array([1.0, 2.0, 3.0, 10.0, 5.0, 4.0], dtype=np.float64)
+
+    summary = eval_mod.summarize_time_local_metric(time_vals, values)
+
+    assert summary["early_mean"] == pytest.approx(1.5)
+    assert summary["mid_mean"] == pytest.approx(6.5)
+    assert summary["late_mean"] == pytest.approx(4.5)
+    assert summary["worst_time"] == pytest.approx(3.0)
+    assert summary["worst_value"] == pytest.approx(10.0)
+
+
+def test_compute_band_energies_partitions_total_energy() -> None:
+    k_vals = np.arange(1.0, 10.0, dtype=np.float64)
+    e_vals = np.arange(1.0, 10.0, dtype=np.float64)
+
+    bands = eval_mod.compute_band_energies(k_vals, e_vals)
+
+    assert set(bands) == {"low", "mid", "high"}
+    assert sum(bands.values()) == pytest.approx(float(e_vals.sum()))

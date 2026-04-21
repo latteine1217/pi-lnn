@@ -1,15 +1,20 @@
-# configs/exp_054_re10000_xlarge_rar_1k.toml
-# What: EXP-054 — resume EXP-048 step_9500，RAR 每 1000 步更新一次，再跑 10000 步至 step 19500。
+# configs/exp_058_re10000_xlarge_cfc_freerun.toml
+# What: EXP-058 — 方案 B（CfC 自由積分）冷啟動 10000 步，IC Loss Weight（λ_IC=10），無 RAR。
 #
-# Why: EXP-053（RAR update_freq=50）KE=25.2%，比 EXP-048 退步 3.4pp。
-#      診斷：每 50 步更新一次 collocation pool 頻率過高，強制改變 loss landscape
-#      導致已收斂的 EXP-048 優化路徑被破壞（L_phys 7.96→19.27，L_data 上升）。
-#      降低更新頻率至 1000 步，讓模型在固定 collocation 上充分收斂後再重新採樣。
+# Why: DeepONet+CfC 目前 decoder 的時間處理只做線性映射（time_proj(dt)），
+#      無法捕捉跨 sensor 時間間距的非線性動態。
+#      方案 B 在 branch side 加入 CfC freerun cell：
+#        h(t_q) = CfC_freerun(h(t_sensor), h(t_sensor), dt)
+#      讓 branch token 在觀測之間自主演化，理論依據為 Latent ODE / ODE-RNN。
 #
-# Hypothesis: KE rel-err < 21.8%（EXP-048 基準）；L_phys 不應持續爆漲
-# Falsifiability: 若 step_19500 的 KE > 22%，低頻 RAR 在此設定亦無益。
+# Hypothesis: 方案 B 改善 branch token 的時間連貫性，KE rel-err 低於 EXP-057（冷啟動對照組）。
+# Falsifiability: 若 KE ≥ EXP-057 最終值，則 CfC 自由積分在此設定無助於時間連貫性。
 #
-# 對照基準：EXP-048（KE=21.8%），EXP-053（KE=25.2%，RAR freq=50）
+# 對照基準：
+#   EXP-057（冷啟動 10k，IC weight，freerun=False，KE 待定）
+#   EXP-055（resume EXP-048，IC weight，KE=17.1%）
+#
+# 差異點：use_cfc_freerun = true（EXP-057 無此 flag）
 
 [train]
 sensor_jsons = [
@@ -39,6 +44,8 @@ query_mlp_hidden_dim = 256
 output_head_gain = 1.0
 operator_rank = 256
 
+use_cfc_freerun = true
+
 data_loss_weight = 1.0
 physics_loss_weight = 0.01
 physics_loss_warmup_steps = 0
@@ -46,20 +53,19 @@ physics_loss_ramp_steps = 0
 continuity_weight = 1.0
 poisson_loss_weight = 0.0
 
-physics_collocation_strategy = "rar"
-rar_update_freq = 1000
-rar_pool_multiplier = 10
-rar_exploration_ratio = 0.2
-physics_residual_normalize = false
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
 
 time_marching = true
 time_marching_start = 0.5
-time_marching_warmup = 0.5
+time_marching_warmup = 0.3
 domain_length = 1.0
 kolmogorov_k_f = 2.0
 kolmogorov_A = 0.1
 
-iterations = 19500
+iterations = 10000
 num_physics_points = 32
 learning_rate = 3e-3
 weight_decay = 1e-4
@@ -71,5 +77,4 @@ max_grad_norm = 1.0
 checkpoint_period = 500
 seed = 42
 device = "mps"
-artifacts_dir = "artifacts/deeponet-cfc-re10000-exp054-rar-1k"
-resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/checkpoints/lnn_kolmogorov_step_9500.pt"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp058-cfc-freerun"

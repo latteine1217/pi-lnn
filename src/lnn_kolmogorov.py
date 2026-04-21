@@ -449,9 +449,11 @@ class DeepONetCfCDecoder(nn.Module):
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
         use_locality_decay: bool = False,
+        use_cfc_freerun: bool = False,
     ) -> None:
         super().__init__()
         self.use_locality_decay = bool(use_locality_decay)
+        self.use_cfc_freerun = bool(use_cfc_freerun)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
@@ -505,6 +507,14 @@ class DeepONetCfCDecoder(nn.Module):
         self.log_fusion_temperature = nn.Parameter(torch.tensor([math.log(temp_init)], dtype=torch.float32))
         self.component_scale = nn.Parameter(torch.ones(3))
         self.component_bias = nn.Parameter(torch.zeros(3))
+        # Method B: sensor_time → t_q 之間的 CfC 自由積分。
+        # Why: 原始 time_proj 只做線性映射，無法捕捉 CfC 的非線性動態。
+        #      使用 CfC cell 做自由積分（x = h，無外部激勵），讓 branch token
+        #      在跨 sensor 時間間距時的動態更接近真實連續演化。
+        #      use_cfc_freerun=False 時跳過，確保舊 checkpoint 可無損載入。
+        self.d_model = d_model
+        if self.use_cfc_freerun:
+            self.freerun_cell = CfCCell(d_model, d_model)
         if self.use_locality_decay:
             # log_locality_decay: α = exp(log_locality_decay) 為衰減率（α > 0）。
             # Why: 在 softmax 前加入 log-space 距離懲罰 score += -α * r，
@@ -526,6 +536,16 @@ class DeepONetCfCDecoder(nn.Module):
         idx = idx.clamp(0, h_states.shape[0] - 1)
         h_branch_tokens = h_states[idx]
         dt_to_query = (t_q - sensor_time[idx]).clamp(min=0.0)
+
+        if self.use_cfc_freerun:
+            # Method B: 以 CfC 將 h_branch_tokens 從 sensor_time[idx] 自由積分至 t_q。
+            # h_branch_tokens: [N, K, D]；dt_to_query: [N]
+            # 自由積分不使用外部激勵（x = h），模擬感測器觀測之間的自主動態。
+            _N, _K, _D = h_branch_tokens.shape
+            _h_flat = h_branch_tokens.reshape(_N * _K, _D)
+            _dt_flat = dt_to_query.unsqueeze(1).expand(_N, _K).reshape(_N * _K)
+            h_branch_tokens = self.freerun_cell(_h_flat, _h_flat, dt=_dt_flat).view(_N, _K, _D)
+
         pos_enc = periodic_fourier_encode(xy, self.domain_length, self.fourier_harmonics)
         time_e = self.time_proj(dt_to_query.unsqueeze(-1))
         emb_c = self.component_emb(c)
@@ -598,6 +618,7 @@ class LiquidOperator(nn.Module):
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
         use_locality_decay: bool = False,
+        use_cfc_freerun: bool = False,
     ) -> None:
         super().__init__()
         self.spatial_encoder = SpatialSetEncoder(
@@ -627,6 +648,7 @@ class LiquidOperator(nn.Module):
             operator_rank=operator_rank,
             fusion_temperature_init=fusion_temperature_init,
             use_locality_decay=use_locality_decay,
+            use_cfc_freerun=use_cfc_freerun,
         )
 
     def encode(
@@ -710,6 +732,7 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
             else None
         ),
         use_locality_decay=bool(cfg.get("use_locality_decay", False)),
+        use_cfc_freerun=bool(cfg.get("use_cfc_freerun", False)),
     )
 
 
@@ -998,6 +1021,7 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "operator_rank": 64,
     "fusion_temperature_init": None,
     "use_locality_decay": False,
+    "use_cfc_freerun": False,
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限
@@ -1092,6 +1116,9 @@ def _resolve_config_path_value(raw_path: str | Path, config_path: Path) -> str:
     for candidate in candidates:
         if candidate.exists():
             return str(candidate.resolve())
+    # 新路徑尚未建立時，優先用 project_root；若找不到則退回 config_dir
+    if project_root is not None:
+        return str((project_root / path).resolve())
     return str(candidates[0].resolve())
 
 
