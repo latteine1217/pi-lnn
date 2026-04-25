@@ -1,0 +1,90 @@
+# configs/exp_061_re10000_xlarge_soap_aligned.toml
+# What: EXP-061 — jaxpi 對齊 SOAP 設定，harmonics=16，冷啟動 10000 步。
+#
+# Why: EXP-060（harmonics=32）因 L_phys 週期性爆漲崩潰（step 6000: L_phys=517）。
+#      與 jaxpi 對比發現三個關鍵差距：
+#        1. betas=(0.95,0.95) → jaxpi 用 (0.9,0.999)：我們的二階動量估計過於激進
+#        2. precondition_freq=10 → jaxpi 用 2：曲率更新太慢，高頻方向失控
+#        3. lr_warmup 缺失 → jaxpi 用 2000 步線性 warmup：初始大步容易破壞物理
+#      本實驗先對齊 SOAP 行為（harmonics 維持 16），建立新的穩定 SOAP 基準。
+#      若 KE 優於 EXP-057（20.6%），再疊加 harmonics=32 測試容量改進。
+#
+# 對照 vs EXP-057（舊 SOAP+SF baseline）：
+#   soap_betas = [0.9, 0.999]         (EXP-057: [0.95, 0.95])
+#   soap_precondition_frequency = 5   (EXP-057: 10)
+#   lr_warmup_steps = 2000            (EXP-057: 0)
+#   soap_use_step_decay = true        (EXP-057: false)
+#   use_schedule_free = false         (EXP-057: true)
+#   learning_rate = 1e-3              (EXP-057: 3e-3)
+#   fourier_harmonics = 16            (同 EXP-057)
+#
+# num_physics_points = 64（EXP-057 為 32）：同步驗證增加 physics sample 的效益。
+#
+# Hypothesis: 對齊後 L_phys 穩定（無爆漲），mean KE 與 EXP-057 相當或更好。
+# Falsifiability: 若 L_phys 仍週期爆漲 → 問題不在 SOAP 設定，需查其他根因。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = false
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 5
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 1000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp061-soap-aligned"

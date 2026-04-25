@@ -1,0 +1,81 @@
+# configs/exp_059_re10000_xlarge_bidir_cfc.toml
+# What: EXP-059 — 雙向 CfC 編碼器，移除 IC Loss Weight，冷啟動 10000 步。
+#
+# Why: EXP-057 診斷顯示誤差隨時間遞減（t=0: KE 55.5% → t=5: 9.3%），
+#      根因是 TemporalCfCEncoder 為因果（單向）設計：
+#        - t=0 的 h_states[0] 僅由 1 步 CfC（從 h=0）產生，資訊極少。
+#        - t_early_weight=10 強迫模型在資訊不足時過度擬合 t=0，可能干擾訓練。
+#      雙向 CfC 讓 t=0 的 hidden state 同時看到未來觀測（反向掃描），
+#      消除因果編碼在 t=0 的資訊不對稱，讓模型自然學習 t=0 重建。
+#
+# Hypothesis: 雙向 CfC + 無 IC weight → t=0 KE 顯著低於 EXP-057（55.5%），
+#             mean KE rel-err 低於 EXP-057（20.6%）。
+# Falsifiability: 若 mean KE ≥ 20.6% 或 t=0 KE ≥ 50%，
+#                 則雙向 CfC 無法解決 t=0 重建問題。
+#
+# 差異點 vs EXP-057:
+#   use_bidirectional_cfc = true（EXP-057 無此 flag）
+#   t_early_weight = 1.0（EXP-057 為 10.0）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+use_bidirectional_cfc = true
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 1.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp059-bidir-cfc"

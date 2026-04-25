@@ -28,12 +28,10 @@ class KolmogorovDataset:
         observed_channel_mean/std: [C] float32 — per-channel normalization stats
         sensor_pos:  [K, 2]   float32 — (x, y) in physical domain
         sensor_time: [T]      float32 — physical time values
-        dns_u:  [T_dns, N, N] float32
-        dns_v:  [T_dns, N, N] float32
-        dns_p:  [T_dns, N, N] float32
-        dns_x:  [N]           float32
+        dns_x:  [N]           float32 — 格點座標（物理點採樣用）
         dns_y:  [N]           float32
         dns_time: [T_dns]     float32
+        Note: dns_u/v/p([T_dns,N,N]) 不存於此 object；evaluator 請直接 np.load(dns_path)
         re_value:  float
         re_norm:   float — normalised (re - RE_MEAN) / RE_STD
         dt_phys:   float — sensor time step (= 1.0)
@@ -47,9 +45,6 @@ class KolmogorovDataset:
     observed_channel_std: np.ndarray
     sensor_pos:   np.ndarray
     sensor_time:  np.ndarray
-    dns_u:        np.ndarray
-    dns_v:        np.ndarray
-    dns_p:        np.ndarray
     dns_x:        np.ndarray
     dns_y:        np.ndarray
     dns_time:     np.ndarray
@@ -103,11 +98,9 @@ class KolmogorovDataset:
         # Δt = 感測器時間步長
         self.dt_phys = float(self.sensor_time[1] - self.sensor_time[0])
 
-        # ── DNS 全場 ─────────────────────────────────────────────────
+        # ── DNS 格點 metadata（小，訓練時需要做物理點採樣）────────────
+        # dns_u/v/p 不讀入記憶體：訓練迴圈不需要，evaluator 直接 np.load(dns_path)
         dns = np.load(dns_path, allow_pickle=True).item()
-        self.dns_u    = dns["u"].astype(np.float32)     # [T_dns, N, N]
-        self.dns_v    = dns["v"].astype(np.float32)
-        self.dns_p    = dns["p"].astype(np.float32)
         self.dns_x    = dns["x"].astype(np.float32)     # [N]
         self.dns_y    = dns["y"].astype(np.float32)
         self.dns_time = dns["time"].astype(np.float32)  # [T_dns]

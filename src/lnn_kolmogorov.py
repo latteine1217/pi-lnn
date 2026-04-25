@@ -90,13 +90,43 @@ def periodic_fourier_encode(z: torch.Tensor, domain_length: float, n_harmonics: 
         [N, 4 * n_harmonics]
         排列：[sin(2πk x/L), cos(2πk x/L), sin(2πk y/L), cos(2πk y/L)] for k=1..n_harmonics
     """
-    x = z[:, 0:1]
-    y = z[:, 1:2]
-    feats = []
-    for k in range(1, n_harmonics + 1):
-        c = 2.0 * torch.pi * k / domain_length
-        feats += [torch.sin(c * x), torch.cos(c * x), torch.sin(c * y), torch.cos(c * y)]
-    return torch.cat(feats, dim=-1)
+    x = z[:, 0:1]  # [N, 1]
+    y = z[:, 1:2]  # [N, 1]
+    ks = torch.arange(1, n_harmonics + 1, device=z.device, dtype=z.dtype)  # [H]
+    cx = (2.0 * torch.pi / domain_length) * ks * x  # [N, H]
+    cy = (2.0 * torch.pi / domain_length) * ks * y  # [N, H]
+    # stack → [N, H, 4]，reshape 後順序與原版一致：[sin_x_k1, cos_x_k1, sin_y_k1, cos_y_k1, ...]
+    return torch.stack([cx.sin(), cx.cos(), cy.sin(), cy.cos()], dim=2).reshape(z.shape[0], -1)
+
+
+class LearnableFourierEmb(nn.Module):
+    """What: PeriodEmbs(k=1) + 可學習 Fourier 投影，對齊 jaxpi FourierEmbs 設計。
+
+    Why: periodic_fourier_encode 使用確定性整數諧波（k=1..n），硬性上限 k>n 完全無法表達。
+         此模組先以固定 k=1 週期編碼保證週期 BC，再用可學習投影矩陣（init N(0,σ)）
+         讓網路在訓練中自適應頻率分佈，隱性覆蓋高頻。
+
+    Args:
+        embed_dim: 輸出維度（需為偶數）。
+        init_sigma: 投影矩陣初始化標準差（對應 jaxpi embed_scale=2.0）。
+    """
+
+    def __init__(self, embed_dim: int, init_sigma: float = 2.0) -> None:
+        super().__init__()
+        if embed_dim % 2 != 0:
+            raise ValueError(f"embed_dim 必須為偶數，收到 {embed_dim}")
+        self.proj = nn.Linear(4, embed_dim // 2, bias=False)
+        nn.init.normal_(self.proj.weight, std=init_sigma)
+
+    def forward(self, xy: torch.Tensor, domain_length: float) -> torch.Tensor:
+        c = 2.0 * torch.pi / domain_length
+        x, y = xy[:, 0:1], xy[:, 1:2]
+        period_enc = torch.cat(
+            [torch.sin(c * x), torch.cos(c * x), torch.sin(c * y), torch.cos(c * y)],
+            dim=-1,
+        )  # [N, 4]
+        proj = self.proj(period_enc)  # [N, embed_dim // 2]
+        return torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)  # [N, embed_dim]
 
 
 def temporal_phase_anchor(t: torch.Tensor, T_total: float, n_harmonics: int = 2) -> torch.Tensor:
@@ -116,11 +146,10 @@ def temporal_phase_anchor(t: torch.Tensor, T_total: float, n_harmonics: int = 2)
     Returns:
         [N, 2 * n_harmonics]
     """
-    feats = []
-    for n in range(1, n_harmonics + 1):
-        angle = (2.0 * torch.pi * n / T_total) * t
-        feats.extend([torch.sin(angle), torch.cos(angle)])
-    return torch.cat(feats, dim=-1)
+    ns = torch.arange(1, n_harmonics + 1, device=t.device, dtype=t.dtype)  # [H]
+    angles = (2.0 * torch.pi / T_total) * ns * t  # [N, H]，t 為 [N, 1] 廣播
+    # stack → [N, H, 2]，reshape 後順序與原版一致：[sin_n1, cos_n1, sin_n2, cos_n2, ...]
+    return torch.stack([angles.sin(), angles.cos()], dim=2).reshape(t.shape[0], -1)
 
 
 class CfCCell(nn.Module):
@@ -301,12 +330,19 @@ class SpatialSetEncoder(nn.Module):
         d_model: int,
         num_layers: int,
         domain_length: float = 1.0,
+        fourier_embed_dim: int = 0,
     ) -> None:
         super().__init__()
         self.domain_length = float(domain_length)
         self.fourier_harmonics = int(fourier_harmonics)
         self.sensor_value_dim = int(sensor_value_dim)
-        base_in = 4 * fourier_harmonics + self.sensor_value_dim
+        if fourier_embed_dim > 0:
+            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            spatial_dim = fourier_embed_dim
+        else:
+            self.spatial_emb = None
+            spatial_dim = 4 * fourier_harmonics
+        base_in = spatial_dim + self.sensor_value_dim
         hidden = 2 * d_model
         depth = max(num_layers, 1)
         self.base_norm = nn.LayerNorm(base_in)
@@ -327,12 +363,17 @@ class SpatialSetEncoder(nn.Module):
             nn.Linear(2 * d_model, d_model),
         )
 
+    def encode_pos(self, sensor_pos: torch.Tensor) -> torch.Tensor:
+        """What: 計算 sensor 位置的空間編碼。呼叫方負責在 loop 外預計算並重用。"""
+        if self.spatial_emb is not None:
+            return self.spatial_emb(sensor_pos, self.domain_length)
+        return periodic_fourier_encode(sensor_pos, self.domain_length, self.fourier_harmonics)
+
     def forward(
         self,
         sensor_vals: torch.Tensor,
-        sensor_pos: torch.Tensor,
+        pos_enc: torch.Tensor,
     ) -> torch.Tensor:
-        pos_enc = periodic_fourier_encode(sensor_pos, self.domain_length, self.fourier_harmonics)
         base = torch.cat([pos_enc, sensor_vals], dim=-1)
         tokens = self.token_in(self.base_norm(base))
         for block in self.blocks:
@@ -341,9 +382,11 @@ class SpatialSetEncoder(nn.Module):
 
 
 class TemporalCfCEncoder(nn.Module):
-    """What: 以 CfC 演化 sensor token 序列，產生 causal token states。
+    """What: 以 CfC 演化 sensor token 序列，產生 token states。
 
     Why: 保留每個 sensor token 的連續時間動態，讓 decoder 能直接讀取感測器級上下文。
+         use_bidirectional=True 時加入反向掃描，使 t=0 的 hidden state 亦能看到未來觀測，
+         適用於離線批量重建（所有感測器資料預先備妥）。
     """
 
     def __init__(
@@ -352,19 +395,49 @@ class TemporalCfCEncoder(nn.Module):
         num_layers: int,
         num_token_attention_layers: int = 1,
         token_attention_heads: int = 4,
+        use_bidirectional: bool = False,
     ) -> None:
         super().__init__()
         self.d_model = d_model
+        self.use_bidirectional = use_bidirectional
         self.re_proj = nn.Linear(1, d_model)
         self.token_blocks = nn.ModuleList([
             TokenSelfAttentionBlock(d_model=d_model, num_heads=token_attention_heads)
             for _ in range(max(num_token_attention_layers, 0))
         ])
         self.cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+        if use_bidirectional:
+            # 反向 CfC：獨立參數，從 t=T-1 掃回 t=0。
+            # Why: 讓 h_states[0] 也能看到未來觀測，消除因果編碼在 t=0 的資訊不對稱。
+            self.backward_cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
 
     def _re_bias(self, re_norm: float, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         re_t = torch.tensor([[re_norm]], dtype=dtype, device=device)
         return self.re_proj(re_t).squeeze(0)
+
+    def _run_cfc_pass(
+        self,
+        seq: torch.Tensor,
+        cells: nn.ModuleList,
+        dts: torch.Tensor,
+        re_bias: torch.Tensor,
+        layer_idx: int,
+        reverse: bool,
+    ) -> torch.Tensor:
+        """What: 單方向的 CfC 掃描（forward 或 backward）。"""
+        T = seq.shape[0]
+        h = torch.zeros(seq.shape[1], self.d_model, device=seq.device, dtype=seq.dtype)
+        outputs: list[torch.Tensor] = [torch.empty(0)] * T
+        time_range = reversed(range(T)) if reverse else range(T)
+        for t in time_range:
+            x_t = seq[t]
+            if self.token_blocks:
+                block_idx = min(len(self.token_blocks) - 1, layer_idx)
+                x_t = self.token_blocks[block_idx](x_t.unsqueeze(0)).squeeze(0)
+            x_t = x_t + re_bias.squeeze(0)
+            h = cells[layer_idx](x_t, h, dt=dts[t])
+            outputs[t] = h
+        return torch.stack(outputs)
 
     def forward(
         self,
@@ -375,20 +448,14 @@ class TemporalCfCEncoder(nn.Module):
         dts = torch.cat([sensor_time[:1], sensor_time[1:] - sensor_time[:-1]])
         re_bias = self._re_bias(re_norm, spatial_states.device, spatial_states.dtype).view(1, 1, -1)
         seq = spatial_states
-        for layer_idx, cell in enumerate(self.cells):
-            h = torch.zeros(seq.shape[1], self.d_model, device=seq.device, dtype=seq.dtype)
-            outputs = []
-            for t in range(seq.shape[0]):
-                x_t = seq[t]
-                if self.token_blocks:
-                    block_idx = min(len(self.token_blocks) - 1, layer_idx)
-                    x_t = self.token_blocks[block_idx](x_t.unsqueeze(0)).squeeze(0)
-                x_t = x_t + re_bias.squeeze(0)
-                h = cell(x_t, h, dt=dts[t])
-                outputs.append(h)
+        for layer_idx in range(len(self.cells)):
+            fwd = self._run_cfc_pass(seq, self.cells, dts, re_bias, layer_idx, reverse=False)
+            if self.use_bidirectional:
+                bwd = self._run_cfc_pass(seq, self.backward_cells, dts, re_bias, layer_idx, reverse=True)
+                new_seq = fwd + bwd
+            else:
+                new_seq = fwd
             # 層間殘差：第二層起加上前一層輸出，防止多層 CfC 的信號退化。
-            # 單層時 layer_idx=0 跳過，不影響現有實驗。
-            new_seq = torch.stack(outputs)
             seq = new_seq + seq if layer_idx > 0 else new_seq
         return seq
 
@@ -449,17 +516,22 @@ class DeepONetCfCDecoder(nn.Module):
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
         use_locality_decay: bool = False,
-        use_cfc_freerun: bool = False,
+        fourier_embed_dim: int = 0,
     ) -> None:
         super().__init__()
         self.use_locality_decay = bool(use_locality_decay)
-        self.use_cfc_freerun = bool(use_cfc_freerun)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
         self.temporal_anchor_harmonics = int(temporal_anchor_harmonics)
         temporal_dim = 2 * self.temporal_anchor_harmonics if self.use_temporal_anchor else 0
-        query_in = 4 * fourier_harmonics + temporal_dim + d_time + 8
+        if fourier_embed_dim > 0:
+            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            spatial_dim = fourier_embed_dim
+        else:
+            self.spatial_emb = None
+            spatial_dim = 4 * fourier_harmonics
+        query_in = spatial_dim + temporal_dim + d_time + 8
         rank = d_model if operator_rank is None else operator_rank
         if rank <= 0:
             raise ValueError(f"operator_rank 必須 > 0，收到 {rank}")
@@ -507,14 +579,6 @@ class DeepONetCfCDecoder(nn.Module):
         self.log_fusion_temperature = nn.Parameter(torch.tensor([math.log(temp_init)], dtype=torch.float32))
         self.component_scale = nn.Parameter(torch.ones(3))
         self.component_bias = nn.Parameter(torch.zeros(3))
-        # Method B: sensor_time → t_q 之間的 CfC 自由積分。
-        # Why: 原始 time_proj 只做線性映射，無法捕捉 CfC 的非線性動態。
-        #      使用 CfC cell 做自由積分（x = h，無外部激勵），讓 branch token
-        #      在跨 sensor 時間間距時的動態更接近真實連續演化。
-        #      use_cfc_freerun=False 時跳過，確保舊 checkpoint 可無損載入。
-        self.d_model = d_model
-        if self.use_cfc_freerun:
-            self.freerun_cell = CfCCell(d_model, d_model)
         if self.use_locality_decay:
             # log_locality_decay: α = exp(log_locality_decay) 為衰減率（α > 0）。
             # Why: 在 softmax 前加入 log-space 距離懲罰 score += -α * r，
@@ -537,16 +601,10 @@ class DeepONetCfCDecoder(nn.Module):
         h_branch_tokens = h_states[idx]
         dt_to_query = (t_q - sensor_time[idx]).clamp(min=0.0)
 
-        if self.use_cfc_freerun:
-            # Method B: 以 CfC 將 h_branch_tokens 從 sensor_time[idx] 自由積分至 t_q。
-            # h_branch_tokens: [N, K, D]；dt_to_query: [N]
-            # 自由積分不使用外部激勵（x = h），模擬感測器觀測之間的自主動態。
-            _N, _K, _D = h_branch_tokens.shape
-            _h_flat = h_branch_tokens.reshape(_N * _K, _D)
-            _dt_flat = dt_to_query.unsqueeze(1).expand(_N, _K).reshape(_N * _K)
-            h_branch_tokens = self.freerun_cell(_h_flat, _h_flat, dt=_dt_flat).view(_N, _K, _D)
-
-        pos_enc = periodic_fourier_encode(xy, self.domain_length, self.fourier_harmonics)
+        if self.spatial_emb is not None:
+            pos_enc = self.spatial_emb(xy, self.domain_length)
+        else:
+            pos_enc = periodic_fourier_encode(xy, self.domain_length, self.fourier_harmonics)
         time_e = self.time_proj(dt_to_query.unsqueeze(-1))
         emb_c = self.component_emb(c)
         trunk_inputs = [pos_enc]
@@ -618,7 +676,8 @@ class LiquidOperator(nn.Module):
         operator_rank: int | None = None,
         fusion_temperature_init: float | None = None,
         use_locality_decay: bool = False,
-        use_cfc_freerun: bool = False,
+        use_bidirectional_cfc: bool = False,
+        fourier_embed_dim: int = 0,
     ) -> None:
         super().__init__()
         self.spatial_encoder = SpatialSetEncoder(
@@ -627,12 +686,14 @@ class LiquidOperator(nn.Module):
             d_model,
             num_spatial_cfc_layers,
             domain_length=domain_length,
+            fourier_embed_dim=fourier_embed_dim,
         )
         self.temporal_encoder = TemporalCfCEncoder(
             d_model,
             num_temporal_cfc_layers,
             num_token_attention_layers=num_token_attention_layers,
             token_attention_heads=token_attention_heads,
+            use_bidirectional=use_bidirectional_cfc,
         )
         self.query_decoder = DeepONetCfCDecoder(
             fourier_harmonics=fourier_harmonics,
@@ -648,7 +709,7 @@ class LiquidOperator(nn.Module):
             operator_rank=operator_rank,
             fusion_temperature_init=fusion_temperature_init,
             use_locality_decay=use_locality_decay,
-            use_cfc_freerun=use_cfc_freerun,
+            fourier_embed_dim=fourier_embed_dim,
         )
 
     def encode(
@@ -658,8 +719,9 @@ class LiquidOperator(nn.Module):
         re_norm: float,
         sensor_time: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        pos_enc = self.spatial_encoder.encode_pos(sensor_pos)
         spatial_states = torch.stack([
-            self.spatial_encoder(sensor_vals[t], sensor_pos)
+            self.spatial_encoder(sensor_vals[t], pos_enc)
             for t in range(sensor_vals.shape[0])
         ])
         return self.temporal_encoder(spatial_states, re_norm, sensor_time), sensor_time
@@ -672,7 +734,8 @@ class LiquidOperator(nn.Module):
         dt: float,
         h_list: list[torch.Tensor],
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
-        spatial = self.spatial_encoder(sensor_vals_t, sensor_pos)
+        pos_enc = self.spatial_encoder.encode_pos(sensor_pos)
+        spatial = self.spatial_encoder(sensor_vals_t, pos_enc)
         return self.temporal_encoder.step(spatial, h_list, re_norm, dt)
 
     def predict(
@@ -732,7 +795,8 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
             else None
         ),
         use_locality_decay=bool(cfg.get("use_locality_decay", False)),
-        use_cfc_freerun=bool(cfg.get("use_cfc_freerun", False)),
+        use_bidirectional_cfc=bool(cfg.get("use_bidirectional_cfc", False)),
+        fourier_embed_dim=int(cfg.get("fourier_embed_dim", 0)),
     )
 
 
@@ -812,10 +876,16 @@ def make_lnn_model_fn(
     re_norm: float,
     sensor_time: torch.Tensor,
     device: torch.device,
+    h_states: torch.Tensor | None = None,
+    s_time: torch.Tensor | None = None,
 ) -> Callable:
-    """What: 建立物理 loss 所需的 closure。"""
+    """What: 建立物理 loss 所需的 closure。
+
+    h_states/s_time 若已由外部計算（data loss 路徑），直接傳入可避免重複 encode。
+    """
     net_device = next(iter(net.parameters())).device
-    h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
+    if h_states is None or s_time is None:
+        h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
 
     def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
         xyt_d = xyt.to(net_device)
@@ -923,27 +993,13 @@ def observed_channel_prediction(
 
     Why: sparse-data 主線目前只監督真實可量測的 u,v。p 僅保留在 physics residual
          內部使用，避免在資料項中引入不可量測通道。
+         單次 query_decoder 呼叫處理所有 N 個樣本（u+v 混合），
+         再以向量化 normalize 取代 per-channel loop，消除一次重複 trunk forward。
     """
-    preds = torch.empty_like(t_q)
-    unique_obs = torch.unique(c_obs).tolist()
-    for obs_idx in unique_obs:
-        mask = c_obs == int(obs_idx)
-        channel_name = observed_channel_names[int(obs_idx)]
-        mean = observed_channel_mean[int(obs_idx)]
-        std = observed_channel_std[int(obs_idx)]
-        xy_sel = xy[mask]
-        t_sel = t_q[mask]
-        if channel_name == "u":
-            comp = torch.zeros(mask.sum(), dtype=torch.long, device=xy.device)
-            raw_pred = net.query_decoder(xy_sel, t_sel, comp, h_states, s_time, sensor_pos).squeeze(1)
-        elif channel_name == "v":
-            comp = torch.ones(mask.sum(), dtype=torch.long, device=xy.device)
-            raw_pred = net.query_decoder(xy_sel, t_sel, comp, h_states, s_time, sensor_pos).squeeze(1)
-        else:
-            raise ValueError(f"不支援的觀測通道: {channel_name}")
-        pred = (raw_pred - mean) / std
-        preds[mask] = pred
-    return preds
+    raw_pred = net.query_decoder(xy, t_q, c_obs, h_states, s_time, sensor_pos).squeeze(1)
+    mean_vec = observed_channel_mean[c_obs]
+    std_vec = observed_channel_std[c_obs]
+    return (raw_pred - mean_vec) / std_vec
 
 
 def physics_points_at_step(
@@ -1007,6 +1063,7 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "re_values": None,
     "observed_sensor_channels": ["u", "v"],
     "fourier_harmonics": 8,
+    "fourier_embed_dim": 0,   # 0 = 使用舊版確定性諧波；>0 = 啟用 LearnableFourierEmb
     "d_model": 64,
     "d_time": 8,
     "num_spatial_cfc_layers": 1,
@@ -1021,7 +1078,7 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "operator_rank": 64,
     "fusion_temperature_init": None,
     "use_locality_decay": False,
-    "use_cfc_freerun": False,
+    "use_bidirectional_cfc": False,
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限
@@ -1058,6 +1115,9 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "rar_pool_multiplier": 10,     # RAR: pool 大小 = num_physics_points × multiplier
     "rar_exploration_ratio": 0.2,  # RAR: 保留隨機點比例（防 mode collapse）
     "physics_residual_normalize": False,
+    "use_sensor_physics": False,           # 在感測器位置額外計算 NS 殘差
+    "num_sensor_physics_time_samples": 4,  # 每訓練步從 sensor_time 中採樣幾個時間步
+    "sensor_physics_start_step": 0,        # 延遲啟動：前 N 步只用隨機 collocation
     "poisson_loss_weight": 0.0,
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
@@ -1065,6 +1125,8 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "use_schedule_free": False,
     "lr_warmup_steps": 300,
     "soap_precondition_frequency": 10,
+    "soap_betas": [0.95, 0.95],
+    "soap_use_step_decay": False,
     "lr_decay_steps": 1000,
     "lr_decay_gamma": 0.9,
     "min_learning_rate": 1e-6,
@@ -1234,19 +1296,47 @@ def train_lnn_kolmogorov(
         if _soap_dir not in sys.path:
             sys.path.insert(0, _soap_dir)
         from soap import SOAP as SOAPOptimizer
+        _soap_betas = tuple(args.get("soap_betas", [0.95, 0.95]))
         base_optimizer = SOAPOptimizer(
             net.parameters(),
             lr=args["learning_rate"],
-            betas=(0.95, 0.95),
+            betas=_soap_betas,
             weight_decay=args["weight_decay"],
             precondition_frequency=int(args.get("soap_precondition_frequency", 10)),
         )
-        scheduler = None
         if use_schedulefree:
             import schedulefree
             optimizer = schedulefree.ScheduleFreeWrapper(base_optimizer, momentum=0.9)
         else:
             optimizer = base_optimizer
+        # warmup → step decay の順に SequentialLR で繋ぐ；片方だけも可
+        # ScheduleFreeWrapper は torch.optim.Optimizer を継承しないため、
+        # LR scheduler は必ず base_optimizer に紐付ける。
+        # ScheduleFreeWrapper は base_optimizer.param_groups['lr'] を参照するので
+        # scheduler が base_optimizer の LR を更新すれば wrapper にも反映される。
+        _warmup_steps = int(args.get("lr_warmup_steps", 0))
+        _use_decay = bool(args.get("soap_use_step_decay", False))
+        _sched_target = base_optimizer  # scheduler は常に base_optimizer に紐付ける
+        if _warmup_steps > 0 and _use_decay:
+            _warmup_sched = torch.optim.lr_scheduler.LinearLR(
+                _sched_target, start_factor=0.01, end_factor=1.0, total_iters=_warmup_steps
+            )
+            _main_sched = torch.optim.lr_scheduler.StepLR(
+                _sched_target, step_size=int(args["lr_decay_steps"]), gamma=float(args["lr_decay_gamma"])
+            )
+            scheduler = torch.optim.lr_scheduler.SequentialLR(
+                _sched_target, schedulers=[_warmup_sched, _main_sched], milestones=[_warmup_steps]
+            )
+        elif _warmup_steps > 0:
+            scheduler = torch.optim.lr_scheduler.LinearLR(
+                _sched_target, start_factor=0.01, end_factor=1.0, total_iters=_warmup_steps
+            )
+        elif _use_decay:
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                _sched_target, step_size=int(args["lr_decay_steps"]), gamma=float(args["lr_decay_gamma"])
+            )
+        else:
+            scheduler = None
 
     elif is_lbfgs:
         optimizer = torch.optim.LBFGS(
@@ -1356,9 +1446,9 @@ def train_lnn_kolmogorov(
         ).to(device)
         gn_ref_params = list(net.query_decoder.trunk_out.parameters())
 
-    print("=== Training ===")
+    print("=== Training ===", flush=True)
     if use_tm:
-        print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps")
+        print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps", flush=True)
     if use_gradnorm:
         init_w = args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01])
         print(f"  GradNorm: momentum={args.get('gradnorm_ema_momentum', 0.5):.2f}  freq={gn_update_freq}  (direct formula + EMA)")
@@ -1370,12 +1460,16 @@ def train_lnn_kolmogorov(
             f" ramp={phys_ramp_steps} steps,"
             f" final_weight={base_phys_weight:.4f}"
         )
+    if bool(args.get("use_sensor_physics", False)):
+        _sp_K = datasets[0].sensor_pos.shape[0]
+        _sp_nt = int(args.get("num_sensor_physics_time_samples", 4))
+        print(f"  sensor_physics: K={_sp_K} × n_t={_sp_nt} = {_sp_K * _sp_nt} pts/step (cond≈11 for k≤16)", flush=True)
     if use_gradnorm:
         print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_ns_u':>8} {'w_ns_v':>8} {'w_cont':>8} {'L_total':>12}"
-              + ("  t_max" if use_tm else ""))
+              + ("  t_max" if use_tm else ""), flush=True)
     else:
         print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
-              + ("  t_max" if use_tm else ""))
+              + ("  t_max" if use_tm else ""), flush=True)
 
     _is_rar = str(args.get("physics_collocation_strategy", "random")) == "rar"
     _rar_pool_np: list[np.ndarray] | None = None
@@ -1506,14 +1600,31 @@ def train_lnn_kolmogorov(
 
         if not is_lbfgs:
             l_data = torch.zeros(1, device=device)
+            # temporal trim 後的 sensor 輸入快取，physics loop 同步使用，
+            # 確保 data / physics 兩條路徑看到相同的 encoder 輸入。
+            # Why: 若 data 用 trimmed 輸入但 physics 用 full 輸入，
+            #      GradNorm 的梯度範數計算基準不一致，step=1000 會爆 NaN。
+            _trim_cache: list[tuple[torch.Tensor, torch.Tensor]] = []
             for i, ds in enumerate(datasets):
                 # num_query_points 預設由 K（sensor 數）決定，可在 config 中 override。
                 n_query = int(args.get("num_query_points", 0)) or ds.sensor_pos.shape[0]
                 xy_np, t_np, c_np, ref_np = ds.sample_sensor_batch(
                     rng, n=n_query, t_max=t_max
                 )
+                # temporal trim — time_marching 期間只傳 t ≤ t_max 的時間步給 encoder。
+                # Why: CfC 每步跑全部 T=201 時間步；warmup 時 t_max≈0.5 只需 ~20 步，
+                #      其餘 ~180 步計算量是浪費。Trim 後 query decoder 仍能正確
+                #      插值，因為所有 query time ≤ t_max 都在 s_time 範圍內。
+                if t_max is not None:
+                    _n_act = max(1, int((sensor_time_list[i] <= t_max).sum().item()))
+                    _sv_enc = sensor_vals_list[i][:_n_act]
+                    _st_enc = sensor_time_list[i][:_n_act]
+                else:
+                    _sv_enc = sensor_vals_list[i]
+                    _st_enc = sensor_time_list[i]
+                _trim_cache.append((_sv_enc, _st_enc))
                 h_states, s_time = net.encode(
-                    sensor_vals_list[i], sensor_pos_list[i], ds.re_norm, sensor_time_list[i]
+                    _sv_enc, sensor_pos_list[i], ds.re_norm, _st_enc
                 )
                 xy = torch.tensor(xy_np, dtype=torch.float32, device=device)
                 t_q = torch.tensor(t_np, device=device)
@@ -1575,6 +1686,8 @@ def train_lnn_kolmogorov(
                 l_poisson_total = torch.zeros(1, device=device)
                 phys_strategy = str(args.get("physics_collocation_strategy", "random"))
                 phys_normalize = bool(args.get("physics_residual_normalize", False))
+                _use_sensor_phys = bool(args.get("use_sensor_physics", False))
+                _sp_n_t = int(args.get("num_sensor_physics_time_samples", 4))
                 for i, ds in enumerate(datasets):
                     if _is_rar and _rar_pool_np is not None:
                         xyt = torch.tensor(_rar_pool_np[i], device=device, requires_grad=True)
@@ -1587,12 +1700,33 @@ def train_lnn_kolmogorov(
                             device=device,
                             requires_grad=True,
                         )
+                    # 準備 sensor physics 的 xyt（但不 concat 進隨機批次）。
+                    # Why: sensor physics 只計算 continuity（一階導數），不計算 momentum（需二階）。
+                    #      模型在感測器位置有精確擬合的空間梯度（data loss 所致），
+                    #      ∂²u/∂x² 在這些位置可能 overflow float32 → NaN。
+                    #      continuity = ∂u/∂x + ∂v/∂y 只需一階 _grad，數值穩定。
+                    _xyt_sp: torch.Tensor | None = None
+                    _sp_start = int(args.get("sensor_physics_start_step", 0))
+                    if _use_sensor_phys and step >= _sp_start:
+                        _t_all = ds.sensor_time  # numpy [T]
+                        _t_avail = _t_all[_t_all <= float(t_max if t_max is not None else _t_all[-1])]
+                        if len(_t_avail) > 0:
+                            _n_t = min(_sp_n_t, len(_t_avail))
+                            _t_idx = rng.choice(len(_t_avail), size=_n_t, replace=False)
+                            _t_sp = _t_avail[_t_idx]
+                            _xy_sp = np.repeat(ds.sensor_pos, _n_t, axis=0)
+                            _t_sp_rep = np.tile(_t_sp, ds.sensor_pos.shape[0])[:, None]
+                            _xyt_sp = torch.tensor(
+                                np.concatenate([_xy_sp, _t_sp_rep], axis=1).astype(np.float32),
+                                device=device, requires_grad=True,
+                            )
+                    _sv_phys, _st_phys = _trim_cache[i] if _trim_cache else (sensor_vals_list[i], sensor_time_list[i])
                     model_fn = make_lnn_model_fn(
                         net,
-                        sensor_vals_list[i],
+                        _sv_phys,
                         sensor_pos_list[i],
                         re_norm=ds.re_norm,
-                        sensor_time=sensor_time_list[i],
+                        sensor_time=_st_phys,
                         device=device,
                     )
                     u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
@@ -1602,9 +1736,6 @@ def train_lnn_kolmogorov(
                         u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
                     )
                     if phys_normalize:
-                        # 將每個殘差除以自身批次 RMS（detach 不參與梯度），使各項貢獻量級對齊。
-                        # Why: Re=10000 的 momentum 殘差 O(10)，continuity 可能 O(0.01)；
-                        #      不正規化時 continuity 梯度幾乎為零，無散度約束形同虛設。
                         def _norm_r(r: torch.Tensor) -> torch.Tensor:
                             return r / r.detach().std().clamp(min=1e-8)
                         mom_u = _norm_r(mom_u)
@@ -1613,6 +1744,14 @@ def train_lnn_kolmogorov(
                     l_ns_u_total = l_ns_u_total + torch.mean(mom_u ** 2)
                     l_ns_v_total = l_ns_v_total + torch.mean(mom_v ** 2)
                     l_cont_total = l_cont_total + torch.mean(cont ** 2)
+                    # sensor physics：僅計算 continuity（第一階導數，穩定）。
+                    if _xyt_sp is not None:
+                        u_sp = u_fn(_xyt_sp)
+                        v_sp = v_fn(_xyt_sp)
+                        du_dx_sp = _grad(u_sp, _xyt_sp)[:, 0:1]
+                        dv_dy_sp = _grad(v_sp, _xyt_sp)[:, 1:2]
+                        cont_sp = du_dx_sp + dv_dy_sp
+                        l_cont_total = l_cont_total + torch.mean(cont_sp ** 2)
                     if poisson_weight > 0.0:
                         poisson_res = pressure_poisson_residual(u_fn, v_fn, p_fn, xyt)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
@@ -1680,6 +1819,12 @@ def train_lnn_kolmogorov(
         if scheduler is not None:
             scheduler.step()
 
+        # MPS memory pool 釋放：每 200 步清空 MPS 快取的未使用記憶體。
+        # Why: temporal trim 產生 ~180 種不同形狀，MPS allocator 對每種形狀
+        #      保留快取但不主動釋放；定期 empty_cache 防止累積到 20GB+。
+        if device.type == "mps" and step % 200 == 0:
+            torch.mps.empty_cache()
+
         if log_fn is not None:
             extra: dict[str, float] = {}
             if use_gradnorm and gn_weights is not None:
@@ -1709,13 +1854,15 @@ def train_lnn_kolmogorov(
                     f"{step:<8} {l_data.item():>12.4e}"
                     f" {l_physics.item():>12.4e}"
                     f" {ws_vals[1]:>8.4f} {ws_vals[2]:>8.4f} {ws_vals[3]:>8.4f}"
-                    f" {l_total.item():>12.4e}{tm_str}"
+                    f" {l_total.item():>12.4e}{tm_str}",
+                    flush=True,
                 )
             else:
                 print(
                     f"{step:<8} {l_data.item():>12.4e}"
                     f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
-                    f" {l_total.item():>12.4e}{tm_str}"
+                    f" {l_total.item():>12.4e}{tm_str}",
+                    flush=True,
                 )
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:

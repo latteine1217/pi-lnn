@@ -1,0 +1,94 @@
+# configs/exp_062_re10000_xlarge_learnable_fourier.toml
+# What: EXP-062 — 以 LearnableFourierEmb（embed_dim=128, σ=2.0）取代確定性諧波編碼。
+#
+# Why: EXP-057/061 使用 periodic_fourier_encode(k=1..16)，k>16 的頻率完全缺席（硬性上限）。
+#      jaxpi 用 PeriodEmbs(k=1) + 可學習 Fourier 投影（init N(0,2.0), dim=384）允許網路
+#      自適應學習需要的頻率組合，隱性覆蓋高頻。
+#      EXP-060 嘗試 harmonics=32 但 SOAP 失穩；本實驗不增加確定性諧波數，
+#      改用可學習投影讓模型決定哪些頻率組合重要，同時維持 k=1 週期 BC 保證。
+#
+# embed_dim=128 vs jaxpi 384：
+#   jaxpi 對齊 Re=1e6（enstrophy 小尺度更密），N=512，k_max~64。
+#   Re=10000，N=256，ds=4 → 有效 k_max~32；頻率需求約 1/2，
+#   embed_dim=128 ≈ 384 × (32/64)，與 jaxpi 比例對齊。
+#
+# 架構差異 vs EXP-061：
+#   fourier_embed_dim = 128   (EXP-061: 0 → 使用舊 periodic_fourier_encode)
+#   fourier_harmonics = 16    (保留供 fallback；fourier_embed_dim>0 時不使用)
+#   query_in: 92 → 156        (128 spatial + 4 anchor + 16 time + 8 comp)
+#   branch base_in: 66 → 130  (128 spatial + 2 channel)
+#   可訓練參數: ~3.1M → ~3.2M（LearnableFourierEmb 各約 256 個 param）
+#
+# SOAP/LR 設定與 EXP-061 完全相同（已驗證穩定）。
+#
+# Hypothesis: LearnableFourierEmb 讓模型能表達 k>16 的結構；
+#             band_high_last 明顯低於 EXP-057（~87%）；mean KE 優於 EXP-061。
+# Falsifiability: 若 band_high_last ≥ EXP-057 且 mean KE ≥ EXP-061，
+#                 → 問題不在頻率容量，需改變架構深度或 physics 訊號品質。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = false
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 5
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 1000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp062-learnable-fourier"

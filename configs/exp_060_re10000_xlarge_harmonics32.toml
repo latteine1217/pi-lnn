@@ -1,0 +1,79 @@
+# configs/exp_060_re10000_xlarge_harmonics32.toml
+# What: EXP-060 — 冷啟動 10000 步，fourier_harmonics=32，IC Loss Weight（λ_IC=10，t≤0.05）。
+#
+# Why: EXP-057/059 均顯示 band_high_last ≈ 87%。
+#      根因診斷：trunk 空間 Fourier 編碼只到 k=16，而高頻帶為 k=23..32，
+#      模型完全缺乏 k=17..32 的基函數，無法直接表達這些模式。
+#      低/中/高三段誤差（6% / 67% / 87%）幾乎完美對應 k=1..16 的覆蓋程度。
+#      將 fourier_harmonics 從 16 提升至 32 可覆蓋完整的評估 k 範圍，
+#      並僅增加 ~49K 參數（1.6%），為最低成本的容量修補。
+#
+# Hypothesis: fourier_harmonics=32 提供 k=1..32 完整基函數後，
+#             band_high_last 顯著低於 EXP-057 的 87%；mean KE < 20.6%（EXP-057）。
+# Falsifiability: 若 band_high_last ≥ 85% → 軟性 spectral bias 是主因，
+#                 編碼容量不是瓶頸，需要不同策略。
+#
+# 差異點 vs EXP-057:
+#   fourier_harmonics = 32（EXP-057 為 16）
+#   其餘 config 完全相同
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 32
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = true
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp060-harmonics32"

@@ -48,6 +48,8 @@
 
 ## [STATE] Current Baseline
 
+### Re=1000 Baseline（EXP-030）
+
 | 項目 | 現況 |
 |---|---|
 | Baseline ID | `EXP-030` |
@@ -59,18 +61,31 @@
 | 主要改變 | EXP-028 step 3000 resume → 5000 steps；SOAP 曲率估計 + Polyak 平均雙效帶來 KE 突破 |
 | 主要已解問題 | t=3.5∼4.5 的 phase 高峰為 Re=1000 chaotic divergence 物理本質，非表徵問題 |
 
+### Re=10000 Baseline（EXP-064）
+
+| 項目 | 現況 |
+|---|---|
+| Baseline ID | `EXP-064` |
+| 主線 config | `configs/exp_064_re10000_xlarge_sensor_physics.toml` |
+| train artifact | `artifacts/deeponet-cfc-re10000-exp064-sensor-physics` |
+| eval checkpoint | `artifacts/deeponet-cfc-re10000-exp064-sensor-physics/checkpoints/lnn_kolmogorov_step_10000.pt` |
+| 目前判讀 | EXP-063（GradNorm）+ sensor 位置 continuity physics；**KE 7.80%（Re=10000 歷史最佳）**；div_l2 0.184；phase_err -0.0228 rad |
+| 主要優勢 | KE **7.80%**（-0.85pp vs EXP-063）、div_l2 **0.184**（-9.6%）、kf_phase_err **-0.0228 rad**（-53%） |
+| 已確認上限 | band_mid/high@t=5 ≈100% 為 K=100 感測器資訊論硬上限；sensor physics continuity 已無法突破此限 |
+
 ### 主線固定假設
 
 - 觀測 supervision 僅使用 `u, v`
 - physics 使用 primitive `momentum + continuity`
-- 空間編碼：`periodic_fourier_encode`（`fourier_harmonics=8`，共 32 特徵），嚴格週期邊界
+- 空間編碼：`LearnableFourierEmb`（`embed_dim=128`，σ=2.0）for Re=10000；`periodic_fourier_encode`（`fourier_harmonics=8`）for Re=1000
 - `relpos_bias`：純距離輸入 `|rel|`（等向），不含方向向量
 - `output_head_gain = 1`
 - `use_temporal_anchor = true`（`n_harmonics=2`）：為 trunk 提供 `sin/cos(2π n t/T)` 絕對時間座標
-- `Small` 尺寸已足夠進入穩定 regime
-- `Re=1000` forcing mode 應為 `k_f = 2`
+- `Small` 尺寸（d=64）在 Re=1000 已足夠；Re=10000 需 `XLarge`（d=256）
+- `Re=1000/10000` forcing mode 均為 `k_f = 2`
 - `time_marching` 應保留
-- 優化器主線：`SOAP + Schedule-Free`（`lr=3e-3`，`betas=(0.95,0.95)`，`precondition_freq=10`）
+- 優化器主線（Re=10000）：`SOAP + Schedule-Free`（`lr=1e-3`，`betas=(0.9,0.999)`，`precond_freq=2`，`step_decay`，`warmup=2000`）
+- `GradNorm`（`update_freq=1000`，`momentum=0.9`）自動均衡 data/physics task 梯度比例
 
 ---
 
@@ -107,6 +122,11 @@
 26. RAR（Residual Adaptive Refinement）頻率是關鍵參數：freq=50（EXP-053）擾亂 SOAP+SF preconditioner，L_phys 爆漲 7.96→19.27，KE 退至 25.2%；freq=1000（EXP-054）讓模型在固定 collocation 上充分收斂後再重新採樣，KE 改善至 19.6%。
 27. IC Loss Weight（λ_IC=10，t≤0.05）單獨即可將 KE 從 21.8%（EXP-048）→17.1%（EXP-055），優於 RAR（19.6%）。kf_amp_ratio 0.970 與 E(k_f) 0.934 均為全系列最佳，確認強制學習 t≈0 IC 連帶改善 forcing mode 重建。t=0 初始條件監督訊號是目前最有效的單一改動。
 28. RAR + IC weight 組合（EXP-056）產生負干擾：KE 19.4%，差於 IC alone（17.1%）。L_data 最終 2.59e-3 為全系列最低，但 KE 反而更高，說明 RAR 週期性更新 collocation 擾動了 IC weight 依賴的穩定梯度方向。兩機制的有效性依賴不同前提（RAR 需要可適應的 loss landscape；IC weight 需要穩定的 collocation），在同一訓練中互相衝突。
+29. 雙向 CfC（EXP-059）無法解決 t=0 重建問題：去除 IC weight 後 t=0 KE 從 55.5% 惡化至 60.4%，mean KE 僅微幅改善（20.6%→19.1%）。根因診斷：t=0 問題的核心是**訓練訊號不足（IC weight 缺失）**，而非資訊存取不對稱（因果 CfC）。同步確認 band_high 87% 的根因是 fourier_harmonics=16 缺乏 k=17..32 基函數（band error 與 k 覆蓋程度高度相關：low 6%、mid 67%、high 88%），與時序架構無關。
+30. jaxpi 對齊 SOAP（EXP-061，去除 SF，lr=1e-3，betas=[0.9,0.999]，warmup 2000，step decay）：KE 29.4%，差於 EXP-057（SF，lr=3e-3：20.6%）。確認在當前設定下 ScheduleFree 的 Polyak 平均對 Re=10000 穩定收斂有實質貢獻；去除 SF 後即使搭配 jaxpi 參數，KE 仍退步 8.8pp。
+31. LearnableFourierEmb（EXP-062，embed_dim=128，σ=2.0，jaxpi SOAP）：KE **10.4%（Re=10000 新紀錄）**，較 EXP-055（17.1%）改善 -6.7pp。機制診斷：改善源自低頻模態重建品質大幅提升（band_low@t=5: 5.8%），但 band_mid/high@t=5 ≈100%（中高頻能量近乎全滅），模型收斂至低頻能量主導解。hypothesis 部分 falsified：band_high 未改善（99.98% > EXP-057 87%），但 KE 改善來自低頻精度提升，非頻率容量擴展。
+32. 正確 jaxpi SOAP 對齊 + GradNorm（EXP-063）：KE **8.65%（Re=10000 最新最佳）**，-1.75pp vs EXP-062；div_l2 **0.204**（全系列最低，-64% vs EXP-062）。GradNorm 自動強化 continuity 約束，u_rmse 全時段改善 12%，t=0 worst_rmse -15%。band_mid/high@t=5 仍 ≈100%，**確認 K=100 感測器對 k>5 模態的覆蓋不足是資訊論硬上限**，非優化器或架構問題。
+33. Sensor 位置 continuity physics 點（EXP-064）：KE **7.80%（Re=10000 新紀錄，-0.85pp vs EXP-063）**；div_l2 **0.184**（-9.6%）；kf_phase_err **-0.0228 rad**（-53%）。band_mid/high@t=5 ≈100%（**hypothesis falsified**）：感測器位置 continuity 約束對整體精度（KE/div/phase）有實質幫助，但無法突破中高頻重建上限。**確認 band_mid/high 問題根源是模型表達力（trunk 深度/寬度）或需要不同感測器布局策略，而非 physics 約束密度**。
 
 ---
 
@@ -136,10 +156,16 @@
 | ID | Status | 主題 | 一句結論 |
 |---|---|---|---|
 | `EXP-030` | `ACTIVE_BASELINE` | `SOAP+SF resume EXP-028 → 5000 steps` | **目前最佳主線（Re=1000）：KE 9.61%、amp 1.027、u RMSE 5.68e-2；首次突破 10%** |
-| `EXP-058` | `RUNNING` | Re=10000, 冷啟動 10k，IC weight=10，**方案 B（CfC freerun）**，無 RAR | 架構改動：decoder branch token 用 CfC 自由積分至 t_q；對照 EXP-057 |
+| `EXP-064` | `ACTIVE_BASELINE` | Re=10000, 冷啟動 10k，**EXP-063 + sensor continuity**（sensor_physics=true, n_t=1, start=1000，僅 continuity） | **KE 7.80%（Re=10000 新紀錄，-0.85pp vs EXP-063）**；div_l2 **0.184（-9.6%）**；phase_err -0.0228 rad（-53%）；band_mid/high@t=5 ≈100%（hypothesis falsified） |
+| `EXP-063` | `POSITIVE_RESULT` | Re=10000, 冷啟動 10k，**EXP-062 + 正確 jaxpi SOAP 對齊 + GradNorm**（SF=true, precond=2, wd=0, decay=2000, gn_freq=1000, gn_mom=0.9） | KE 8.65%；div_l2 0.204；band_mid/high@t=5 ≈100%；已被 EXP-064 取代 |
+| `EXP-062` | `POSITIVE_RESULT` | Re=10000, 冷啟動 10k，**LearnableFourierEmb（embed_dim=128, σ=2.0）**，SOAP jaxpi 對齊 | **KE 10.4%（Re=10000 新紀錄，-6.7pp vs EXP-055 17.1%）**；band_low 5.8%，但 band_mid/high@t=5 ≈100%（頻譜集中低頻），EXP-055 地位取代 |
+| `EXP-061` | `NEGATIVE_RESULT` | Re=10000, 冷啟動 10k，**jaxpi 對齊 SOAP**（betas=(0.9,0.999), precond_freq=5, warmup 2000, step decay），h16，physics_pts=64 | KE 29.4%（差於 EXP-057 20.6%）；jaxpi SOAP 設定 + 去除 SF 反而退步；hypothesis falsified |
+| `EXP-060` | `NEGATIVE_RESULT` | Re=10000, 冷啟動 10k，**fourier_harmonics=32**，IC weight=10，SOAP+SF | KE 97.6%（完全崩潰）；L_phys 週期爆漲（step6000: 517）；SOAP+SF 在 h=32 時不穩定，ScheduleFree Polyak 平均污染至 near-zero |
+| `EXP-059` | `NEGATIVE_RESULT` | Re=10000, 冷啟動 10k，**雙向 CfC**，無 IC weight，無 RAR | KE 19.1%（小幅優於 EXP-057）；**t=0 KE 60.4%（惡化，EXP-057 為 55.5%）**；雙向 CfC 無法解決 t=0 問題，假設部分 falsify |
+| `EXP-058` | `PAUSED` | Re=10000, 冷啟動 10k，IC weight=10，**方案 B（CfC freerun）**，無 RAR | 假設被 EXP-057 時序診斷推翻（誤差隨時間遞減，非遞增）；暫停，改從 t=0 重建問題著手 |
 | `EXP-057` | `COMPLETED` | Re=10000, 冷啟動 10k，IC weight=10，無 RAR（無 freerun） | KE 20.6%；div L2 0.796（最佳）；kf_phase 0.008 rad；優於 EXP-051（無 IC，27.8%），差於 EXP-055（resume，17.1%）→ warm state 貢獻確認 |
 | `EXP-056` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=1000 + IC weight，再跑 10000 步至 step 19500 | KE 19.4%（差於 EXP-055 17.1%）；組合產生負干擾，RAR 擾動 IC weight 的優化路徑 |
-| `EXP-055` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500 | **KE 17.1%（突破 EXP-054 19.6%，−2.5pp）**；amp 0.970；phase 0.034 rad；IC weight 確認有效，**目前 Re=10000 最佳基準** |
+| `EXP-055` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + IC Loss Weight（λ_IC=10，t≤0.05），再跑 10000 步至 step 19500 | KE 17.1%（突破 EXP-054 19.6%，−2.5pp）；amp 0.970；phase 0.034 rad；IC weight 確認有效，已被 EXP-062 取代 |
 | `EXP-054` | `POSITIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=1000，再跑 10000 步至 step 19500 | KE 19.6%（突破 EXP-048 21.8%，−2.2pp）；amp 0.961；phase 0.064 rad；RAR freq=1000 有效 |
 | `EXP-053` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + RAR freq=50，再跑 10000 步至 step 19500 | KE 25.2%（差於 EXP-048 21.8%）；RAR 更新頻率過高（50步），持續擾動 loss landscape，L_phys 爆漲 7.96→19.27 |
 | `EXP-052` | `NEGATIVE_RESULT` | Re=10000, resume EXP-048 step_9500 + L-BFGS 100步（實際完成） | KE 24.07%（差於 EXP-048 21.8%）；每 100 步耗時 68 分鐘，2000 步需 22 小時，計算成本不可行；L-BFGS 不適用於此規模的隨機 mini-batch 設定 |
@@ -268,17 +294,184 @@
 
 ---
 
+## [RECORD] EXP-064
+
+- Status: `ACTIVE_BASELINE`
+- Time: `2026-04-24` 設計，`2026-04-25` 完成訓練與評估
+- Topic: Re=10000, 冷啟動 10000 步，**EXP-063 + 感測器位置 continuity physics 點**
+- Config: `configs/exp_064_re10000_xlarge_sensor_physics.toml`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp064-sensor-physics/checkpoints/lnn_kolmogorov_step_10000.pt`
+- Compare vs EXP-063（唯一改動）：
+  - `use_sensor_physics = true`（EXP-063: false）
+  - `num_sensor_physics_time_samples = 1`（每步 K=100 感測器 × 1 時間步 = 100 額外 continuity 點）
+  - `sensor_physics_start_step = 1000`（前 1000 步只用隨機 collocation）
+  - Note: sensor physics 只計算 continuity（`∂u/∂x + ∂v/∂y=0`），不計算 momentum（∂²u/∂x² 在 sensor 位置溢位 float32）
+- Hypothesis: 感測矩陣分析（K=100, k≤16, 條件數≈11）確認感測器位置對中高頻有最佳分辨率；加入 sensor continuity 期望 band_mid@t=5 從 99.97% 改善，KE ≤ EXP-063（8.65%）
+- Falsifiability: 若 band_mid/high@t=5 仍 ≈100% → 問題不在感測器物理約束密度，需從模型表達力（trunk 深度/寬度）或感測器策略著手
+- Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.0780`（KE **7.80%**，**Re=10000 新紀錄**，-0.85pp vs EXP-063）
+  - `ens_rel_err_mean = 0.2910`（29.1%）
+  - `div_l2_mean = 0.1843`（**Re=10000 全系列最佳**，-9.6% vs EXP-063 0.204）
+  - `kf_amp_ratio_last = 0.9615`（持平 EXP-063 0.9636）
+  - `kf_phase_err_last = -0.0228 rad`（**-53% vs EXP-063 -0.0489 rad**）
+  - `u_rmse_mean = 0.0689`，`v_rmse_mean = 0.0621`
+  - `band_energy_rel_err_last`: low **3.6%** / mid **99.97%** / high **100.0%**
+  - worst_time = t=0.10，worst_ke = 29.96%（t=0 附近 IC 仍不穩）
+  - `ns_u_rms_mean = 0.523`，`ns_v_rms_mean = 0.506`（NS residual 仍非零，物理約束未完全滿足）
+- Decision: **Positive（新 Re=10000 baseline）**。KE 7.80% 為 Re=10000 新紀錄；sensor continuity 對 div_l2（-9.6%）與 phase reconstruction（-53%）有實質貢獻。**Hypothesis falsified**：band_mid/high@t=5 ≈100% 無改善，確認中高頻失敗根源為模型表達力或感測器策略問題，非 physics 約束密度問題。下一步方向：增加 trunk MLP 深度（num_query_mlp_layers 1→2 或 3）或考慮更深的 query encoder。
+- Supersedes: EXP-063
+
+---
+
+## [RECORD] EXP-063
+
+- Status: `POSITIVE_RESULT`
+- Time: `2026-04-24` 設計，`2026-04-24` 完成訓練與評估
+- Topic: Re=10000, 冷啟動 10000 步，**EXP-062 架構 + 正確 jaxpi SOAP 對齊 + GradNorm 自適應 loss 權重**
+- Config: `configs/exp_063_re10000_xlarge_soap_gradnorm.toml`
+- Compare vs EXP-062（唯一改動）：
+  - `use_schedule_free = true`（EXP-062: false；jaxpi soap.py: true）
+  - `soap_precondition_frequency = 2`（EXP-062: 5；jaxpi: hardcode 2）
+  - `weight_decay = 0.0`（EXP-062: 1e-4；jaxpi SOAP: 0.0）
+  - `lr_decay_steps = 2000`（EXP-062: 1000；jaxpi: 2000）
+  - `use_gradnorm = true`（新增；jaxpi scheme: grad_norm）
+  - `gradnorm_update_freq = 1000`（jaxpi: update_every_steps=1000）
+  - `gradnorm_ema_momentum = 0.9`（jaxpi: momentum=0.9）
+  - `gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]`
+- Bug Fix: `ScheduleFreeWrapper` 非 `torch.optim.Optimizer` 子類，LR scheduler 改綁 `base_optimizer`
+- Hypothesis: 正確 SOAP 對齊 + GradNorm 動態均衡後，KE ≤ EXP-062（10.4%）；band_mid/high@t=5 從 ~100% 改善
+- Falsifiability: 若 KE ≥ EXP-062 且 band_mid/high@t=5 仍 ≈100% → GradNorm 無法恢復中高頻，問題在 physics 訊號品質或架構深度
+- Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.0865`（KE **8.65%**，**Re=10000 新紀錄**，-1.75pp vs EXP-062）
+  - `ens_rel_err_mean = 0.3037`（30.4%）
+  - `div_l2_mean = 0.2039`（**Re=10000 全系列最佳**，-64% vs EXP-062 0.571）
+  - `kf_amp_ratio_last = 0.9636`（優於 EXP-062 0.949）
+  - `kf_phase_err_last = -0.0489 rad`（優於 EXP-062 -0.063 rad）
+  - `u_rmse_mean = 0.0709`，`v_rmse_mean = 0.0636`（-12% vs EXP-062）
+  - `band_energy_rel_err_last`: low **5.0%** / mid **99.97%** / high **100%**
+  - worst_time = t=0.0，worst_u_rmse = 0.1646（優於 EXP-062 0.194）
+- Decision: **Positive**。KE 8.65% 為 Re=10000 新紀錄；div_l2 0.204 大幅改善（GradNorm 自動強化 continuity 約束的效果）。Hypothesis 部分成立：KE 改善確認，但 band_mid/high@t=5 仍 ≈100%，**確認中高頻失敗為感測器覆蓋的資訊論上限**，非優化器或架構問題。下一步應從 physics collocation 密度（num_physics_points=128）著手。
+
+---
+
+## [RECORD] EXP-062
+
+- Status: `POSITIVE_RESULT`
+- Time: `2026-04-23` 設計，`2026-04-24` 完成訓練與評估
+- Topic: Re=10000, 冷啟動 10000 步，**LearnableFourierEmb（embed_dim=128, init σ=2.0）**，SOAP jaxpi 對齊設定
+- Config: `configs/exp_062_re10000_xlarge_learnable_fourier.toml`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp062-learnable-fourier/checkpoints/lnn_kolmogorov_step_10000.pt`
+- trainable_parameters: 3,138,890
+- Compare vs EXP-061（確定性 k=1..16）：
+  - `fourier_embed_dim=128`（新增；EXP-061 為 0，使用舊 periodic_fourier_encode）
+  - `fourier_harmonics=16`（保留，但 fourier_embed_dim>0 時不使用）
+  - trunk query_in: 92 → 156（+64，spatial dim 64→128）
+  - branch base_in: 66 → 130（+64）
+  - SOAP/LR 設定完全相同（betas=[0.9,0.999], precond_freq=5, warmup 2000, step decay）
+- Hypothesis: 可學習 Fourier 投影讓模型自適應覆蓋 k>16；band_high_last 明顯低於 EXP-057（~87%）；mean KE 優於 EXP-061
+- Falsifiability: 若 band_high_last ≥ EXP-057 且 KE ≥ EXP-061 → 問題不在頻率容量，需改架構深度或 physics 訊號
+- Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.1044`（KE **10.4%**，**Re=10000 新紀錄**，-6.7pp vs EXP-055）
+  - `ens_rel_err_mean = 0.3223`（32.2%）
+  - `div_l2_mean = 0.5706`（優於 EXP-057 0.796）
+  - `kf_amp_ratio_last = 0.9494`（差於 EXP-057 0.981）
+  - `kf_phase_err_last = -0.0631 rad`（差於 EXP-057 0.008 rad）
+  - `u_rmse_mean = 0.0809`，`v_rmse_mean = 0.0744`
+  - `band_energy_rel_err_last`: low **5.8%** / mid **99.8%** / high **99.98%**
+  - worst_time = t=0.0，worst_u_rmse = 0.194
+- Decision: **Positive（有條件）**。KE 10.4% 為 Re=10000 新紀錄，超越 EXP-055（17.1%）。Hypothesis 部分 falsified：band_high_last=99.98% 未改善（目標 <87%），KE 改善源自低頻精度大幅提升（band_low@t=5: 5.8%），而非頻率覆蓋擴展。模型收斂至低頻主導解：中高頻能量（k>約5）在 t=5 幾乎全滅，物理頻譜結構不完整。若以工程 KE 標準判定為正面結果，若以頻譜完整性判定則需後續改進。
+
+---
+
+## [RECORD] EXP-061
+
+- Status: `NEGATIVE_RESULT`
+- Time: `2026-04-22` 啟動（PID 46401），`2026-04-24` 完成評估
+- Topic: Re=10000, 冷啟動 10000 步，**jaxpi 對齊 SOAP**，fourier_harmonics=16，IC weight=10，num_physics_points=64
+- Config: `configs/exp_061_re10000_xlarge_soap_aligned.toml`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp061-soap-aligned/checkpoints/lnn_kolmogorov_step_10000.pt`
+- Compare vs EXP-057:
+  - `soap_betas=[0.9,0.999]`（EXP-057: [0.95,0.95]）
+  - `soap_precondition_frequency=5`（EXP-057: 10；jaxpi=2，取折衷值）
+  - `lr_warmup_steps=2000`（EXP-057: 0）
+  - `soap_use_step_decay=true`（每 1000 步×0.9，EXP-057: 無 decay）
+  - `use_schedule_free=false`（EXP-057: true）
+  - `learning_rate=1e-3`（EXP-057: 3e-3）
+  - `num_physics_points=64`（EXP-057: 32）
+- Hypothesis: SOAP 對齊後 L_phys 穩定（無週期爆漲）；mean KE ≤ EXP-057（20.6%）
+- Falsifiability: 若 L_phys 仍爆漲 → 問題不在 SOAP 設定本身
+- Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.2943`（KE **29.4%**，差於 EXP-057 20.6%，**+8.8pp**）
+  - `ens_rel_err_mean = 0.4518`（45.2%）
+  - `div_l2_mean = 0.8352`（差於 EXP-057 0.796）
+  - `kf_amp_ratio_last = 0.9053`（差於 EXP-057 0.981）
+  - `kf_phase_err_last = 0.0291 rad`（差於 EXP-057 0.008 rad）
+  - `u_rmse_mean = 0.1183`，`v_rmse_mean = 0.1031`
+  - `band_energy_rel_err_last`: low 20.9% / mid 53.5% / high **98.1%**
+  - worst_time = t=0.0，worst_u_rmse = 0.264
+- Decision: **Falsified**。去除 ScheduleFree 後（use_schedule_free=false），即使搭配 jaxpi SOAP 參數（betas=[0.9,0.999], warmup 2000, step decay），KE 仍從 20.6% 退步至 29.4%。根因最可能是 Polyak 平均缺失：SF Polyak 平均在 Re=10000 chaotic flow 上提供關鍵的推理時平滑效果。lr=1e-3 降低（EXP-057: 3e-3）亦可能造成收斂速度不足。jaxpi SOAP 參數設定本身無法單獨解決收斂品質問題。
+
+---
+
+## [RECORD] EXP-060
+
+- Status: `NEGATIVE_RESULT`
+- Time: `2026-04-22` 啟動，`2026-04-22` 完成
+- Topic: Re=10000, 冷啟動 10000 步，**fourier_harmonics=32**，IC Loss Weight（λ_IC=10，t≤0.05），SOAP+SF，無 RAR
+- Config: `configs/exp_060_re10000_xlarge_harmonics32.toml`
+- Compare vs EXP-057: `fourier_harmonics=32`（EXP-057 為 16）；其餘完全相同
+- Hypothesis: trunk Fourier 編碼從 k=1..16 擴展至 k=1..32；band_high_last < 85%；mean KE < 20.6%
+- Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.976`（KE **97.6%**，完全崩潰）
+  - `div_l2_mean = 4.523`
+  - `kf_amp_ratio_last = 0.140`
+  - `kf_phase_err_last = 1.049 rad`
+  - `band_high_last = 976163%`（無意義）
+  - step_5000 評估同樣崩潰（KE 97.0%）
+- Training Log 異常：
+  - step 3000: L_phys=59.5 ⚠️
+  - step 6000: L_phys=517.6 ⚠️
+  - step 9000: L_phys=95.2 ⚠️
+  - step 5000 L_data=0.329（> 零預測基準 0.003），確認預測振盪失控
+- Decision: **Falsified（完全失敗）**。harmonics=32 擴大 trunk input（96→160）後，SOAP+SF 在高頻方向曲率估計失效，L_phys 週期爆漲；ScheduleFree Polyak 平均累積壞歷史後收斂至 near-zero。根因：betas=(0.95,0.95) 二階動量過激進 + precond_freq=10 更新太慢 + 無 LR warmup。下一步：EXP-061（jaxpi 對齊 SOAP）。
+
+---
+
+## [RECORD] EXP-059
+
+- Status: `NEGATIVE_RESULT`
+- Time: `2026-04-21` 設計，`2026-04-22` 完成訓練與評估
+- Topic: Re=10000, 冷啟動 10000 步，**雙向 CfC（use_bidirectional_cfc=true）**，無 IC weight（t_early_weight=1.0），無 RAR
+- Config: `configs/exp_059_re10000_xlarge_bidir_cfc.toml`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp059-bidir-cfc/checkpoints/lnn_kolmogorov_step_10000.pt`
+- Compare vs EXP-057: `use_bidirectional_cfc=true`（新增）、`t_early_weight=1.0`（EXP-057 為 10.0）
+- Hypothesis: 雙向 CfC 使 h_states[t=0] 同時看到未來觀測，消除因果編碼資訊不對稱；mean KE < 20.6%，t=0 KE < 50%
+- Metrics:
+  - `ke_rel_err_mean = 0.1913`（KE **19.1%**，優於 EXP-057 20.6%，**−1.5pp**）
+  - `ens_rel_err_mean = 0.4041`
+  - `div_l2_mean = 0.7012`（優於 EXP-057 0.796）
+  - `kf_amp_ratio_last = 1.009`（優於 EXP-057 0.981）
+  - `kf_phase_err_last = 0.031 rad`（差於 EXP-057 0.008 rad）
+  - `omega_rmse_mean = 5.167`
+  - t=0 KE（worst_value）= **60.4%**（差於 EXP-057 55.5%，**惡化 4.9pp**）
+  - `band_high_last = 87.6%`（EXP-057 為 87.0%，未改善）
+- Hypothesis Verdict:
+  - mean KE < 20.6%：**PASS**（19.1%）
+  - t=0 KE < 50%：**FAIL**（60.4%，反而更差）
+  - **部分 falsify**：雙向 CfC 微幅改善 mean KE，但無法解決 t=0 重建問題
+- Decision: **Negative**。t=0 問題的根因是**訓練訊號（IC weight）不足**，而非資訊存取（雙向掃描）不足。去除 IC weight 後 t=0 惡化印證此結論。band_high 診斷確認高頻容量瓶頸在 **fourier_harmonics=16 缺乏 k=17..32 基函數**，與時序編碼架構無關。下一步：EXP-060（fourier_harmonics=32 + IC weight=10）。
+
+---
+
 ## [RECORD] EXP-058
 
-- Status: `RUNNING`
-- Time: `2026-04-21` 訓練啟動
+- Status: `PAUSED`
+- Time: `2026-04-21` 訓練嘗試啟動，`2026-04-21` 暫停
 - Topic: Re=10000, 冷啟動 10000 步，IC Loss Weight（λ_IC=10，t≤0.05），無 RAR，**方案 B：CfC 自由積分（use_cfc_freerun=true）**
 - Config: [`configs/exp_058_re10000_xlarge_cfc_freerun.toml`](/Users/latteine/Documents/coding/pi-lnn/configs/exp_058_re10000_xlarge_cfc_freerun.toml)
-- Evaluated Checkpoint: TBD
-- Key Architectural Change: `DeepONetCfCDecoder` 加入 `freerun_cell = CfCCell(d_model, d_model)`；branch token 在 cross-attention 前先以 CfC 從 `sensor_time[idx]` 推進至 `t_q`（x=h 自主動態）
-- Hypothesis: CfC 自由積分改善 branch token 時間連貫性，KE rel-err 低於 EXP-057（冷啟動對照組，KE 20.6%）
-- Falsifiability: 若 KE ≥ EXP-057（20.6%），則 CfC 自由積分在此設定無助於時間連貫性
-- Compare vs EXP-057: 唯一差異 = `use_cfc_freerun`（True vs False）；其餘 config 完全相同
+- Pause Reason: **假設根本不成立**。分析 EXP-057 時序數據後發現，誤差隨時間**遞減**（t=0: KE 55.5% → t=5: KE 9.3%），代表模型隨觀測累積而改善，而非因時序連貫性缺失而惡化。方案 B 針對的問題並不存在。
+- Diagnosis: 真正瓶頸是 **t=0 初始條件重建失敗**（KE 55.5%）與 **高頻帶 spectral bias**（band_high t=5 = 87%）。
+- Architecture Change Reverted: `use_cfc_freerun` flag 與相關 freerun_gate/freerun_value 模組已從 `lnn_kolmogorov.py` 移除。
 
 ---
 

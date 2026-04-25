@@ -1,0 +1,108 @@
+# configs/exp_064_re10000_xlarge_sensor_physics.toml
+# What: EXP-064 — EXP-063 + physics at sensor locations（感測器位置補充 NS 殘差計算）。
+#
+# Why: 感測矩陣分析確認 K=100 感測器對 k≤16 條件數≈11（良態），
+#      代表感測器位置的 NS 殘差對中高頻模態具有最高的頻率分辨率。
+#      目前 64 個隨機 collocation 點無此保證；加入感測器位置物理點
+#      讓 Laplacian ∇²u（高頻放大因子 k²）在這 100 個最佳位置被正確約束。
+#      EXP-063 確認 band_mid/high ≈100% 是模型未提取資訊，非感測器覆蓋問題。
+#
+# 唯一改動（vs EXP-063）：
+#   use_sensor_physics = true
+#   num_sensor_physics_time_samples = 4  → 每步 100 感測器 × 4 時間 = 400 額外 physics pts
+#
+# Hypothesis: band_mid@t=5 從 99.97% 改善；KE ≤ 8.65%（EXP-063）
+# Falsifiability: 若 band_mid/high@t=5 仍 ≈100% → 問題不在感測器物理約束密度，
+#                 需從模型表達力（trunk 深度）或不同訓練策略著手。
+#
+# GradNorm 加入理由：
+#   固定 physics_loss_weight=0.01 無法感知訓練動態；
+#   借鑑 jaxpi 的 grad_norm 自適應方案（update_every_steps=1000, momentum=0.9），
+#   讓 [data, ns_u, ns_v, cont] 四個 task 的梯度貢獻自動均衡。
+#   Note: GradNorm 接管 physics_loss_weight，後者在 use_gradnorm=true 時不作為乘數。
+#
+# 架構與 EXP-062 完全相同（LearnableFourierEmb, embed_dim=128, d_model=256）。
+#
+# Hypothesis: 正確 SOAP 對齊 + GradNorm 動態平衡後，KE ≤ EXP-062（10.4%）；
+#             band_mid/high@t=5 改善（EXP-062 中高頻崩潰的診斷）。
+# Falsifiability: 若 KE ≥ EXP-062 且 band_mid/high@t=5 仍 ≈100%
+#                 → GradNorm 無法恢復中高頻，問題在 physics 訊號品質或架構深度。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# GradNorm 接管 physics/data 比例，physics_loss_weight 在 use_gradnorm=true 時不作為乘數。
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# GradNorm 設定（借鑑 jaxpi soap.py）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = true
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp064-sensor-physics"

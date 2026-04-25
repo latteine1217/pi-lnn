@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pi-LNN Mainline Architecture</title>
+<title>Pi-LNN Architecture & Experiment State</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -251,6 +251,10 @@ a {
 
 .metric-value.warn {
   color: var(--orange);
+}
+
+.metric-value.bad {
+  color: var(--red);
 }
 
 .metric-note {
@@ -1517,44 +1521,45 @@ code {
 
   <section class="hero">
     <div class="hero-card hero-main">
-      <div class="eyebrow">Technical Reference · April 9, 2026</div>
-      <h1>Pi-LNN Mainline<br>DeepONet + CfC for Sparse Kolmogorov Flow</h1>
+      <div class="eyebrow">Technical Reference · April 25, 2026</div>
+      <h1>Pi-LNN Re=10000 Demo<br>DeepONet + CfC for Sparse Kolmogorov Flow</h1>
       <p>
-        這是一頁面向展示的技術簡報：用 100 個稀疏感測器的 <code>u, v</code> 時序，
-        在週期邊界 Kolmogorov flow 上重建任意 <code>(x, y, t)</code> 的
-        <code>u, v, p</code>。頁面聚焦於當前主線模型本身、LNN/CfC 的角色，
-        以及已產出的結果圖。
+        這頁現在以 <code>Re=10000 / EXP-064</code> 作為主 demo。
+        目標不是展示「模型曾經在較簡單條件下能跑」，而是展示目前在高 Reynolds number、
+        稀疏觀測與週期邊界下，Pi-LNN 實際能做到什麼程度。
+        <code>Re=1000 / EXP-030</code> 仍保留為前期驗證，但不再是本頁主敘事。
       </p>
       <div class="chip-row">
-        <div class="chip"><b>Demo Model</b> EXP-030 / Re=1000</div>
+        <div class="chip"><b>Current Demo</b> EXP-064 / Re=10000</div>
         <div class="chip"><b>Observed</b> u, v only</div>
-        <div class="chip"><b>Space</b> periodic Fourier (8 harmonics)</div>
+        <div class="chip"><b>Space</b> LearnableFourierEmb (embed_dim=128)</div>
         <div class="chip"><b>Attention Bias</b> isotropic distance only</div>
         <div class="chip"><b>Temporal</b> CfC + temporal anchor</div>
-        <div class="chip"><b>Optimizer</b> SOAP + Schedule-Free</div>
+        <div class="chip"><b>Scale</b> xlarge d=256 / rank=256</div>
+        <div class="chip"><b>Validation Note</b> Re=1000 only as early-stage verification</div>
       </div>
     </div>
 
     <div class="hero-card hero-side">
       <div class="stat-card">
         <div class="metric-label">KE Relative Error</div>
-        <div class="metric-value good">9.61%</div>
-        <div class="metric-note">全時段平均 kinetic energy 相對誤差，首次突破 10% 門檻。</div>
+        <div class="metric-value good">7.80%</div>
+        <div class="metric-note">`EXP-064` 是目前 Re=10000 最佳整體 KE（-0.85pp vs EXP-063）。</div>
       </div>
       <div class="stat-card">
-        <div class="metric-label">u RMSE Mean</div>
-        <div class="metric-value good">5.68e-2</div>
-        <div class="metric-note">目前主線的最低 u 分量平均誤差尺度。</div>
+        <div class="metric-label">u / v RMSE</div>
+        <div class="metric-value good">6.89e-2 / 6.21e-2</div>
+        <div class="metric-note">速度兩分量誤差壓到 <code>7e-2</code> 量級，全系列最佳。</div>
       </div>
       <div class="stat-card">
-        <div class="metric-label">k_f Amp Ratio</div>
-        <div class="metric-value good">1.027</div>
-        <div class="metric-note">Kolmogorov forcing 主模態振幅略高於 DNS，但仍維持在可接受區間。</div>
+        <div class="metric-label">k_f Diagnostics</div>
+        <div class="metric-value good">0.962 / -0.023</div>
+        <div class="metric-note">forcing mode amplitude ratio / phase error；phase error -53% vs EXP-063。</div>
       </div>
       <div class="stat-card">
-        <div class="metric-label">Baseline Status</div>
-        <div class="metric-value good">EXP-030</div>
-        <div class="metric-note">SOAP 曲率估計加上 Schedule-Free / Polyak 推理，取代 EXP-025 成為當前主線。</div>
+        <div class="metric-label">Key Enablers</div>
+        <div class="metric-value warn">GradNorm + Sensor Physics</div>
+        <div class="metric-note">GradNorm 自動均衡 task 梯度；sensor continuity 改善 div_l2（-9.6%）與 phase。</div>
       </div>
     </div>
   </section>
@@ -1562,11 +1567,10 @@ code {
   <section class="section">
     <div class="section-label">01 · Target Case</div>
     <div class="panel">
-      <h2 class="panel-title">What physical case this demo is solving</h2>
+      <h2 class="panel-title">What physical case the current demo is solving</h2>
       <p class="panel-desc">
-        在看模型之前，必須先知道它對應的是哪一個物理問題。這頁展示的是
-        <code>Re = 1000</code> 的 2D Kolmogorov flow，資料與 loss 都圍繞同一組
-        forcing、週期邊界與稀疏觀測設定建立。
+        這頁展示的是 <code>Re = 10000</code> 的 2D Kolmogorov flow。
+        這比 `Re=1000` 更接近目前真正有辨識力的挑戰設定，因此本頁的 target case、架構參數與結果圖都以這條主線為中心。
       </p>
 
       <div class="case-layout">
@@ -1575,42 +1579,42 @@ code {
             <div class="mini-label">Flow</div>
             <div class="param-value">2D Kolmogorov</div>
             <p>
-              Periodic box on <code>[0,1]^2</code>，本頁所有圖都只對應這個單一主線 case。
+              Periodic box on <code>[0,1]^2</code>，目前 demo 對應高 Reynolds number regime。
             </p>
           </div>
           <div class="case-card param-card">
             <div class="mini-label">Reynolds</div>
-            <div class="param-value">Re = 1000</div>
+            <div class="param-value">Re = 10000</div>
             <p>
-              黏性尺度固定，結果圖不混入其他 Reynolds number 的對照輸出。
+              本頁主 demo 為 <code>EXP-064</code>；`Re=1000 / EXP-030` 現在只作前期驗證，不再作為說服主體。
+            </p>
+          </div>
+          <div class="case-card param-card">
+            <div class="mini-label">DNS Grid</div>
+            <div class="param-value"><code>N = 256</code></div>
+            <p>
+              對應 <code>T = 201</code> 個時間點、<code>dt = 0.025</code> 的高解析時間序列。
             </p>
           </div>
           <div class="case-card param-card">
             <div class="mini-label">Forcing</div>
             <div class="param-value"><code>f_x = 0.1 sin(4π y)</code></div>
             <p>
-              等價寫法為 <code>A = 0.1</code>、<code>k_f = 2</code>、<code>L = 1</code>，且 <code>f_y = 0</code>。
+              兩個 regime 都對齊 <code>A = 0.1</code>、<code>k_f = 2</code>、<code>L = 1</code>，且 <code>f_y = 0</code>。
             </p>
           </div>
           <div class="case-card param-card">
             <div class="mini-label">Boundary</div>
             <div class="param-value">Periodic x / y</div>
             <p>
-              x 與 y 方向皆為 strict periodic boundary condition，這也是 Fourier 編碼成立的前提。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">Time Span</div>
-            <div class="param-value"><code>t ∈ [0,5]</code></div>
-            <p>
-              共 <code>101</code> 個時間點，<code>dt = 0.05</code>；decoder 的 <code>dt_to_query</code> 就是在這個時間軸上定義。
+              x 與 y 方向皆為 strict periodic boundary condition；Fourier 編碼與相對位置處理都建在這個假設上。
             </p>
           </div>
           <div class="case-card param-card">
             <div class="mini-label">Observation</div>
             <div class="param-value"><code>K = 100</code> sparse sensors</div>
             <p>
-              來自 <code>128 × 128</code> DNS 的 <code>QR pivoting</code> 取樣；主線只觀測 <code>u, v</code>，輸出重建 <code>u, v, p</code>。
+              只觀測 <code>u, v</code>；在 Re=10000 下，限制仍是 sparse sensors 的資訊量，而不是 pressure supervision。
             </p>
           </div>
         </div>
@@ -1618,12 +1622,12 @@ code {
         <div class="case-card case-visual">
           <div>
             <div class="mini-label">DNS Snapshot</div>
-            <h3>Kolmogorov Flow Vorticity at t = 5.0</h3>
+            <h3>Re=10000 Vorticity at t = 5.0</h3>
           </div>
-          <img src="assets/kolmogorov_dns_vorticity_t5.png" alt="DNS vorticity field at t equals 5">
+          <img src="assets/kolmogorov_dns_vorticity_re10000_t5.png" alt="DNS vorticity field for Reynolds number 10000 at t equals 5">
           <p class="case-caption">
-            這張圖提供 target case 的直接空間參考。後面的 field、vorticity、spectrum 與 forcing-mode 圖，
-            都是在嘗試逼近這個 Re = 1000 周期流場所呈現的主渦旋帶與正負渦度分區。
+            這張圖提供目前 demo 的直接空間參考。後面的 field、vorticity、spectrum 與 forcing-mode 圖，
+            都是在嘗試逼近這個高 Re 週期流場所呈現的細尺度渦度帶與更陡峭的頻譜分佈。
           </p>
         </div>
       </div>
@@ -1638,6 +1642,7 @@ code {
         這個模型不是單一路徑把資料一路往下丟，而是兩條平行工作路徑同時存在：
         左側先建立 sensor memory，右側為每個查詢點建立 query feature；
         兩條路徑最後在 decoder 交會，完成場值讀取與輸出。
+        `EXP-064` 的改變主要發生在空間編碼、優化器與物理約束設計，而不是整個 operator 拓樸被推翻。
       </p>
 
       <div class="comfy-board" aria-label="ComfyUI-style model architecture graph">
@@ -1665,9 +1670,9 @@ code {
             <div class="node-body">
               <p>真實觀測只包含 <code>u, v</code>，並保留 sensor position 與 sensor time。</p>
               <div class="node-chip-row">
-                <span class="node-chip">T=101</span>
+                <span class="node-chip">T=201</span>
                 <span class="node-chip">K=100</span>
-                <span class="node-chip">Re=1000</span>
+                <span class="node-chip">Re=10000</span>
               </div>
             </div>
           </article>
@@ -1680,10 +1685,10 @@ code {
               <div class="node-type">tokenizer</div>
             </div>
             <div class="node-body">
-              <p><code>periodic_fourier_encode</code> 加上 residual MLP，把每個 sensor 轉成 token。</p>
+              <p><code>LearnableFourierEmb(embed_dim=128)</code> 加上 residual MLP，把每個 sensor 轉成 token。</p>
               <div class="node-chip-row">
-                <span class="node-chip">fourier=8</span>
-                <span class="node-chip">tokens [K,64]</span>
+                <span class="node-chip">embed_dim=128</span>
+                <span class="node-chip">tokens [K,256]</span>
               </div>
             </div>
           </article>
@@ -1700,6 +1705,7 @@ code {
               <div class="node-chip-row">
                 <span class="node-chip">dt-aware</span>
                 <span class="node-chip">1 layer</span>
+                <span class="node-chip">attn x2</span>
               </div>
             </div>
           </article>
@@ -1714,7 +1720,7 @@ code {
             <div class="node-body">
               <p>保留所有可被 query 讀取的 branch states，decoder 只能讀到 causal 可用時間。</p>
               <div class="node-chip-row">
-                <span class="node-chip">h_states [T,K,64]</span>
+                <span class="node-chip">h_states [T,K,256]</span>
               </div>
             </div>
           </article>
@@ -1744,7 +1750,7 @@ code {
             <div class="node-body">
               <p>組合週期 Fourier、temporal anchor、<code>dt_to_query</code> 與 component embedding。</p>
               <div class="node-chip-row">
-                <span class="node-chip">trunk [N_q,64]</span>
+                <span class="node-chip">trunk [N_q,256]</span>
               </div>
             </div>
           </article>
@@ -1761,7 +1767,7 @@ code {
               <p>causal lookup 後做 cross-attention readout，再以 branch / trunk basis 融合輸出場值。</p>
               <div class="node-chip-row">
                 <span class="node-chip">attention</span>
-                <span class="node-chip">rank=64</span>
+                <span class="node-chip">rank=256</span>
               </div>
             </div>
           </article>
@@ -1796,7 +1802,7 @@ code {
       <div class="graph-note-strip">
         <div class="graph-note">
           <h4>Memory Path</h4>
-          <p>上方藍線負責把 sensor stream 轉成 causal branch memory。</p>
+          <p>上方藍線負責把 sensor stream 轉成 branch memory；主線仍以 causal CfC 為主。</p>
         </div>
         <div class="graph-note">
           <h4>Query Path</h4>
@@ -1809,6 +1815,30 @@ code {
         <div class="graph-note">
           <h4>Causality</h4>
           <p>紅色虛線代表被封鎖的 future state，對應 <code>searchsorted</code> 的 causal lookup。</p>
+        </div>
+      </div>
+
+      <div class="feature-grid" style="margin-top: 18px;">
+        <div class="feature-card">
+          <h3>Current Core</h3>
+          <p>
+            `EXP-064` 仍維持 `LearnableFourierEmb → TemporalCfCEncoder → DeepONet decoder`，
+            query 仍以 `dt_to_query` 和 causal lookup 讀取 branch memory；GradNorm + sensor physics 作為訓練補強。
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Xlarge Capacity</h3>
+          <p>
+            Re=10000 放大到 <code>d_model=256</code>、<code>operator_rank=256</code>、`2-layer token attention`。
+            容量擴張是必要條件；在此基礎上 LearnableFourierEmb + GradNorm 帶來 KE 7.80%。
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>Validation Note</h3>
+          <p>
+            `Re=1000 / EXP-030` 仍是有用的前期驗證，但現在只負責證明設計方向沒有錯；
+            真正有辨識力的展示與比較，已經轉到 Re=10000。
+          </p>
         </div>
       </div>
     </div>
@@ -2041,43 +2071,43 @@ h_new = gate · f1 + (1 - gate) · f2</div>
   <section class="section">
     <div class="section-label">06 · Training Objective & Mainline Config</div>
     <div class="panel">
-      <h2 class="panel-title">Training rules behind the demonstration</h2>
+      <h2 class="panel-title">Training rules behind the current Re=10000 demo</h2>
       <p class="panel-desc">
-        這個展示頁對應的是一個可重跑的訓練設定：觀測 supervision 只來自真實 sensor，
-        物理約束來自 unsteady Navier-Stokes 殘差，而頻譜、渦度與能量曲線則留在展示與驗證階段使用。
+        這個展示頁對應的是 `Re=10000 / EXP-064` 這個可核對的訓練設定。
+        在 EXP-063（GradNorm）的基礎上加入 sensor 位置 continuity physics，KE 達到 7.80%。
       </p>
 
       <div class="feature-grid">
         <div class="feature-card">
-          <h3>Data Loss</h3>
+          <h3>Data Supervision</h3>
           <ul class="bullet-list">
             <li>只在真實觀測通道上做 MSE，目前為 <code>u, v</code>。</li>
-            <li><code>num_query_points = 128</code>，保持稀疏 supervision。</li>
-            <li>不將 diagnostics 量直接併入 training objective。</li>
+            <li><code>t_early_weight = 10</code>（<code>t ≤ 0.05</code>）強化 IC 監督。</li>
+            <li>不將 diagnostics 量直接併入 training objective；`Re=1000` 只作前期驗證。</li>
           </ul>
         </div>
         <div class="feature-card">
           <h3>Physics Loss</h3>
           <ul class="bullet-list">
-            <li>使用 primitive momentum + continuity form。</li>
-            <li><code>physics_loss_weight = 0.01</code>，<code>continuity_weight = 1.0</code>。</li>
-            <li><code>k_f = 2</code>、<code>A = 0.1</code>，與現在資料條件對齊。</li>
+            <li>使用 primitive momentum + continuity form，64 個隨機 collocation 點。</li>
+            <li><code>use_sensor_physics = true</code>：K=100 感測器位置額外計算 continuity（一階導數）。</li>
+            <li><code>GradNorm</code>（<code>update_freq=1000</code>, <code>momentum=0.9</code>）自動均衡 task 梯度。</li>
           </ul>
         </div>
         <div class="feature-card">
           <h3>Optimization</h3>
           <ul class="bullet-list">
-            <li><code>SOAP + Schedule-Free</code>，<code>learning_rate = 3e-3</code>。</li>
-            <li><code>use_schedule_free = true</code>，<code>soap_precondition_frequency = 10</code>。</li>
-            <li><code>iterations = 5000</code>，主線為 EXP-028 step 3000 resume 後的收斂版本。</li>
+            <li><code>SOAP + Schedule-Free</code>，<code>lr = 1e-3</code>，<code>betas=(0.9, 0.999)</code>。</li>
+            <li><code>precondition_freq = 2</code>，<code>warmup = 2000</code>，<code>step_decay(2000, γ=0.9)</code>。</li>
+            <li><code>weight_decay = 0.0</code>（jaxpi 對齊設定）。</li>
           </ul>
         </div>
         <div class="feature-card">
-          <h3>Time Integrity</h3>
+          <h3>Spatial Encoding</h3>
           <ul class="bullet-list">
-            <li><code>time_marching = true</code>，保留 causal rollout 訓練規則。</li>
-            <li><code>time_marching_start = 0.5</code>，<code>time_marching_warmup = 0.5</code>。</li>
-            <li>query 以 <code>searchsorted(sensor_time, t_q)</code> 做 causal lookup。</li>
+            <li><code>LearnableFourierEmb(embed_dim=128, σ=2.0)</code> 取代確定性諧波。</li>
+            <li>固定 k=1 週期保障邊界條件，可學習投影矩陣覆蓋高頻。</li>
+            <li>band_mid/high@t=5 ≈100% 為 K=100 感測器的資訊論上限，非架構問題。</li>
           </ul>
         </div>
       </div>
@@ -2086,12 +2116,12 @@ h_new = gate · f1 + (1 - gate) · f2</div>
         <div class="config-card">
           <div class="metric-label">Observed Channels</div>
           <div class="metric-value">u, v</div>
-          <div class="metric-note">主線已移除 omega data supervision。</div>
+          <div class="metric-note">Re=10000 主線仍維持 `u,v-only`；不回退到 omega supervision。</div>
         </div>
         <div class="config-card">
-          <div class="metric-label">Fourier Harmonics</div>
-          <div class="metric-value">8</div>
-          <div class="metric-note">週期 Fourier 共 32 維空間特徵。</div>
+          <div class="metric-label">Fourier Embed Dim</div>
+          <div class="metric-value">128</div>
+          <div class="metric-note"><code>LearnableFourierEmb</code> 輸出維度；σ=2.0 初始化。</div>
         </div>
         <div class="config-card">
           <div class="metric-label">Temporal Anchor</div>
@@ -2099,29 +2129,34 @@ h_new = gate · f1 + (1 - gate) · f2</div>
           <div class="metric-note">兩組 sin/cos 絕對時間基底。</div>
         </div>
         <div class="config-card">
-          <div class="metric-label">Query Hidden</div>
-          <div class="metric-value">64</div>
-          <div class="metric-note"><code>query_mlp_hidden_dim = 64</code></div>
+          <div class="metric-label">d_model</div>
+          <div class="metric-value">256</div>
+          <div class="metric-note">Re=10000 demo 依賴 xlarge 容量。</div>
         </div>
         <div class="config-card">
           <div class="metric-label">Operator Rank</div>
-          <div class="metric-value">64</div>
-          <div class="metric-note">branch/trunk fusion 的共用 rank。</div>
+          <div class="metric-value">256</div>
+          <div class="metric-note">branch / trunk fusion 與大模型容量對齊。</div>
         </div>
         <div class="config-card">
           <div class="metric-label">Token Attn Heads</div>
           <div class="metric-value">4</div>
-          <div class="metric-note">每步先做一次 sensor token message passing。</div>
+          <div class="metric-note">並搭配 <code>num_token_attention_layers = 2</code>。</div>
+        </div>
+        <div class="config-card">
+          <div class="metric-label">GradNorm</div>
+          <div class="metric-value">freq=1000</div>
+          <div class="metric-note">momentum=0.9；自動均衡 data/ns_u/ns_v/cont 四個 task 梯度比例。</div>
         </div>
         <div class="config-card">
           <div class="metric-label">Physics Points</div>
-          <div class="metric-value">32</div>
-          <div class="metric-note">每 step 的 PDE collocation 數量。</div>
+          <div class="metric-value">64</div>
+          <div class="metric-note">隨機 collocation + K=100 感測器位置 continuity（sensor_physics=true）。</div>
         </div>
         <div class="config-card">
           <div class="metric-label">Learning Rate</div>
-          <div class="metric-value">3e-3</div>
-          <div class="metric-note"><code>lr_schedule = "soap"</code> 並開啟 <code>use_schedule_free</code>。</div>
+          <div class="metric-value">1e-3</div>
+          <div class="metric-note"><code>lr_schedule = "soap"</code>，warmup=2000，step_decay(2000, 0.9)。</div>
         </div>
       </div>
     </div>
@@ -2130,25 +2165,25 @@ h_new = gate · f1 + (1 - gate) · f2</div>
   <section class="section">
     <div class="section-label">07 · Current Result Figures</div>
     <div class="panel">
-      <h2 class="panel-title">Demonstration figures from the current validated run</h2>
+      <h2 class="panel-title">Current demonstration figures from EXP-064</h2>
       <p class="panel-desc">
-        下方圖像直接引用目前工作樹內已存在的 <code>artifacts/deeponet-cfc-re1000-soap-sf-5000-eval</code>，
-        因此這頁展示的是實際輸出，而不是手工拼接示意圖。
+        下方圖像直接引用目前工作樹內已存在的 <code>artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval</code>。
+        這些圖就是本頁真正要展示的主體：目前 Pi-LNN 在 Re=10000 下的可達水準。
       </p>
 
       <div class="result-banner">
         <div class="callout">
           <h3>What This Demo Shows</h3>
           <p>
-            這組圖展示的是同一個模型在場重建、渦度結構、能量演化、頻譜分佈與 forcing mode
-            上的整體表現，目的在於讓讀者一眼看出這個 operator 的重建品質。
+            這組圖展示的是同一個 Re=10000 模型在場重建、渦度結構、能量演化、頻譜分佈與 forcing mode
+            上的整體表現，目的在於讓讀者一眼看出高 Re demo 的重建品質。
           </p>
         </div>
         <div class="callout">
           <h3>How To Read It</h3>
           <p>
-            先看 field 與 vorticity 圖確認空間形狀，再看時間序列與頻譜確認能量尺度與模態行為，
-            最後用 forcing mode 幅值與相位補充動態一致性。
+            先看 field 與 vorticity 圖確認空間結構，再看時間序列與頻譜確認能量尺度，
+            最後用 forcing mode 幅值與相位補充主模態一致性。
           </p>
         </div>
       </div>
@@ -2156,28 +2191,28 @@ h_new = gate · f1 + (1 - gate) · f2</div>
       <div class="signal-grid">
         <div class="signal-card">
           <div class="metric-label">u RMSE</div>
-          <div class="metric-value good">5.68e-2</div>
-          <div class="metric-note">目前全部主線中最低的 u 分量平均誤差。</div>
+          <div class="metric-value good">6.89e-2</div>
+          <div class="metric-note">Re=10000 demo 目前的 u 分量平均誤差，全系列最低。</div>
         </div>
         <div class="signal-card">
           <div class="metric-label">v RMSE</div>
-          <div class="metric-value good">5.87e-2</div>
-          <div class="metric-note">u / v 兩分量誤差尺度仍維持一致。</div>
+          <div class="metric-value good">6.21e-2</div>
+          <div class="metric-note">u / v 兩分量誤差同步壓到 <code>6e-2</code> 量級。</div>
         </div>
         <div class="signal-card">
           <div class="metric-label">KE Rel.err</div>
-          <div class="metric-value good">9.61%</div>
-          <div class="metric-note">SOAP+SF 主線首次把 KE 壓到 10% 以下。</div>
+          <div class="metric-value good">7.80%</div>
+          <div class="metric-note">Re=10000 新紀錄（-0.85pp vs EXP-063 8.65%）。</div>
         </div>
         <div class="signal-card">
-          <div class="metric-label">Ens Rel.err</div>
-          <div class="metric-value good">11.85%</div>
-          <div class="metric-note">較 EXP-025 略高，但仍維持在可接受區間。</div>
+          <div class="metric-label">div L2</div>
+          <div class="metric-value good">0.184</div>
+          <div class="metric-note">全系列最佳 div_l2，-9.6% vs EXP-063；sensor continuity 直接貢獻。</div>
         </div>
         <div class="signal-card">
-          <div class="metric-label">k_f Amp Ratio</div>
-          <div class="metric-value good">1.027</div>
-          <div class="metric-note">主模態振幅略高於 1，但比 EXP-025 更接近主線最佳平衡點。</div>
+          <div class="metric-label">k_f Phase Err</div>
+          <div class="metric-value good">-0.023 rad</div>
+          <div class="metric-note">-53% vs EXP-063（-0.049 rad）；主模態相位重建大幅改善。</div>
         </div>
       </div>
 
@@ -2194,9 +2229,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Field</div>
                 <h3>Velocity Field Comparison at t = 5.0</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/field_comparison_t5.png" alt="Field comparison at t equals 5">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/field_comparison_t5.png" alt="EXP-064 field comparison at t equals 5">
               <figcaption class="figure-caption">
-                直接看主場重建、預測與誤差分佈。這張圖用來回答「整體場形狀是否仍對得上」。
+                直接看主場重建、預測與誤差分佈。這張圖用來回答高 Re 下整體場形狀是否仍對得上。
               </figcaption>
             </figure>
 
@@ -2205,9 +2240,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Vorticity</div>
                 <h3>Vorticity Comparison at t = 5.0</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/vorticity_comparison_t5.png" alt="Vorticity comparison at t equals 5">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/vorticity_comparison_t5.png" alt="EXP-064 vorticity comparison at t equals 5">
               <figcaption class="figure-caption">
-                用來檢查小尺度渦旋是否被過度平滑，以及誤差是否仍集中成方向性假影。
+                用來檢查小尺度渦旋是否被過度平滑，以及高 Re 下誤差是否集中在強剪切區。
               </figcaption>
             </figure>
           </div>
@@ -2225,9 +2260,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Error</div>
                 <h3>UV Error vs Time</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/uv_error_vs_time.png" alt="UV error versus time">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/uv_error_vs_time.png" alt="EXP-064 UV error versus time">
               <figcaption class="figure-caption">
-                直接看整段時間上速度誤差如何演化，確認模型沒有在後段快速失真。
+                直接看整段時間上速度誤差如何演化，確認模型沒有在後段快速崩掉。
               </figcaption>
             </figure>
 
@@ -2236,9 +2271,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Time Series</div>
                 <h3>Kinetic Energy vs Time</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kinetic_energy_vs_time.png" alt="Kinetic energy versus time">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/kinetic_energy_vs_time.png" alt="EXP-064 kinetic energy versus time">
               <figcaption class="figure-caption">
-                SOAP+SF 主線在整段時間都更貼近 DNS，且整體 KE 已壓到 9.61%。
+                這張圖對應整體 <code>KE = 7.80%</code>；目前是 Re=10000 最好的已驗證時間演化結果。
               </figcaption>
             </figure>
           </div>
@@ -2256,9 +2291,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Spectrum</div>
                 <h3>Energy Spectrum</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/energy_spectrum.png" alt="Energy spectrum">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/energy_spectrum.png" alt="EXP-064 energy spectrum">
               <figcaption class="figure-caption">
-                這張圖專門檢查頻譜是否過度平滑；若高波數端快速掉光，通常代表表達力或 bias 設計有問題。
+                這張圖專門檢查高 Re 頻譜是否過度平滑；目前高波數端仍是主要難點，但主能量帶已被抓住。
               </figcaption>
             </figure>
 
@@ -2267,9 +2302,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Forcing Mode</div>
                 <h3>k_f Amplitude vs Time</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kf_mode_amplitude_vs_time.png" alt="Kolmogorov forcing mode amplitude versus time">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/kf_mode_amplitude_vs_time.png" alt="EXP-064 forcing mode amplitude versus time">
               <figcaption class="figure-caption">
-                forcing mode amplitude ratio 目前為 1.027，代表主模態強度略高但仍緊貼 DNS。
+                forcing mode amplitude ratio 目前為 <code>0.962</code>，代表主模態強度已相當接近 DNS。
               </figcaption>
             </figure>
 
@@ -2278,9 +2313,9 @@ h_new = gate · f1 + (1 - gate) · f2</div>
                 <div class="mini-label">Forcing Mode</div>
                 <h3>k_f Phase vs Time</h3>
               </div>
-              <img src="../artifacts/deeponet-cfc-re1000-soap-sf-5000-eval/kf_mode_phase_vs_time.png" alt="Kolmogorov forcing mode phase versus time">
+              <img src="../artifacts/deeponet-cfc-re10000-exp064-sensor-physics/deeponet-cfc-eval/kf_mode_phase_vs_time.png" alt="EXP-064 forcing mode phase versus time">
               <figcaption class="figure-caption">
-                phase 仍受 t=3.5∼4.5 chaotic divergence 主導，不能單靠 phase 圖否定當前主線。
+                phase 曲線用來補充主模態動態一致性；末端 phase error 約 <code>-0.023 rad</code>（-53% vs EXP-063）。
               </figcaption>
             </figure>
           </div>
@@ -2290,17 +2325,55 @@ h_new = gate · f1 + (1 - gate) · f2</div>
   </section>
 
   <section class="section">
-    <div class="section-label">08 · Code Anchors</div>
+    <div class="section-label">08 · Why This Demo</div>
+    <div class="panel">
+      <h2 class="panel-title">Why EXP-064 is the current demonstration checkpoint</h2>
+      <p class="panel-desc">
+        我們沒有把頁面主 demo 放在 `Re=1000`，因為那現在只能回答「這個方向曾經被驗證過」。
+        目前真正有辨識力的比較發生在 Re=10000，因此保留三個最重要的研究結論。
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <h3>1. GradNorm + Sensor Physics 組合有效</h3>
+          <p>
+            `EXP-064` 在 EXP-063（GradNorm，KE 8.65%）基礎上加入 sensor continuity，
+            KE 進一步降到 <code>7.80%</code>，div_l2 -9.6%，phase error -53%。
+            兩個機制相輔相成：GradNorm 均衡梯度，sensor physics 在已知最佳位置補充約束。
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>2. Band_mid/high 問題是資訊論上限</h3>
+          <p>
+            即使加入 sensor continuity，`band_mid/high@t=5 ≈ 100%` 完全不變。
+            這已通過三次 falsifiability 驗證：問題不在 optimizer、physics 密度、或感測器位置，
+            而是 K=100 感測器對 k&gt;5 模態的覆蓋根本不足。
+          </p>
+        </div>
+        <div class="feature-card">
+          <h3>3. LearnableFourierEmb 是必要組件</h3>
+          <p>
+            `EXP-062` 確認：可學習 Fourier 投影（而非確定性諧波）把 KE 從 17.1% 降到 10.4%，
+            band_low@t=5 從 ~30% 降到 5.8%，成為低頻精度的根本改善。
+            後續實驗（063、064）都建立在此基礎上。
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-label">09 · Code Anchors</div>
     <div class="panel">
       <h2 class="panel-title">The page points back to the real implementation</h2>
       <p class="panel-desc">
         這兩段不是偽碼，而是對應目前工作樹中的核心邏輯：CfC 的 closed-form update，以及
-        等向相對位置 bias 的設計理由。
+        最近加入的 optional bidirectional temporal scan。
       </p>
 
       <div class="code-grid">
         <article class="code-card">
-          <div class="code-meta">src/pi_onet/lnn_kolmogorov.py · CfCCell.forward</div>
+          <div class="code-meta">src/lnn_kolmogorov.py · CfCCell.forward</div>
           <h3>Closed-form temporal update</h3>
           <pre><code>xh = torch.cat([x, h], dim=-1)
 f1 = torch.tanh(self.ff1(xh))
@@ -2312,24 +2385,24 @@ return gate * f1 + (1.0 - gate) * f2</code></pre>
         </article>
 
         <article class="code-card">
-          <div class="code-meta">src/pi_onet/lnn_kolmogorov.py · DeepONetCfCDecoder.forward</div>
-          <h3>Isotropic relative-position bias</h3>
-          <pre><code>rel = xy.unsqueeze(1) - sensor_pos.unsqueeze(0)
-rel = rel - torch.round(rel / self.domain_length) * self.domain_length
-rel_r = torch.linalg.norm(rel, dim=-1, keepdim=True)
+          <div class="code-meta">src/lnn_kolmogorov.py · TemporalCfCEncoder.forward</div>
+          <h3>Optional bidirectional temporal scan</h3>
+          <pre><code>fwd = self._run_cfc_pass(seq, self.cells, dts, re_bias, layer_idx, reverse=False)
+if self.use_bidirectional:
+    bwd = self._run_cfc_pass(seq, self.backward_cells, dts, re_bias, layer_idx, reverse=True)
+    new_seq = fwd + bwd
+else:
+    new_seq = fwd
 
-# 只用距離（等向量），移除方向分量 (rel_x, rel_y)。
-# Why: 感測器 x 分佈非均勻，方向向量會把 x-column 非均勻性
-# 注入 attention bias，造成 x 方向條紋偽影。
-rel_bias = self.relpos_bias(rel_r).squeeze(-1)</code></pre>
+seq = new_seq + seq if layer_idx &gt; 0 else new_seq</code></pre>
         </article>
       </div>
     </div>
   </section>
 
   <footer class="footer">
-    <span>Pi-LNN Demonstration · EXP-030 · Re=1000</span>
-    <span>DeepONet + CfC · periodic Fourier · isotropic bias · SOAP + schedule-free</span>
+    <span>Pi-LNN Demonstration · EXP-064 · Re=10000 · KE 7.80%</span>
+    <span>Re=1000 kept only as early validation · current demo centers on high-Re sparse reconstruction</span>
   </footer>
 
 </div>

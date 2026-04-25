@@ -1,0 +1,89 @@
+# configs/exp_061_re10000_xlarge_harmonics32_stepdecay.toml
+# What: EXP-061 — EXP-060 + Step LR decay（每 1000 步 × 0.9），移除 Schedule-Free。
+#
+# Why: EXP-060 使用 SOAP + Schedule-Free，名義 LR 全程固定 3e-3。
+#      高 k 模態在訓練後期才嘗試學習（spectral bias），此時若 LR 過大，
+#      模型在細粒度高頻結構上無法穩定收斂。
+#      Step decay（每 1000 步 × 0.9）使後期 LR 逐漸降低，
+#      提供更穩定的高頻收斂條件，且不依賴 Schedule-Free 的 Polyak 平均。
+#
+# LR 曲線：
+#   step    1-1000:  3e-3
+#   step 1001-2000:  2.7e-3
+#   step 2001-3000:  2.43e-3
+#   ...
+#   step 9001-10000: 3e-3 × 0.9^9 ≈ 1.16e-3
+#
+# Hypothesis: Step decay 讓後期訓練更穩定，band_high_last 低於 EXP-060；
+#             mean KE < EXP-060 結果。
+# Falsifiability: 若 band_high_last ≥ EXP-060 且 mean KE ≥ EXP-060，
+#                 → LR 策略對 spectral bias 無顯著影響。
+#
+# 差異點 vs EXP-060:
+#   soap_use_step_decay = true（新增，每 1000 步 × 0.9）
+#   use_schedule_free = false（移除 SF；SF 設計上取代 decay，兩者不宜疊加）
+#   其餘 config 完全相同
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 32
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 32
+learning_rate = 3e-3
+weight_decay = 1e-4
+lr_schedule = "soap"
+use_schedule_free = false
+soap_use_step_decay = true
+lr_decay_steps = 1000
+lr_decay_gamma = 0.9
+soap_precondition_frequency = 10
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+checkpoint_period = 500
+seed = 42
+device = "mps"
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp061-h32-stepdecay"

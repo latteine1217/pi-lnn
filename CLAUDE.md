@@ -11,6 +11,30 @@ Research_Stance:
   - 針對用戶的提議，必須至少提出一個潛在的物理失效風險（如：Spectral Bias 或 Dissipation Mismatch）。
 </IDENTITY>
 
+<ENGINEERING_VISION>
+Target_Scenario: 稀疏感測器 + 物理約束 → 流場重建（真實工程中無完整 DNS 場）
+
+Context:
+- 本專案模擬真實工程感測場景：僅有 K 個點感測器的速度量測值，加上已知 PDE（NS 方程）。
+- DNS 資料的合法用途：從 DNS 提取 sensor values 作為訓練 supervision；訓練後 offline 對照 benchmark。
+- 真實工程問題中不存在：完整流場、能量譜 E(k)、渦度場、整體統計量、任何 full-field signal。
+
+Implication_For_Training:
+- 訓練 loss 只能使用：sensor MSE（資料一致性）+ physics residual（NS、continuity）。
+- 使用完整 DNS 場作為訓練 supervision（如 perceptual loss、spectral loss、VAE on full field）
+  = 在真實工程中不可複現，屬工程不可遷移（engineering non-transferable）設計。
+- 若引入此類 loss 做研究探索，必須在 config 與 experiment_log 明確標注「僅研究用，工程不可遷移」。
+
+Implication_For_Evaluation:
+- DNS offline benchmark（KE rel-err、E(k) 斜率、div L2）是合法診斷工具。
+- 若評估發現 E(k) 不正確，修正路徑只能是：改進 physics loss、改進架構、改進感測器編碼。
+  不能直接加 spectral supervision loss（工程場景無 DNS 可用）。
+
+Success_Criterion:
+- 主要（工程可驗證）：sensor MSE + physics residual 量級合理。
+- 次要（研究診斷）：DNS offline benchmark 的 E(k) 斜率、KE(t)、divergence 是否符合物理預期。
+</ENGINEERING_VISION>
+
 <LANGUAGE_POLICY>
 Response: 中文
 Code_Comment: 中文
@@ -124,6 +148,7 @@ Hard_Constraints:
 - 物理一致性優先於討好使用者。
 - 不可將診斷量誤當成真實 supervision，除非有明確資料來源與設計理由。
 - 不可把未驗證的 checkpoint 改稱為 baseline、best 或主線。
+- 訓練 loss 設計必須在「無 DNS 完整場」的假設下可執行；若提議使用 full-field supervision loss，必須先指出其工程不可遷移性，再評估研究價值。
 
 Time_Window_Integrity_Check:
 - 檢查輸入 window 是否與目標時間對齊。
@@ -178,6 +203,41 @@ Rules:
 - 先讀 `.gitignore` 再決定是否新增輸出檔。
 - 未經要求，不主動執行 git 操作。
 </TOOLS_POLICY>
+
+<KNOWN_PITFALLS>
+以下均為此專案曾實際發生過的工程問題，每次啟動訓練或評估前應逐條確認。
+
+--- macOS 環境 ---
+- `timeout` 指令不存在（Linux 專屬）。macOS 無內建等效指令，需改用邏輯控制或 `gtimeout`（需 `brew install coreutils`）。
+- 監控背景訓練進度：使用 Monitor tool 逐行接收 stdout，禁止用 sleep loop 輪詢。訓練無輸出不代表 hung，先確認 flush 狀態（見下）。
+- 確認訓練是否存活：`ps aux | grep lnn_kolmogorov`。
+
+--- Python stdout 緩衝 ---
+- 訓練指令若重導向到檔案，`print()` 預設 8KB block buffering，可能長達數小時無輸出。
+- 修復：所有關鍵 print 必須加 `flush=True`。
+- 歷史事故：EXP-059 第一次跑，PID 80283 因看似 hung 被誤殺，浪費 75 分鐘。
+
+--- MPS 裝置需求 ---
+- 執行訓練前必須設定：`export PYTORCH_ENABLE_MPS_FALLBACK=1`
+- 原因：SOAP optimizer 的 `torch.linalg.eigh` 在 MPS 上不支援，需 fallback 至 CPU。
+- 禁止在 except block 中用 `float64` 再做 MPS 計算，會直接 crash（EXP-058 根因）。
+
+--- Config 新增欄位規則 ---
+- 在 `.toml` 新增任何 config key，必須同步更新 `lnn_kolmogorov.py` 的 `DEFAULT_LNN_ARGS` dict。
+- 未同步 → training 直接 validation error 失敗（曾發生於 EXP-058 的 `use_cfc_freerun`）。
+
+--- Evaluator 使用規則 ---
+- Checkpoint 讀取 key 為 `model_state_dict`（非 `model`）；確認 evaluator 使用正確 key，否則回傳廢值（EXP-026/028/029 KE ~97% 均由此 bug 所致）。
+- 評估必須明確指定 `step_XXXX.pt` 路徑，不可使用過渡檔或目錄。
+
+--- Resume 前置檢查 ---
+- 架構若有改動（d_model、num_layers、新增 module），不可 resume 舊 checkpoint，需冷啟動。
+- Resume 前確認 artifact directory 中是否有前次訓練殘留的 checkpoint，避免混淆。
+
+--- SOAP + RAR 組合 ---
+- RAR freq 過低（如 50）會持續重採樣 collocation points，快速改變 loss landscape，導致 SOAP preconditioner 失效，L_phys 爆漲（EXP-053 根因）。
+- SOAP 穩定的 RAR freq 下限：≥ 1000（EXP-054 驗證）。
+</KNOWN_PITFALLS>
 
 <DOCS_POLICY>
 - 文件應簡潔、可掃描、可核對。

@@ -53,21 +53,19 @@ sensor_obs[t, k, {u,v}] + sensor_pos[k, {x,y}]
 - artifact: `artifacts/deeponet-cfc-re1000-soap-sf-5000`
 - 架構：`d_model=64`, `fourier_harmonics=8`, 1-layer attn, SOAP+SF, 5000 steps
 
-### Re=10000（最佳，EXP-033）
+### Re=10000（最佳，EXP-064）
 
 | 指標 | 數值 |
 |---|---|
-| KE rel-err | **31.5%** |
-| Enstrophy rel-err | 48.9% |
-| amp ratio (k_f=2) | 0.875 |
+| KE rel-err | **7.80%** |
+| div L2 | 0.184 |
+| u / v RMSE | 0.0689 / 0.0621 |
+| amp ratio (k_f=2) | 0.9615 |
+| phase error | -0.0228 rad |
 
-- config: [`configs/deeponet_cfc_re10000_xlarge.toml`](configs/deeponet_cfc_re10000_xlarge.toml)
-- artifact: `artifacts/deeponet-cfc-re10000-xlarge-3000`
-- 架構：`d_model=256`, `operator_rank=256`, SOAP+SF, 3000 steps
-
-### Re=10000（基準，EXP-031）
-
-KE 39.4%，`d_model=128`, SOAP+SF 3000 steps，config: [`configs/deeponet_cfc_re10000_wide_v2.toml`](configs/deeponet_cfc_re10000_wide_v2.toml)
+- config: `configs/exp_064_re10000_xlarge_sensor_physics.toml`
+- artifact: `artifacts/deeponet-cfc-re10000-exp064-sensor-physics`
+- 架構：`d_model=256`, `LearnableFourierEmb(embed_dim=128)`, GradNorm, sensor continuity physics, SOAP+SF, 10000 steps
 
 ## 安裝
 
@@ -158,11 +156,12 @@ src/pi_onet/
 ## 核心設計原則
 
 - `u, v` 觀測作為唯一 data supervision；`omega`, KE 等只作診斷
-- `periodic_fourier_encode` 取代 RFF：消除角度偏差產生的條紋偽影
+- `LearnableFourierEmb(embed_dim=128)` 取代確定性諧波；Re=1000 仍用 `periodic_fourier_encode`
 - `relpos_bias` 使用純距離輸入：保持等向性，避免感測器 x 非均勻分佈注入偏差
 - `temporal_anchor` 提供絕對時間座標，改善 forcing mode 重建
 - `time_marching` 改善 causal branch token 學習
-- physics loss（momentum + continuity）以 `physics_loss_weight=0.01` 作輔助約束
-- 優化器主線：`SOAP + Schedule-Free`
+- physics loss（momentum + continuity）以 GradNorm 自動均衡 task 梯度比例（Re=10000）
+- sensor 位置額外施加 continuity 約束（use_sensor_physics=true）
+- 優化器主線：`SOAP + Schedule-Free`（Re=10000: lr=1e-3, betas=(0.9,0.999), precond_freq=2）
 
 詳細實驗歷史與決策依據見 [`docs/experiment_log.md`](docs/experiment_log.md)。
