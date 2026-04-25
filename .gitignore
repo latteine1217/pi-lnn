@@ -13,3 +13,7 @@ data/
 
 # Editor / local settings
 .claude/
+
+# Claude / agent instructions (local only)
+AGENTS.md
+CLAUDE.md
