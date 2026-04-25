@@ -5,7 +5,7 @@
 
 ---
 
-> **Architecture & live demo** → [`docs/lnn_architecture.html`](docs/lnn_architecture.html)  
+> **Live demo page** → [latteine1217.github.io/pi-lnn/lnn_architecture.html](https://latteine1217.github.io/pi-lnn/lnn_architecture.html)  
 > **Full experiment history** → [`docs/experiment_log.md`](docs/experiment_log.md)
 
 ---
