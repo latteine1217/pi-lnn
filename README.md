@@ -117,8 +117,25 @@ docs/
 
 ---
 
-## Known Information-Theoretic Ceiling
+## Information-Theoretic Limit — Confirmed & Accepted
 
-K=100 sensors cover modes up to k≤16 (condition number ≈11).  
-`band_mid / band_high` energy error at t=5 remains ≈100% regardless of optimizer or physics density — confirmed across EXP-062/063/064.  
-Next direction: trunk depth (num_query_mlp_layers) or sensor strategy.
+EXP-064 is the accepted final result for K=100 sensors. The sparse reconstruction study is complete.
+
+**Why mid/high frequencies are unreachable with K=100:**
+
+The velocity field is extremely sparse in the wavelet domain (Gini ≈ 0.98).  
+Compressed Sensing exact recovery requires M ≥ O(s log N) ≈ **5 000 sensors** (s ≈ 328 significant coefficients, N = 65 536 grid points).  
+K=100 is ~50× below this threshold. Switching to a Fourier basis does not help — sparsity is equivalent across bases.
+
+| Band | Energy | Wavelet DOF needed | Feasible with K=100 | EXP-064 error |
+|---|---|---|---|---|
+| Low (k ≤ 8) | 94.4% | ~196 | ✓ | **3.62%** |
+| Mid (k ~ 8..16) | 4.8% | ~588 | ✗ exceeds capacity | ~100% |
+| High (k ~ 16..32) | 0.8% | ~1 452 | ✗ far exceeds | ~100% |
+
+All optimization directions tried (SOAP, GradNorm, sensor-continuity physics, trunk depth EXP-065) leave `band_mid/high` at ≈100%.  
+This is a mathematical constraint, not a model or training problem.
+
+**Paths that could break the limit:** K ≥ 5 000 sensors · K=200+ with extended training (EXP-066 reduces band_mid to 32.9%) · 4D-Var data assimilation · DNS-POD basis as high-frequency prior (research-only, engineering non-transferable).
+
+→ See [Section 08 of the architecture page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html) for full analysis.

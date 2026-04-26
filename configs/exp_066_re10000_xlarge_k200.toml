@@ -1,0 +1,94 @@
+# configs/exp_066_re10000_xlarge_k200.toml
+# What: EXP-066 — EXP-064 recipe + K=200 sensor set（完整 10k 步）。
+#
+# Why: EXP-065 falsified trunk 深度假設，確認 band_mid/high ≈100% 的根本瓶頸
+#      是 K=100 sensor 的資訊論硬上限。本實驗以完整 EXP-064 recipe 重試 K=200，
+#      排除 EXP-049（舊 recipe，KE 43.9%）的混淆因素。
+#      K=200 QR-pivot 分析：acc>0.8 上限 k=41（K=100 僅 k=20），
+#      理論上可覆蓋 band_mid（k≈5–16）範圍。
+#      3000 步探測因未收斂（KE 37%）無法判斷，改跑完整 10k。
+#
+# 唯一改動（vs EXP-064）：
+#   sensor_jsons / sensor_npzs → K=200 檔案
+#   warmup / decay / start_step 與 EXP-064 完全相同
+#
+# Hypothesis: K=200 突破資訊論上限；band_mid@last < 90%；KE ≤ 7.80%（EXP-064）
+# Falsifiability: 若 band_mid/high@last 仍 ≈100% →
+#                 確認 sensor 數量非瓶頸，需考慮 sensor 布局策略或其他先驗。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = true
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp066-k200"

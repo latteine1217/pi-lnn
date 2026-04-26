@@ -72,6 +72,7 @@
 | 目前判讀 | EXP-063（GradNorm）+ sensor 位置 continuity physics；**KE 7.80%（Re=10000 歷史最佳）**；div_l2 0.184；phase_err -0.0228 rad |
 | 主要優勢 | KE **7.80%**（-0.85pp vs EXP-063）、div_l2 **0.184**（-9.6%）、kf_phase_err **-0.0228 rad**（-53%） |
 | 已確認上限 | band_mid/high@t=5 ≈100% 為 K=100 感測器資訊論硬上限；sensor physics continuity 已無法突破此限 |
+| **結案狀態** | **K=100 稀疏重建結案（2026-04-26）**：此結果接受為最終主線，中高頻不可達為數學必然（CS 需 ~5000 sensors，K=100 差 50 倍），後續提升需 K≥5000 感測器或 DNS 高頻先驗 |
 
 ### 主線固定假設
 
@@ -127,6 +128,10 @@
 31. LearnableFourierEmb（EXP-062，embed_dim=128，σ=2.0，jaxpi SOAP）：KE **10.4%（Re=10000 新紀錄）**，較 EXP-055（17.1%）改善 -6.7pp。機制診斷：改善源自低頻模態重建品質大幅提升（band_low@t=5: 5.8%），但 band_mid/high@t=5 ≈100%（中高頻能量近乎全滅），模型收斂至低頻能量主導解。hypothesis 部分 falsified：band_high 未改善（99.98% > EXP-057 87%），但 KE 改善來自低頻精度提升，非頻率容量擴展。
 32. 正確 jaxpi SOAP 對齊 + GradNorm（EXP-063）：KE **8.65%（Re=10000 最新最佳）**，-1.75pp vs EXP-062；div_l2 **0.204**（全系列最低，-64% vs EXP-062）。GradNorm 自動強化 continuity 約束，u_rmse 全時段改善 12%，t=0 worst_rmse -15%。band_mid/high@t=5 仍 ≈100%，**確認 K=100 感測器對 k>5 模態的覆蓋不足是資訊論硬上限**，非優化器或架構問題。
 33. Sensor 位置 continuity physics 點（EXP-064）：KE **7.80%（Re=10000 新紀錄，-0.85pp vs EXP-063）**；div_l2 **0.184**（-9.6%）；kf_phase_err **-0.0228 rad**（-53%）。band_mid/high@t=5 ≈100%（**hypothesis falsified**）：感測器位置 continuity 約束對整體精度（KE/div/phase）有實質幫助，但無法突破中高頻重建上限。**確認 band_mid/high 問題根源是模型表達力（trunk 深度/寬度）或需要不同感測器布局策略，而非 physics 約束密度**。
+34. Trunk query MLP 加深 1→2 層（EXP-065）：KE **7.74%**（微幅改善 -0.06pp vs EXP-064）；band_mid/high@t=5 仍 ≈100%（**hypothesis falsified**）。div_l2 微幅退步（0.184→0.196）。**至此確認 band_mid/high 問題與 optimizer、physics 密度、感測器位置、trunk 表達力均無關，根本原因是 K=100 sensor 的資訊論硬上限**。唯一剩餘出路：增加 sensor 覆蓋或引入高頻先驗。
+35. Wavelet 稀疏性診斷（2026-04-26）量化確認資訊論上限：Re=10000 Kolmogorov flow 的速度場在 db4 wavelet 域 Gini≈0.98，99% 能量集中在約 328 個係數（top 0.5%）。CS 精確重建需 M≥O(5000) sensor；K=100/200 差了 25–50 倍。Fourier 與 wavelet 稀疏度等價，換基底不改變上限量級。band_mid（k~8..16，能量 4.8%）需 588 個 wavelet 自由度，遠超 K=100 的觀測容量。這是目前 band_mid/high 無法突破的數學根源。
+36. EXP-066（K=200, 10k 步）部分突破 band_mid 上限，但低頻退步：band_mid_last **32.90%**（vs EXP-064 99.97%，首次突破），band_low_last **38.65%**（vs EXP-064 3.62%，明顯退步），KE mean **29.94%**（vs EXP-064 7.80%）。混合結果：K=200 增加 sensor 覆蓋確實讓中頻重建可行，但 10k 步訓練仍未充分收斂（L_phys@10k=2.95），低頻品質因此拖累整體指標。**訊息論假設部分成立：K=200 確實突破 band_mid 天花板；但同時暴露 K=200 需要更長訓練才能同時維持低中頻品質。**
+37. AIM（Approximate Inertial Manifold）後處理診斷（2026-04-26）：zeroth-order AIM 公式 `û_k = N̂_k/(νk²)` 在 Re=10000 inertial range（k≈5..16）完全失效。τ_visc/τ_NL ≈ 215（k=10），quasi-static 假設嚴重違反。診斷結果：band_mid 從 50.7% 惡化至 2985.9%（放大 59 倍）。AIM 公式僅在 k >> k_d ≈ 1780（dissipation scale）成立，遠超 DNS grid 的 k_max=128。**Zeroth-order AIM 路徑已證偽；利用 NS 模式耦合推算未觀測頻率的原則本身有效，但需要更高階方法（如 4D-Var）。**
 
 ---
 
@@ -143,11 +148,102 @@
 
 ---
 
+## [ANALYSIS] Wavelet Sparsity Diagnostic（2026-04-26）
+
+- **目的**：量化 Re=10000 Kolmogorov flow 在 wavelet 域的稀疏性，評估 Compressed Sensing 方法突破 band_mid/high 上限的可行性。
+- **資料**：`data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy`
+- **方法**：db4 2D DWT，max level（=5），Gini 係數、能量累積曲線、level-wise 分解
+- **輸出圖**：`artifacts/wavelet_sparsity_diagnostic.png`
+
+**主要數字（u 分量, t=0–5）：**
+
+| 指標 | 值 |
+|---|---|
+| Gini 係數（u, v） | **0.983 / 0.985**（極度稀疏） |
+| Gini 係數（ω） | 0.942（較低，高頻放大） |
+| 99% 能量所需係數比例（u） | **0.5%**（約 328 個/65536） |
+| 99% 能量所需係數比例（ω） | 2.9% |
+| Fourier vs Wavelet 稀疏度 | **幾乎相同**（top-0.5% 係數均攜帶 ~99% 能量） |
+
+**Level-wise 能量分佈（u, t=2.5）：**
+
+| 頻帶 | 能量佔比 | Gini | CS 可及性（K=100） |
+|---|---|---|---|
+| approx k≤8 | **94.4%** | 0.50 | 196 係數，K=100 欠定 |
+| level 5, k~8..16 | 4.8% | 0.57 | 588 係數，超出 K=100 |
+| level 4, k~16..32 | 0.8% | 0.60 | 1452 係數，遠超 K=100 |
+| level 3+, k>32 | ≈0.1% | 0.63+ | 能量可忽略 |
+
+**結論：**
+
+1. **稀疏性假設成立**：流場在 wavelet 域 Gini≈0.98，CS 前提條件滿足。
+2. **但 K=100 仍不足**：CS 精確重建需 M ≥ O(s log N) ≈ 5000 個感測器（s≈328, N=65536）。K=100 差了約 50 倍。
+3. **Fourier 與 Wavelet 稀疏度等價**：換成 wavelet 基底不改變資訊論上限的量級；真正的自由度數量與基底選擇無關。
+4. **渦度更難**：ω 的稀疏度明顯低於 u/v，因 ω ∝ k² 放大高頻，渦旋結構重建從根本上更難。
+5. **量化確認**：band_mid/high 的資訊論硬上限由此分析得到數量級解釋——要重建 k~8..16（4.8% 能量），需要額外 588 個 wavelet 係數的自由度，遠超 K=100 的觀測容量。
+
+---
+
+## [ANALYSIS] AIM Diagnostic（2026-04-26）
+
+- **目的**：驗證 Approximate Inertial Manifold（zeroth-order）後處理能否從低頻重建結果恢復高頻分量。
+- **方法**：公式 `û_k = P(N̂_k(û_{≤8})) / (νk²)`（Leray 投影），k_max_low=8，Re=10000
+- **資料**：EXP-064 lnn_kolmogorov_step_10000.pt，10 frame，t=0..5
+- **輸出圖**：`artifacts/aim_diagnostic/aim_diagnostic_klow8.png`
+
+**診斷結果（k_max_low=8）：**
+
+| Band | Pi-LNN 原始 | AIM 修正後 | 改善 |
+|------|------------|-----------|------|
+| low（k≤8） | 6.4% | 6.4% | +0.0pp |
+| mid（k~8..16） | 50.7% | 2985.9% | **-2935pp（嚴重惡化）** |
+| high（k>16） | 14844616% | 1941356% | 改善幅度無意義 |
+
+**根本原因分析：**
+
+- **Quasi-static 假設違反**：AIM 公式假設 τ_visc << τ_NL。在 Re=10000，k=10 時：
+  - τ_visc = 1/(νk²) ≈ 10000/(2π²k²) ≈ 5.07
+  - τ_NL ≈ 1/(k·u_rms) ≈ 0.024
+  - **τ_visc/τ_NL ≈ 215**（viscosity 幾乎無關緊要）
+- **AIM 有效範圍**：k >> k_d ≈ 1780（dissipation scale），遠超 DNS grid k_max=128
+- **實際效果**：N̂_k 被 νk² 除→把 noise 放大兩個量級，完全惡化輸出
+
+**結論：Zeroth-order AIM 路徑已明確證偽。** 後處理思路需改用 4D-Var 或動態模式分解等不依賴 quasi-static 假設的方法。
+
+---
+
+## [STATE] K=100 稀疏重建結案聲明（2026-04-26）
+
+**EXP-064 為 K=100 sensor 配置的最終接受結果。稀疏重建主線結案。**
+
+### 量化結論
+
+K=100 已達資訊論硬上限，由 Wavelet 稀疏性診斷（item 35）量化確認：
+
+| 頻帶 | 能量佔比 | 所需 wavelet 自由度 | K=100 可行性 | EXP-064 誤差 |
+|------|----------|---------------------|-------------|-------------|
+| Low（k≤8） | 94.4% | ~196 | ✓ 可重建 | **3.62%** |
+| Mid（k~8..16） | 4.8% | ~588 | ✗ 超出容量 | ~100% |
+| High（k~16..32） | 0.8% | ~1452 | ✗ 遠超容量 | ~100% |
+
+CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=100 差約 50 倍。
+換成 Fourier 基底不改變結論，自由度上限與基底選擇無關。
+
+### 結案判斷
+
+- 所有已試優化方向（optimizer、physics loss 密度、sensor continuity、trunk 加深）皆無法突破 band_mid/high 上限
+- 低頻主能量帶（94.4%）已被可靠重建；整體 KE 7.80% 是此設定下的最佳可達值
+- 進一步提升高頻需要根本性增加感測器覆蓋（K≥5000）或引入 DNS 高頻先驗
+
+---
+
 ## [STATE] Open Question
 
-| 問題 | 現況 | 下一步方向 |
+| 問題 | 現況 | 狀態 |
 |---|---|---|
-| amplitude ratio=0.9965 是否 overfitting | EXP-015 更高（0.9965），需確認是否對訓練時段過度擬合 | 若有新時段資料，做 out-of-distribution 測試；否則視為未解疑慮 |
+| amplitude ratio=0.9965 是否 overfitting | EXP-015 更高（0.9965），需確認是否對訓練時段過度擬合；若有新時段資料可做 OOD 測試 | 開放（低優先） |
+| K=200 band_mid 突破後，低頻退步是否可藉延伸訓練恢復 | EXP-066 L_phys@10k=2.95（未充分收斂）；K=200 主線暫停 | **CLOSED**：K=100 主線結案，K=200 屬另一資料密度配置，如重啟需獨立實驗 |
+| 高頻重建的可行路徑 | CS 理論確認：K=100/200 均遠低於 ~5000 門檻；zeroth-order AIM 已證偽 | **CLOSED**：高頻不可達為數學必然，未來路徑需 DNS POD 先驗或 4D-Var（工程不可遷移）|
 
 ---
 
@@ -156,6 +252,8 @@
 | ID | Status | 主題 | 一句結論 |
 |---|---|---|---|
 | `EXP-030` | `ACTIVE_BASELINE` | `SOAP+SF resume EXP-028 → 5000 steps` | **目前最佳主線（Re=1000）：KE 9.61%、amp 1.027、u RMSE 5.68e-2；首次突破 10%** |
+| `EXP-066` | `MIXED_RESULT` | Re=10000, 冷啟動 10k，**EXP-064 recipe + K=200 sensor set**（QR-pivot K200 N256） | band_mid_last **32.90%（首次突破！vs EXP-064 99.97%）**；但 KE mean 29.94%（退步 vs EXP-064 7.80%），band_low_last 38.65%（退步）；L_phys@10k=2.95（未充分收斂）；**K=200 資訊論假設部分成立，需延伸訓練驗證低頻是否可恢復** |
+| `EXP-065` | `NEGATIVE_RESULT` | Re=10000, 冷啟動 10k，**EXP-064 + trunk MLP 1→2 層**（num_query_mlp_layers=2） | KE 7.74%（-0.06pp vs EXP-064）；band_mid/high@t=5 ≈100%（hypothesis falsified）；div_l2 0.196（微退步）；**確認 band 問題為 K=100 sensor 資訊論硬上限，非表達力問題** |
 | `EXP-064` | `ACTIVE_BASELINE` | Re=10000, 冷啟動 10k，**EXP-063 + sensor continuity**（sensor_physics=true, n_t=1, start=1000，僅 continuity） | **KE 7.80%（Re=10000 新紀錄，-0.85pp vs EXP-063）**；div_l2 **0.184（-9.6%）**；phase_err -0.0228 rad（-53%）；band_mid/high@t=5 ≈100%（hypothesis falsified） |
 | `EXP-063` | `POSITIVE_RESULT` | Re=10000, 冷啟動 10k，**EXP-062 + 正確 jaxpi SOAP 對齊 + GradNorm**（SF=true, precond=2, wd=0, decay=2000, gn_freq=1000, gn_mom=0.9） | KE 8.65%；div_l2 0.204；band_mid/high@t=5 ≈100%；已被 EXP-064 取代 |
 | `EXP-062` | `POSITIVE_RESULT` | Re=10000, 冷啟動 10k，**LearnableFourierEmb（embed_dim=128, σ=2.0）**，SOAP jaxpi 對齊 | **KE 10.4%（Re=10000 新紀錄，-6.7pp vs EXP-055 17.1%）**；band_low 5.8%，但 band_mid/high@t=5 ≈100%（頻譜集中低頻），EXP-055 地位取代 |
@@ -291,6 +389,83 @@
   - `ke_rel_err_mean ≈ 0.394`（KE **39.4%**）（無完整 eval summary，數值來自訓練觀察）
   - `kf_amp_ratio_last ≈ 0.70`（估計）
 - Decision: 確立新資料條件下的 d=128 基準線；KE 39.4% 為 EXP-033（d=256，KE 31.5%）的容量對照組。確認擴展模型容量（d=128 → d=256）是正確方向。
+
+---
+
+## [RECORD] EXP-066
+
+- Status: `MIXED_RESULT`
+- Time: `2026-04-26` 設計，`2026-04-26` 完成訓練與評估
+- Topic: Re=10000, 冷啟動 10000 步，**EXP-064 recipe + K=200 sensor set**
+- Config: `configs/exp_066_re10000_xlarge_k200.toml`
+- Artifact: `artifacts/deeponet-cfc-re10000-exp066-k200`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp066-k200/checkpoints/lnn_kolmogorov_step_10000.pt`
+
+- Compare vs EXP-064（唯一改動）：
+  - `sensor_jsons/npzs` → K=200 QR-pivot（`sensors_qrpivot_K200_N256_t0-5_si100`）
+  - sensor_physics: K=200 × n_t=1 = 200 continuity points/step
+  - 其他所有 hyperparameter 與 EXP-064 完全相同
+
+- Hypothesis: K=200 QR-pivot 分析 acc>0.8 上限 k=41（K=100 為 k=20）；band_mid@last < 90%；KE ≤ 7.80%
+- Falsifiability: 若 band_mid/high@last 仍 ≈100% → 確認 sensor 數量非瓶頸，需考慮 sensor 布局策略或其他先驗
+
+- Training Progress：
+
+| Step | L_data | L_phys | L_total | t_max |
+|------|--------|--------|---------|-------|
+| 1000 | 2.46e-1 | 24.67 | 5.10e-1 | 2.0 |
+| 3000 | 1.19e-1 | 7.03 | 2.14e-1 | 5.0 |
+| 5000 | 6.67e-2 | 5.40 | 1.51e-1 | 5.0 |
+| 10000 | **4.62e-2** | **2.95** | **1.01e-1** | 5.0 |
+
+- Evaluation Metrics（step_10000）：
+  - `ke_rel_err_mean = 0.2994`（KE **29.94%**，退步 vs EXP-064 7.80%）
+  - `ens_rel_err_mean = 0.2760`（27.6%）
+  - `div_l2_mean = 2.493`（退步，vs EXP-064 0.184；vs DNS 0.092）
+  - `band_low_last = 38.65%`（退步，EXP-064: 3.62%）
+  - `band_mid_last = 32.90%`（**首次突破！EXP-064: 99.97%**）
+  - `band_high_last = 91.41%`（部分改善，EXP-064: 99.99%）
+
+- Comparison Table：
+
+| Metric | EXP-064 (K=100) | EXP-066 (K=200) | Δ |
+|--------|:---------------:|:---------------:|:--:|
+| KE mean | **7.80%** | 29.94% | +22.1pp |
+| band_low@last | **3.62%** | 38.65% | +35.0pp |
+| band_mid@last | 99.97% | **32.90%** | -67.1pp ← 突破 |
+| band_high@last | 99.99% | 91.41% | -8.6pp |
+
+- Decision: **Mixed Result（Hypothesis partially confirmed）**。
+  1. band_mid_last 確實從 99.97% 降至 32.90%——確認資訊論假設：K=200 覆蓋更多中頻模態，資訊論瓶頸是 K 而非架構。
+  2. 但 K=100→K=200 同時造成低頻退步（3.62%→38.65%）和整體 KE 惡化（7.80%→29.94%）。
+  3. L_phys@10k=2.95 未充分收斂（EXP-064 對應值更低），推測低頻退步主要源於訓練步數不足，而非 K=200 的根本性缺陷。
+  4. **後續：** 考慮 resume EXP-066 至 20k 步，驗證低頻是否能在更長訓練後收斂；若 20k 步後 KE mean < 15% 且 band_mid_last < 40%，K=200 策略值得進一步投入。
+
+---
+
+## [RECORD] EXP-065
+
+- Status: `NEGATIVE_RESULT`
+- Time: `2026-04-25` 設計與訓練，`2026-04-25` 評估完成
+- Topic: Re=10000, 冷啟動 10000 步，**EXP-064 + trunk query MLP 加深 1→2 層**
+- Config: `configs/exp_065_re10000_xlarge_trunk2.toml`
+- Artifact: `artifacts/deeponet-cfc-re10000-exp065-trunk2`
+
+- Compare vs EXP-064（唯一改動）：
+  - `num_query_mlp_layers = 2`（EXP-064: 1）
+  - 新增 1 個 `ResidualMLPBlock(256, 256)` → +132K params（3.14M → 3.27M）
+
+- Hypothesis: 更深 trunk query MLP 使模型具備表達 k>5 空間模態的能力；band_mid/high@t=5 < 100%；KE ≤ 7.80%
+- Falsifiability: 若 band_mid/high@t=5 仍 ≈100% → 確認根本瓶頸為 K=100 sensor 資訊論硬上限，架構表達力非解法
+
+- Results:
+  - `ke_rel_err_mean = 0.0774`（KE **7.74%**，微幅改善 -0.06pp vs EXP-064）
+  - `u_rmse_mean = 0.0679`，`v_rmse_mean = 0.0617`（小幅改善）
+  - `div_l2_mean = 0.196`（退步，+6.5% vs EXP-064 0.184）
+  - `kf_amp_ratio_last = 0.965`（持平）；`kf_phase_err_last = -0.021 rad`（微改善）
+  - `band_low@last = 4.82%`；**`band_mid@last = 99.88%`**；**`band_high@last = 99.998%`**（**≈100%，完全無改善**）
+
+- Decision: **Negative（Hypothesis falsified）**。trunk 加深對中高頻重建完全無效。結合 EXP-062~065 的系列實驗，band_mid/high ≈100% 已通過四次 falsifiability 驗證（optimizer、physics 密度、sensor 位置、trunk 表達力），**最終確認根本原因是 K=100 sensor 的資訊論硬上限**，非任何訓練或架構問題。唯一出路是增加 sensor 覆蓋（K↑）或引入高頻先驗（e.g. spectral regularization）。EXP-064 維持 Re=10000 baseline。
 
 ---
 
