@@ -40,6 +40,7 @@ class LiquidOperator(nn.Module):
         use_locality_decay: bool = False,
         use_bidirectional_cfc: bool = False,
         fourier_embed_dim: int = 0,
+        use_periodic_domain: bool = True,
     ) -> None:
         super().__init__()
         self.spatial_encoder = SpatialSetEncoder(
@@ -72,6 +73,7 @@ class LiquidOperator(nn.Module):
             fusion_temperature_init=fusion_temperature_init,
             use_locality_decay=use_locality_decay,
             fourier_embed_dim=fourier_embed_dim,
+            use_periodic_domain=use_periodic_domain,
         )
 
     def encode(
@@ -159,6 +161,7 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
         use_locality_decay=bool(cfg.get("use_locality_decay", False)),
         use_bidirectional_cfc=bool(cfg.get("use_bidirectional_cfc", False)),
         fourier_embed_dim=int(cfg.get("fourier_embed_dim", 0)),
+        use_periodic_domain=bool(cfg.get("use_periodic_domain", True)),
     )
 
 

@@ -38,8 +38,10 @@ class DeepONetCfCDecoder(nn.Module):
         fusion_temperature_init: float | None = None,
         use_locality_decay: bool = False,
         fourier_embed_dim: int = 0,
+        use_periodic_domain: bool = True,
     ) -> None:
         super().__init__()
+        self.use_periodic_domain = bool(use_periodic_domain)
         self.use_locality_decay = bool(use_locality_decay)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
@@ -144,8 +146,11 @@ class DeepONetCfCDecoder(nn.Module):
         v = self.branch_value_proj(branch_tokens)
 
         rel = xy.unsqueeze(1) - sensor_pos.unsqueeze(0)
-        rel = rel - torch.round(rel / self.domain_length) * self.domain_length
-        rel_r = torch.linalg.norm(rel, dim=-1, keepdim=True)
+        if self.use_periodic_domain:
+            rel = rel - torch.round(rel / self.domain_length) * self.domain_length
+        # smooth norm 避免 r=0 時二階導數未定義（physics second-order autograd NaN 根因）。
+        # linalg.norm 在 r=0 的二階導數為 0/0；sqrt(r²+ε) 的二階導數在 r=0 是有限值。
+        rel_r = torch.sqrt((rel ** 2).sum(dim=-1, keepdim=True) + 1e-8)
         # 只用距離（等向量），移除方向分量 (rel_x, rel_y)。
         # Why: 感測器 x 分佈非均勻，方向向量會將 x-column 非均勻性注入 attention bias，
         #      造成 x 方向條紋偽影；距離已足夠描述近鄰感測器的貢獻強度。
