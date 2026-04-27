@@ -1,6 +1,14 @@
 """Pi-LNN: Sparse-sensor physics-constrained operator learning for turbulent flow."""
 from __future__ import annotations
 
+# Why: PYTORCH_ENABLE_MPS_FALLBACK 必須在 import torch 之前設好；
+# 任何 `import pi_lnn.X` 都會先執行本檔，所以放在所有 pi_lnn submodule
+# import 之前是設定環境變數的最早時機。
+import os
+
+os.environ.setdefault("DDE_BACKEND", "pytorch")
+os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+
 from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
 from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
 from pi_lnn.decoder import DeepONetCfCDecoder
