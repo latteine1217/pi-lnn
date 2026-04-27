@@ -10,6 +10,8 @@ __pycache__/
 # Artifacts and datasets
 artifacts/
 data/
+logs/
+wandb/
 
 # Editor / local settings
 .claude/
