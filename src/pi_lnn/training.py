@@ -49,18 +49,35 @@ def train_lnn_kolmogorov(
     checkpoints_dir = artifacts_dir / "checkpoints"
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
 
-    datasets = [
-        KolmogorovDataset(
-            sensor_json=args["sensor_jsons"][i],
-            sensor_npz=args["sensor_npzs"][i],
-            dns_path=args["dns_paths"][i],
-            re_value=float(args["re_values"][i]),
-            observed_channel_names=tuple(args["observed_sensor_channels"]),
-            train_ratio=0.8,
-            seed=args["seed"],
-        )
-        for i in range(len(args["re_values"]))
-    ]
+    _dataset_type = args.get("dataset_type", "kolmogorov")
+    if _dataset_type == "cylinder":
+        from cylinder_dataset import CylinderDataset
+        datasets = [
+            CylinderDataset(
+                sensor_json=args["sensor_jsons"][i],
+                sensor_npz=args["sensor_npzs"][i],
+                arrow_shard=args["arrow_shards"][i],
+                re_value=float(args["re_values"][i]),
+                observed_channel_names=tuple(args["observed_sensor_channels"]),
+                train_ratio=0.8,
+                seed=args["seed"],
+                sensor_subsample=int(args.get("sensor_subsample", 1)),
+            )
+            for i in range(len(args["re_values"]))
+        ]
+    else:
+        datasets = [
+            KolmogorovDataset(
+                sensor_json=args["sensor_jsons"][i],
+                sensor_npz=args["sensor_npzs"][i],
+                dns_path=args["dns_paths"][i],
+                re_value=float(args["re_values"][i]),
+                observed_channel_names=tuple(args["observed_sensor_channels"]),
+                train_ratio=0.8,
+                seed=args["seed"],
+            )
+            for i in range(len(args["re_values"]))
+        ]
     num_re = len(datasets)
 
     sensor_vals_list = [
@@ -295,9 +312,13 @@ def train_lnn_kolmogorov(
     _rar_pool_mult   = int(args.get("rar_pool_multiplier", 10))
     _rar_expl_ratio  = float(args.get("rar_exploration_ratio", 0.2))
 
+    warmup_steps = int(args.get("warmup_steps", 0))
+
     for step in range(start_step + 1, args["iterations"] + 1):
         if use_tm:
-            progress = min(step / max(tm_warmup, 1), 1.0)
+            # warmup_steps 期間 t_max 固定在 tm_t_start，warm-up 結束後才開始展開。
+            effective_step = max(0, step - warmup_steps)
+            progress = min(effective_step / max(tm_warmup, 1), 1.0)
             t_max: float | None = tm_t_start + (tm_t_end - tm_t_start) * progress
         else:
             t_max = None
@@ -604,7 +625,7 @@ def train_lnn_kolmogorov(
                 # Why: optimizer.step() 就地修改 trunk_out.weight（版本號遞增），
                 #      GradNorm 必須在 step() 前完成，否則 PyTorch 拋出版本衝突錯誤。
                 phys_active = int(args["num_physics_points"]) > 0
-                do_gn_update = phys_active and (step % gn_update_freq == 0)
+                do_gn_update = phys_active and (step > warmup_steps) and (step % gn_update_freq == 0)
 
                 if do_gn_update:
                     _gradnorm_step(
