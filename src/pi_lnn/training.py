@@ -7,18 +7,11 @@ from __future__ import annotations
 
 import json
 import math
-import os
-import tomllib
 from pathlib import Path
 from typing import Any, Callable
 
-os.environ.setdefault("DDE_BACKEND", "pytorch")
-os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-
 import numpy as np
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
 from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
