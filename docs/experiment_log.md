@@ -237,6 +237,44 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 
 ---
 
+## [STATE] Cylinder Wake — 新主線建立（2026-04-27）
+
+### 背景與目標
+
+完成 Kolmogorov 稀疏重建研究後，轉向 RealPDEBench Cylinder Wake 案例：
+- 非週期非均勻格（domain: [0, 0.325] × [0, 0.178]，含 cylinder body）
+- K=100 QR-pivot sensor（Re=10031，T=3990 frames，dt=0.005s）
+- 目標：驗證 Pi-LNN 能否在非週期域建立 baseline，為與 FLRNet / Energy Transformer 比較做準備
+
+### 資料設定
+
+- Arrow shard: `RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow`
+- Re=10031（sim_id=10031.h5），T=3990, H=128, W=256（非均勻格）
+- sensor 生成：`scripts/generate_sensors_qrpivot_cylinder.py`，`data/cylinder_sensors/`
+- `sensor_subsample=20`：T=3990 → T=200（dt=0.1s），對齊 Kolmogorov 計算量
+- 座標正規化至 [0,1]²（domain_length=1.0）
+
+### NaN 根因診斷（已修復）
+
+**症狀**：EXP-001 step_500 checkpoint 有 83/95 個參數是 NaN。
+
+**診斷流程**：
+1. Physics OFF → 訓練穩定（L_data 在 step 400 降至 0.088）→ NaN 來自 physics
+2. 物理殘差分解 → second derivatives（du_dx2, du_dy2）有 NaN，first derivatives 正常
+3. NaN 點的 nearest_sensor_distance = 0 → collocation point 落在 sensor 位置
+
+**根本原因**：`torch.linalg.norm(rel, dim=-1)` 在 `rel=0`（query = sensor）時，second-order autograd 計算 `∂²|r|/∂r² = (|r|²I - rr^T)/|r|³`，在 r=0 為 0/0 = NaN。
+
+**修法**（`src/lnn_kolmogorov.py` DeepONetCfCDecoder.forward）：
+```python
+# 舊：rel_r = torch.linalg.norm(rel, dim=-1, keepdim=True)
+# 新：
+rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
+```
+20 trials 驗證，NaN rate 0/20。
+
+---
+
 ## [STATE] Open Question
 
 | 問題 | 現況 | 狀態 |
