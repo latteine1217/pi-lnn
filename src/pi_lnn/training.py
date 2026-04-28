@@ -15,7 +15,11 @@ import torch
 
 from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
 from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
-from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn
+from pi_lnn.operator import (
+    LiquidOperator,
+    create_lnn_model,
+    make_lnn_model_fn_uvp,
+)
 from pi_lnn.physics import (
     _rar_update_pool,
     physics_points_at_step,
@@ -23,7 +27,7 @@ from pi_lnn.physics import (
     pressure_poisson_residual,
     unsteady_ns_residuals,
 )
-from pi_lnn.runtime import configure_torch_runtime, count_parameters, write_json
+from pi_lnn.runtime import _grad, configure_torch_runtime, count_parameters, write_json
 
 
 def train_lnn_kolmogorov(
@@ -374,11 +378,14 @@ def train_lnn_kolmogorov(
                 optimizer.zero_grad()
                 net.train()
                 _ld = torch.zeros(1, device=device)
+                # 同 first-order path：跨 data → physics 共用 encoder 輸出。
+                _h_cache_lbfgs: list[tuple[torch.Tensor, torch.Tensor]] = []
                 for _i, _ds in enumerate(datasets):
                     _xy, _tq, _c, _ref = _fixed_data[_i]
                     _h, _st = net.encode(
                         sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
                     )
+                    _h_cache_lbfgs.append((_h, _st))
                     _pred = observed_channel_prediction(
                         net=net, xy=_xy, t_q=_tq, c_obs=_c,
                         observed_channel_names=_ds.observed_channel_names,
@@ -395,15 +402,14 @@ def train_lnn_kolmogorov(
                     net.eval()
                     for _i, _ds in enumerate(datasets):
                         _xyt = _fixed_phys[_i]
-                        _mfn = make_lnn_model_fn(
+                        _h_p, _st_p = _h_cache_lbfgs[_i]
+                        _uvpfn = make_lnn_model_fn_uvp(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
+                            h_states=_h_p, s_time=_st_p,
                         )
-                        _uf = lambda x, fn=_mfn: fn(x, c=0)
-                        _vf = lambda x, fn=_mfn: fn(x, c=1)
-                        _pf = lambda x, fn=_mfn: fn(x, c=2)
                         _mu, _mv, _co = unsteady_ns_residuals(
-                            _uf, _vf, _pf, _xyt,
+                            _uvpfn, _xyt,
                             re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
                         )
                         if _phys_normalize:
@@ -430,6 +436,7 @@ def train_lnn_kolmogorov(
             l_total   = torch.tensor([_lbfgs_info.get("l_total", 0.0)], device=device)
             l_ns_u_total = torch.zeros(1, device=device)
             l_ns_v_total = torch.zeros(1, device=device)
+            l_ns_total   = torch.zeros(1, device=device)
             l_cont_total = torch.zeros(1, device=device)
             phys_weight  = _phys_weight
 
@@ -444,6 +451,11 @@ def train_lnn_kolmogorov(
             # Why: 若 data 用 trimmed 輸入但 physics 用 full 輸入，
             #      GradNorm 的梯度範數計算基準不一致，step=1000 會爆 NaN。
             _trim_cache: list[tuple[torch.Tensor, torch.Tensor]] = []
+            # h_states/s_time 跨 data → physics 路徑共用，避免在 physics 區塊
+            # 重複跑一次完整 encoder（spatial × T + temporal CfC × T）。
+            # 模型無 dropout/BN，data 跑 train()、physics 跑 eval()，encoder
+            # 輸出對 mode 不敏感，因此 cache 安全。
+            _h_cache: list[tuple[torch.Tensor, torch.Tensor]] = []
             for i, ds in enumerate(datasets):
                 # num_query_points 預設由 K（sensor 數）決定，可在 config 中 override。
                 n_query = int(args.get("num_query_points", 0)) or ds.sensor_pos.shape[0]
@@ -465,6 +477,7 @@ def train_lnn_kolmogorov(
                 h_states, s_time = net.encode(
                     _sv_enc, sensor_pos_list[i], ds.re_norm, _st_enc
                 )
+                _h_cache.append((h_states, s_time))
                 xy = torch.tensor(xy_np, dtype=torch.float32, device=device)
                 t_q = torch.tensor(t_np, device=device)
                 c = torch.tensor(c_np, dtype=torch.long, device=device)
@@ -560,19 +573,19 @@ def train_lnn_kolmogorov(
                                 device=device, requires_grad=True,
                             )
                     _sv_phys, _st_phys = _trim_cache[i] if _trim_cache else (sensor_vals_list[i], sensor_time_list[i])
-                    model_fn = make_lnn_model_fn(
+                    _h_phys, _st_phys_cached = _h_cache[i] if _h_cache else (None, None)
+                    uvp_fn = make_lnn_model_fn_uvp(
                         net,
                         _sv_phys,
                         sensor_pos_list[i],
                         re_norm=ds.re_norm,
                         sensor_time=_st_phys,
                         device=device,
+                        h_states=_h_phys,
+                        s_time=_st_phys_cached,
                     )
-                    u_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=0)
-                    v_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=1)
-                    p_fn = lambda xyt_, fn=model_fn: fn(xyt_, c=2)
                     mom_u, mom_v, cont = unsteady_ns_residuals(
-                        u_fn, v_fn, p_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
+                        uvp_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
                     )
                     if phys_normalize:
                         def _norm_r(r: torch.Tensor) -> torch.Tensor:
@@ -584,15 +597,18 @@ def train_lnn_kolmogorov(
                     l_ns_v_total = l_ns_v_total + torch.mean(mom_v ** 2)
                     l_cont_total = l_cont_total + torch.mean(cont ** 2)
                     # sensor physics：僅計算 continuity（第一階導數，穩定）。
+                    # 為了重用 uvp_fn，會多算一次 p_sp（不進 loss），多出的成本
+                    # ≈ 1/3 個 decoder forward × K * n_t 點，相對於整體 NS 殘差可忽略。
                     if _xyt_sp is not None:
-                        u_sp = u_fn(_xyt_sp)
-                        v_sp = v_fn(_xyt_sp)
+                        uvp_sp = uvp_fn(_xyt_sp)
+                        u_sp = uvp_sp[:, 0:1]
+                        v_sp = uvp_sp[:, 1:2]
                         du_dx_sp = _grad(u_sp, _xyt_sp)[:, 0:1]
                         dv_dy_sp = _grad(v_sp, _xyt_sp)[:, 1:2]
                         cont_sp = du_dx_sp + dv_dy_sp
                         l_cont_total = l_cont_total + torch.mean(cont_sp ** 2)
                     if poisson_weight > 0.0:
-                        poisson_res = pressure_poisson_residual(u_fn, v_fn, p_fn, xyt)
+                        poisson_res = pressure_poisson_residual(uvp_fn, xyt)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
                 net.train()
                 l_ns_u_total = l_ns_u_total / num_re

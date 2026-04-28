@@ -16,6 +16,7 @@ from pi_lnn import (  # noqa: F401  (re-exports for legacy callers)
     load_lnn_config,
     main,
     make_lnn_model_fn,
+    make_lnn_model_fn_uvp,
     observed_channel_prediction,
     periodic_fourier_encode,
     physics_points_at_step,

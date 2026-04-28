@@ -19,7 +19,12 @@ from pi_lnn.encodings import (
     temporal_phase_anchor,
 )
 from pi_lnn.losses import GradNormWeights, observed_channel_prediction
-from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn
+from pi_lnn.operator import (
+    LiquidOperator,
+    create_lnn_model,
+    make_lnn_model_fn,
+    make_lnn_model_fn_uvp,
+)
 from pi_lnn.physics import (
     physics_points_at_step,
     physics_weight_at_step,
@@ -46,6 +51,7 @@ __all__ = [
     "load_lnn_config",
     "main",
     "make_lnn_model_fn",
+    "make_lnn_model_fn_uvp",
     "observed_channel_prediction",
     "periodic_fourier_encode",
     "physics_points_at_step",
