@@ -1,0 +1,103 @@
+# configs/exp_068_re10000_causal_weighting.toml
+# What: EXP-068 — EXP-064 baseline + #5 (PINN causal weighting, Wang 2022)
+#
+# Why:
+#   現有 t_early_weight=10（t≤0.05 硬閾值加權）已驗證有效（EXP-055: KE 17.1%）。
+#   Causal weighting 是其連續版本：權重隨累積殘差自適應衰減，無需手調閾值。
+#   chaotic flow 的 Lyapunov 不穩定性讓早期誤差指數放大；causal w_t 強制
+#   t=0 收斂前 t>0 不主導梯度。
+#
+# 關鍵差異 vs EXP-064：
+#   - use_causal_weighting = true
+#   - t_early_weight = 1.0 （關閉硬閾值加權，避免雙重）
+#   - causal_eps = 1.0 （Wang 原文中間值；保守起步）
+#   - causal_num_bins = 16 （Re=10000 si100 下 dt≈0.31 per bin，足夠分辨）
+#
+# Hypothesis: KE 維持 ≤ 7.80%（與 t_early_weight=10 同等或更佳）；
+#             t=0 worst_rmse 改善；t=3.5~4.5 chaotic 區域不再被早期誤差污染。
+# Falsifiability: 若 KE > 8.5% → causal eps=1.0 過弱，需要試 eps=3.0 或回到 t_early_weight。
+#
+# 注意：causal weighting 作用於 mom_u/mom_v/cont 三項物理殘差，data loss 不受影響。
+#       與 GradNorm 協同：causal-weighted residual 先自我加權，再進入 GradNorm 平衡。
+#       不要與 RAR 同時開啟（與 EXP-056 的 IC weight + RAR 衝突模式相同）。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# #5 — Causal weighting 取代 t_early_weight 硬閾值
+t_early_weight = 1.0
+t_early_threshold = 0.05
+use_causal_weighting = true
+causal_eps = 1.0
+causal_num_bins = 16
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = true
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp068-causal-weighting"
