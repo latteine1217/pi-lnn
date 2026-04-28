@@ -39,6 +39,8 @@ class DeepONetCfCDecoder(nn.Module):
         use_locality_decay: bool = False,
         fourier_embed_dim: int = 0,
         use_periodic_domain: bool = True,
+        fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
@@ -49,7 +51,11 @@ class DeepONetCfCDecoder(nn.Module):
         self.temporal_anchor_harmonics = int(temporal_anchor_harmonics)
         temporal_dim = 2 * self.temporal_anchor_harmonics if self.use_temporal_anchor else 0
         if fourier_embed_dim > 0:
-            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            self.spatial_emb: nn.Module | None = LearnableFourierEmb(
+                fourier_embed_dim,
+                init_sigma_bands=fourier_sigma_bands,
+                band_dim_ratios=fourier_band_dim_ratios,
+            )
             spatial_dim = fourier_embed_dim
         else:
             self.spatial_emb = None

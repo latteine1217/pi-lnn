@@ -33,17 +33,87 @@ class LearnableFourierEmb(nn.Module):
          此模組先以固定 k=1 週期編碼保證週期 BC，再用可學習投影矩陣（init N(0,σ)）
          讓網路在訓練中自適應頻率分佈，隱性覆蓋高頻。
 
+    頻率分層（turbulence 多尺度）：
+        若 init_sigma_bands 與 band_dim_ratios 均提供，則將 embed_dim/2 個投影通道
+        切成 N 個頻段，分別用對應 σ 初始化。對齊 Kolmogorov 能量分佈（低頻能量多但
+        頻率窄、高頻能量少但頻率廣），讓單一 embedding 同時涵蓋多尺度。
+        例：bands=(1.0, 4.0, 12.0), ratios=(0.5, 0.375, 0.125)
+            → 50% 通道做低頻精度，37.5% 做中頻，12.5% 做高頻探索。
+
     Args:
         embed_dim: 輸出維度（需為偶數）。
-        init_sigma: 投影矩陣初始化標準差（對應 jaxpi embed_scale=2.0）。
+        init_sigma: 單頻段時的投影矩陣初始化標準差（對應 jaxpi embed_scale=2.0）。
+        init_sigma_bands: 多頻段時各段的 σ；None 走單頻段路徑（向後相容）。
+        band_dim_ratios: 多頻段時各段佔 embed_dim/2 的比例；長度需與 sigma_bands 相同，
+                          總和需 = 1.0（容忍 ±1e-6）。各段至少分配 1 個通道。
     """
 
-    def __init__(self, embed_dim: int, init_sigma: float = 2.0) -> None:
+    def __init__(
+        self,
+        embed_dim: int,
+        init_sigma: float = 2.0,
+        init_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        band_dim_ratios: tuple[float, ...] | list[float] | None = None,
+    ) -> None:
         super().__init__()
         if embed_dim % 2 != 0:
             raise ValueError(f"embed_dim 必須為偶數，收到 {embed_dim}")
-        self.proj = nn.Linear(4, embed_dim // 2, bias=False)
-        nn.init.normal_(self.proj.weight, std=init_sigma)
+        half = embed_dim // 2
+        self.proj = nn.Linear(4, half, bias=False)
+
+        if init_sigma_bands is None and band_dim_ratios is None:
+            nn.init.normal_(self.proj.weight, std=init_sigma)
+            self._band_layout: list[tuple[int, int, float]] | None = None
+            return
+
+        if init_sigma_bands is None or band_dim_ratios is None:
+            raise ValueError(
+                "init_sigma_bands 與 band_dim_ratios 必須同時提供或同時為 None"
+            )
+        sigmas = list(init_sigma_bands)
+        ratios = list(band_dim_ratios)
+        if len(sigmas) != len(ratios):
+            raise ValueError(
+                f"init_sigma_bands ({len(sigmas)}) 與 band_dim_ratios ({len(ratios)}) "
+                f"長度需相同"
+            )
+        if len(sigmas) < 1:
+            raise ValueError("至少需要 1 個 band")
+        if any(s <= 0 for s in sigmas):
+            raise ValueError(f"所有 sigma 必須 > 0，收到 {sigmas}")
+        if any(r <= 0 for r in ratios):
+            raise ValueError(f"所有 ratio 必須 > 0，收到 {ratios}")
+        if abs(sum(ratios) - 1.0) > 1e-6:
+            raise ValueError(f"band_dim_ratios 總和需 = 1.0，收到 {sum(ratios)}")
+
+        # 分配通道數：先按 ratio 取整，再把剩餘通道分給最大 ratio 的段
+        counts = [max(1, int(round(r * half))) for r in ratios]
+        diff = half - sum(counts)
+        if diff != 0:
+            # 按 ratio 大小排序的索引，依序加 / 減 1 直到加總正確
+            order = sorted(range(len(ratios)), key=lambda i: -ratios[i])
+            i = 0
+            while diff > 0:
+                counts[order[i % len(order)]] += 1
+                diff -= 1
+                i += 1
+            while diff < 0:
+                if counts[order[i % len(order)]] > 1:
+                    counts[order[i % len(order)]] -= 1
+                    diff += 1
+                i += 1
+        if sum(counts) != half:
+            raise RuntimeError(f"band 分配出錯：counts={counts}, half={half}")
+
+        layout: list[tuple[int, int, float]] = []
+        cursor = 0
+        with torch.no_grad():
+            for n_dim, sigma in zip(counts, sigmas):
+                end = cursor + n_dim
+                self.proj.weight[cursor:end].normal_(0.0, sigma)
+                layout.append((cursor, end, sigma))
+                cursor = end
+        self._band_layout = layout
 
     def forward(self, xy: torch.Tensor, domain_length: float) -> torch.Tensor:
         c = 2.0 * torch.pi / domain_length

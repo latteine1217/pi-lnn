@@ -31,6 +31,8 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "use_bidirectional_cfc": False,
     "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
     "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
+    "fourier_sigma_bands": None,    # LearnableFourierEmb 多頻段 σ；None=單一 σ；例 [1.0, 4.0, 12.0]
+    "fourier_band_dim_ratios": None,  # 對應各 band 的通道比例；總和需 = 1.0；例 [0.5, 0.375, 0.125]
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限

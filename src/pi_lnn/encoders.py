@@ -23,13 +23,19 @@ class SpatialSetEncoder(nn.Module):
         num_layers: int,
         domain_length: float = 1.0,
         fourier_embed_dim: int = 0,
+        fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
     ) -> None:
         super().__init__()
         self.domain_length = float(domain_length)
         self.fourier_harmonics = int(fourier_harmonics)
         self.sensor_value_dim = int(sensor_value_dim)
         if fourier_embed_dim > 0:
-            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            self.spatial_emb: nn.Module | None = LearnableFourierEmb(
+                fourier_embed_dim,
+                init_sigma_bands=fourier_sigma_bands,
+                band_dim_ratios=fourier_band_dim_ratios,
+            )
             spatial_dim = fourier_embed_dim
         else:
             self.spatial_emb = None
