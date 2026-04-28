@@ -132,6 +132,7 @@
 35. Wavelet 稀疏性診斷（2026-04-26）量化確認資訊論上限：Re=10000 Kolmogorov flow 的速度場在 db4 wavelet 域 Gini≈0.98，99% 能量集中在約 328 個係數（top 0.5%）。CS 精確重建需 M≥O(5000) sensor；K=100/200 差了 25–50 倍。Fourier 與 wavelet 稀疏度等價，換基底不改變上限量級。band_mid（k~8..16，能量 4.8%）需 588 個 wavelet 自由度，遠超 K=100 的觀測容量。這是目前 band_mid/high 無法突破的數學根源。
 36. EXP-066（K=200, 10k 步）部分突破 band_mid 上限，但低頻退步：band_mid_last **32.90%**（vs EXP-064 99.97%，首次突破），band_low_last **38.65%**（vs EXP-064 3.62%，明顯退步），KE mean **29.94%**（vs EXP-064 7.80%）。混合結果：K=200 增加 sensor 覆蓋確實讓中頻重建可行，但 10k 步訓練仍未充分收斂（L_phys@10k=2.95），低頻品質因此拖累整體指標。**訊息論假設部分成立：K=200 確實突破 band_mid 天花板；但同時暴露 K=200 需要更長訓練才能同時維持低中頻品質。**
 37. AIM（Approximate Inertial Manifold）後處理診斷（2026-04-26）：zeroth-order AIM 公式 `û_k = N̂_k/(νk²)` 在 Re=10000 inertial range（k≈5..16）完全失效。τ_visc/τ_NL ≈ 215（k=10），quasi-static 假設嚴重違反。診斷結果：band_mid 從 50.7% 惡化至 2985.9%（放大 59 倍）。AIM 公式僅在 k >> k_d ≈ 1780（dissipation scale）成立，遠超 DNS grid 的 k_max=128。**Zeroth-order AIM 路徑已證偽；利用 NS 模式耦合推算未觀測頻率的原則本身有效，但需要更高階方法（如 4D-Var）。**
+38. EXP-067（2026-04-29，CfC log_tau (-3,1) + 頻率分層 LearnableFourierEmb (1,4,12)/(50%,37.5%,12.5%)，10k 步）：KE **11.20%**（vs EXP-064 7.80%，**+3.40pp 退步**）；div_l2 0.263（+43%）；band_low_last **7.19%**（vs 3.62%，+3.57pp 退步）；band_mid_last 98.46%（微改善 -1.51pp）；band_high_last 99.99%（持平）。**Hypothesis falsified**：兩項組合在 d_model=256 / fourier_embed_dim=128 架構下未達預期。診斷：(a) 頻率分層的 σ=12 高頻段微改善 band_mid 但分配 12.5% 通道犧牲低頻精度；(b) CfC log_tau (-3, 1) 引入 fast channels（τ≈0.05）相對 sensor dt=0.025 過敏感，可能干擾 slow 流場結構。**下一步建議拆解測試 EXP-067a（只 #3）與 EXP-067b（只 #6）以判斷哪一項是退步主因。**
 
 ---
 
