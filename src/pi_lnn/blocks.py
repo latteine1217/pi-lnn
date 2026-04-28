@@ -9,14 +9,29 @@ class CfCCell(nn.Module):
     """What: Closed-form Continuous-time recurrent cell.
 
     Why: 以閉合解近似連續時間動態，避免 LTC 的數值 ODE 求解成本。
+
+    log_tau_min/max 控制 channel 間時間常數的初始分佈範圍：
+        τ ∈ [exp(min), exp(max)]，linspace 對齊 hidden_size 個 channel。
+    對 turbulence 多尺度，建議 (-3, 1) 覆蓋 dt~T_total 三個量級；預設
+    (-1, 1) 維持向後相容。
     """
 
-    def __init__(self, input_size: int, hidden_size: int) -> None:
+    def __init__(
+        self,
+        input_size: int,
+        hidden_size: int,
+        log_tau_min: float = -1.0,
+        log_tau_max: float = 1.0,
+    ) -> None:
         super().__init__()
+        if log_tau_min >= log_tau_max:
+            raise ValueError(
+                f"log_tau_min 必須 < log_tau_max，收到 ({log_tau_min}, {log_tau_max})"
+            )
         combined = input_size + hidden_size
         self.ff1 = nn.Linear(combined, hidden_size)
         self.ff2 = nn.Linear(combined, hidden_size)
-        self.log_tau_a = nn.Parameter(torch.linspace(-1.0, 1.0, hidden_size))
+        self.log_tau_a = nn.Parameter(torch.linspace(log_tau_min, log_tau_max, hidden_size))
         self.time_b = nn.Linear(combined, hidden_size)
         nn.init.xavier_uniform_(self.time_b.weight)
         nn.init.zeros_(self.time_b.bias)

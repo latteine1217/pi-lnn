@@ -88,6 +88,8 @@ class TemporalCfCEncoder(nn.Module):
         num_token_attention_layers: int = 1,
         token_attention_heads: int = 4,
         use_bidirectional: bool = False,
+        cfc_log_tau_min: float = -1.0,
+        cfc_log_tau_max: float = 1.0,
     ) -> None:
         super().__init__()
         self.d_model = d_model
@@ -97,11 +99,17 @@ class TemporalCfCEncoder(nn.Module):
             TokenSelfAttentionBlock(d_model=d_model, num_heads=token_attention_heads)
             for _ in range(max(num_token_attention_layers, 0))
         ])
-        self.cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+        self.cells = nn.ModuleList([
+            CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+            for _ in range(num_layers)
+        ])
         if use_bidirectional:
             # 反向 CfC：獨立參數，從 t=T-1 掃回 t=0。
             # Why: 讓 h_states[0] 也能看到未來觀測，消除因果編碼在 t=0 的資訊不對稱。
-            self.backward_cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+            self.backward_cells = nn.ModuleList([
+                CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+                for _ in range(num_layers)
+            ])
 
     def _re_bias(self, re_norm: float, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         re_t = torch.tensor([[re_norm]], dtype=dtype, device=device)

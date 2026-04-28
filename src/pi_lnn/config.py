@@ -29,6 +29,8 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "fusion_temperature_init": None,
     "use_locality_decay": False,
     "use_bidirectional_cfc": False,
+    "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
+    "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限
