@@ -83,11 +83,13 @@ class LiquidOperator(nn.Module):
         re_norm: float,
         sensor_time: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
+        """What: 對 [T, K, C] 整段 sensor_vals 一次跑完 spatial encoder。
+
+        Why: 原本 Python loop over T 每步 T×=200 個 kernel launch；spatial encoder
+             所有層對 last-dim element-wise，T 軸僅是 batch，向量化後結果等價。
+        """
         pos_enc = self.spatial_encoder.encode_pos(sensor_pos)
-        spatial_states = torch.stack([
-            self.spatial_encoder(sensor_vals[t], pos_enc)
-            for t in range(sensor_vals.shape[0])
-        ])
+        spatial_states = self.spatial_encoder(sensor_vals, pos_enc)  # [T, K, d_model]
         return self.temporal_encoder(spatial_states, re_norm, sensor_time), sensor_time
 
     def update_state(
@@ -191,3 +193,33 @@ def make_lnn_model_fn(
         return net.query_decoder(xy_d, t_q_d, c_t, h_states, s_time, sensor_pos).to(xyt.device)
 
     return model_fn
+
+
+def make_lnn_model_fn_uvp(
+    net: LiquidOperator,
+    sensor_vals: torch.Tensor,
+    sensor_pos: torch.Tensor,
+    re_norm: float,
+    sensor_time: torch.Tensor,
+    device: torch.device,
+    h_states: torch.Tensor | None = None,
+    s_time: torch.Tensor | None = None,
+) -> Callable:
+    """What: 建立 physics path 用的 uvp closure，回傳 [N, 3] = (u, v, p)。
+
+    Why: 取代 (u_fn, v_fn, p_fn) 三個獨立 closure。共用 c-independent 路徑且只
+         保留 1 份共享 autograd graph，二階 backward 記憶體峰值同步下降。
+    """
+    net_device = next(iter(net.parameters())).device
+    if h_states is None or s_time is None:
+        h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
+
+    def model_fn_uvp(xyt: torch.Tensor) -> torch.Tensor:
+        xyt_d = xyt.to(net_device)
+        xy_d = xyt_d[:, :2]
+        t_q_d = xyt_d[:, 2]
+        return net.query_decoder.forward_uvp(
+            xy_d, t_q_d, h_states, s_time, sensor_pos
+        ).to(xyt.device)
+
+    return model_fn_uvp

@@ -6,14 +6,12 @@ from typing import Callable
 import numpy as np
 import torch
 
-from pi_lnn.operator import make_lnn_model_fn
+from pi_lnn.operator import make_lnn_model_fn_uvp
 from pi_lnn.runtime import _grad
 
 
 def unsteady_ns_residuals(
-    u_fn: Callable,
-    v_fn: Callable,
-    p_fn: Callable,
+    uvp_fn: Callable,
     xyt: torch.Tensor,
     re: float,
     k_f: float = 4.0,
@@ -24,8 +22,13 @@ def unsteady_ns_residuals(
 
     Why: sparse-data 主線的實際觀測仍只有 u,v，但 momentum equation 需要壓力梯度。
          因此 p 回到模型的內部 physics 場，只參與 PDE 殘差，不作資料 supervision。
+         uvp_fn 一次回傳 [N, 3]，相較舊版三個獨立 closure 共用 c-independent 計算
+         並合併二階 autograd graph，數學上等價。
     """
-    u, v, p = u_fn(xyt), v_fn(xyt), p_fn(xyt)
+    uvp = uvp_fn(xyt)                                      # [N, 3]
+    u = uvp[:, 0:1]
+    v = uvp[:, 1:2]
+    p = uvp[:, 2:3]
     u_xyt = _grad(u, xyt)
     v_xyt = _grad(v, xyt)
     p_xyt = _grad(p, xyt)
@@ -46,9 +49,7 @@ def unsteady_ns_residuals(
 
 
 def pressure_poisson_residual(
-    u_fn: Callable,
-    v_fn: Callable,
-    p_fn: Callable,
+    uvp_fn: Callable,
     xyt: torch.Tensor,
 ) -> torch.Tensor:
     """What: 2D incompressible 壓力 Poisson 方程殘差。
@@ -62,7 +63,10 @@ def pressure_poisson_residual(
     數學推導：對動量方程取散度，使用 ∇·u=0 及 Kolmogorov forcing ∇·f=0 後得到。
     不需要任何額外觀測量，僅用模型輸出的 u, v, p via autograd。
     """
-    u, v, p = u_fn(xyt), v_fn(xyt), p_fn(xyt)
+    uvp = uvp_fn(xyt)                                      # [N, 3]
+    u = uvp[:, 0:1]
+    v = uvp[:, 1:2]
+    p = uvp[:, 2:3]
     u_xyt = _grad(u, xyt)
     v_xyt = _grad(v, xyt)
     p_xyt = _grad(p, xyt)
@@ -120,13 +124,14 @@ def _rar_update_pool(
             np.concatenate([xy_np, t_np[:, None]], axis=1),
             dtype=torch.float32, device=device, requires_grad=True,
         )
-        model_fn = make_lnn_model_fn(
+        uvp_fn = make_lnn_model_fn_uvp(
             net, sensor_vals_list[i], sensor_pos_list[i],
             re_norm=ds.re_norm, sensor_time=sensor_time_list[i], device=device,
         )
-        u = model_fn(xyt_pool, c=0)
-        v = model_fn(xyt_pool, c=1)
-        p = model_fn(xyt_pool, c=2)
+        uvp = uvp_fn(xyt_pool)
+        u = uvp[:, 0:1]
+        v = uvp[:, 1:2]
+        p = uvp[:, 2:3]
 
         def _g1(y: torch.Tensor) -> torch.Tensor:
             g = torch.autograd.grad(

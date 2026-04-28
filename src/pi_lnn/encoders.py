@@ -66,6 +66,14 @@ class SpatialSetEncoder(nn.Module):
         sensor_vals: torch.Tensor,
         pos_enc: torch.Tensor,
     ) -> torch.Tensor:
+        """支援 [K, C]（單一時刻、streaming）或 [T, K, C]（向量化整段時序）。
+
+        Why: 整個 module 對 last-dim element-wise，T 軸只是 batch，
+             向量化等價於原本 Python loop over T，但消除 T×=200× kernel-launch overhead。
+        """
+        if sensor_vals.dim() == 3 and pos_enc.dim() == 2:
+            T = sensor_vals.shape[0]
+            pos_enc = pos_enc.unsqueeze(0).expand(T, -1, -1)
         base = torch.cat([pos_enc, sensor_vals], dim=-1)
         tokens = self.token_in(self.base_norm(base))
         for block in self.blocks:
@@ -112,21 +120,16 @@ class TemporalCfCEncoder(nn.Module):
         seq: torch.Tensor,
         cells: nn.ModuleList,
         dts: torch.Tensor,
-        re_bias: torch.Tensor,
         layer_idx: int,
         reverse: bool,
     ) -> torch.Tensor:
-        """What: 單方向的 CfC 掃描（forward 或 backward）。"""
+        """What: 單方向 CfC 掃描；seq 已在 forward() 內預先做完 token attention 與 re_bias 加總。"""
         T = seq.shape[0]
         h = torch.zeros(seq.shape[1], self.d_model, device=seq.device, dtype=seq.dtype)
         outputs: list[torch.Tensor] = [torch.empty(0)] * T
         time_range = reversed(range(T)) if reverse else range(T)
         for t in time_range:
             x_t = seq[t]
-            if self.token_blocks:
-                block_idx = min(len(self.token_blocks) - 1, layer_idx)
-                x_t = self.token_blocks[block_idx](x_t.unsqueeze(0)).squeeze(0)
-            x_t = x_t + re_bias.squeeze(0)
             h = cells[layer_idx](x_t, h, dt=dts[t])
             outputs[t] = h
         return torch.stack(outputs)
@@ -137,13 +140,26 @@ class TemporalCfCEncoder(nn.Module):
         re_norm: float,
         sensor_time: torch.Tensor,
     ) -> torch.Tensor:
+        """What: 多層 CfC scan，每層先做 token attention（向量化 over T）再 scan。
+
+        Why: 原版 attention 在 per-timestep 內以 batch=1 呼叫，T*L 次 kernel launch；
+             移到 scan 之外對 [T, K, d] 一次 forward，T 軸當 batch 對 attention 完全等價。
+             re_bias 也由 per-t addition 改成預先加總到 attended sequence 上，
+             與原版「attention → +re_bias → CfC」順序保持一致。
+        """
         dts = torch.cat([sensor_time[:1], sensor_time[1:] - sensor_time[:-1]])
         re_bias = self._re_bias(re_norm, spatial_states.device, spatial_states.dtype).view(1, 1, -1)
         seq = spatial_states
         for layer_idx in range(len(self.cells)):
-            fwd = self._run_cfc_pass(seq, self.cells, dts, re_bias, layer_idx, reverse=False)
+            if self.token_blocks:
+                block_idx = min(len(self.token_blocks) - 1, layer_idx)
+                attended = self.token_blocks[block_idx](seq)        # [T, K, d]，T 為 batch
+            else:
+                attended = seq
+            attended_with_bias = attended + re_bias                 # 廣播到 [T, K, d]
+            fwd = self._run_cfc_pass(attended_with_bias, self.cells, dts, layer_idx, reverse=False)
             if self.use_bidirectional:
-                bwd = self._run_cfc_pass(seq, self.backward_cells, dts, re_bias, layer_idx, reverse=True)
+                bwd = self._run_cfc_pass(attended_with_bias, self.backward_cells, dts, layer_idx, reverse=True)
                 new_seq = fwd + bwd
             else:
                 new_seq = fwd
