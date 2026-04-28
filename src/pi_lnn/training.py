@@ -24,7 +24,7 @@ from pi_lnn.physics import (
     pressure_poisson_residual,
     unsteady_ns_residuals,
 )
-from pi_lnn.runtime import configure_torch_runtime, count_parameters, write_json
+from pi_lnn.runtime import _grad, configure_torch_runtime, count_parameters, write_json
 
 
 def train_lnn_kolmogorov(
