@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 
 from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.encodings import LearnableFourierEmb, periodic_fourier_encode
+from pi_lnn.encodings import FourierEmbs, LearnableFourierEmb, periodic_fourier_encode
 
 
 class SpatialSetEncoder(nn.Module):
@@ -23,15 +23,27 @@ class SpatialSetEncoder(nn.Module):
         num_layers: int,
         domain_length: float = 1.0,
         fourier_embed_dim: int = 0,
+        use_periodic_domain: bool = True,
     ) -> None:
         super().__init__()
         self.domain_length = float(domain_length)
         self.fourier_harmonics = int(fourier_harmonics)
         self.sensor_value_dim = int(sensor_value_dim)
+        self.use_periodic_domain = bool(use_periodic_domain)
         if fourier_embed_dim > 0:
-            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            # 週期：LearnableFourierEmb（PeriodEmbs + 投影），x=0≡x=L 編碼。
+            # 非週期：FourierEmbs 真 RFF，無預先週期化，能區分域邊界。
+            if self.use_periodic_domain:
+                self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            else:
+                self.spatial_emb = FourierEmbs(fourier_embed_dim, input_dim=2)
             spatial_dim = fourier_embed_dim
         else:
+            if not self.use_periodic_domain:
+                raise ValueError(
+                    "use_periodic_domain=False 需 fourier_embed_dim>0；"
+                    "harmonics-only fallback 為週期編碼，與非週期域語義衝突。"
+                )
             self.spatial_emb = None
             spatial_dim = 4 * fourier_harmonics
         base_in = spatial_dim + self.sensor_value_dim

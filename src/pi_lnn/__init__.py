@@ -14,6 +14,7 @@ from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
 from pi_lnn.decoder import DeepONetCfCDecoder
 from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
 from pi_lnn.encodings import (
+    FourierEmbs,
     LearnableFourierEmb,
     periodic_fourier_encode,
     temporal_phase_anchor,
@@ -38,6 +39,7 @@ __all__ = [
     "CfCCell",
     "DEFAULT_LNN_ARGS",
     "DeepONetCfCDecoder",
+    "FourierEmbs",
     "GradNormWeights",
     "LearnableFourierEmb",
     "LiquidOperator",

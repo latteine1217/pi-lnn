@@ -50,6 +50,7 @@ class LiquidOperator(nn.Module):
             num_spatial_cfc_layers,
             domain_length=domain_length,
             fourier_embed_dim=fourier_embed_dim,
+            use_periodic_domain=use_periodic_domain,
         )
         self.temporal_encoder = TemporalCfCEncoder(
             d_model,

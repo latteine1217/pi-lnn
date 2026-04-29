@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 from pi_lnn.blocks import ResidualMLPBlock
 from pi_lnn.encodings import (
+    FourierEmbs,
     LearnableFourierEmb,
     periodic_fourier_encode,
     temporal_phase_anchor,
@@ -49,9 +50,19 @@ class DeepONetCfCDecoder(nn.Module):
         self.temporal_anchor_harmonics = int(temporal_anchor_harmonics)
         temporal_dim = 2 * self.temporal_anchor_harmonics if self.use_temporal_anchor else 0
         if fourier_embed_dim > 0:
-            self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            # 週期：LearnableFourierEmb；非週期：FourierEmbs 真 RFF。
+            # 詳見 encodings.py 兩個類別的註解與 jaxpi 對齊說明。
+            if self.use_periodic_domain:
+                self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+            else:
+                self.spatial_emb = FourierEmbs(fourier_embed_dim, input_dim=2)
             spatial_dim = fourier_embed_dim
         else:
+            if not self.use_periodic_domain:
+                raise ValueError(
+                    "use_periodic_domain=False 需 fourier_embed_dim>0；"
+                    "harmonics-only fallback 為週期編碼，與非週期域語義衝突。"
+                )
             self.spatial_emb = None
             spatial_dim = 4 * fourier_harmonics
         query_in = spatial_dim + temporal_dim + d_time + 8

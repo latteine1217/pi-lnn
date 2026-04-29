@@ -27,11 +27,12 @@ def periodic_fourier_encode(z: torch.Tensor, domain_length: float, n_harmonics: 
 
 
 class LearnableFourierEmb(nn.Module):
-    """What: PeriodEmbs(k=1) + 可學習 Fourier 投影，對齊 jaxpi FourierEmbs 設計。
+    """What: PeriodEmbs(k=1) → 可學習 Fourier 投影 的級聯，等價於 jaxpi
+    Embedding(periodicity=set, fourier_emb=set)。
 
-    Why: periodic_fourier_encode 使用確定性整數諧波（k=1..n），硬性上限 k>n 完全無法表達。
-         此模組先以固定 k=1 週期編碼保證週期 BC，再用可學習投影矩陣（init N(0,σ)）
-         讓網路在訓練中自適應頻率分佈，隱性覆蓋高頻。
+    Why: 為 [0,L]² 週期 BC 而設。`period_enc` 強制把 (x,y) 映射到週期循環，
+         使 x=0 與 x=L 編碼恆等（驗證見 tests/test_pos_enc_optimization.py）。
+         僅適用週期問題（如 Kolmogorov）；非週期問題（如 cylinder）請改用 FourierEmbs。
 
     Args:
         embed_dim: 輸出維度（需為偶數）。
@@ -54,6 +55,35 @@ class LearnableFourierEmb(nn.Module):
         )  # [N, 4]
         proj = self.proj(period_enc)  # [N, embed_dim // 2]
         return torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)  # [N, embed_dim]
+
+
+class FourierEmbs(nn.Module):
+    """What: 真 RFF——對原始座標做高斯隨機投影 + sin/cos，對應 jaxpi
+    archs.py:83-97 FourierEmbs。
+
+    Why: 適用非週期域（如 cylinder wake，x=0 與 x=L 物理意義截然不同）。
+         與 LearnableFourierEmb 的關鍵差別在於不預先 sin/cos 週期化，
+         因此能區分 x=0 與 x=L。
+
+    Args:
+        embed_dim: 輸出維度（需為偶數）。
+        input_dim: 輸入座標維度（預設 2D）。
+        init_sigma: 投影矩陣初始化標準差，控制有效頻率帶寬。
+    """
+
+    def __init__(self, embed_dim: int, input_dim: int = 2, init_sigma: float = 2.0) -> None:
+        super().__init__()
+        if embed_dim % 2 != 0:
+            raise ValueError(f"embed_dim 必須為偶數，收到 {embed_dim}")
+        self.proj = nn.Linear(input_dim, embed_dim // 2, bias=False)
+        nn.init.normal_(self.proj.weight, std=init_sigma)
+
+    def forward(self, xy: torch.Tensor, domain_length: float | None = None) -> torch.Tensor:
+        # domain_length 簽名與 LearnableFourierEmb 對齊但不使用——
+        # RFF 的有效頻率由 init_sigma 決定，與 domain 大小無關。
+        del domain_length
+        proj = self.proj(xy)
+        return torch.cat([torch.cos(proj), torch.sin(proj)], dim=-1)
 
 
 def temporal_phase_anchor(t: torch.Tensor, T_total: float, n_harmonics: int = 2) -> torch.Tensor:
