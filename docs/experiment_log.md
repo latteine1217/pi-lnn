@@ -132,9 +132,10 @@
 35. Wavelet 稀疏性診斷（2026-04-26）量化確認資訊論上限：Re=10000 Kolmogorov flow 的速度場在 db4 wavelet 域 Gini≈0.98，99% 能量集中在約 328 個係數（top 0.5%）。CS 精確重建需 M≥O(5000) sensor；K=100/200 差了 25–50 倍。Fourier 與 wavelet 稀疏度等價，換基底不改變上限量級。band_mid（k~8..16，能量 4.8%）需 588 個 wavelet 自由度，遠超 K=100 的觀測容量。這是目前 band_mid/high 無法突破的數學根源。
 36. EXP-066（K=200, 10k 步）部分突破 band_mid 上限，但低頻退步：band_mid_last **32.90%**（vs EXP-064 99.97%，首次突破），band_low_last **38.65%**（vs EXP-064 3.62%，明顯退步），KE mean **29.94%**（vs EXP-064 7.80%）。混合結果：K=200 增加 sensor 覆蓋確實讓中頻重建可行，但 10k 步訓練仍未充分收斂（L_phys@10k=2.95），低頻品質因此拖累整體指標。**訊息論假設部分成立：K=200 確實突破 band_mid 天花板；但同時暴露 K=200 需要更長訓練才能同時維持低中頻品質。**
 37. AIM（Approximate Inertial Manifold）後處理診斷（2026-04-26）：zeroth-order AIM 公式 `û_k = N̂_k/(νk²)` 在 Re=10000 inertial range（k≈5..16）完全失效。τ_visc/τ_NL ≈ 215（k=10），quasi-static 假設嚴重違反。診斷結果：band_mid 從 50.7% 惡化至 2985.9%（放大 59 倍）。AIM 公式僅在 k >> k_d ≈ 1780（dissipation scale）成立，遠超 DNS grid 的 k_max=128。**Zeroth-order AIM 路徑已證偽；利用 NS 模式耦合推算未觀測頻率的原則本身有效，但需要更高階方法（如 4D-Var）。**
-38. EXP-067（2026-04-29，CfC log_tau (-3,1) + 頻率分層 LearnableFourierEmb (1,4,12)/(50%,37.5%,12.5%)，10k 步）：KE **11.20%**（vs EXP-064 7.80%，**+3.40pp 退步**）；div_l2 0.263（+43%）；u_rel_l2 18.58%；v_rel_l2 22.29%；omega_rel_l2 47.38%；band_low_last **7.19%**（vs 3.62%，+3.57pp 退步）；band_mid_last 98.46%（微改善 -1.51pp）；band_high_last 99.99%（持平）。**Hypothesis falsified**：兩項組合在 d_model=256 / fourier_embed_dim=128 架構下未達預期。診斷：(a) 頻率分層的 σ=12 高頻段微改善 band_mid 但分配 12.5% 通道犧牲低頻精度；(b) CfC log_tau (-3, 1) 引入 fast channels（τ≈0.05）相對 sensor dt=0.025 過敏感，可能干擾 slow 流場結構。**下一步建議拆解測試 EXP-067a（只 #3）與 EXP-067b（只 #6）以判斷哪一項是退步主因。**
-39. EXP-068（2026-04-29，PINN causal weighting eps=1.0 num_bins=16，t_early_weight 關閉，10k 步）：KE **9.73%**（vs EXP-064 7.80%，**+1.93pp 退步**）；div_l2 **0.680**（vs 0.184，**+269% 嚴重退步**）；u_rel_l2 21.22%；v_rel_l2 25.25%；omega_rel_l2 50.44%；band_low_last 4.90%（+1.28pp）；band_mid_last 99.65%（持平）；band_high_last 99.99%（持平）；kf_phase_err -0.057 rad（vs -0.023，2.5x 退步）；u_rmse_early_mean 0.112。訓練曲線觀察：causal weighting 確實使 step 1~3000 收斂速度優於 EXP-067（L_total 領先 -27~-48%），但收斂終點品質變差。**Hypothesis partial falsified**：causal weighting 加速早期收斂的目標達成，但同時嚴重損害 continuity 約束品質（div_l2 3.7×）。**根因診斷**：當前實作以「所有殘差項之和」做 cumsum 計算 w_t，使量級較大的 momentum 殘差主導權重曲線；continuity 殘差（量級小一個數量級）的相對重要度被進一步壓低，導致模型傾向忽略不可壓縮約束。**修正建議**：改用 per-task cumsum 計算 task-specific weights，或僅以 momentum 殘差驅動權重而對 continuity 維持均勻平均。
-40. EXP-069（2026-04-29，三項組合：CfC tau (-3,1) + 頻率分層 (1,4,12) + causal weighting eps=1.0，10k 步）：KE **20.13%**（vs EXP-064 7.80%，**+12.33pp 嚴重退步**）；div_l2 **1.404**（vs 0.184，**+663% 災難性退步**）；u_rel_l2 29.25%；v_rel_l2 33.09%；omega_rel_l2 58.89%；Ens rel-err 38.35%；kf_phase_err **+0.112 rad**（vs -0.023，方向反轉且 5x）。**Hypothesis falsified**（如預測）：三項負面交互證實。**機制診斷**：(a) CfC fast channels 與 (b) 頻率分層 σ=12 高頻段 兩者的負面副作用在 (c) causal weighting 主導下被放大——causal cumsum 使 t<2 的低能量 sensor 區域 over-fit，模型過度配合 t≈0 IC 而失去全域平衡能力；同時 fast CfC channels 把高頻噪音帶進 IC 重建。三項皆需單獨修正後再組合。**結論**：三項機制各有獨立問題，不可在當前形式下混合使用。
+38. Cylinder Wake Inflow BC（CEXP-001 vs CEXP-002，2026-04-28）：非週期域的稀疏重建**必須加入 inflow boundary condition loss**。CEXP-001（無 BC）KE rel-err=51%，根因是感測器 100% 集中在尾跡（x>0.10），來流區無 supervision，模型在 x≈0 輸出 u≈0。加入 `bc_loss_weight=0.1`、`bc_inflow_u=0.33 m/s`、`bc_n_points=64` 後，CEXP-002 KE 降至 3.5%（14.5× 改善）。**結論：Kolmogorov（週期域）不需要 BC；所有非週期域問題必須在 config 明確指定 inflow BC 參數。**
+39. EXP-067（2026-04-29，CfC log_tau (-3,1) + 頻率分層 LearnableFourierEmb (1,4,12)/(50%,37.5%,12.5%)，10k 步）：KE **11.20%**（vs EXP-064 7.80%，**+3.40pp 退步**）；div_l2 0.263（+43%）；u_rel_l2 18.58%；v_rel_l2 22.29%；omega_rel_l2 47.38%；band_low_last **7.19%**（vs 3.62%，+3.57pp 退步）；band_mid_last 98.46%（微改善 -1.51pp）；band_high_last 99.99%（持平）。**Hypothesis falsified**：兩項組合在 d_model=256 / fourier_embed_dim=128 架構下未達預期。診斷：(a) 頻率分層的 σ=12 高頻段微改善 band_mid 但分配 12.5% 通道犧牲低頻精度；(b) CfC log_tau (-3, 1) 引入 fast channels（τ≈0.05）相對 sensor dt=0.025 過敏感，可能干擾 slow 流場結構。**下一步建議拆解測試 EXP-067a（只 #3）與 EXP-067b（只 #6）以判斷哪一項是退步主因。**
+40. EXP-068（2026-04-29，PINN causal weighting eps=1.0 num_bins=16，t_early_weight 關閉，10k 步）：KE **9.73%**（vs EXP-064 7.80%，**+1.93pp 退步**）；div_l2 **0.680**（vs 0.184，**+269% 嚴重退步**）；u_rel_l2 21.22%；v_rel_l2 25.25%；omega_rel_l2 50.44%；band_low_last 4.90%（+1.28pp）；band_mid_last 99.65%（持平）；band_high_last 99.99%（持平）；kf_phase_err -0.057 rad（vs -0.023，2.5x 退步）；u_rmse_early_mean 0.112。訓練曲線觀察：causal weighting 確實使 step 1~3000 收斂速度優於 EXP-067（L_total 領先 -27~-48%），但收斂終點品質變差。**Hypothesis partial falsified**：causal weighting 加速早期收斂的目標達成，但同時嚴重損害 continuity 約束品質（div_l2 3.7×）。**根因診斷**：當前實作以「所有殘差項之和」做 cumsum 計算 w_t，使量級較大的 momentum 殘差主導權重曲線；continuity 殘差（量級小一個數量級）的相對重要度被進一步壓低，導致模型傾向忽略不可壓縮約束。**修正建議**：改用 per-task cumsum 計算 task-specific weights，或僅以 momentum 殘差驅動權重而對 continuity 維持均勻平均。
+41. EXP-069（2026-04-29，三項組合：CfC tau (-3,1) + 頻率分層 (1,4,12) + causal weighting eps=1.0，10k 步）：KE **20.13%**（vs EXP-064 7.80%，**+12.33pp 嚴重退步**）；div_l2 **1.404**（vs 0.184，**+663% 災難性退步**）；u_rel_l2 29.25%；v_rel_l2 33.09%；omega_rel_l2 58.89%；Ens rel-err 38.35%；kf_phase_err **+0.112 rad**（vs -0.023，方向反轉且 5x）。**Hypothesis falsified**（如預測）：三項負面交互證實。**機制診斷**：(a) CfC fast channels 與 (b) 頻率分層 σ=12 高頻段 兩者的負面副作用在 (c) causal weighting 主導下被放大——causal cumsum 使 t<2 的低能量 sensor 區域 over-fit，模型過度配合 t≈0 IC 而失去全域平衡能力；同時 fast CfC channels 把高頻噪音帶進 IC 重建。三項皆需單獨修正後再組合。**結論**：三項機制各有獨立問題，不可在當前形式下混合使用。
 
 ---
 
@@ -257,9 +258,49 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 - `sensor_subsample=20`：T=3990 → T=200（dt=0.1s），對齊 Kolmogorov 計算量
 - 座標正規化至 [0,1]²（domain_length=1.0）
 
+### Cylinder 實驗結果
+
+#### CEXP-001：無 BC baseline（KE=51%，失敗）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_001_k100.toml` |
+| Artifact | `artifacts/deeponet-cfc-cylinder-exp001-k100-warmup` |
+| Checkpoint | `checkpoints/lnn_kolmogorov_step_10000.pt` |
+| KE rel-err mean | **51.0%** |
+| u RMSE mean | 2.47e-1 |
+| v RMSE mean | 9.99e-2 |
+| div L2 mean | 1.13 |
+| 結論 | [RESULT: PHYSICAL_FAILURE]：感測器全部集中尾跡（x>0.10），無 inflow BC 約束，模型在來流區輸出 u≈0 而非 u≈0.33 m/s，導致 KE 系統性低估 50%。 |
+
+#### CEXP-002：Inflow BC Loss（KE=3.5%，成功）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_002_k100_bc.toml` |
+| Artifact | `artifacts/deeponet-cfc-cylinder-exp002-k100-bc` |
+| Checkpoint | `checkpoints/lnn_kolmogorov_step_10000.pt` |
+| KE rel-err mean | **3.5%** |
+| KE rel-err late | 3.9% |
+| u RMSE mean | 1.03e-1 |
+| v RMSE mean | 1.06e-1 |
+| div L2 mean | 1.14 |
+| 修改內容 | `bc_loss_weight=0.1`，`bc_inflow_u=0.33 m/s`，`bc_n_points=64`（x=0 均勻採樣） |
+| 結論 | **BC loss 錨定來流速度後，KE 從 51% 降至 3.5%（14.5× 改善）**，與 Kolmogorov EXP-064（7.8%）相當。KE(t) 振盪幅值略大（峰值比 DNS 高 ~10%），渦街結構可識別。div L2=1.14 仍高，Kármán 渦核位置有偏移，但整體可視為 cylinder 稀疏重建 **baseline 建立**。 |
+
+#### 訓練紀錄摘要
+
+| Step | L_data | L_phys | w_ns_u | w_cont | t_max |
+|---|---|---|---|---|---|
+| 1 | 6.676e+0 | 2.64e-1 | 0.010 | 0.010 | 0.5 |
+| 1000 | 6.74e-3 | 9.99e-1 | 0.016 | 0.012 | 7.0 |
+| 3000 | 1.46e-3 | 3.30e-1 | 0.024 | 0.016 | 20.0 |
+| 6000 | 9.49e-4 | 1.01e-1 | 0.074 | 0.023 | 20.0 |
+| 10000 | 1.15e-3 | 3.25e-2 | 0.108 | 0.038 | 20.0 |
+
 ### NaN 根因診斷（已修復）
 
-**症狀**：EXP-001 step_500 checkpoint 有 83/95 個參數是 NaN。
+**症狀**：CEXP-001 早期 step_500 checkpoint 有 83/95 個參數是 NaN。
 
 **診斷流程**：
 1. Physics OFF → 訓練穩定（L_data 在 step 400 降至 0.088）→ NaN 來自 physics
@@ -285,6 +326,15 @@ rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
 | amplitude ratio=0.9965 是否 overfitting | EXP-015 更高（0.9965），需確認是否對訓練時段過度擬合；若有新時段資料可做 OOD 測試 | 開放（低優先） |
 | K=200 band_mid 突破後，低頻退步是否可藉延伸訓練恢復 | EXP-066 L_phys@10k=2.95（未充分收斂）；K=200 主線暫停 | **CLOSED**：K=100 主線結案，K=200 屬另一資料密度配置，如重啟需獨立實驗 |
 | 高頻重建的可行路徑 | CS 理論確認：K=100/200 均遠低於 ~5000 門檻；zeroth-order AIM 已證偽 | **CLOSED**：高頻不可達為數學必然，未來路徑需 DNS POD 先驗或 4D-Var（工程不可遷移）|
+
+---
+
+## [INDEX] Cylinder Active
+
+| ID | Status | 主題 | 一句結論 |
+|---|---|---|---|
+| `CEXP-002` | `ACTIVE_BASELINE` | Cylinder, K=100, **inflow BC loss**（bc_w=0.1, u_inf=0.33） | **KE 3.5%（Cylinder baseline）**；BC loss 從根本解決來流 collapse；振盪幅值略大（+10%）；div L2=1.14 仍有改善空間 |
+| `CEXP-001` | `NEGATIVE_RESULT` | Cylinder, K=100, 無 BC loss | KE 51%（[PHYSICAL_FAILURE]）；無 inflow BC 導致來流區 u→0；已被 CEXP-002 取代 |
 
 ---
 
