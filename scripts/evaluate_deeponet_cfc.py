@@ -24,17 +24,22 @@ from lnn_kolmogorov import create_lnn_model, load_lnn_config
 
 
 # 期刊風格繪圖（NeurIPS/ICLR）— 全域 rcParams 設定。
-# Why: 預設 matplotlib 外觀過於業餘；論文圖需 DPI≥300、字型一致、簡潔 spines。
+# Why: 預設 matplotlib 外觀過於業餘；論文圖需 DPI≥300、字型一致、4 邊框細線、
+#      inner tick、細灰 grid，與多數 PINN/CFD 期刊論文範例一致。
 _PREFERRED_FONTS = ["Helvetica", "Arial", "DejaVu Sans"]
 plt.rcParams.update({
     "font.family": "sans-serif",
     "font.sans-serif": _PREFERRED_FONTS,
     "font.size": 10,
-    "axes.titlesize": 11,
+    "axes.titlesize": 10,
     "axes.labelsize": 10,
-    "axes.linewidth": 0.8,
-    "axes.spines.top": False,
-    "axes.spines.right": False,
+    "axes.linewidth": 0.7,
+    # 保留 4 邊 spines（NeurIPS/ICLR 多數論文圖標準）；
+    # 場圖另以 _style_field_axes 套用更深的邊框。
+    "axes.spines.top": True,
+    "axes.spines.right": True,
+    "axes.spines.bottom": True,
+    "axes.spines.left": True,
     "axes.grid": True,
     "grid.linewidth": 0.4,
     "grid.alpha": 0.3,
@@ -43,10 +48,22 @@ plt.rcParams.update({
     "ytick.labelsize": 9,
     "xtick.direction": "in",
     "ytick.direction": "in",
-    "xtick.major.width": 0.7,
-    "ytick.major.width": 0.7,
-    "legend.fontsize": 9,
-    "legend.frameon": False,
+    "xtick.top": True,         # 4 邊 tick 才不會與 spines 不一致
+    "ytick.right": True,
+    "xtick.major.width": 0.6,
+    "ytick.major.width": 0.6,
+    "xtick.major.size": 3.0,
+    "ytick.major.size": 3.0,
+    "legend.fontsize": 7,
+    "legend.frameon": True,
+    "legend.framealpha": 0.9,
+    "legend.edgecolor": "#666666",
+    "legend.fancybox": False,         # 直角邊框（學術風格）
+    "legend.borderpad": 0.4,
+    "legend.borderaxespad": 0.4,
+    "legend.handlelength": 1.6,
+    "legend.handletextpad": 0.5,
+    "legend.columnspacing": 1.0,
     "lines.linewidth": 1.4,
     "lines.markersize": 3.5,
     "savefig.dpi": 300,
@@ -368,6 +385,21 @@ def forcing_mode_coeff_u(u: np.ndarray, y: np.ndarray, k_forcing: float) -> tupl
     return float(np.abs(coeff)), float(np.angle(coeff))
 
 
+def _style_field_axes(ax) -> None:
+    """What: 場域 imshow 圖的 axes 樣式：4 邊框、無刻度、無 grid、無 axis label。
+
+    Why: 全域 rcParams 移除了 top/right spines（NeurIPS 時序圖風格），但 imshow
+         場圖必須有完整 4 邊框才能清楚標示空間域邊界。空間軸本身已隱含意義，
+         不需 x/y axis label。
+    """
+    for side in ("top", "right", "bottom", "left"):
+        ax.spines[side].set_visible(True)
+        ax.spines[side].set_linewidth(0.6)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.grid(False)
+
+
 def plot_field_comparison(
     output_path: Path,
     u_ref: np.ndarray,
@@ -387,23 +419,27 @@ def plot_field_comparison(
     ve_lim = float(max(np.abs(v_err).max(), 1e-8))
 
     panels = [
-        (axes[0, 0], u_ref,  f"$u$ DNS ($t={t_val:.2f}$)",  "RdBu_r", -u_lim, u_lim),
-        (axes[0, 1], u_pred, "$u$ LNN",                     "RdBu_r", -u_lim, u_lim),
-        (axes[0, 2], u_err,  "$u$ Error",                   "RdBu_r", -ue_lim, ue_lim),
-        (axes[1, 0], v_ref,  f"$v$ DNS ($t={t_val:.2f}$)",  "RdBu_r", -v_lim, v_lim),
-        (axes[1, 1], v_pred, "$v$ LNN",                     "RdBu_r", -v_lim, v_lim),
-        (axes[1, 2], v_err,  "$v$ Error",                   "RdBu_r", -ve_lim, ve_lim),
+        (axes[0, 0], u_ref,  "$u$ DNS",   "RdBu_r", -u_lim,  u_lim),
+        (axes[0, 1], u_pred, "$u$ LNN",   "RdBu_r", -u_lim,  u_lim),
+        (axes[0, 2], u_err,  "$u$ Error", "RdBu_r", -ue_lim, ue_lim),
+        (axes[1, 0], v_ref,  "$v$ DNS",   "RdBu_r", -v_lim,  v_lim),
+        (axes[1, 1], v_pred, "$v$ LNN",   "RdBu_r", -v_lim,  v_lim),
+        (axes[1, 2], v_err,  "$v$ Error", "RdBu_r", -ve_lim, ve_lim),
     ]
     for ax, field, title, cmap, vmin, vmax in panels:
         im = ax.imshow(field.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, aspect="equal")
         ax.set_title(title)
-        ax.set_xlabel("$x$")
-        ax.set_ylabel("$y$")
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.grid(False)
+        _style_field_axes(ax)
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.ax.tick_params(labelsize=8)
+        cb.outline.set_linewidth(0.6)
+    # t 值放在最左上 panel 一次（不在每個 title 重複）
+    axes[0, 0].text(
+        0.02, 0.98, f"$t={t_val:.2f}$",
+        transform=axes[0, 0].transAxes, fontsize=9,
+        va="top", ha="left",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85),
+    )
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -421,20 +457,23 @@ def plot_vorticity_comparison(
 
     fig, axes = plt.subplots(1, 3, figsize=(8.5, 3.0), constrained_layout=True)
     panels = [
-        (axes[0], omega_ref, f"$\\omega$ DNS ($t={t_val:.2f}$)", -om_lim, om_lim),
-        (axes[1], omega_pred, "$\\omega$ LNN", -om_lim, om_lim),
-        (axes[2], omega_err, "$\\omega$ Error", -err_lim, err_lim),
+        (axes[0], omega_ref,  "$\\omega$ DNS",   -om_lim,  om_lim),
+        (axes[1], omega_pred, "$\\omega$ LNN",   -om_lim,  om_lim),
+        (axes[2], omega_err,  "$\\omega$ Error", -err_lim, err_lim),
     ]
     for ax, field, title, vmin, vmax in panels:
         im = ax.imshow(field.T, origin="lower", cmap="RdBu_r", vmin=vmin, vmax=vmax, aspect="equal")
         ax.set_title(title)
-        ax.set_xlabel("$x$")
-        ax.set_ylabel("$y$")
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.grid(False)
+        _style_field_axes(ax)
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cb.ax.tick_params(labelsize=8)
+        cb.outline.set_linewidth(0.6)
+    axes[0].text(
+        0.02, 0.98, f"$t={t_val:.2f}$",
+        transform=axes[0].transAxes, fontsize=9,
+        va="top", ha="left",
+        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.85),
+    )
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -527,7 +566,7 @@ def plot_uv_error_vs_time(
     ax.plot(time_vals, v_err, color="#d62728", linestyle="--", marker="o",
             markevery=me, markerfacecolor="white", markeredgecolor="#d62728",
             label="$v$ RMSE")
-    ax.set_title("Velocity Error vs Time")
+    ax.set_title("Velocity RMSE")
     ax.set_xlabel("Time $t$")
     ax.set_ylabel("RMSE")
     ax.legend(loc="best")
@@ -807,7 +846,7 @@ def main() -> None:
         sensor_time,
         np.asarray(ke_ref_series),
         np.asarray(ke_pred_series),
-        title="Kinetic Energy vs Time",
+        title="Kinetic Energy",
         y_label="Kinetic Energy",
     )
     plot_metric_vs_time(
@@ -815,7 +854,7 @@ def main() -> None:
         sensor_time,
         np.asarray(ens_ref_series),
         np.asarray(ens_pred_series),
-        title="Enstrophy vs Time",
+        title="Enstrophy",
         y_label="Enstrophy",
     )
     plot_uv_error_vs_time(
@@ -829,7 +868,7 @@ def main() -> None:
         sensor_time,
         kf_amp_ref_series,
         kf_amp_pred_series,
-        title=f"Forcing Mode Amplitude (k={float(cfg['kolmogorov_k_f']):.1f})",
+        title=f"Forcing Mode Amplitude ($k_f={float(cfg['kolmogorov_k_f']):.0f}$)",
         y_label="Amplitude",
     )
     plot_mode_vs_time(
@@ -837,21 +876,21 @@ def main() -> None:
         sensor_time,
         np.unwrap(kf_phase_ref_series),
         np.unwrap(kf_phase_pred_series),
-        title=f"Forcing Mode Phase (k={float(cfg['kolmogorov_k_f']):.1f})",
+        title=f"Forcing Mode Phase ($k_f={float(cfg['kolmogorov_k_f']):.0f}$)",
         y_label="Phase [rad]",
     )
     plot_series_collection(
         output_dir / "vorticity_error_vs_time.png",
         sensor_time,
         {"Omega RMSE": omega_rmse},
-        title="Vorticity Error vs Time",
+        title="Vorticity Error",
         y_label="RMSE",
     )
     plot_series_collection(
         output_dir / "divergence_vs_time.png",
         sensor_time,
         {"DNS L2": div_l2_ref, "LNN L2": div_l2_pred},
-        title="Divergence Residual vs Time",
+        title="Divergence Residual",
         y_label="L2",
         yscale="log",
     )
@@ -866,7 +905,7 @@ def main() -> None:
             "DNS Cont": ns_cont_rms_ref,
             "LNN Cont": ns_cont_rms_pred,
         },
-        title="NS Residual vs Time",
+        title="NS Residual",
         y_label="RMS",
         yscale="log",
     )
@@ -878,7 +917,7 @@ def main() -> None:
             "Mid-k": band_rel_err_series["mid"],
             "High-k": band_rel_err_series["high"],
         },
-        title="Band Energy Relative Error vs Time",
+        title="Band Energy Relative Error",
         y_label="Relative Error",
     )
 
