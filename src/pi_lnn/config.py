@@ -81,6 +81,9 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "num_sensor_physics_time_samples": 4,  # 每訓練步從 sensor_time 中採樣幾個時間步
     "sensor_physics_start_step": 0,        # 延遲啟動：前 N 步只用隨機 collocation
     "poisson_loss_weight": 0.0,
+    "bc_loss_weight": 0.0,    # inflow BC loss 權重；0 = 停用
+    "bc_inflow_u": 0.33,      # 來流 u 速度（物理值，m/s）
+    "bc_n_points": 32,        # inflow 邊界採樣點數
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
     "lr_schedule": "none",

@@ -535,6 +535,7 @@ def train_lnn_kolmogorov(
             n_phys = physics_points_at_step(step, n_phys_start, n_phys_end, n_phys_ramp, n_phys_warmup)
 
             phys_gate = (use_gradnorm or phys_weight > 0.0) and n_phys_end > 0
+            _bc_weight = float(args.get("bc_loss_weight", 0.0))
 
             # RAR pool update（在 net.eval() 之前，避免 eval/train 交替干擾）
             if _is_rar and phys_gate and (_rar_pool_np is None or step % _rar_update_freq == 0):
@@ -642,6 +643,37 @@ def train_lnn_kolmogorov(
                     if poisson_weight > 0.0:
                         poisson_res = pressure_poisson_residual(uvp_fn, xyt)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
+                # ── Inflow BC loss（cylinder only）────────────────────────────
+                # Why: cylinder 非週期域，感測器全集中尾跡，來流區無 supervision。
+                #      若無 BC loss，模型在 x≈0 輸出 u≈0，造成 KE 系統性低 50%。
+                l_bc_total = torch.zeros(1, device=device)
+                _bc_weight = float(args.get("bc_loss_weight", 0.0))
+                if _bc_weight > 0.0 and str(args.get("dataset_type", "")) == "cylinder":
+                    _u_inf = float(args.get("bc_inflow_u", 0.33))
+                    _n_bc  = int(args.get("bc_n_points", 32))
+                    _t_max_bc = float(t_max) if t_max is not None else float(datasets[0].sensor_time[-1])
+                    for i, ds in enumerate(datasets):
+                        _y_bc = rng.uniform(0.0, 1.0, size=(_n_bc,)).astype(np.float32)
+                        _x_bc = np.zeros(_n_bc, dtype=np.float32)
+                        _t_bc = rng.uniform(float(ds.sensor_time[0]), _t_max_bc,
+                                            size=(_n_bc,)).astype(np.float32)
+                        _xyt_bc = torch.tensor(
+                            np.stack([_x_bc, _y_bc, _t_bc], axis=1), device=device
+                        )
+                        _sv_bc, _st_bc = _trim_cache[i]
+                        _bc_fn = make_lnn_model_fn(
+                            net, _sv_bc, sensor_pos_list[i],
+                            re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
+                        )
+                        _u_bc = _bc_fn(_xyt_bc, c=0)
+                        _v_bc = _bc_fn(_xyt_bc, c=1)
+                        l_bc_total = (
+                            l_bc_total
+                            + torch.mean((_u_bc - _u_inf) ** 2)
+                            + torch.mean(_v_bc ** 2)
+                        )
+                    l_bc_total = l_bc_total / num_re
+
                 net.train()
                 l_ns_u_total = l_ns_u_total / num_re
                 l_ns_v_total = l_ns_v_total / num_re
@@ -658,6 +690,7 @@ def train_lnn_kolmogorov(
                 l_ns_v_total = torch.zeros(1, device=device)
                 l_ns_total = torch.zeros(1, device=device)
                 l_cont_total = torch.zeros(1, device=device)
+                l_bc_total   = torch.zeros(1, device=device)
                 l_physics = torch.zeros(1, device=device)
 
             # ── Loss 組合與 backward ────────────────────────────────────────────
@@ -690,15 +723,20 @@ def train_lnn_kolmogorov(
                         + ws[1] * l_ns_u_total
                         + ws[2] * l_ns_v_total
                         + ws[3] * l_cont_total
+                        + _bc_weight * l_bc_total
                     )
                 else:
-                    l_total = ws[0] * l_data
+                    l_total = ws[0] * l_data + _bc_weight * l_bc_total
 
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
             else:
-                l_total = args["data_loss_weight"] * l_data + phys_weight * l_physics
+                l_total = (
+                    args["data_loss_weight"] * l_data
+                    + phys_weight * l_physics
+                    + _bc_weight * l_bc_total
+                )
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
