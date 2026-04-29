@@ -107,6 +107,19 @@ def train_lnn_kolmogorov(
         for ds in datasets
     ]
 
+    # T_total mismatch 檢查：避免 config 與 dataset 不同步導致 temporal_phase_anchor
+    # 相位 alias（silent 行為錯，無 runtime error）。
+    if bool(args.get("use_temporal_anchor", False)):
+        _T_cfg = float(args.get("T_total", 5.0))
+        _T_data = float(max(float(ds.sensor_time[-1]) for ds in datasets))
+        if abs(_T_cfg - _T_data) / max(_T_data, 1e-8) > 0.05:
+            print(
+                f"[WARN] T_total config={_T_cfg:.3f} 與 dataset 實測"
+                f" max(sensor_time[-1])={_T_data:.3f} 差距 >5%；"
+                f"temporal_phase_anchor 可能相位 alias，"
+                f"建議將 T_total 改為 {_T_data:.3f} 或調整 sensor_subsample。"
+            )
+
     net = create_lnn_model(args).to(device)
     print("=== Configuration ===")
     print(f"trainable_parameters: {count_parameters(net)}")
@@ -657,12 +670,16 @@ def train_lnn_kolmogorov(
                 l_bc_total = torch.zeros(1, device=device)
                 _bc_weight = float(args.get("bc_loss_weight", 0.0))
                 if _bc_weight > 0.0 and str(args.get("dataset_type", "")) == "cylinder":
-                    _u_inf       = float(args.get("bc_inflow_u", 0.33))
+                    # bc_inflow_u 優先用 dataset 自動量測值（per-Re 自動），
+                    # config override 僅當顯式設了非預設值才生效。
+                    _u_inf_cfg   = args.get("bc_inflow_u", None)
                     _n_inflow    = int(args.get("bc_n_points", 32))
                     _n_body      = int(args.get("bc_body_n_points", 0))
                     _n_slip      = int(args.get("bc_slip_n_points", 0))
                     _t_max_bc = float(t_max) if t_max is not None else float(datasets[0].sensor_time[-1])
                     for i, ds in enumerate(datasets):
+                        # per-dataset inlet u：dataset attribute 為主，config 為 fallback override
+                        _u_inf = float(getattr(ds, "bc_inflow_u", _u_inf_cfg if _u_inf_cfg is not None else 0.33))
                         _u_idx = ds.observed_channel_names.index("u")
                         _v_idx = ds.observed_channel_names.index("v")
                         _u_std_i = observed_std_list[i][_u_idx]

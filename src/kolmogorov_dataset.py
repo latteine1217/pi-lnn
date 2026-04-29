@@ -118,6 +118,11 @@ class KolmogorovDataset:
         self.re_norm  = float((re_value - RE_MEAN) / RE_STD)
 
         # ── 訓練/驗證切割（依 DNS 時間步切割）──────────────────────
+        # 注意：train_t_idx/val_t_idx 是 DNS 時間索引（評估用），與
+        # sensor_time 不同 axis；目前 production 路徑（sample_sensor_batch）
+        # 用全 sensor_time 採樣，未實作時序層級的 train/val 隔離。
+        # 與 CylinderDataset 的差異：cylinder 在 sensor_time 上切，stats 已
+        # 用 train_t_idx 隔離 leak；Kolmogorov 因 axis 不對應，延後處理。
         T_dns = len(self.dns_time)
         idx = np.arange(T_dns)
         rng.shuffle(idx)

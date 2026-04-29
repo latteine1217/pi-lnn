@@ -82,7 +82,9 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "sensor_physics_start_step": 0,        # 延遲啟動：前 N 步只用隨機 collocation
     "poisson_loss_weight": 0.0,
     "bc_loss_weight": 0.0,    # 整體 BC loss 權重；0 = 停用全部 BC（含 inflow/body/slip）
-    "bc_inflow_u": 0.33,      # 來流 u 速度（物理值，m/s）
+    "bc_inflow_u": 0.33,      # legacy：來流 u 速度（物理值，m/s）；
+                              # cylinder dataset 自動從 DNS shard 量測 ds.bc_inflow_u 並覆蓋；
+                              # 此 config 值僅在 dataset 沒提供時作 fallback。
     "bc_n_points": 32,        # inflow 邊界（x=0）採樣點數
     "bc_body_n_points": 0,    # cylinder body no-slip BC 採樣點數；0 = 停用
     "bc_slip_n_points": 0,    # top/bottom slip BC (y=0,y=1) 採樣點數；0 = 停用

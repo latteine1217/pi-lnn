@@ -66,6 +66,23 @@ def _detect_body(shard_path: Path, H: int, W: int) -> np.ndarray:
     return mag < BODY_THRESHOLD   # [H, W] bool
 
 
+def _measure_inflow_u(shard_path: Path, H: int, W: int) -> float:
+    """量測 inlet 邊界（x=x_min, 即 W=0 那一列）的 u 平均值，做 BC loss 錨點。
+
+    Why: bc_inflow_u 之前 hardcode 0.33，multi-Re 訓練時各 Re 的 inflow 速度
+         不同會導致錨點錯誤。直接從 DNS shard 量測，可自動因 Re 而異。
+         用中位數抗 transient 早期擾動。
+    """
+    with open(shard_path, "rb") as f:
+        reader = pa.ipc.open_stream(f)
+        batch = reader.read_next_batch()
+    row = {name: batch.column(name)[0].as_py() for name in batch.schema.names}
+    T = row["shape_t"]
+    u_all = np.frombuffer(row["u"], dtype=np.float32).reshape(T, H, W)
+    # u_all[:, :, 0] 是 x_min 那一列：shape [T, H]
+    return float(np.median(u_all[:, :, 0]))
+
+
 @dataclass
 class CylinderDataset:
     """Cylinder wake sensor dataset with normalised coordinates.
@@ -104,6 +121,7 @@ class CylinderDataset:
     y_hi: float
     Lx:   float                # 物理 x 域長度（米）= x_hi - x_lo
     Ly:   float                # 物理 y 域長度（米）= y_hi - y_lo
+    bc_inflow_u: float         # 從 DNS 量測的 inlet u 平均（m/s）；BC loss 錨點
 
     # KolmogorovDataset 對應欄位（訓練 loop 相容）
     dns_x: np.ndarray   # 1D 正規化 x 節點（domain bound 用）
@@ -170,9 +188,21 @@ class CylinderDataset:
         self.observed_channel_names = tuple(obs_names)
         raw_full = np.stack(obs_fields, axis=-1)         # [K, T_full, C]
         raw = raw_full[:, t_idx_sub, :]                  # [K, T_sub, C]
-        self.observed_channel_mean = raw.mean(axis=(0, 1)).astype(np.float32)
+
+        # ── Train/Val 切割（先切，避免 normalize 統計 leak val 部分）────
+        T_sub = len(self.sensor_time)
+        _idx = np.arange(T_sub)
+        rng.shuffle(_idx)
+        _n_train = int(T_sub * train_ratio)
+        self.train_t_idx = _idx[:_n_train]
+        self.val_t_idx   = _idx[_n_train:]
+
+        # mean/std 僅用 train 區段，避免將未來 val 統計洩漏進 normalize 因子。
+        # 應用時對全部 raw（含 val）使用相同 train stats — 標準 ML 做法。
+        raw_train = raw[:, self.train_t_idx, :]
+        self.observed_channel_mean = raw_train.mean(axis=(0, 1)).astype(np.float32)
         self.observed_channel_std  = np.maximum(
-            raw.std(axis=(0, 1)), 1e-6
+            raw_train.std(axis=(0, 1)), 1e-6
         ).astype(np.float32)
         self.sensor_vals = (
             (raw - self.observed_channel_mean[None, None, :])
@@ -183,6 +213,9 @@ class CylinderDataset:
         # ── Cylinder body mask + 流體域 collocation 點 ────────────────────
         body_mask = _detect_body(arrow_path, H, W)     # [H, W] bool
         fluid_mask = ~body_mask                         # [H, W] bool
+        # Inlet u 量測：從 DNS shard 直接讀 x=x_min 那一列。
+        # Why: 取代 config 的 hardcode bc_inflow_u=0.33，multi-Re 自動因 Re 而異。
+        self.bc_inflow_u = _measure_inflow_u(arrow_path, H, W)
 
         x_flat = x2d.reshape(-1)
         y_flat = y2d.reshape(-1)
@@ -204,14 +237,7 @@ class CylinderDataset:
         # ── Re 正規化 ────────────────────────────────────────────────────
         self.re_value = float(re_value)
         self.re_norm  = float((re_value - RE_MEAN) / RE_STD)
-
-        # ── Train/Val 切割（依 sensor_time 索引）────────────────────────
-        T = len(self.sensor_time)
-        idx = np.arange(T)
-        rng.shuffle(idx)
-        n_train = int(T * train_ratio)
-        self.train_t_idx = idx[:n_train]
-        self.val_t_idx   = idx[n_train:]
+        # train/val 切割已在 sensor_vals 正規化前完成，避免統計 leak。
 
     # ── Public API（與 KolmogorovDataset 相同簽名）───────────────────────
 
