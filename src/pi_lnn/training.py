@@ -643,35 +643,88 @@ def train_lnn_kolmogorov(
                     if poisson_weight > 0.0:
                         poisson_res = pressure_poisson_residual(uvp_fn, xyt)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
-                # ── Inflow BC loss（cylinder only）────────────────────────────
-                # Why: cylinder 非週期域，感測器全集中尾跡，來流區無 supervision。
-                #      若無 BC loss，模型在 x≈0 輸出 u≈0，造成 KE 系統性低 50%。
+                # ── Boundary BC loss（cylinder only）─────────────────────────
+                # 物理 BC（依 Lily-Pad solver setBC()，非週期 open flow）：
+                #   inflow (x=0): Dirichlet u=u_inf, v=0
+                #   body    : Dirichlet u=v=0 （no-slip）
+                #   y=0/y=1 : Neumann (slip)；簡化為 v=0（資料 std(v_top/bot) 小）
+                #   outlet (x=1): Neumann ∂u/∂x≈0（暫未實作，wake 區資料密隱式約束）
+                # 尺度：所有項都在 normalized 空間（除以 obs std），與 data loss 同尺度。
+                #       (pred_norm - target_norm)² 展開後 mean 相消，僅需除以 std。
                 l_bc_total = torch.zeros(1, device=device)
                 _bc_weight = float(args.get("bc_loss_weight", 0.0))
                 if _bc_weight > 0.0 and str(args.get("dataset_type", "")) == "cylinder":
-                    _u_inf = float(args.get("bc_inflow_u", 0.33))
-                    _n_bc  = int(args.get("bc_n_points", 32))
+                    _u_inf       = float(args.get("bc_inflow_u", 0.33))
+                    _n_inflow    = int(args.get("bc_n_points", 32))
+                    _n_body      = int(args.get("bc_body_n_points", 0))
+                    _n_slip      = int(args.get("bc_slip_n_points", 0))
                     _t_max_bc = float(t_max) if t_max is not None else float(datasets[0].sensor_time[-1])
                     for i, ds in enumerate(datasets):
-                        _y_bc = rng.uniform(0.0, 1.0, size=(_n_bc,)).astype(np.float32)
-                        _x_bc = np.zeros(_n_bc, dtype=np.float32)
-                        _t_bc = rng.uniform(float(ds.sensor_time[0]), _t_max_bc,
-                                            size=(_n_bc,)).astype(np.float32)
-                        _xyt_bc = torch.tensor(
-                            np.stack([_x_bc, _y_bc, _t_bc], axis=1), device=device
-                        )
+                        _u_idx = ds.observed_channel_names.index("u")
+                        _v_idx = ds.observed_channel_names.index("v")
+                        _u_std_i = observed_std_list[i][_u_idx]
+                        _v_std_i = observed_std_list[i][_v_idx]
+                        _t_lo, _t_hi = float(ds.sensor_time[0]), _t_max_bc
+
                         _sv_bc, _st_bc = _trim_cache[i]
                         _bc_fn = make_lnn_model_fn(
                             net, _sv_bc, sensor_pos_list[i],
                             re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
                         )
-                        _u_bc = _bc_fn(_xyt_bc, c=0)
-                        _v_bc = _bc_fn(_xyt_bc, c=1)
+
+                        # 1. Inflow BC（x=0：u=u_inf, v=0）
+                        _y_in = rng.uniform(0.0, 1.0, size=(_n_inflow,)).astype(np.float32)
+                        _x_in = np.zeros(_n_inflow, dtype=np.float32)
+                        _t_in = rng.uniform(_t_lo, _t_hi, size=(_n_inflow,)).astype(np.float32)
+                        _xyt_in = torch.tensor(
+                            np.stack([_x_in, _y_in, _t_in], axis=1), device=device
+                        )
+                        _u_in = _bc_fn(_xyt_in, c=0)
+                        _v_in = _bc_fn(_xyt_in, c=1)
                         l_bc_total = (
                             l_bc_total
-                            + torch.mean((_u_bc - _u_inf) ** 2)
-                            + torch.mean(_v_bc ** 2)
+                            + torch.mean(((_u_in - _u_inf) / _u_std_i) ** 2)
+                            + torch.mean((_v_in / _v_std_i) ** 2)
                         )
+
+                        # 2. Body no-slip BC（cylinder 內部：u=v=0）
+                        # Why: body 是 wake 起源，無此 BC 模型在 body 表面可能輸出非零速度，
+                        #      造成下游 wake 結構失真。Dirichlet 內部點可代表「body 為固體」。
+                        if _n_body > 0 and ds.body_xy.shape[0] > 0:
+                            _bidx = rng.integers(0, ds.body_xy.shape[0], size=_n_body)
+                            _xy_body = ds.body_xy[_bidx].astype(np.float32)  # [N, 2] normalized
+                            _t_body = rng.uniform(_t_lo, _t_hi, size=(_n_body,)).astype(np.float32)
+                            _xyt_body = torch.tensor(
+                                np.concatenate([_xy_body, _t_body[:, None]], axis=1),
+                                device=device,
+                            )
+                            _u_body = _bc_fn(_xyt_body, c=0)
+                            _v_body = _bc_fn(_xyt_body, c=1)
+                            l_bc_total = (
+                                l_bc_total
+                                + torch.mean((_u_body / _u_std_i) ** 2)
+                                + torch.mean((_v_body / _v_std_i) ** 2)
+                            )
+
+                        # 3. Slip BC（y=0, y=1 簡化為 v=0）
+                        # Why: solver 用 Neumann ∂u/∂y=0；資料量測 v 在 top/bottom 接近 0，
+                        #      用 v=0 作為等效 Dirichlet 簡化，避免引入 gradient 計算。
+                        #      不約束 u 因為 u 在 y 邊界並非常數（圓柱繞流加速）。
+                        if _n_slip > 0:
+                            _per_side = max(1, _n_slip // 2)
+                            _x_slip = rng.uniform(0.0, 1.0, size=(2 * _per_side,)).astype(np.float32)
+                            _y_slip = np.concatenate([
+                                np.zeros(_per_side, dtype=np.float32),  # y=0
+                                np.ones(_per_side,  dtype=np.float32),  # y=1
+                            ])
+                            _t_slip = rng.uniform(_t_lo, _t_hi,
+                                                   size=(2 * _per_side,)).astype(np.float32)
+                            _xyt_slip = torch.tensor(
+                                np.stack([_x_slip, _y_slip, _t_slip], axis=1),
+                                device=device,
+                            )
+                            _v_slip = _bc_fn(_xyt_slip, c=1)
+                            l_bc_total = l_bc_total + torch.mean((_v_slip / _v_std_i) ** 2)
                     l_bc_total = l_bc_total / num_re
 
                 net.train()

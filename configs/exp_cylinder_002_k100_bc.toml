@@ -61,7 +61,9 @@ poisson_loss_weight = 0.0
 # Inflow BC loss（新增）
 bc_loss_weight = 0.1      # 固定權重，與 GradNorm 分離
 bc_inflow_u = 0.33        # 從 DNS 量測的來流 u（m/s）
-bc_n_points = 64          # 每步在 x=0 採樣 64 個 (y, t) 點
+bc_n_points = 64          # inflow (x=0) 採樣 64 個 (y, t) 點
+bc_body_n_points = 64     # cylinder body no-slip：u=v=0
+bc_slip_n_points = 32     # top/bottom slip (y=0,1)：v=0；32=兩側各 16 點
 
 t_early_weight = 10.0
 t_early_threshold = 0.05

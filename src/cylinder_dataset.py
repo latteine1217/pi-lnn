@@ -79,6 +79,7 @@ class CylinderDataset:
 
     Cylinder-specific（非 Kolmogorov 對應欄位）:
         fluid_xy [N_fluid, 2] — 正規化的流體域 collocation 候選點
+        body_xy  [N_body,  2] — 正規化的 cylinder body 點，BC loss no-slip 用
         x_lo/x_hi/y_lo/y_hi   — 物理座標範圍（正規化用）
     """
 
@@ -94,6 +95,7 @@ class CylinderDataset:
     train_t_idx:  np.ndarray
     val_t_idx:    np.ndarray
     fluid_xy:     np.ndarray   # [N_fluid, 2] 正規化座標
+    body_xy:      np.ndarray   # [N_body,  2] 正規化座標（cylinder body 內部點）
     x_lo: float
     x_hi: float
     y_lo: float
@@ -178,9 +180,14 @@ class CylinderDataset:
         x_flat = x2d.reshape(-1)
         y_flat = y2d.reshape(-1)
         ff = fluid_mask.reshape(-1)
+        bf = body_mask.reshape(-1)
         fluid_x_norm = norm_x(x_flat[ff]).astype(np.float32)
         fluid_y_norm = norm_y(y_flat[ff]).astype(np.float32)
         self.fluid_xy = np.stack([fluid_x_norm, fluid_y_norm], axis=1)  # [N_fluid, 2]
+        # body 點：no-slip BC 採樣源（u=v=0 在 body 內部恆成立，不限於表面）。
+        body_x_norm = norm_x(x_flat[bf]).astype(np.float32)
+        body_y_norm = norm_y(y_flat[bf]).astype(np.float32)
+        self.body_xy = np.stack([body_x_norm, body_y_norm], axis=1)     # [N_body, 2]
 
         # KolmogorovDataset 相容欄位：用正規化的唯一 x/y 值
         self.dns_x    = np.unique(norm_x(x2d[0, :])).astype(np.float32)   # 沿 W 方向
