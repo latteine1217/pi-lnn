@@ -429,6 +429,7 @@ def train_lnn_kolmogorov(
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
                             re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
+                            Lx=_ds.Lx, Ly=_ds.Ly,
                         )
                         if _phys_normalize:
                             def _nr(r: torch.Tensor) -> torch.Tensor:
@@ -604,7 +605,8 @@ def train_lnn_kolmogorov(
                         s_time=_st_phys_cached,
                     )
                     mom_u, mom_v, cont = unsteady_ns_residuals(
-                        uvp_fn, xyt, re=ds.re_value, k_f=k_f, A=A, domain_length=domain_length
+                        uvp_fn, xyt, re=ds.re_value, k_f=k_f, A=A,
+                        domain_length=domain_length, Lx=ds.Lx, Ly=ds.Ly,
                     )
                     if phys_normalize:
                         def _norm_r(r: torch.Tensor) -> torch.Tensor:
@@ -642,7 +644,7 @@ def train_lnn_kolmogorov(
                         cont_sp = du_dx_sp + dv_dy_sp
                         l_cont_total = l_cont_total + torch.mean(cont_sp ** 2)
                     if poisson_weight > 0.0:
-                        poisson_res = pressure_poisson_residual(uvp_fn, xyt)
+                        poisson_res = pressure_poisson_residual(uvp_fn, xyt, Lx=ds.Lx, Ly=ds.Ly)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
                 # ── Boundary BC loss（cylinder only）─────────────────────────
                 # 物理 BC（依 Lily-Pad solver setBC()，非週期 open flow）：

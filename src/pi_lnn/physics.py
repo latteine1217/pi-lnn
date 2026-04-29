@@ -17,6 +17,8 @@ def unsteady_ns_residuals(
     k_f: float = 4.0,
     A: float = 0.1,
     domain_length: float = 1.0,
+    Lx: float = 1.0,
+    Ly: float = 1.0,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """What: 2D incompressible NS 的 primitive-variable momentum 與 continuity 殘差。
 
@@ -24,6 +26,15 @@ def unsteady_ns_residuals(
          因此 p 回到模型的內部 physics 場，只參與 PDE 殘差，不作資料 supervision。
          uvp_fn 一次回傳 [N, 3]，相較舊版三個獨立 closure 共用 c-independent 計算
          並合併二階 autograd graph，數學上等價。
+
+    Coordinate chain rule (Lx, Ly):
+        Datasets 將座標正規化到 [0, 1]² 但 model output u, v 仍是物理 m/s。
+        autograd 給的 du/dx_norm 是 per unit normalized x，需 chain rule 轉物理梯度：
+            du/dx_phys  = du/dx_norm  / Lx
+            d²u/dx²_phys = d²u/dx²_norm / Lx²
+        Cylinder Lx=0.322, Ly=0.172（anisotropic）；Kolmogorov Lx=Ly=1.0（座標即物理）。
+        若不修正，cylinder 黏性項 x、y 方向相對權重差 (Ly/Lx)² ≈ 0.29，
+        模型實際在解一個被等比拉伸的偽 NS 方程。
     """
     uvp = uvp_fn(xyt)                                      # [N, 3]
     u = uvp[:, 0:1]
@@ -32,14 +43,23 @@ def unsteady_ns_residuals(
     u_xyt = _grad(u, xyt)
     v_xyt = _grad(v, xyt)
     p_xyt = _grad(p, xyt)
-    du_dx, du_dy, du_dt = u_xyt[:, 0:1], u_xyt[:, 1:2], u_xyt[:, 2:3]
-    dv_dx, dv_dy, dv_dt = v_xyt[:, 0:1], v_xyt[:, 1:2], v_xyt[:, 2:3]
-    dp_dx, dp_dy = p_xyt[:, 0:1], p_xyt[:, 1:2]
-    du_dx2 = _grad(du_dx, xyt)[:, 0:1]
-    du_dy2 = _grad(du_dy, xyt)[:, 1:2]
-    dv_dx2 = _grad(dv_dx, xyt)[:, 0:1]
-    dv_dy2 = _grad(dv_dy, xyt)[:, 1:2]
+    # normalized 座標下的梯度（autograd 直接給）
+    du_dx_n, du_dy_n, du_dt = u_xyt[:, 0:1], u_xyt[:, 1:2], u_xyt[:, 2:3]
+    dv_dx_n, dv_dy_n, dv_dt = v_xyt[:, 0:1], v_xyt[:, 1:2], v_xyt[:, 2:3]
+    dp_dx_n, dp_dy_n = p_xyt[:, 0:1], p_xyt[:, 1:2]
+    du_dx2_n = _grad(du_dx_n, xyt)[:, 0:1]
+    du_dy2_n = _grad(du_dy_n, xyt)[:, 1:2]
+    dv_dx2_n = _grad(dv_dx_n, xyt)[:, 0:1]
+    dv_dy2_n = _grad(dv_dy_n, xyt)[:, 1:2]
+    # chain rule: 把 normalized 梯度轉物理梯度。Kolmogorov Lx=Ly=1 時無變化。
+    sx, sy = float(Lx), float(Ly)
+    du_dx, du_dy = du_dx_n / sx, du_dy_n / sy
+    dv_dx, dv_dy = dv_dx_n / sx, dv_dy_n / sy
+    dp_dx, dp_dy = dp_dx_n / sx, dp_dy_n / sy
+    du_dx2, du_dy2 = du_dx2_n / (sx ** 2), du_dy2_n / (sy ** 2)
+    dv_dx2, dv_dy2 = dv_dx2_n / (sx ** 2), dv_dy2_n / (sy ** 2)
     nu = 1.0 / float(re)
+    # Forcing 用 normalized y（k_f cycles per [0,1] domain），與 Lx/Ly 無關。
     forcing_wavenumber = (2.0 * torch.pi * float(k_f)) / float(domain_length)
     forcing_x = A * torch.sin(forcing_wavenumber * xyt[:, 1:2])
     mom_u = du_dt + u * du_dx + v * du_dy + dp_dx - nu * (du_dx2 + du_dy2) - forcing_x
@@ -51,6 +71,8 @@ def unsteady_ns_residuals(
 def pressure_poisson_residual(
     uvp_fn: Callable,
     xyt: torch.Tensor,
+    Lx: float = 1.0,
+    Ly: float = 1.0,
 ) -> torch.Tensor:
     """What: 2D incompressible 壓力 Poisson 方程殘差。
 
@@ -62,6 +84,8 @@ def pressure_poisson_residual(
 
     數學推導：對動量方程取散度，使用 ∇·u=0 及 Kolmogorov forcing ∇·f=0 後得到。
     不需要任何額外觀測量，僅用模型輸出的 u, v, p via autograd。
+
+    Coordinate chain rule: 與 unsteady_ns_residuals 相同，把 normalized 梯度轉物理。
     """
     uvp = uvp_fn(xyt)                                      # [N, 3]
     u = uvp[:, 0:1]
@@ -70,14 +94,18 @@ def pressure_poisson_residual(
     u_xyt = _grad(u, xyt)
     v_xyt = _grad(v, xyt)
     p_xyt = _grad(p, xyt)
-    du_dx = u_xyt[:, 0:1]
-    du_dy = u_xyt[:, 1:2]
-    dv_dx = v_xyt[:, 0:1]
-    dv_dy = v_xyt[:, 1:2]
-    dp_dx = p_xyt[:, 0:1]
-    dp_dy = p_xyt[:, 1:2]
-    dp_dx2 = _grad(dp_dx, xyt)[:, 0:1]   # ∂²p/∂x²
-    dp_dy2 = _grad(dp_dy, xyt)[:, 1:2]   # ∂²p/∂y²
+    du_dx_n = u_xyt[:, 0:1]
+    du_dy_n = u_xyt[:, 1:2]
+    dv_dx_n = v_xyt[:, 0:1]
+    dv_dy_n = v_xyt[:, 1:2]
+    dp_dx_n = p_xyt[:, 0:1]
+    dp_dy_n = p_xyt[:, 1:2]
+    dp_dx2_n = _grad(dp_dx_n, xyt)[:, 0:1]   # ∂²p/∂x² (normalized)
+    dp_dy2_n = _grad(dp_dy_n, xyt)[:, 1:2]   # ∂²p/∂y² (normalized)
+    sx, sy = float(Lx), float(Ly)
+    du_dx, du_dy = du_dx_n / sx, du_dy_n / sy
+    dv_dx, dv_dy = dv_dx_n / sx, dv_dy_n / sy
+    dp_dx2, dp_dy2 = dp_dx2_n / (sx ** 2), dp_dy2_n / (sy ** 2)
     laplacian_p = dp_dx2 + dp_dy2
     rhs = -(du_dx ** 2 + dv_dy ** 2 + 2.0 * du_dy * dv_dx)
     return laplacian_p - rhs

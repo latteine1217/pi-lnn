@@ -53,6 +53,8 @@ class KolmogorovDataset:
     dt_phys:      float
     train_t_idx:  np.ndarray
     val_t_idx:    np.ndarray
+    Lx:           float        # 物理 x 域長度（與 CylinderDataset 統一介面，給 NS chain-rule 用）
+    Ly:           float
 
     def __init__(
         self,
@@ -104,6 +106,13 @@ class KolmogorovDataset:
         self.dns_x    = dns["x"].astype(np.float32)     # [N]
         self.dns_y    = dns["y"].astype(np.float32)
         self.dns_time = dns["time"].astype(np.float32)  # [T_dns]
+        # Kolmogorov DNS 已正規化到 [0, 1]² 寫入 npy（實測 dns_x ∈ [0, 0.9961]）；
+        # 因此 Lx=Ly=1.0 即「coord 已等同物理」，NS residual chain-rule 倍率為 1。
+        # Why: 維持與 CylinderDataset 同名 attr，讓 NS residual 不分 dataset_type。
+        # 注意：這保留了 Kolmogorov 既有訓練行為（model 看到的是 normalized PDE，
+        #      實效 Re 與物理 Re 差一個常數倍率，但因 Lx=Ly 為等向，不影響相對權重）。
+        self.Lx = 1.0
+        self.Ly = 1.0
         # ── Re 正規化 ────────────────────────────────────────────────
         self.re_value = float(re_value)
         self.re_norm  = float((re_value - RE_MEAN) / RE_STD)

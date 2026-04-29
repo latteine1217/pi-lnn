@@ -81,6 +81,8 @@ class CylinderDataset:
         fluid_xy [N_fluid, 2] — 正規化的流體域 collocation 候選點
         body_xy  [N_body,  2] — 正規化的 cylinder body 點，BC loss no-slip 用
         x_lo/x_hi/y_lo/y_hi   — 物理座標範圍（正規化用）
+        Lx/Ly                 — 物理域長度（米），= x_hi-x_lo / y_hi-y_lo；
+                                NS residual chain-rule 把 normalized 梯度轉物理梯度用
     """
 
     sensor_vals:  np.ndarray
@@ -100,6 +102,8 @@ class CylinderDataset:
     x_hi: float
     y_lo: float
     y_hi: float
+    Lx:   float                # 物理 x 域長度（米）= x_hi - x_lo
+    Ly:   float                # 物理 y 域長度（米）= y_hi - y_lo
 
     # KolmogorovDataset 對應欄位（訓練 loop 相容）
     dns_x: np.ndarray   # 1D 正規化 x 節點（domain bound 用）
@@ -135,6 +139,9 @@ class CylinderDataset:
         # 物理座標範圍（用於正規化）
         self.x_lo = float(x2d.min()); self.x_hi = float(x2d.max())
         self.y_lo = float(y2d.min()); self.y_hi = float(y2d.max())
+        # 物理域長度（米）：NS residual chain-rule 用 du/dx_phys = du/dx_norm / Lx。
+        self.Lx = self.x_hi - self.x_lo
+        self.Ly = self.y_hi - self.y_lo
 
         def norm_x(x): return (np.asarray(x) - self.x_lo) / (self.x_hi - self.x_lo)
         def norm_y(y): return (np.asarray(y) - self.y_lo) / (self.y_hi - self.y_lo)
