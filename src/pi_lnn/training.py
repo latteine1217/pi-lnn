@@ -13,6 +13,7 @@ from typing import Any, Callable
 import numpy as np
 import torch
 
+from pi_lnn.causal import causal_weighted_residual_loss
 from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
 from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
 from pi_lnn.operator import (
@@ -273,6 +274,22 @@ def train_lnn_kolmogorov(
     tm_t_start = float(args["time_marching_start"])
     tm_t_end = float(datasets[0].sensor_time[-1])
     tm_warmup = int(args["time_marching_warmup"] * args["iterations"])
+
+    # Causal weighting setup（PINN: Wang, Sankaran, Perdikaris 2022）
+    use_causal = bool(args.get("use_causal_weighting", False))
+    causal_eps = float(args.get("causal_eps", 1.0))
+    causal_num_bins = int(args.get("causal_num_bins", 16))
+    if use_causal:
+        if causal_eps < 0.0:
+            raise ValueError(f"causal_eps 必須 >= 0，收到 {causal_eps}")
+        if causal_num_bins < 2:
+            raise ValueError(f"causal_num_bins 必須 >= 2，收到 {causal_num_bins}")
+        if float(args.get("t_early_weight", 1.0)) != 1.0:
+            print(
+                "  [WARN] use_causal_weighting=true 同時 t_early_weight != 1.0，"
+                "兩者都會強化早期時間，建議將 t_early_weight 設為 1.0 避免雙重加權",
+                flush=True,
+            )
 
     # GradNorm setup
     use_gradnorm = bool(args.get("use_gradnorm", False))
@@ -593,9 +610,24 @@ def train_lnn_kolmogorov(
                         mom_u = _norm_r(mom_u)
                         mom_v = _norm_r(mom_v)
                         cont  = _norm_r(cont)
-                    l_ns_u_total = l_ns_u_total + torch.mean(mom_u ** 2)
-                    l_ns_v_total = l_ns_v_total + torch.mean(mom_v ** 2)
-                    l_cont_total = l_cont_total + torch.mean(cont ** 2)
+                    if use_causal:
+                        # 因果加權 mean(r^2)：以時間 bin 為單位，按累積殘差衰減後段權重。
+                        # Why: chaotic flow 的 Lyapunov 不穩定使早期誤差指數放大；
+                        #      強制 t=0 收斂前 t>0 不主導梯度。
+                        weighted, _w_t = causal_weighted_residual_loss(
+                            [mom_u, mom_v, cont],
+                            xyt[:, 2],
+                            num_bins=causal_num_bins,
+                            eps=causal_eps,
+                            t_max=t_max,
+                        )
+                        l_ns_u_total = l_ns_u_total + weighted[0]
+                        l_ns_v_total = l_ns_v_total + weighted[1]
+                        l_cont_total = l_cont_total + weighted[2]
+                    else:
+                        l_ns_u_total = l_ns_u_total + torch.mean(mom_u ** 2)
+                        l_ns_v_total = l_ns_v_total + torch.mean(mom_v ** 2)
+                        l_cont_total = l_cont_total + torch.mean(cont ** 2)
                     # sensor physics：僅計算 continuity（第一階導數，穩定）。
                     # 為了重用 uvp_fn，會多算一次 p_sp（不進 loss），多出的成本
                     # ≈ 1/3 個 decoder forward × K * n_t 點，相對於整體 NS 殘差可忽略。

@@ -59,9 +59,9 @@ class TestRunCfcPassOutputShape:
         sv, sp, st = _make_inputs()
         dts = torch.cat([st[:1], st[1:] - st[:-1]])
         re_bias = enc._re_bias(0.0, sv.device, sv.dtype).view(1, 1, -1)
-        # spatial_states: [T, K, D]
-        spatial_states = torch.rand(T, K, D)
-        out = enc._run_cfc_pass(spatial_states, enc.cells, dts, re_bias, layer_idx=0, reverse=False)
+        # _run_cfc_pass 在 13af6fa 後改為預期 caller 預先加 re_bias 進 seq
+        spatial_states = torch.rand(T, K, D) + re_bias
+        out = enc._run_cfc_pass(spatial_states, enc.cells, dts, layer_idx=0, reverse=False)
         assert out.shape == (T, K, D), f"期望 ({T},{K},{D})，得到 {out.shape}"
 
     def test_reverse_shape(self):
@@ -69,8 +69,8 @@ class TestRunCfcPassOutputShape:
         sv, sp, st = _make_inputs()
         dts = torch.cat([st[:1], st[1:] - st[:-1]])
         re_bias = enc._re_bias(0.0, sv.device, sv.dtype).view(1, 1, -1)
-        spatial_states = torch.rand(T, K, D)
-        out = enc._run_cfc_pass(spatial_states, enc.cells, dts, re_bias, layer_idx=0, reverse=True)
+        spatial_states = torch.rand(T, K, D) + re_bias
+        out = enc._run_cfc_pass(spatial_states, enc.cells, dts, layer_idx=0, reverse=True)
         assert out.shape == (T, K, D), f"reverse 期望 ({T},{K},{D})，得到 {out.shape}"
 
 
@@ -83,8 +83,9 @@ class TestRunCfcPassDeterminism:
         spatial = torch.rand(T, K, D)
         dts = torch.ones(T)
         re_bias = enc._re_bias(0.0, spatial.device, spatial.dtype).view(1, 1, -1)
-        out1 = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias, 0, reverse=False)
-        out2 = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias, 0, reverse=False)
+        seq = spatial + re_bias
+        out1 = enc._run_cfc_pass(seq, enc.cells, dts, 0, reverse=False)
+        out2 = enc._run_cfc_pass(seq, enc.cells, dts, 0, reverse=False)
         assert torch.allclose(out1, out2), "相同輸入應產生相同輸出"
 
     def test_forward_reverse_differ(self):
@@ -93,8 +94,9 @@ class TestRunCfcPassDeterminism:
         spatial = torch.rand(T, K, D)
         dts = torch.ones(T)
         re_bias = enc._re_bias(0.0, spatial.device, spatial.dtype).view(1, 1, -1)
-        fwd = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias, 0, reverse=False)
-        bwd = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias, 0, reverse=True)
+        seq = spatial + re_bias
+        fwd = enc._run_cfc_pass(seq, enc.cells, dts, 0, reverse=False)
+        bwd = enc._run_cfc_pass(seq, enc.cells, dts, 0, reverse=True)
         # T>1 時兩者不同（若相同代表 re_bias 把梯度蓋掉或有 bug）
         assert not torch.allclose(fwd, bwd), "forward 與 reverse 應給出不同結果"
 
@@ -143,6 +145,7 @@ class TestReBiasEffect:
         re_bias_0 = enc._re_bias(0.0, spatial.device, spatial.dtype).view(1, 1, -1)
         re_bias_1 = enc._re_bias(1.0, spatial.device, spatial.dtype).view(1, 1, -1)
 
-        out0 = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias_0, 0, reverse=False)
-        out1 = enc._run_cfc_pass(spatial, enc.cells, dts, re_bias_1, 0, reverse=False)
+        # 13af6fa 後 re_bias 由 caller 預先加進 seq；測試遵循同一 contract
+        out0 = enc._run_cfc_pass(spatial + re_bias_0, enc.cells, dts, 0, reverse=False)
+        out1 = enc._run_cfc_pass(spatial + re_bias_1, enc.cells, dts, 0, reverse=False)
         assert not torch.allclose(out0, out1), "不同 re_norm 應產生不同輸出（re_bias 未生效）"

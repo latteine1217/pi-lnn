@@ -41,6 +41,10 @@ class LiquidOperator(nn.Module):
         use_bidirectional_cfc: bool = False,
         fourier_embed_dim: int = 0,
         use_periodic_domain: bool = True,
+        cfc_log_tau_min: float = -1.0,
+        cfc_log_tau_max: float = 1.0,
+        fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
     ) -> None:
         super().__init__()
         self.spatial_encoder = SpatialSetEncoder(
@@ -51,6 +55,8 @@ class LiquidOperator(nn.Module):
             domain_length=domain_length,
             fourier_embed_dim=fourier_embed_dim,
             use_periodic_domain=use_periodic_domain,
+            fourier_sigma_bands=fourier_sigma_bands,
+            fourier_band_dim_ratios=fourier_band_dim_ratios,
         )
         self.temporal_encoder = TemporalCfCEncoder(
             d_model,
@@ -58,6 +64,8 @@ class LiquidOperator(nn.Module):
             num_token_attention_layers=num_token_attention_layers,
             token_attention_heads=token_attention_heads,
             use_bidirectional=use_bidirectional_cfc,
+            cfc_log_tau_min=cfc_log_tau_min,
+            cfc_log_tau_max=cfc_log_tau_max,
         )
         self.query_decoder = DeepONetCfCDecoder(
             fourier_harmonics=fourier_harmonics,
@@ -75,6 +83,8 @@ class LiquidOperator(nn.Module):
             use_locality_decay=use_locality_decay,
             fourier_embed_dim=fourier_embed_dim,
             use_periodic_domain=use_periodic_domain,
+            fourier_sigma_bands=fourier_sigma_bands,
+            fourier_band_dim_ratios=fourier_band_dim_ratios,
         )
 
     def encode(
@@ -165,6 +175,10 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
         use_bidirectional_cfc=bool(cfg.get("use_bidirectional_cfc", False)),
         fourier_embed_dim=int(cfg.get("fourier_embed_dim", 0)),
         use_periodic_domain=bool(cfg.get("use_periodic_domain", True)),
+        cfc_log_tau_min=float(cfg.get("cfc_log_tau_min", -1.0)),
+        cfc_log_tau_max=float(cfg.get("cfc_log_tau_max", 1.0)),
+        fourier_sigma_bands=cfg.get("fourier_sigma_bands"),
+        fourier_band_dim_ratios=cfg.get("fourier_band_dim_ratios"),
     )
 
 

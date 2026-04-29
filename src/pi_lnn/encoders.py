@@ -24,6 +24,8 @@ class SpatialSetEncoder(nn.Module):
         domain_length: float = 1.0,
         fourier_embed_dim: int = 0,
         use_periodic_domain: bool = True,
+        fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
     ) -> None:
         super().__init__()
         self.domain_length = float(domain_length)
@@ -31,10 +33,15 @@ class SpatialSetEncoder(nn.Module):
         self.sensor_value_dim = int(sensor_value_dim)
         self.use_periodic_domain = bool(use_periodic_domain)
         if fourier_embed_dim > 0:
-            # 週期：LearnableFourierEmb（PeriodEmbs + 投影），x=0≡x=L 編碼。
+            # 週期：LearnableFourierEmb（PeriodEmbs + 投影，支援頻率分層），x=0≡x=L 編碼。
             # 非週期：FourierEmbs 真 RFF，無預先週期化，能區分域邊界。
+            # 頻率分層僅用於週期路徑；FourierEmbs 已是隨機頻率。
             if self.use_periodic_domain:
-                self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+                self.spatial_emb: nn.Module | None = LearnableFourierEmb(
+                    fourier_embed_dim,
+                    init_sigma_bands=fourier_sigma_bands,
+                    band_dim_ratios=fourier_band_dim_ratios,
+                )
             else:
                 self.spatial_emb = FourierEmbs(fourier_embed_dim, input_dim=2)
             spatial_dim = fourier_embed_dim
@@ -108,6 +115,8 @@ class TemporalCfCEncoder(nn.Module):
         num_token_attention_layers: int = 1,
         token_attention_heads: int = 4,
         use_bidirectional: bool = False,
+        cfc_log_tau_min: float = -1.0,
+        cfc_log_tau_max: float = 1.0,
     ) -> None:
         super().__init__()
         self.d_model = d_model
@@ -117,11 +126,17 @@ class TemporalCfCEncoder(nn.Module):
             TokenSelfAttentionBlock(d_model=d_model, num_heads=token_attention_heads)
             for _ in range(max(num_token_attention_layers, 0))
         ])
-        self.cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+        self.cells = nn.ModuleList([
+            CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+            for _ in range(num_layers)
+        ])
         if use_bidirectional:
             # 反向 CfC：獨立參數，從 t=T-1 掃回 t=0。
             # Why: 讓 h_states[0] 也能看到未來觀測，消除因果編碼在 t=0 的資訊不對稱。
-            self.backward_cells = nn.ModuleList([CfCCell(d_model, d_model) for _ in range(num_layers)])
+            self.backward_cells = nn.ModuleList([
+                CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+                for _ in range(num_layers)
+            ])
 
     def _re_bias(self, re_norm: float, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
         re_t = torch.tensor([[re_norm]], dtype=dtype, device=device)

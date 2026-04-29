@@ -29,6 +29,10 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "fusion_temperature_init": None,
     "use_locality_decay": False,
     "use_bidirectional_cfc": False,
+    "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
+    "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
+    "fourier_sigma_bands": None,    # LearnableFourierEmb 多頻段 σ；None=單一 σ；例 [1.0, 4.0, 12.0]
+    "fourier_band_dim_ratios": None,  # 對應各 band 的通道比例；總和需 = 1.0；例 [0.5, 0.375, 0.125]
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限
@@ -70,6 +74,9 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "rar_pool_multiplier": 10,     # RAR: pool 大小 = num_physics_points × multiplier
     "rar_exploration_ratio": 0.2,  # RAR: 保留隨機點比例（防 mode collapse）
     "physics_residual_normalize": False,
+    "use_causal_weighting": False,    # PINN causal weighting (Wang 2022); 與 t_early_weight 互斥
+    "causal_eps": 1.0,                # 因果嚴格度；0=均勻，∞=只訓 t=0；典型 0.5~10.0
+    "causal_num_bins": 16,            # 時間 bin 數；建議 16~32（太大 cumsum 不穩）
     "use_sensor_physics": False,           # 在感測器位置額外計算 NS 殘差
     "num_sensor_physics_time_samples": 4,  # 每訓練步從 sensor_time 中採樣幾個時間步
     "sensor_physics_start_step": 0,        # 延遲啟動：前 N 步只用隨機 collocation

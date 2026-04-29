@@ -23,6 +23,46 @@ import torch
 from lnn_kolmogorov import create_lnn_model, load_lnn_config
 
 
+# 期刊風格繪圖（NeurIPS/ICLR）— 全域 rcParams 設定。
+# Why: 預設 matplotlib 外觀過於業餘；論文圖需 DPI≥300、字型一致、簡潔 spines。
+_PREFERRED_FONTS = ["Helvetica", "Arial", "DejaVu Sans"]
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.sans-serif": _PREFERRED_FONTS,
+    "font.size": 10,
+    "axes.titlesize": 11,
+    "axes.labelsize": 10,
+    "axes.linewidth": 0.8,
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "axes.grid": True,
+    "grid.linewidth": 0.4,
+    "grid.alpha": 0.3,
+    "grid.color": "#999999",
+    "xtick.labelsize": 9,
+    "ytick.labelsize": 9,
+    "xtick.direction": "in",
+    "ytick.direction": "in",
+    "xtick.major.width": 0.7,
+    "ytick.major.width": 0.7,
+    "legend.fontsize": 9,
+    "legend.frameon": False,
+    "lines.linewidth": 1.4,
+    "lines.markersize": 3.5,
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight",
+    "figure.dpi": 100,
+})
+
+
+def _markevery_for(n: int, target: int = 12) -> int:
+    """What: 計算 markevery 步長，使一條時序線顯示約 target 個 markers。
+
+    Why: 期刊圖 marker 太密會讓讀者分不清趨勢；自適應步長保持視覺清晰度。
+    """
+    return max(1, n // max(target, 1))
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate DeepONet + CfC checkpoint.")
     parser.add_argument(
@@ -67,8 +107,14 @@ def choose_device(name: str) -> torch.device:
 
 
 def block_avg(field: np.ndarray) -> np.ndarray:
-    n_half = field.shape[0] // 2
-    return field.reshape(n_half, 2, n_half, 2).mean(axis=(1, 3))
+    """What: 2x2 block average，支援 [..., 2N, 2N] batch shape。
+
+    Why: 向量化避免逐 frame Python loop；既有 [2N, 2N] 用法仍兼容。
+    """
+    n_half_x = field.shape[-2] // 2
+    n_half_y = field.shape[-1] // 2
+    new_shape = (*field.shape[:-2], n_half_x, 2, n_half_y, 2)
+    return field.reshape(new_shape).mean(axis=(-3, -1))
 
 
 def coarse_reference_grid(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -97,29 +143,29 @@ def enstrophy_fd(u: np.ndarray, v: np.ndarray, dx: float) -> float:
 
 
 def vorticity_fd(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
-    """What: 用中心差分近似 2D 渦度場。
+    """What: 用中心差分近似 2D 渦度場，支援 [..., N, N] batch shape。
 
-    Why: 渦度是局部旋渦結構最直接的診斷量，適合保留在 evaluation 而非訓練 supervision。
+    Why: 渦度是局部旋渦結構最直接的診斷量；批次化避免 evaluator 對 T 個 frame 各呼叫一次。
     """
-    dvdx = (np.roll(v, -1, axis=0) - np.roll(v, 1, axis=0)) / (2 * dx)
-    dudy = (np.roll(u, -1, axis=1) - np.roll(u, 1, axis=1)) / (2 * dx)
+    dvdx = (np.roll(v, -1, axis=-2) - np.roll(v, 1, axis=-2)) / (2 * dx)
+    dudy = (np.roll(u, -1, axis=-1) - np.roll(u, 1, axis=-1)) / (2 * dx)
     return dvdx - dudy
 
 
 def divergence_fd(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
-    """What: 用中心差分近似 2D 不可壓縮條件殘差。"""
-    dudx = (np.roll(u, -1, axis=0) - np.roll(u, 1, axis=0)) / (2 * dx)
-    dvdy = (np.roll(v, -1, axis=1) - np.roll(v, 1, axis=1)) / (2 * dx)
+    """What: 用中心差分近似 2D 不可壓縮條件殘差，支援 [..., N, N] batch。"""
+    dudx = (np.roll(u, -1, axis=-2) - np.roll(u, 1, axis=-2)) / (2 * dx)
+    dvdy = (np.roll(v, -1, axis=-1) - np.roll(v, 1, axis=-1)) / (2 * dx)
     return dudx + dvdy
 
 
 def laplacian_periodic(field: np.ndarray, dx: float) -> np.ndarray:
-    """What: 以 periodic stencil 計算 2D Laplacian。"""
+    """What: 以 periodic stencil 計算 2D Laplacian，支援 [..., N, N] batch。"""
     return (
-        np.roll(field, -1, axis=0)
-        + np.roll(field, 1, axis=0)
-        + np.roll(field, -1, axis=1)
-        + np.roll(field, 1, axis=1)
+        np.roll(field, -1, axis=-2)
+        + np.roll(field, 1, axis=-2)
+        + np.roll(field, -1, axis=-1)
+        + np.roll(field, 1, axis=-1)
         - 4.0 * field
     ) / (dx**2)
 
@@ -156,8 +202,9 @@ def ns_residual_fields(
     dp_dx = (np.roll(p_series, -1, axis=1) - np.roll(p_series, 1, axis=1)) / (2 * dx)
     dp_dy = (np.roll(p_series, -1, axis=2) - np.roll(p_series, 1, axis=2)) / (2 * dx)
 
-    lap_u = np.stack([laplacian_periodic(frame, dx) for frame in u_series], axis=0)
-    lap_v = np.stack([laplacian_periodic(frame, dx) for frame in v_series], axis=0)
+    # 向量化：laplacian_periodic 已支援 [T, N, N]，無需逐 frame stack。
+    lap_u = laplacian_periodic(u_series, dx)
+    lap_v = laplacian_periodic(v_series, dx)
     nu = 1.0 / float(re)
     forcing_wavenumber = (2.0 * np.pi * float(k_forcing)) / float(domain_length)
     forcing = float(forcing_amplitude) * np.sin(forcing_wavenumber * y_coords)[None, None, :]
@@ -169,19 +216,30 @@ def ns_residual_fields(
 
 
 def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndarray, np.ndarray]:
+    """What: 計算 1D radial-averaged energy spectrum E(k)。
+
+    Why: 替代原 Python for-loop（每 spectrum N/2 次 mask + sum），改用 np.bincount
+         在 ravel 後一次 scatter-add，速度提升 ~10-50×；保留 ordinary wavenumber
+         單位（cycles/domain）對齊 k_f=2.0。
+    """
     n = u.shape[0]
-    # ordinary wavenumber k（cycles/domain），與 k_f=2.0 的單位一致
     k1d = np.fft.fftfreq(n, d=dx)
     uh = np.fft.fft2(u) / n**2
     vh = np.fft.fft2(v) / n**2
     e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
     kx, ky = np.meshgrid(k1d, k1d, indexing="ij")
     kk = np.sqrt(kx**2 + ky**2)
-    edges = np.arange(0.5, n // 2 + 1.5, 1.0)
-    e_k = np.zeros(len(edges) - 1, dtype=np.float64)
-    for i in range(len(e_k)):
-        mask = (kk >= edges[i]) & (kk < edges[i + 1])
-        e_k[i] = np.sum(e2d[mask])
+    n_bins = n // 2 + 1
+    # bin 對應原版 edges = [0.5, 1.5, ..., n//2+0.5]，共 n_bins 個 bin
+    # idx = floor(k - 0.5 + 1) = floor(k + 0.5)；k=0 → idx=0；k≥0.5 → idx≥1
+    # 但原版 k=0 不被任何 bin 包含（從 0.5 起），所以這裡需排除 idx=0 對應的 k<0.5
+    bin_idx = np.floor(kk + 0.5).astype(np.int64)
+    # k < 0.5（DC + 極低頻）不計入，遮罩為 -1
+    valid = (bin_idx >= 1) & (bin_idx <= n_bins)
+    flat_idx = np.where(valid, bin_idx - 1, 0)  # shift 到 [0, n_bins-1]
+    weights = np.where(valid, e2d, 0.0).ravel()
+    e_k = np.bincount(flat_idx.ravel(), weights=weights, minlength=n_bins).astype(np.float64)
+    edges = np.arange(0.5, n_bins + 1, 1.0)  # length n_bins+1
     return 0.5 * (edges[:-1] + edges[1:]), e_k
 
 
@@ -318,13 +376,10 @@ def plot_field_comparison(
     v_pred: np.ndarray,
     t_val: float,
 ) -> None:
-    """What: 輸出 DNS / LNN / Error 的場比較圖。
-
-    Why: 直接看場結構與誤差分布，比單看 scalar 指標更能判斷是否只是振幅或相位偏移。
-    """
+    """What: DNS / LNN / Error 場比較（期刊雙欄寬度）。"""
     u_err = u_pred - u_ref
     v_err = v_pred - v_ref
-    fig, axes = plt.subplots(2, 3, figsize=(14, 8), constrained_layout=True)
+    fig, axes = plt.subplots(2, 3, figsize=(8.5, 5.0), constrained_layout=True)
 
     u_lim = float(max(np.abs(u_ref).max(), np.abs(u_pred).max(), 1e-8))
     v_lim = float(max(np.abs(v_ref).max(), np.abs(v_pred).max(), 1e-8))
@@ -332,22 +387,24 @@ def plot_field_comparison(
     ve_lim = float(max(np.abs(v_err).max(), 1e-8))
 
     panels = [
-        (axes[0, 0], u_ref, "u DNS", "RdBu_r", -u_lim, u_lim),
-        (axes[0, 1], u_pred, "u LNN", "RdBu_r", -u_lim, u_lim),
-        (axes[0, 2], u_err, "u Error", "RdBu_r", -ue_lim, ue_lim),
-        (axes[1, 0], v_ref, "v DNS", "RdBu_r", -v_lim, v_lim),
-        (axes[1, 1], v_pred, "v LNN", "RdBu_r", -v_lim, v_lim),
-        (axes[1, 2], v_err, "v Error", "RdBu_r", -ve_lim, ve_lim),
+        (axes[0, 0], u_ref,  f"$u$ DNS ($t={t_val:.2f}$)",  "RdBu_r", -u_lim, u_lim),
+        (axes[0, 1], u_pred, "$u$ LNN",                     "RdBu_r", -u_lim, u_lim),
+        (axes[0, 2], u_err,  "$u$ Error",                   "RdBu_r", -ue_lim, ue_lim),
+        (axes[1, 0], v_ref,  f"$v$ DNS ($t={t_val:.2f}$)",  "RdBu_r", -v_lim, v_lim),
+        (axes[1, 1], v_pred, "$v$ LNN",                     "RdBu_r", -v_lim, v_lim),
+        (axes[1, 2], v_err,  "$v$ Error",                   "RdBu_r", -ve_lim, ve_lim),
     ]
     for ax, field, title, cmap, vmin, vmax in panels:
         im = ax.imshow(field.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, aspect="equal")
         ax.set_title(title)
-        ax.set_xlabel("x index")
-        ax.set_ylabel("y index")
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-
-    fig.suptitle(f"DNS vs LNN vs Error at t={t_val:.2f}")
-    fig.savefig(output_path, dpi=180)
+        ax.set_xlabel("$x$")
+        ax.set_ylabel("$y$")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.grid(False)
+        cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.ax.tick_params(labelsize=8)
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -357,29 +414,28 @@ def plot_vorticity_comparison(
     omega_pred: np.ndarray,
     t_val: float,
 ) -> None:
-    """What: 輸出最後時間點的渦度 DNS / LNN / Error 圖。
-
-    Why: 在 sparse-data 主線下，渦度應保留作診斷工具，用來判斷局部旋渦結構是否對齊。
-    """
+    """What: 渦度 DNS / LNN / Error 比較（期刊單列）。"""
     omega_err = omega_pred - omega_ref
     om_lim = float(max(np.abs(omega_ref).max(), np.abs(omega_pred).max(), 1e-8))
     err_lim = float(max(np.abs(omega_err).max(), 1e-8))
 
-    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5), constrained_layout=True)
+    fig, axes = plt.subplots(1, 3, figsize=(8.5, 3.0), constrained_layout=True)
     panels = [
-        (axes[0], omega_ref, "Vorticity DNS", -om_lim, om_lim),
-        (axes[1], omega_pred, "Vorticity LNN", -om_lim, om_lim),
-        (axes[2], omega_err, "Vorticity Error", -err_lim, err_lim),
+        (axes[0], omega_ref, f"$\\omega$ DNS ($t={t_val:.2f}$)", -om_lim, om_lim),
+        (axes[1], omega_pred, "$\\omega$ LNN", -om_lim, om_lim),
+        (axes[2], omega_err, "$\\omega$ Error", -err_lim, err_lim),
     ]
     for ax, field, title, vmin, vmax in panels:
         im = ax.imshow(field.T, origin="lower", cmap="RdBu_r", vmin=vmin, vmax=vmax, aspect="equal")
         ax.set_title(title)
-        ax.set_xlabel("x index")
-        ax.set_ylabel("y index")
-        fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-
-    fig.suptitle(f"Vorticity Comparison at t={t_val:.2f}")
-    fig.savefig(output_path, dpi=180)
+        ax.set_xlabel("$x$")
+        ax.set_ylabel("$y$")
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.grid(False)
+        cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.ax.tick_params(labelsize=8)
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -391,22 +447,18 @@ def plot_energy_spectrum(
     e_pred: np.ndarray,
     k_forcing: float,
 ) -> None:
-    """What: 輸出最後時間點的一維能譜比較圖。
-
-    Why: 能譜最直接反映主模態與高頻結構是否被正確重建。
-    """
+    """What: 一維能譜比較（期刊單欄寬度，loglog）。"""
     mask_ref = e_ref > 0.0
     mask_pred = e_pred > 0.0
-    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
-    ax.loglog(k_ref[mask_ref], e_ref[mask_ref], marker="o", label="DNS")
-    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], marker="s", label="LNN")
-    ax.axvline(k_forcing, color="black", linestyle="--", linewidth=1.0, label="k_f")
-    ax.set_title("Energy Spectrum")
-    ax.set_xlabel("Wavenumber k")
-    ax.set_ylabel("Energy E(k)")
+    fig, ax = plt.subplots(figsize=(3.6, 2.8), constrained_layout=True)
+    ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#1f77b4", linestyle="-", label="DNS")
+    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#d62728", linestyle="--", label="LNN")
+    ax.axvline(k_forcing, color="black", linestyle=":", linewidth=0.8, label=f"$k_f={k_forcing:.0f}$")
+    ax.set_xlabel("Wavenumber $k$")
+    ax.set_ylabel("Energy $E(k)$")
     ax.grid(True, which="both", alpha=0.25)
-    ax.legend()
-    fig.savefig(output_path, dpi=180)
+    ax.legend(loc="best")
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -418,19 +470,18 @@ def plot_metric_vs_time(
     title: str,
     y_label: str,
 ) -> None:
-    """What: 輸出隨時間變化的整體指標比較圖。
-
-    Why: 檢查模型是否只在單一時間點看起來合理，或整段時序都維持相近偏差。
-    """
-    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
-    ax.plot(time_vals, ref_vals, marker="o", label="DNS")
-    ax.plot(time_vals, pred_vals, marker="s", label="LNN")
+    """What: DNS vs LNN 時序比較（期刊單欄寬度）。"""
+    me = _markevery_for(len(time_vals))
+    fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
+    ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
+            markevery=me, label="DNS")
+    ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
+            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="LNN")
     ax.set_title(title)
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time $t$")
     ax.set_ylabel(y_label)
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.savefig(output_path, dpi=180)
+    ax.legend(loc="best")
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -442,18 +493,23 @@ def plot_series_collection(
     y_label: str,
     yscale: str = "linear",
 ) -> None:
-    """What: 將多條時序指標畫在同一張圖上。"""
-    fig, ax = plt.subplots(figsize=(7.5, 5.0), constrained_layout=True)
-    for label, values in series_map.items():
-        ax.plot(time_vals, values, marker="o", label=label)
+    """What: 多條時序指標疊圖（期刊單欄寬度，自動色彩+線型）。"""
+    me = _markevery_for(len(time_vals))
+    fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
+    palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b"]
+    linestyles = ["-", "--", "-.", ":", "-", "--"]
+    for i, (label, values) in enumerate(series_map.items()):
+        color = palette[i % len(palette)]
+        ls = linestyles[i % len(linestyles)]
+        ax.plot(time_vals, values, color=color, linestyle=ls, marker="o",
+                markevery=me, label=label)
     ax.set_title(title)
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time $t$")
     ax.set_ylabel(y_label)
     if yscale != "linear":
         ax.set_yscale(yscale)
-    ax.grid(True, which="both", alpha=0.25)
-    ax.legend()
-    fig.savefig(output_path, dpi=180)
+    ax.legend(loc="best", ncol=1 if len(series_map) <= 3 else 2)
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -463,20 +519,19 @@ def plot_uv_error_vs_time(
     u_err: np.ndarray,
     v_err: np.ndarray,
 ) -> None:
-    """What: 輸出 u / v RMSE 隨時間的變化圖。
-
-    Why: 單看平均 RMSE 會掩蓋模型是否只在前段或後段時間失真，
-         需要明確看到兩個速度分量的誤差如何隨時間演化。
-    """
-    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
-    ax.plot(time_vals, u_err, marker="o", label="u RMSE")
-    ax.plot(time_vals, v_err, marker="s", label="v RMSE")
+    """What: u / v RMSE 隨時間變化（期刊單欄寬度）。"""
+    me = _markevery_for(len(time_vals))
+    fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
+    ax.plot(time_vals, u_err, color="#1f77b4", linestyle="-", marker="o",
+            markevery=me, label="$u$ RMSE")
+    ax.plot(time_vals, v_err, color="#d62728", linestyle="--", marker="o",
+            markevery=me, markerfacecolor="white", markeredgecolor="#d62728",
+            label="$v$ RMSE")
     ax.set_title("Velocity Error vs Time")
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time $t$")
     ax.set_ylabel("RMSE")
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.savefig(output_path, dpi=180)
+    ax.legend(loc="best")
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -488,16 +543,18 @@ def plot_mode_vs_time(
     title: str,
     y_label: str,
 ) -> None:
-    """What: 輸出 forcing mode amplitude / phase 的時間演化比較圖。"""
-    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
-    ax.plot(time_vals, ref_vals, marker="o", label="DNS")
-    ax.plot(time_vals, pred_vals, marker="s", label="LNN")
+    """What: forcing mode amplitude / phase 時間演化（期刊單欄寬度）。"""
+    me = _markevery_for(len(time_vals))
+    fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
+    ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
+            markevery=me, label="DNS")
+    ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
+            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="LNN")
     ax.set_title(title)
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Time $t$")
     ax.set_ylabel(y_label)
-    ax.grid(True, alpha=0.25)
-    ax.legend()
-    fig.savefig(output_path, dpi=180)
+    ax.legend(loc="best")
+    fig.savefig(output_path)
     plt.close(fig)
 
 
@@ -589,21 +646,34 @@ def main() -> None:
 
     u_rmse = np.sqrt(np.mean((u_pred_arr - u_ref_arr) ** 2, axis=(1, 2)))
     v_rmse = np.sqrt(np.mean((v_pred_arr - v_ref_arr) ** 2, axis=(1, 2)))
+    # Field-level relative L2 error: ‖pred - ref‖₂ / ‖ref‖₂ (per time-step)
+    # 對齊 PINN/CFD 文獻（Wang 2022, jaxpi）的標準誤差度量。
+    u_rel_l2 = np.sqrt(np.sum((u_pred_arr - u_ref_arr) ** 2, axis=(1, 2))) / np.maximum(
+        np.sqrt(np.sum(u_ref_arr ** 2, axis=(1, 2))), 1.0e-12
+    )
+    v_rel_l2 = np.sqrt(np.sum((v_pred_arr - v_ref_arr) ** 2, axis=(1, 2))) / np.maximum(
+        np.sqrt(np.sum(v_ref_arr ** 2, axis=(1, 2))), 1.0e-12
+    )
     pred_std_u = u_pred_arr.std(axis=(1, 2))
     pred_std_v = v_pred_arr.std(axis=(1, 2))
     ke_pred_series = 0.5 * np.mean(u_pred_arr**2 + v_pred_arr**2, axis=(1, 2))
     ke_ref_series = 0.5 * np.mean(u_ref_arr**2 + v_ref_arr**2, axis=(1, 2))
     ke_rel_err = np.abs(ke_pred_series - ke_ref_series) / np.maximum(ke_ref_series, 1.0e-12)
 
-    omega_pred_arr = np.stack([vorticity_fd(u_pred_arr[i], v_pred_arr[i], dx) for i in range(len(sensor_time))], axis=0)
-    omega_ref_arr = np.stack([vorticity_fd(u_ref_arr[i], v_ref_arr[i], dx) for i in range(len(sensor_time))], axis=0)
+    # 向量化：vorticity_fd 直接接受 [T, N, N]
+    omega_pred_arr = vorticity_fd(u_pred_arr, v_pred_arr, dx)
+    omega_ref_arr = vorticity_fd(u_ref_arr, v_ref_arr, dx)
     omega_rmse = np.sqrt(np.mean((omega_pred_arr - omega_ref_arr) ** 2, axis=(1, 2)))
+    omega_rel_l2 = np.sqrt(np.sum((omega_pred_arr - omega_ref_arr) ** 2, axis=(1, 2))) / np.maximum(
+        np.sqrt(np.sum(omega_ref_arr ** 2, axis=(1, 2))), 1.0e-12
+    )
     ens_pred_series = 0.5 * np.mean(omega_pred_arr**2, axis=(1, 2))
     ens_ref_series = 0.5 * np.mean(omega_ref_arr**2, axis=(1, 2))
     ens_rel_err = np.abs(ens_pred_series - ens_ref_series) / np.maximum(ens_ref_series, 1.0e-12)
 
-    div_pred_arr = np.stack([divergence_fd(u_pred_arr[i], v_pred_arr[i], dx) for i in range(len(sensor_time))], axis=0)
-    div_ref_arr = np.stack([divergence_fd(u_ref_arr[i], v_ref_arr[i], dx) for i in range(len(sensor_time))], axis=0)
+    # 向量化：divergence_fd 直接接受 [T, N, N]
+    div_pred_arr = divergence_fd(u_pred_arr, v_pred_arr, dx)
+    div_ref_arr = divergence_fd(u_ref_arr, v_ref_arr, dx)
     div_l2_pred = np.sqrt(np.mean(div_pred_arr**2, axis=(1, 2)))
     div_linf_pred = np.max(np.abs(div_pred_arr), axis=(1, 2))
     div_l2_ref = np.sqrt(np.mean(div_ref_arr**2, axis=(1, 2)))
@@ -668,6 +738,9 @@ def main() -> None:
                 "u_rmse": float(u_rmse[idx]),
                 "v_rmse": float(v_rmse[idx]),
                 "omega_rmse": float(omega_rmse[idx]),
+                "u_rel_l2": float(u_rel_l2[idx]),
+                "v_rel_l2": float(v_rel_l2[idx]),
+                "omega_rel_l2": float(omega_rel_l2[idx]),
                 "u_std": float(pred_std_u[idx]),
                 "v_std": float(pred_std_v[idx]),
                 "ke_rel_err": float(ke_rel_err[idx]),
@@ -813,6 +886,9 @@ def main() -> None:
         "u_rmse": summarize_time_local_metric(sensor_time, u_rmse),
         "v_rmse": summarize_time_local_metric(sensor_time, v_rmse),
         "omega_rmse": summarize_time_local_metric(sensor_time, omega_rmse),
+        "u_rel_l2": summarize_time_local_metric(sensor_time, u_rel_l2),
+        "v_rel_l2": summarize_time_local_metric(sensor_time, v_rel_l2),
+        "omega_rel_l2": summarize_time_local_metric(sensor_time, omega_rel_l2),
         "ke_rel_err": summarize_time_local_metric(sensor_time, ke_rel_err),
         "div_l2": summarize_time_local_metric(sensor_time, div_l2_pred),
         "ns_u_rms": summarize_time_local_metric(sensor_time, ns_u_rms_pred),
@@ -830,6 +906,12 @@ def main() -> None:
         "u_rmse_mean": float(np.mean(u_rmse)),
         "v_rmse_mean": float(np.mean(v_rmse)),
         "omega_rmse_mean": float(np.mean(omega_rmse)),
+        "u_rel_l2_mean": float(np.mean(u_rel_l2)),       # ‖u_pred-u_ref‖₂/‖u_ref‖₂ (PINN 標準度量)
+        "v_rel_l2_mean": float(np.mean(v_rel_l2)),
+        "omega_rel_l2_mean": float(np.mean(omega_rel_l2)),
+        "u_rel_l2_last": float(u_rel_l2[-1]),
+        "v_rel_l2_last": float(v_rel_l2[-1]),
+        "omega_rel_l2_last": float(omega_rel_l2[-1]),
         "u_std_mean": float(np.mean(pred_std_u)),
         "v_std_mean": float(np.mean(pred_std_v)),
         "ke_rel_err_mean": float(np.mean(ke_rel_err)),
@@ -864,11 +946,11 @@ def main() -> None:
 
     print("=== DeepONet+CfC Evaluation ===")
     print(f"checkpoint: {args.checkpoint.resolve()}")
-    print(f"u RMSE mean = {summary['u_rmse_mean']:.4e}")
-    print(f"v RMSE mean = {summary['v_rmse_mean']:.4e}")
+    print(f"u RMSE mean = {summary['u_rmse_mean']:.4e}   rel-L2 mean = {summary['u_rel_l2_mean']:.4e}")
+    print(f"v RMSE mean = {summary['v_rmse_mean']:.4e}   rel-L2 mean = {summary['v_rel_l2_mean']:.4e}")
     print(f"u std mean  = {summary['u_std_mean']:.4e}")
     print(f"v std mean  = {summary['v_std_mean']:.4e}")
-    print(f"omega RMSE mean = {summary['omega_rmse_mean']:.4e}")
+    print(f"omega RMSE mean = {summary['omega_rmse_mean']:.4e}   rel-L2 mean = {summary['omega_rel_l2_mean']:.4e}")
     print(f"KE rel-err mean  = {summary['ke_rel_err_mean']:.4e}")
     print(f"Ens rel-err mean = {summary['ens_rel_err_mean']:.4e}")
     print(f"div L2 mean = {summary['div_l2_mean']:.4e}  (DNS {summary['div_ref_l2_mean']:.4e})")

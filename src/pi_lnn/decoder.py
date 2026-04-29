@@ -40,6 +40,8 @@ class DeepONetCfCDecoder(nn.Module):
         use_locality_decay: bool = False,
         fourier_embed_dim: int = 0,
         use_periodic_domain: bool = True,
+        fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
+        fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
@@ -50,10 +52,16 @@ class DeepONetCfCDecoder(nn.Module):
         self.temporal_anchor_harmonics = int(temporal_anchor_harmonics)
         temporal_dim = 2 * self.temporal_anchor_harmonics if self.use_temporal_anchor else 0
         if fourier_embed_dim > 0:
-            # 週期：LearnableFourierEmb；非週期：FourierEmbs 真 RFF。
+            # 週期：LearnableFourierEmb（支援頻率分層）；非週期：FourierEmbs 真 RFF。
             # 詳見 encodings.py 兩個類別的註解與 jaxpi 對齊說明。
+            # 頻率分層（fourier_sigma_bands/band_dim_ratios）僅適用於週期路徑——
+            # FourierEmbs 已是 RFF 隨機頻率，不需手動分層。
             if self.use_periodic_domain:
-                self.spatial_emb: nn.Module | None = LearnableFourierEmb(fourier_embed_dim)
+                self.spatial_emb: nn.Module | None = LearnableFourierEmb(
+                    fourier_embed_dim,
+                    init_sigma_bands=fourier_sigma_bands,
+                    band_dim_ratios=fourier_band_dim_ratios,
+                )
             else:
                 self.spatial_emb = FourierEmbs(fourier_embed_dim, input_dim=2)
             spatial_dim = fourier_embed_dim
