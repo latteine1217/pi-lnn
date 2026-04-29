@@ -19,6 +19,7 @@ from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_pred
 from pi_lnn.operator import (
     LiquidOperator,
     create_lnn_model,
+    make_lnn_model_fn,
     make_lnn_model_fn_uvp,
 )
 from pi_lnn.physics import (

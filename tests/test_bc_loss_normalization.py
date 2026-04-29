@@ -156,3 +156,20 @@ def test_slip_top_bottom_split_count():
     assert y_slip.shape[0] == 2 * per_side == 32
     assert (y_slip[:per_side] == 0.0).all()
     assert (y_slip[per_side:] == 1.0).all()
+
+
+# ── 7. Import smoke test：BC loss 用到的 closure 必須可從 training 取得 ──
+
+
+def test_training_imports_required_closures_for_bc_loss():
+    """Why: BC loss code path 因 cylinder-only branch 在 Kolmogorov tests 不會被執行，
+    語法錯誤或漏 import 會 silent 通過 CI。確保所有 BC loss 用到的 symbol
+    至少在 import time 可解析（避免下次 cylinder run 時 NameError）。"""
+    import pi_lnn.training as t
+    # BC loss 使用的兩個 closure factory；training.py 必須 import 兩者。
+    assert hasattr(t, "make_lnn_model_fn"), (
+        "training.py 必須 import make_lnn_model_fn（BC loss 在 [training.py:670] 用到）"
+    )
+    assert hasattr(t, "make_lnn_model_fn_uvp"), (
+        "training.py 必須 import make_lnn_model_fn_uvp（physics path 用到）"
+    )
