@@ -2473,25 +2473,25 @@ h_new = gate · f1 + (1 - gate) · f2</div>
       <div class="gallery-grid" style="margin-top: 18px;">
         <figure class="figure-card">
           <div class="figure-head">
-            <div class="mini-label">Velocity</div>
-            <h3>Cylinder Wake Velocity Reconstruction</h3>
+            <div class="mini-label">Velocity Field</div>
+            <h3>DNS vs Pi-LNN Velocity at t = 10.05 s</h3>
           </div>
-          <img src="assets/cylinder/overview_velocity.png" alt="Cylinder wake velocity reconstruction">
+          <img src="assets/cylinder/cexp002_field_comparison_t10.png" alt="CEXP-002 velocity field DNS vs Pi-LNN comparison">
           <figcaption class="figure-caption">
-            CEXP-002 重建的 (u, v) 場與 DNS 對照。Kármán 渦街主結構已正確復現，
-            來流區的 u≈0.33 與尾跡渦核位置皆與 DNS 對齊。
+            CEXP-002 在 t ≈ 10s 的 (u, v) 場 — 上排 DNS / Pi-LNN / Error，下排同圖。
+            Pi-LNN 重建出尾跡渦對與來流均勻 u ≈ 0.33 m/s，主要誤差集中於圓柱表面附近的高梯度區。
           </figcaption>
         </figure>
 
         <figure class="figure-card">
           <div class="figure-head">
             <div class="mini-label">Vorticity</div>
-            <h3>Cylinder Wake Vorticity</h3>
+            <h3>DNS vs Pi-LNN Vorticity at t = 10.05 s</h3>
           </div>
-          <img src="assets/cylinder/overview_vorticity.png" alt="Cylinder wake vorticity reconstruction">
+          <img src="assets/cylinder/cexp002_vorticity_comparison_t10.png" alt="CEXP-002 vorticity DNS vs Pi-LNN comparison">
           <figcaption class="figure-caption">
-            渦度場展示主要旋轉結構。模型雖在中高頻細節仍受 K=100 限制，
-            但 dominant Kármán 渦動力學被正確捕捉。
+            渦度比較顯示 Kármán 渦街拓樸與旋轉方向被正確學到；
+            渦核強度受 K=100 sensor 限制略被平滑，與 Kolmogorov 中高頻結果同調（CS 上限）。
           </figcaption>
         </figure>
       </div>
@@ -2499,11 +2499,12 @@ h_new = gate · f1 + (1 - gate) · f2</div>
       <figure class="figure-card" style="margin-top: 16px;">
         <div class="figure-head">
           <div class="mini-label">Temporal</div>
-          <h3>Time Series Diagnostics</h3>
+          <h3>Kinetic Energy vs Time</h3>
         </div>
-        <img src="assets/cylinder/temporal_signals.png" alt="Cylinder wake temporal signals">
+        <img src="assets/cylinder/cexp002_ke_vs_time.png" alt="CEXP-002 kinetic energy versus time">
         <figcaption class="figure-caption">
-          KE(t)、div_l2(t) 等時序指標。KE 振盪幅值峰值略高於 DNS（+10%），但整體頻率與相位對齊良好。
+          KE(t) 振盪頻率與相位皆對齊 DNS（Strouhal number 已正確學到）；
+          振幅峰值較 DNS 高 ~10%，整體 KE rel-err = 3.5%。
         </figcaption>
       </figure>
     </div>
