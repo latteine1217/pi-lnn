@@ -191,6 +191,94 @@ def qr_pivot_sensors(A: np.ndarray, K: int) -> np.ndarray:
     return np.sort(piv[:K])  # fluid-domain indices, sorted
 
 
+def farthest_point_sampling(coords: np.ndarray, n: int, seed: int = 0) -> np.ndarray:
+    """Greedy farthest-point sampling 在 fluid coords 上選 n 個 maximally spread 點。
+
+    Why: 純 QR-pivot 會把 sensor 集中在「資訊最豐富」的 wake 區，但流場其他位置
+         （inflow upstream, top/bottom freestream）完全沒 sensor，model 在這些區
+         域只能靠 BC + physics 約束（弱）。Hybrid uniform + QR 給 model 全域 anchor
+         + wake 高頻細節雙重保險。
+
+    Args:
+        coords: [N, 2] integer (row, col) grid coords of candidate fluid cells.
+        n: 要選的點數
+        seed: 從 fluid 中心起點開始（用 seed 控制 ties）
+
+    Returns:
+        selected: [n] indices into coords (corresponds to fluid_indices order).
+    """
+    N = coords.shape[0]
+    if n > N:
+        raise ValueError(f"n={n} > available fluid points {N}")
+    coords_f = coords.astype(np.float64)
+    # 從 fluid 中心點開始（reproducibility 友好；seed 暫保留作後續擴充）
+    center = coords_f.mean(axis=0)
+    first = int(np.argmin(np.linalg.norm(coords_f - center, axis=1)))
+    selected = [first]
+    dists = np.linalg.norm(coords_f - coords_f[first], axis=1)
+    for _ in range(n - 1):
+        nxt = int(dists.argmax())
+        selected.append(nxt)
+        new_d = np.linalg.norm(coords_f - coords_f[nxt], axis=1)
+        dists = np.minimum(dists, new_d)
+    return np.array(selected, dtype=np.int64)
+
+
+def hybrid_uniform_qr_sensors(
+    A: np.ndarray,
+    fluid_mask: np.ndarray,
+    K: int,
+    n_uniform: int,
+    seed: int = 0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Hybrid sensor placement: n_uniform 個 farthest-point + (K-n_uniform) 個 QR pivot.
+
+    Args:
+        A: snapshot matrix [rows, n_fluid]（已 row-normalized）
+        fluid_mask: bool [H, W]，True = 有效流體
+        K: 總 sensor 數
+        n_uniform: 第一階段均勻分佈的 sensor 數（剩 K-n_uniform 由 QR 選）
+        seed: farthest-point sampling seed
+
+    Returns:
+        sensor_fluid_idx_sorted: [K] fluid-domain indices, sorted
+        uniform_picks_in_fluid:  [n_uniform] uniform 階段選的 indices（in fluid order）
+        qr_picks_in_fluid:       [K-n_uniform] QR 階段選的 indices（in fluid order）
+    """
+    H, W = fluid_mask.shape
+    fluid_indices = np.argwhere(fluid_mask.reshape(-1)).ravel()
+    coords = np.stack([fluid_indices // W, fluid_indices % W], axis=1)  # [N_fluid, 2]
+
+    if n_uniform <= 0:
+        # 純 QR pipeline（向後相容）
+        qr_picks = qr_pivot_sensors(A, K)
+        return qr_picks, np.array([], dtype=np.int64), qr_picks
+    if n_uniform >= K:
+        raise ValueError(f"n_uniform={n_uniform} >= K={K}；至少留 1 個給 QR")
+
+    # Stage 1: farthest-point sampling 在整個 fluid 域選 n_uniform 個 spatially-spread 點
+    print(f"Stage 1: farthest-point sampling for {n_uniform} uniform sensors ...")
+    uniform_picks = farthest_point_sampling(coords, n_uniform, seed=seed)
+
+    # Stage 2: QR pivot 在剩下 fluid columns 選 K - n_uniform 個
+    n_qr = K - n_uniform
+    remaining_mask = np.ones(len(fluid_indices), dtype=bool)
+    remaining_mask[uniform_picks] = False
+    A_remain = A[:, remaining_mask]
+    print(f"Stage 2: QR pivot on remaining {A_remain.shape[1]} fluid cells "
+          f"for {n_qr} sensors ...")
+    qr_picks_in_remain = qr_pivot_sensors(A_remain, n_qr)
+    # 把「remaining 子空間 index」轉回「原 fluid 域 index」
+    remaining_idx_in_fluid = np.argwhere(remaining_mask).ravel()
+    qr_picks_in_fluid = remaining_idx_in_fluid[qr_picks_in_remain]
+
+    # 合併 + sort（duplicate-check：uniform/QR 不該重疊，因 QR 在 remain 子集做）
+    all_picks = np.concatenate([uniform_picks, qr_picks_in_fluid])
+    if len(np.unique(all_picks)) != len(all_picks):
+        raise RuntimeError("uniform 跟 QR 階段選到重複點（logic bug）")
+    return np.sort(all_picks), uniform_picks, qr_picks_in_fluid
+
+
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
@@ -199,7 +287,12 @@ def main() -> None:
     )
     parser.add_argument("--shards", nargs="+", required=True,
                         help="Arrow shard 路徑（一個或多個）")
-    parser.add_argument("--K", type=int, default=100, help="Sensor 數量")
+    parser.add_argument("--K", type=int, default=100, help="Sensor 總數")
+    parser.add_argument("--n-uniform", type=int, default=0,
+                        help="第一階段 farthest-point uniform sampling 的 sensor 數；"
+                             "剩下的 (K - n_uniform) 由 QR pivot 在剩餘 fluid 點上選。"
+                             " 0 = 純 QR（向後相容預設）。"
+                             " 例：--K 100 --n-uniform 20 → 20 個全場均勻 + 80 個 QR")
     parser.add_argument("--time-stride", type=int, default=20,
                         help="時間取樣步距（預設 20：3990 幀 → 200 幀）")
     parser.add_argument("--body-threshold", type=float, default=1e-4,
@@ -239,7 +332,9 @@ def main() -> None:
     A = build_snapshot_matrix(shards, args.time_stride, fluid_mask)
 
     fluid_indices = np.argwhere(fluid_mask.reshape(-1)).ravel()  # [N_fluid]
-    sensor_fluid_idx = qr_pivot_sensors(A, K)                    # [K] 在 fluid 域的 index
+    sensor_fluid_idx, uniform_picks_in_fluid, qr_picks_in_fluid = hybrid_uniform_qr_sensors(
+        A, fluid_mask, K=K, n_uniform=int(args.n_uniform),
+    )
     del A
 
     # 轉回 (H, W) 格點 flat index
@@ -267,18 +362,25 @@ def main() -> None:
     if len(shards) > 1:
         re_tag = f"Re{shards[0]['Re']:.0f}-{shards[-1]['Re']:.0f}"
 
-    base = f"sensors_qrpivot_K{K}_cylinder_{re_tag}"
+    # 檔名加入 hybrid 標記避免覆寫舊 sensor 集
+    method_tag = "qrpivot" if int(args.n_uniform) <= 0 else f"hybrid{int(args.n_uniform)}qr{K-int(args.n_uniform)}"
+    base = f"sensors_{method_tag}_K{K}_cylinder_{re_tag}"
     json_path = out_dir / f"{base}.json"
     npz_path  = out_dir / f"{base}_values.npz"
 
+    # 把 uniform / QR 階段的 (i, j) 也記錄，方便後續視覺化區分兩類 sensor
+    uniform_flat = fluid_indices[uniform_picks_in_fluid] if len(uniform_picks_in_fluid) > 0 else np.array([], dtype=np.int64)
+    qr_flat      = fluid_indices[qr_picks_in_fluid]
     payload = {
         "K": K,
+        "n_uniform": int(args.n_uniform),
+        "n_qr": K - int(args.n_uniform),
         "domain": "cylinder_wake",
         "grid": f"{H}x{W}",
         "n_fluid_cells": int(n_fluid),
         "n_body_cells": int(n_body),
         "body_threshold": args.body_threshold,
-        "method": "qr_pivoting",
+        "method": "qr_pivoting" if int(args.n_uniform) <= 0 else "hybrid_uniform_qr",
         "features": ["u", "v", "grad_u_mag_fd", "grad_v_mag_fd"],
         "time_stride_qr": args.time_stride,
         "Re_list": [s["Re"] for s in shards],
@@ -287,6 +389,8 @@ def main() -> None:
         "sensor_i": sensor_i.tolist(),
         "sensor_j": sensor_j.tolist(),
         "sensor_flat": sensor_flat.tolist(),
+        "uniform_sensor_flat": uniform_flat.tolist(),  # 給 evaluator / plot 區分兩類
+        "qr_sensor_flat":      qr_flat.tolist(),
         "values_npz": str(npz_path),
     }
     with open(json_path, "w") as f:

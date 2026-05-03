@@ -152,6 +152,9 @@ class KolmogorovDataset:
         ref = self.sensor_vals[sensor_idx, t_idx, c_obs].astype(np.float32)
         return xy, t_q, c_obs, ref
 
+    # Note: Kolmogorov 無 body → 不應啟用 use_hard_body_bc。
+    # 已移除 query_body_distance / query_body_distance_torch dummy（用了會 fail）。
+
     def sample_physics_points(
         self,
         rng: np.random.Generator,

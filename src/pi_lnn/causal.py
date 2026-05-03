@@ -100,7 +100,14 @@ def causal_weighted_residual_loss(
 
     # 因果權重：w_t = exp(-eps * sum_{t' < t} mean residual at t')
     # 用「所有殘差項的和」做 cumsum（單一權重曲線，不偏好任何一個 task）
-    total_per_bin = torch.stack(per_bin_sq, dim=0).sum(dim=0)  # [num_bins]
+    # Normalize: physics 修 C2 後各 task 物理量級不同
+    # （mom_u (m/s²)² ≠ cont (1/s)²，cylinder 差 ~10×），不正規化會讓 task 量級主導
+    # weights 曲線。Detach 後除以 task-mean 使 cumsum 各 task 等權。
+    # 注意：weighted loss 仍用原始 per_bin_sq（保持物理單位），只有 weights 構造受影響。
+    normalized_per_bin = [
+        pb / pb.detach().mean().clamp(min=1e-12) for pb in per_bin_sq
+    ]
+    total_per_bin = torch.stack(normalized_per_bin, dim=0).sum(dim=0)  # [num_bins]
     cum_prev = torch.cat([
         torch.zeros(1, device=total_per_bin.device, dtype=total_per_bin.dtype),
         total_per_bin[:-1].cumsum(dim=0),

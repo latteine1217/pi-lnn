@@ -43,6 +43,7 @@ def _gradnorm_step(
     losses: list[torch.Tensor],
     ref_params: list[torch.Tensor],
     ema_momentum: float = 0.5,
+    min_weight: float = 0.0,
 ) -> None:
     """What: 一次 GradNorm 權重更新（直接公式 + EMA，無 optimizer）。
 
@@ -56,11 +57,19 @@ def _gradnorm_step(
         w_i_raw  = mean_G / (G_i + 1e-5 * mean_G)   （梯度範數小 → 權重大）
         w_i_norm = w_i_raw / w_i_raw[0]              （data 為基準，w_data = 1）
         w_new    = momentum * w_old + (1 - momentum) * w_i_norm
+        w_new    = max(w_new, min_weight)            （sanity floor，見下方說明）
 
     Args:
-        losses:        [l_data, l_ns_u, l_ns_v, l_cont]（retain_graph=True 保留計算圖）
+        losses:        [l_data, l_ns_u, l_ns_v, l_cont(, l_bc)]（retain_graph=True 保留計算圖）
         ref_params:    reference layer 參數（trunk_out.weight + bias）
         ema_momentum:  EMA 動量；有效步長 = 1 - ema_momentum
+        min_weight:    所有 task weight 下限（GradNorm 仍動態調，只是不能掉下這個 floor）。
+                       Why: 防 GradNorm 自我催化 pathology —— 某 task gradient 結構性弱
+                            （如 PINN cont 在 distance feature 加強 NS 後相對更小）會被
+                            反比公式 deprioritize 到趨近 0，該約束於 evaluate 場上崩。
+                            cylinder_007/008 驗證：w_cont 跌到 0.047 → div_L2=2.95（DNS 0.03）。
+                            Floor 0.05~0.1 是合理 sanity guardrail（不取代動態調）。
+                            0.0 = 不加 floor（向後相容預設）。
     """
     ws_old = gn_weights.weights.detach().clone()
 
@@ -84,6 +93,9 @@ def _gradnorm_step(
 
     # EMA：new = momentum * old + (1 - momentum) * computed
     w_new = ema_momentum * ws_old + (1.0 - ema_momentum) * w_computed
+    # Sanity floor：防止 GradNorm pathology（某 task 被自我催化降到 0）
+    if min_weight > 0.0:
+        w_new = torch.clamp(w_new, min=min_weight)
     with torch.no_grad():
         gn_weights.log_weights.copy_(torch.log(w_new.clamp(min=1e-8)))
 
@@ -99,6 +111,7 @@ def observed_channel_prediction(
     h_states: torch.Tensor,
     s_time: torch.Tensor,
     sensor_pos: torch.Tensor,
+    body_distance: torch.Tensor | None = None,
 ) -> torch.Tensor:
     """What: 依實際觀測通道名稱產生對應預測值。
 
@@ -106,8 +119,13 @@ def observed_channel_prediction(
          內部使用，避免在資料項中引入不可量測通道。
          單次 query_decoder 呼叫處理所有 N 個樣本（u+v 混合），
          再以向量化 normalize 取代 per-channel loop，消除一次重複 trunk forward。
+
+    body_distance: optional [N] tensor，model use_hard_body_bc=True 時必須提供
+                   （differentiable，給 forward 出口 gate 用）。
     """
-    raw_pred = net.query_decoder(xy, t_q, c_obs, h_states, s_time, sensor_pos).squeeze(1)
+    raw_pred = net.query_decoder(
+        xy, t_q, c_obs, h_states, s_time, sensor_pos, body_distance=body_distance,
+    ).squeeze(1)
     mean_vec = observed_channel_mean[c_obs]
     std_vec = observed_channel_std[c_obs]
     return (raw_pred - mean_vec) / std_vec

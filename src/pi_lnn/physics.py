@@ -60,6 +60,8 @@ def unsteady_ns_residuals(
     dv_dx2, dv_dy2 = dv_dx2_n / (sx ** 2), dv_dy2_n / (sy ** 2)
     nu = 1.0 / float(re)
     # Forcing 用 normalized y（k_f cycles per [0,1] domain），與 Lx/Ly 無關。
+    # 量級協定：A 為 physical 加速度單位 (m/s²)。修 C2 後 uvp_fn 已 denormalize，
+    # advection u·∇u、∇p、ν·∇²u、forcing 都在 physical 量級，互相 commensurate。
     forcing_wavenumber = (2.0 * torch.pi * float(k_f)) / float(domain_length)
     forcing_x = A * torch.sin(forcing_wavenumber * xyt[:, 1:2])
     mom_u = du_dt + u * du_dx + v * du_dy + dp_dx - nu * (du_dx2 + du_dy2) - forcing_x
@@ -137,6 +139,10 @@ def _rar_update_pool(
     近似殘差：略去黏性項（Re=10000 時 ν=1e-4，黏性貢獻約 0.2%）；
     使用 create_graph=False，僅計算一階導數，完全避免二階 autograd 建圖。
     此近似只影響 pool 中的點排序，不影響訓練 loss 本身的精確性。
+
+    Note: uvp_fn 透過 make_lnn_model_fn_uvp 取得，內部已套
+    physics_output_mean/std 反 normalization → mom_u, mom_v, cont 為物理單位，
+    與訓練 path 的 unsteady_ns_residuals 一致。
 
     Returns:
         list of (n_select, 3) float32 numpy arrays, one per dataset.

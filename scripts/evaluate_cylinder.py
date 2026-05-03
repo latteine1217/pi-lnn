@@ -177,6 +177,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--device",     default="mps")
     p.add_argument("--eval-stride", type=int, default=5,
                    help="每隔幾個 sensor time step 評估一次（預設 5，共 ~40 幀）")
+    p.add_argument(
+        "--legacy-checkpoint", action="store_true",
+        help=(
+            "Skip output denormalization。修 normalize bug 之前訓的 cylinder checkpoint"
+            " 隱含學了 physical 量級 raw output，加 denorm 會 double-scale 錯。"
+            " 修後（physics_output_mean/std 注入）訓的 checkpoint 不要加。"
+        ),
+    )
     return p.parse_args()
 
 
@@ -193,6 +201,17 @@ def main() -> None:
     # ── 模型載入 ────────────────────────────────────────────────────────────
     model = create_lnn_model(cfg).to(device)
     payload = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    # 偵測 schedulefree mode：mid-step ckpt 存 train mode (x_t) 不是 inference-ready。
+    # Why: x_t 是 training iterate，比 y_t (Polyak averaged) noise 大，inference quality
+    #      差 5-30%。final.pt 才存 y_t (eval mode)。
+    if isinstance(payload, dict):
+        _sf_mode = payload.get("schedulefree_mode", None)
+        if _sf_mode == "train":
+            print(
+                f"  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
+                f"\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
+                f"\n         若要 best inference 結果，請改用 .../lnn_kolmogorov_final.pt"
+            )
     state = extract_model_state(payload)
     lft_key = "query_decoder.log_fusion_temperature"
     if lft_key in state and state[lft_key].dim() == 0:
@@ -218,8 +237,13 @@ def main() -> None:
     x2d_n = ((x2d - x_lo) / (x_hi - x_lo)).astype(np.float32)
     y2d_n = ((y2d - y_lo) / (y_hi - y_lo)).astype(np.float32)
 
-    x_1d_n = x2d_n[0, :]   # [W] 沿列方向
+    x_1d_n = x2d_n[0, :]   # [W] 沿列方向（normalized [0,1]）
     y_1d_n = y2d_n[:, 0]   # [H] 沿行方向
+
+    # Physical 座標：FD 算 divergence/vorticity 必須用物理單位 (m)，
+    # 否則 ∂u/∂x_norm 缺 1/Lx chain rule，cylinder Lx=0.322 會放大 3.1×。
+    x_1d_phys = x2d[0, :].astype(np.float32)
+    y_1d_phys = y2d[:, 0].astype(np.float32)
 
     body = detect_body(dns["u"])   # [H, W]
     fluid_mask = ~body
@@ -261,6 +285,52 @@ def main() -> None:
     xy_flat = np.stack([x2d_n.ravel(), y2d_n.ravel()], axis=1).astype(np.float32)  # [H*W, 2]
     xy_t = torch.tensor(xy_flat, device=device)
 
+    # Hard body BC（Sukumar 2022）：model output 套 (φ/scale).clamp(0,1) gate
+    # evaluate 時不需算 ∂φ/∂xy 反向，所以可以 detach 用 numpy 算 distance 餵 forward
+    _use_hard_body_bc = bool(getattr(model, "use_hard_body_bc", False))
+    _bd_full = None
+    if _use_hard_body_bc:
+        from scipy.ndimage import distance_transform_edt
+        _sdf_pix = distance_transform_edt(~body)
+        _sdf_grid = (_sdf_pix.astype(np.float32) / max(body.shape[0]-1, body.shape[1]-1))
+        _H, _W = body.shape
+        _col = np.clip(xy_flat[:, 0] * (_W - 1), 0.0, float(_W - 1))
+        _row = np.clip(xy_flat[:, 1] * (_H - 1), 0.0, float(_H - 1))
+        _c0 = np.minimum(_col.astype(np.int64), _W - 2); _c1 = _c0 + 1
+        _r0 = np.minimum(_row.astype(np.int64), _H - 2); _r1 = _r0 + 1
+        _wc = _col - _c0; _wr = _row - _r0
+        _d00 = _sdf_grid[_r0, _c0]; _d01 = _sdf_grid[_r0, _c1]
+        _d10 = _sdf_grid[_r1, _c0]; _d11 = _sdf_grid[_r1, _c1]
+        _d0 = _d00 * (1 - _wc) + _d01 * _wc
+        _d1 = _d10 * (1 - _wc) + _d11 * _wc
+        _bd_full = torch.tensor(
+            (_d0 * (1 - _wr) + _d1 * _wr).astype(np.float32), device=device,
+        )
+        # 同時要 set body_bc_scale 到 model（從 SDF max 取）
+        if hasattr(model, "set_body_bc_scale"):
+            model.set_body_bc_scale(float(_sdf_grid.max()))
+        print(f"  hard_body_bc: enabled (H={_H}, W={_W}, scale={float(_sdf_grid.max()):.4f})")
+
+    # Per-component denormalization stats（u, v 從 sensor stats 取，p 無監督保 raw）
+    # Why: query_decoder 學的是 normalized target → output 量級為 unit-std。
+    #      把 normalized output 轉回 physical 才能與 DNS（物理 m/s）公平比較。
+    # Legacy checkpoint：修前訓的 model raw ≈ physical，套 denorm 反而錯，故給 identity。
+    if getattr(args, "legacy_checkpoint", False):
+        print("  [legacy mode] skip denormalization (identity transform)")
+        _denorm_mean = (0.0, 0.0, 0.0)
+        _denorm_std  = (1.0, 1.0, 1.0)
+    else:
+        _denorm_mean = (
+            float(s_mean[0, 0, 0]),  # u
+            float(s_mean[0, 0, 1]),  # v
+            0.0,                      # p（無 reference）
+        )
+        _denorm_std = (
+            float(s_std[0, 0, 0]),
+            float(s_std[0, 0, 1]),
+            1.0,
+        )
+
     def query_field(comp_idx: int, t_val: float) -> np.ndarray:
         parts = []
         with torch.no_grad():
@@ -270,9 +340,14 @@ def main() -> None:
                 xy_b = xy_t[s:e]
                 t_b  = torch.full((n,), t_val, dtype=torch.float32, device=device)
                 c_b  = torch.full((n,), comp_idx, dtype=torch.long,  device=device)
-                out  = model.query_decoder(xy_b, t_b, c_b, h_states, s_time, sp_t)
+                bd_b = _bd_full[s:e] if _bd_full is not None else None
+                out  = model.query_decoder(
+                    xy_b, t_b, c_b, h_states, s_time, sp_t, body_distance=bd_b,
+                )
                 parts.append(out.squeeze(1).cpu().numpy())
-        return np.concatenate(parts).reshape(H, W)
+        raw = np.concatenate(parts).reshape(H, W)
+        # Denormalize: phys = raw * std + mean
+        return raw * _denorm_std[comp_idx] + _denorm_mean[comp_idx]
 
     # ── 評估時間步（依 eval_stride）──────────────────────────────────────────
     eval_tidx = np.arange(0, len(sensor_time), args.eval_stride)
@@ -311,19 +386,19 @@ def main() -> None:
     ke_ref  = fluid_ke(u_ref,  v_ref)
     ke_rel  = np.abs(ke_pred - ke_ref) / np.maximum(ke_ref, 1e-12)
 
-    # 渦度
+    # 渦度（用 physical 座標 → ω 單位為 1/s）
     omega_pred_list, omega_ref_list = [], []
     for i in range(len(eval_times)):
-        omega_pred_list.append(vorticity_fd(u_pred[i], v_pred[i], x_1d_n, y_1d_n))
-        omega_ref_list.append( vorticity_fd(u_ref[i],  v_ref[i],  x_1d_n, y_1d_n))
+        omega_pred_list.append(vorticity_fd(u_pred[i], v_pred[i], x_1d_phys, y_1d_phys))
+        omega_ref_list.append( vorticity_fd(u_ref[i],  v_ref[i],  x_1d_phys, y_1d_phys))
     omega_pred_arr = np.stack(omega_pred_list)
     omega_ref_arr  = np.stack(omega_ref_list)
     omega_rmse = fluid_rmse(omega_pred_arr, omega_ref_arr)
 
-    # divergence
+    # divergence（用 physical 座標 → div 單位為 1/s；DNS 應 ≈ 0）
     div_pred_list = []
     for i in range(len(eval_times)):
-        div_pred_list.append(divergence_fd(u_pred[i], v_pred[i], x_1d_n, y_1d_n))
+        div_pred_list.append(divergence_fd(u_pred[i], v_pred[i], x_1d_phys, y_1d_phys))
     div_pred = np.stack(div_pred_list)
     div_l2 = np.sqrt(np.mean(div_pred[:, fm] ** 2, axis=1))
 
