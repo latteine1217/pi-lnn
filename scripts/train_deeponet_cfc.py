@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from lnn_kolmogorov import DEFAULT_LNN_ARGS, load_lnn_config, train_lnn_kolmogorov
+from pi_lnn.config import _validate_al_config
 
 
 def parse_args() -> argparse.Namespace:
@@ -64,6 +65,9 @@ def main() -> None:
         config["artifacts_dir"] = str(args.artifacts_dir.resolve())
     if args.resume_from is not None:
         config["resume_checkpoint"] = str(args.resume_from.resolve())
+
+    # AL semantic validation：必須在 DEFAULT_LNN_ARGS + TOML 合併後執行（不在 load_lnn_config 內）
+    _validate_al_config(config)
 
     print("=== DeepONet+CfC Train Entry ===")
     print(f"config: {args.config.resolve()}")

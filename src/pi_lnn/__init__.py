@@ -10,7 +10,7 @@ os.environ.setdefault("DDE_BACKEND", "pytorch")
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
+from pi_lnn.config import DEFAULT_LNN_ARGS, _validate_al_config, load_lnn_config
 from pi_lnn.decoder import DeepONetCfCDecoder
 from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
 from pi_lnn.encodings import (
@@ -19,7 +19,11 @@ from pi_lnn.encodings import (
     periodic_fourier_encode,
     temporal_phase_anchor,
 )
-from pi_lnn.losses import GradNormWeights, observed_channel_prediction
+from pi_lnn.losses import (
+    AugmentedLagrangianMultiplier,
+    GradNormWeights,
+    observed_channel_prediction,
+)
 from pi_lnn.operator import (
     LiquidOperator,
     create_lnn_model,
@@ -36,11 +40,13 @@ from pi_lnn.runtime import configure_torch_runtime, count_parameters, write_json
 from pi_lnn.training import main, train_lnn_kolmogorov
 
 __all__ = [
+    "AugmentedLagrangianMultiplier",
     "CfCCell",
     "DEFAULT_LNN_ARGS",
     "DeepONetCfCDecoder",
     "FourierEmbs",
     "GradNormWeights",
+    "_validate_al_config",
     "LearnableFourierEmb",
     "LiquidOperator",
     "ResidualMLPBlock",
