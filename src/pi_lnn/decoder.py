@@ -42,10 +42,22 @@ class DeepONetCfCDecoder(nn.Module):
         use_periodic_domain: bool = True,
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
+        use_hard_body_bc: bool = False,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
         self.use_locality_decay = bool(use_locality_decay)
+        # Hard body BC（Sukumar 2022 風格 output transformation）：
+        #   u(x,y,t) = (φ(x,y) / scale).clamp(0,1) · NN_u(x,y,t)
+        #   v(x,y,t) = (φ(x,y) / scale).clamp(0,1) · NN_v(x,y,t)
+        #   p(x,y,t) = NN_p(x,y,t)                                # p 不 gate
+        # 物理保證 body 內 (φ=0) → u=v=0 (no-slip)。
+        # φ 是固定 SDF（不進 NN 學）；NN 是 raw output。
+        # autograd 自然處理 chain rule: ∂u/∂x = ∂(φ·NN)/∂x = ∂φ/∂x·NN + φ·∂NN/∂x。
+        # 因為 φ 用 PyTorch ops 實作（dataset.query_body_distance_torch），
+        # autograd 走得通 → NS residual 算對 ∂u/∂x（不像 distance-as-input
+        # 的 detach numpy lookup 漏 chain rule path）。
+        self.use_hard_body_bc = bool(use_hard_body_bc)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
@@ -73,7 +85,17 @@ class DeepONetCfCDecoder(nn.Module):
                 )
             self.spatial_emb = None
             spatial_dim = 4 * fourier_harmonics
+        # query_in 不含 body_distance—— hard BC 是 output transformation，不是 input feature。
         query_in = spatial_dim + temporal_dim + d_time + 8
+        # Hard BC scale：phi_scale 用於把 distance 轉成 [0, 1] gate。
+        # `body_bc_scale=1.0` default = identity scale；caller (training.py) 應該用
+        # `set_body_bc_scale()` 注入 dataset-specific 的 max fluid distance。
+        # 用 register_buffer (persistent=False) 避免污染既有 ckpt state_dict。
+        self.register_buffer(
+            "body_bc_scale",
+            torch.tensor(1.0, dtype=torch.float32),
+            persistent=False,
+        )
         rank = d_model if operator_rank is None else operator_rank
         if rank <= 0:
             raise ValueError(f"operator_rank 必須 > 0，收到 {rank}")
@@ -136,6 +158,7 @@ class DeepONetCfCDecoder(nn.Module):
         h_states: torch.Tensor,
         sensor_time: torch.Tensor,
         sensor_pos: torch.Tensor,
+        body_distance: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """What: 對 N 個 query 一次回傳 [N, 3]（u, v, p），與對 c=0/1/2 個別呼叫
                 self.forward(...) 三次的結果在數值上等價。
@@ -178,6 +201,7 @@ class DeepONetCfCDecoder(nn.Module):
                 t_q.unsqueeze(-1), self.T_total, self.temporal_anchor_harmonics
             ))
         base_inputs.append(time_e)
+        # NOTE: hard body BC 不在這裡 concat distance（output transformation, 在 return 前）
         base_feat = torch.cat(base_inputs, dim=-1)                              # [N, query_in - 8]
 
         c_all = torch.arange(3, device=device, dtype=torch.long)
@@ -220,7 +244,27 @@ class DeepONetCfCDecoder(nn.Module):
         out = out * self.component_scale[c_flat] + self.component_bias[c_flat]  # [3N]
 
         # [3N] → [3, N] → [N, 3]：column 0=u, 1=v, 2=p
-        return out.view(3, N).T
+        uvp = out.view(3, N).T
+
+        # Hard body BC (Sukumar 2022): u, v ← gate · NN; p 不 gate
+        # gate = (φ / scale).clamp(0, 1)：body 內 (φ=0) → 0 → u=v=0；遠 body 飽和 → 1
+        if self.use_hard_body_bc:
+            if body_distance is None:
+                raise ValueError(
+                    "use_hard_body_bc=True 但 forward_uvp() body_distance=None；"
+                    "請傳入 dataset.query_body_distance_torch(xy) 結果（differentiable）。"
+                )
+            phi = body_distance.reshape(-1)                # [N]
+            scale = self.body_bc_scale.to(phi.dtype)
+            gate = (phi / scale).clamp(min=0.0, max=1.0)   # [N]，body=0, fluid=1
+            gate = gate.unsqueeze(-1)                       # [N, 1]
+            # 只 gate u, v（component 0, 1），保留 p（column 2）
+            uvp = torch.cat([
+                gate * uvp[:, 0:1],
+                gate * uvp[:, 1:2],
+                uvp[:, 2:3],
+            ], dim=-1)
+        return uvp
 
     def forward(
         self,
@@ -230,6 +274,7 @@ class DeepONetCfCDecoder(nn.Module):
         h_states: torch.Tensor,
         sensor_time: torch.Tensor,
         sensor_pos: torch.Tensor,
+        body_distance: torch.Tensor | None = None,
     ) -> torch.Tensor:
         idx = torch.searchsorted(sensor_time.contiguous(), t_q.contiguous(), right=True) - 1
         idx = idx.clamp(0, h_states.shape[0] - 1)
@@ -245,7 +290,11 @@ class DeepONetCfCDecoder(nn.Module):
         trunk_inputs = [pos_enc]
         if self.use_temporal_anchor:
             trunk_inputs.append(temporal_phase_anchor(t_q.unsqueeze(-1), self.T_total, self.temporal_anchor_harmonics))
-        trunk_inputs.extend([time_e, emb_c])
+        # 注意：body_distance 在 emb_c 之前 concat，與 forward_uvp 的 base_feat
+        # 結構一致（base_feat 含 body_distance，再跟 emb_c concat）。
+        trunk_inputs.append(time_e)
+        # NOTE: hard body BC 是 output transformation，不在這裡 concat distance
+        trunk_inputs.append(emb_c)
         trunk_feat = F.silu(self.trunk_in(torch.cat(trunk_inputs, dim=-1)))
         for block in self.trunk_blocks:
             trunk_feat = block(trunk_feat)
@@ -283,4 +332,21 @@ class DeepONetCfCDecoder(nn.Module):
         branch_sel = branch_basis.gather(1, comp_idx).squeeze(1)
         fusion_temperature = torch.exp(self.log_fusion_temperature).to(trunk_sel.dtype)
         out = torch.sum(trunk_sel * branch_sel, dim=1, keepdim=True) * fusion_temperature
-        return out * self.component_scale[c].unsqueeze(1) + self.component_bias[c].unsqueeze(1)
+        out = out * self.component_scale[c].unsqueeze(1) + self.component_bias[c].unsqueeze(1)
+
+        # Hard body BC：只 gate u (c=0) 與 v (c=1)，保留 p (c=2)。
+        # 用 mask = (c < 2) 對 c=0/1 套 gate，c=2 不變。
+        if self.use_hard_body_bc:
+            if body_distance is None:
+                raise ValueError(
+                    "use_hard_body_bc=True 但 forward() body_distance=None；"
+                    "請傳入 dataset.query_body_distance_torch(xy) 結果（differentiable）。"
+                )
+            phi = body_distance.reshape(-1, 1)                  # [N, 1]
+            scale = self.body_bc_scale.to(phi.dtype)
+            gate = (phi / scale).clamp(min=0.0, max=1.0)        # [N, 1]
+            # 對 c==0/1 套 gate，c==2 保留 1.0
+            apply_gate = (c.unsqueeze(1) < 2).to(out.dtype)     # [N, 1]，1 if u/v else 0
+            effective_gate = apply_gate * gate + (1.0 - apply_gate) * 1.0
+            out = effective_gate * out
+        return out

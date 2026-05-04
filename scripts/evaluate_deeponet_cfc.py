@@ -106,6 +106,16 @@ def parse_args() -> argparse.Namespace:
         default="auto",
         help="Evaluation device.",
     )
+    parser.add_argument(
+        "--legacy-checkpoint",
+        action="store_true",
+        help=(
+            "Skip output denormalization (raw model output × std + mean)."
+            " 用於修 normalize bug 之前訓的 checkpoint —— 那些 model 隱含學了"
+            " physical 量級 raw output，加 denorm 會 double-scale 造成數字錯。"
+            " 修後（physics_output_mean/std 注入過）訓的 checkpoint 不要加此 flag。"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -607,6 +617,14 @@ def main() -> None:
     device = choose_device(args.device)
     model = create_lnn_model(cfg).to(device)
     checkpoint_payload = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    if isinstance(checkpoint_payload, dict):
+        _sf_mode = checkpoint_payload.get("schedulefree_mode", None)
+        if _sf_mode == "train":
+            print(
+                f"  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
+                f"\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
+                f"\n         若要 best inference 結果，請改用 .../lnn_kolmogorov_final.pt"
+            )
     state = extract_model_state(checkpoint_payload)
     load_model_weights_strict(model, state)
     model.eval()
@@ -647,6 +665,35 @@ def main() -> None:
     with torch.no_grad():
         h_states, s_time = model.encode(sv_t, sp_t, re_norm, st_t)
 
+    # Per-component denormalization stats（與訓練一致：u, v 從 sensor stats 取，p 無監督保 raw）
+    # Why: model query_decoder 學的是 normalized target → output 量級為 unit-std。
+    #      Evaluator 之前直接把 normalized output 與 physical DNS 比，所有 RMSE/rel-L2/KE
+    #      都單位 mismatch。現在統一在 physical 空間比較。
+    # Legacy checkpoint：修前訓的 model raw ≈ physical，套 denorm 反而錯，故給 identity。
+    if args.legacy_checkpoint:
+        print("  [legacy mode] skip denormalization (identity transform)")
+        _denorm_mean = (0.0, 0.0, 0.0)
+        _denorm_std  = (1.0, 1.0, 1.0)
+    else:
+        _denorm_mean = (
+            float(sensor_mean[0, 0, 0]),  # u
+            float(sensor_mean[0, 0, 1]),  # v
+            0.0,                           # p（無 reference）
+        )
+        _denorm_std = (
+            float(sensor_std[0, 0, 0]),
+            float(sensor_std[0, 0, 1]),
+            1.0,
+        )
+
+    # Kolmogorov 是 periodic flow，無 body → 不應該啟用 use_hard_body_bc。
+    # 如果 model 是 hard BC 訓的（誤用），這裡 raise 而不是 silent 退化。
+    if bool(getattr(model, "use_hard_body_bc", False)):
+        raise ValueError(
+            "Kolmogorov dataset 不支援 use_hard_body_bc=True；該機制只對有 body geometry 的"
+            " cylinder 有意義。請用 use_hard_body_bc=False 訓的 ckpt。"
+        )
+
     def query_field(comp_idx: int, t_val: float) -> np.ndarray:
         parts = []
         with torch.no_grad():
@@ -656,9 +703,13 @@ def main() -> None:
                 bs = end - start
                 t_b = torch.full((bs,), t_val, dtype=torch.float32, device=device)
                 c_b = torch.full((bs,), comp_idx, dtype=torch.long, device=device)
-                out = model.query_decoder(xy_b, t_b, c_b, h_states, s_time, sp_t)
+                out = model.query_decoder(
+                    xy_b, t_b, c_b, h_states, s_time, sp_t,
+                )
                 parts.append(out.squeeze(1).cpu().numpy())
-        return np.concatenate(parts).reshape(len(x_g), len(y_g))
+        raw = np.concatenate(parts).reshape(len(x_g), len(y_g))
+        # Denormalize: phys = raw * std + mean，使預測場與 DNS 同物理單位。
+        return raw * _denorm_std[comp_idx] + _denorm_mean[comp_idx]
 
     dx = float(x_g[1] - x_g[0]) if len(x_g) > 1 else 1.0
     u_pred_series = []

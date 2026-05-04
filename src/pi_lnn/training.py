@@ -121,6 +121,73 @@ def train_lnn_kolmogorov(
             )
 
     net = create_lnn_model(args).to(device)
+
+    # ── Body-distance feature（cylinder boundary layer 學習）──────────
+    # use_hard_body_bc=True 時，model output 會套 (φ/scale).clamp(0,1) gate 強制 body 內 u=v=0。
+    # 對 cylinder dataset 從 _detect_body 預計算的 SDF grid 用 bilinear interp 取值；
+    # 對 kolmogorov 退化為常數 1.0（無 body）。
+    _use_hard_body_bc = bool(args.get("use_hard_body_bc", False))
+    if _use_hard_body_bc and not getattr(net, "use_hard_body_bc", False):
+        raise ValueError(
+            "config use_hard_body_bc=True 但 net.use_hard_body_bc=False；"
+            "可能 model 用舊 ckpt resume 但 ckpt 是 hard BC 關閉時訓的。"
+        )
+
+    def _make_body_distance_fn(ds):
+        """建立 dataset-specific 的 differentiable body distance lookup（torch ops only）.
+
+        Why differentiable: hard BC 是 u = (φ/scale)·NN，autograd 必須能算
+        ∂φ/∂xy 才能正確算 ∂u/∂x = ∂φ/∂x·NN + φ·∂NN/∂x。numpy lookup 會 detach 切斷
+        graph (cylinder_007/008 的 detach bug 已驗證會讓 div_L2 翻倍)。
+        """
+        if not hasattr(ds, "query_body_distance_torch"):
+            raise AttributeError(
+                f"dataset {type(ds).__name__} 不支援 differentiable distance；"
+                "use_hard_body_bc=True 需要 cylinder dataset (有 SDF grid)"
+            )
+        def fn(xy_tensor: torch.Tensor) -> torch.Tensor:
+            # 不 detach！讓 autograd 追蹤 ∂φ/∂xy
+            return ds.query_body_distance_torch(xy_tensor)
+        return fn
+
+    body_distance_fns: list = []
+    if _use_hard_body_bc:
+        for ds in datasets:
+            body_distance_fns.append(_make_body_distance_fn(ds))
+        # 注入 dataset-specific bc_distance_scale 到 model gate
+        # 多 dataset 取最大 scale（保守）
+        _bc_scale = max(float(getattr(ds, "bc_distance_scale", 1.0)) for ds in datasets)
+        net.set_body_bc_scale(_bc_scale)
+        print(f"  hard_body_bc: enabled for {len(datasets)} dataset(s), gate scale={_bc_scale:.4f}")
+
+    # 注入 physics-path denormalization：把 query_decoder normalized output 還原成物理單位
+    # (u, v) 從 dataset 的 observed_channel_mean/std 取；p 無監督，保持 (mean=0, std=1)。
+    # Why: NS residual 用物理 ν=1/Re，若 u, v 是 normalized 量級 → 黏性項 ν∇²u 被壓 std⁻¹
+    #      倍，physics gradient signal 進入 NG 時幾乎消失（l_phys 看似小但物理發散度大）。
+    # 兩個觀測通道為 ("u", "v") 才能正確 map（其他通道組合需重新計算 mean_p）。
+    _obs_names = tuple(args.get("observed_sensor_channels", ("u", "v")))
+    if _obs_names == ("u", "v") and num_re == 1:
+        _u_idx = _obs_names.index("u")
+        _v_idx = _obs_names.index("v")
+        _ch_mean = datasets[0].observed_channel_mean
+        _ch_std  = datasets[0].observed_channel_std
+        _mean_uvp = torch.tensor(
+            [float(_ch_mean[_u_idx]), float(_ch_mean[_v_idx]), 0.0],
+            dtype=torch.float32, device=device,
+        )
+        _std_uvp = torch.tensor(
+            [float(_ch_std[_u_idx]),  float(_ch_std[_v_idx]),  1.0],
+            dtype=torch.float32, device=device,
+        )
+        net.set_physics_normalization(_mean_uvp, _std_uvp)
+        print(f"  physics_output_mean: {_mean_uvp.tolist()}")
+        print(f"  physics_output_std : {_std_uvp.tolist()}")
+    else:
+        print(
+            f"  [WARN] physics denormalization 未注入（obs={_obs_names}, num_re={num_re}）；"
+            f"NS residual 仍會用 normalized u/v 計算，l_phys 量級被 std 壓縮。"
+        )
+
     print("=== Configuration ===")
     print(f"trainable_parameters: {count_parameters(net)}")
 
@@ -143,10 +210,13 @@ def train_lnn_kolmogorov(
 
     use_schedulefree = bool(args.get("use_schedule_free", False)) or args["lr_schedule"] == "schedulefree"
     is_lbfgs = args["lr_schedule"] == "lbfgs"
+    is_ng = args["lr_schedule"] == "ng"
 
     if args["lr_schedule"] == "soap":
         import sys
-        _soap_dir = str(Path(__file__).parent.parent / "SOAP")
+        # SOAP/ 在 project root，training.py 在 src/pi_lnn/，故需要三層 .parent
+        # 之前 .parent.parent 是 src/SOAP（不存在），靠 cwd 在 project root 才能 import 到
+        _soap_dir = str(Path(__file__).parent.parent.parent / "SOAP")
         if _soap_dir not in sys.path:
             sys.path.insert(0, _soap_dir)
         from soap import SOAP as SOAPOptimizer
@@ -202,6 +272,35 @@ def train_lnn_kolmogorov(
         )
         scheduler = None
 
+    elif is_ng:
+        # Natural Gradient (Gauss-Newton) — kernel trick path。
+        # Why: pi-lnn P~10⁵, N~200 → 必走 J^T (JJ^T + λI)^{-1} r。
+        from pi_lnn.optimizers import NaturalGradientOptimizer
+        optimizer = NaturalGradientOptimizer(
+            net.parameters(),
+            lr=float(args.get("learning_rate", 1.0)),
+            damping=float(args.get("ng_damping", 1.0e-6)),
+            damping_strategy=str(args.get("ng_damping_strategy", "fixed")),
+            use_jacobi_scaling=bool(args.get("ng_jacobi_scaling", True)),
+            solver_device=str(args.get("ng_solver_device", "cpu")),
+            max_residuals=int(args.get("ng_max_residuals", 2000)),
+            line_search=str(args.get("ng_line_search", "none")),
+            ls_max_trials=int(args.get("ng_ls_max_trials", 5)),
+            ls_alpha_init=float(args.get("ng_ls_alpha_init", 1.0)),
+            ls_alpha_decay=float(args.get("ng_ls_alpha_decay", 0.5)),
+            ls_armijo_c1=float(args.get("ng_ls_armijo_c1", 1.0e-4)),
+        )
+        if bool(args.get("ng_use_spring", False)):
+            optimizer.set_spring(
+                enabled=True,
+                momentum=float(args.get("ng_spring_momentum", 0.9)),
+            )
+            print(f"  NG: SPRING momentum enabled (μ={args.get('ng_spring_momentum', 0.9)})")
+        if str(args.get("ng_line_search", "none")) != "none":
+            print(f"  NG: line_search={args['ng_line_search']}, "
+                  f"max_trials={args.get('ng_ls_max_trials', 5)}")
+        scheduler = None
+
     elif use_schedulefree:
         # AdamW + Schedule-Free：使用 fused 實作，支援 warmup，無 wrapper 相容性問題。
         import schedulefree
@@ -234,6 +333,22 @@ def train_lnn_kolmogorov(
         else:
             scheduler = None
 
+    # GradNorm setup（必須在 resume 之前，因為 resume 會嘗試 load gn_weights state）
+    use_gradnorm = bool(args.get("use_gradnorm", False))
+    gn_weights: GradNormWeights | None = None
+    gn_ref_params: list[torch.Tensor] = []
+    gn_update_freq = int(args.get("gradnorm_update_freq", 200))
+    _gn_init_w = args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01, 0.1])
+    if len(_gn_init_w) not in (4, 5):
+        raise ValueError(
+            f"gradnorm_init_weights 長度必須 4 (data,ns_u,ns_v,cont) 或 "
+            f"5 (data,ns_u,ns_v,cont,bc)，收到 {len(_gn_init_w)}: {_gn_init_w}"
+        )
+    use_gradnorm_bc = (len(_gn_init_w) == 5)
+    if use_gradnorm:
+        gn_weights = GradNormWeights(init_weights=_gn_init_w).to(device)
+        gn_ref_params = list(net.query_decoder.trunk_out.parameters())
+
     # Resume：從 checkpoint 恢復完整訓練狀態
     start_step = 0
     resume_path = args.get("resume_checkpoint")
@@ -259,13 +374,45 @@ def train_lnn_kolmogorov(
         if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
             # 完整狀態格式：model + optimizer + scheduler + step
             net.load_state_dict(_fix_ckpt_compat(ckpt["model_state_dict"]))
-            # L-BFGS 與 checkpoint 的 optimizer 類型不同，跳過 optimizer state 載入。
-            if not is_lbfgs and "optimizer_state_dict" in ckpt:
+            # L-BFGS / NG 與 checkpoint 的 optimizer 類型不同，跳過 optimizer state 載入。
+            if not is_lbfgs and not is_ng and "optimizer_state_dict" in ckpt:
                 optimizer.load_state_dict(ckpt["optimizer_state_dict"])
                 _fix_optimizer_state_compat(optimizer)
+                # ScheduleFree resume 修補：state_dict() 不含 train_mode flag，
+                # 預設載入後是 False（eval mode）。但 ckpt 是訓練中存的 → param.data
+                # 是 x_t (train iterate)。第一次 optimizer.train() 會觸發 eval→train
+                # swap，對已是 x_t 的 param 再 swap 一次 → 用 y_t 的反算覆蓋 → 爆炸。
+                # 修法：直接 set train_mode=True，讓 .train() 不再觸發 swap。
+                if use_schedulefree and hasattr(optimizer, "train_mode"):
+                    optimizer.train_mode = True
+                    print("  [resume] ScheduleFree train_mode=True (skip swap)")
             if not use_schedulefree and scheduler is not None and ckpt.get("scheduler_state_dict") is not None:
                 scheduler.load_state_dict(ckpt["scheduler_state_dict"])
             start_step = int(ckpt["step"])
+            # GradNorm state（gn_weights 是獨立 nn.Module，不在 net.state_dict 內）
+            # Why: 之前 resume 後 GradNorm 重置成 init weights，導致 model + GradNorm
+            #      不同步 → step ~1000 後 GradNorm 第一次 update 量級失準 → loss 爆炸。
+            if (
+                gn_weights is not None
+                and "gradnorm_state_dict" in ckpt
+                and ckpt["gradnorm_state_dict"] is not None
+            ):
+                _gn_state = ckpt["gradnorm_state_dict"]
+                # 檢查 layout 兼容性：4-task vs 5-task
+                _saved_log_w = _gn_state.get("log_weights")
+                if _saved_log_w is not None and _saved_log_w.numel() == gn_weights.log_weights.numel():
+                    gn_weights.load_state_dict(_gn_state)
+                    print(f"  resumed GradNorm weights: {gn_weights.weights.detach().tolist()}")
+                else:
+                    print(
+                        f"  [WARN] GradNorm layout 不相容（saved={_saved_log_w.numel() if _saved_log_w is not None else 'N/A'}"
+                        f" vs current={gn_weights.log_weights.numel()}）→ 用 init weights"
+                    )
+            elif gn_weights is not None and ckpt.get("gradnorm_state_dict") is None:
+                print(
+                    "  [WARN] checkpoint 不含 GradNorm state（legacy ckpt）→ 用 init weights；"
+                    "若訓練 >1000 步可能 GradNorm 重新 calibrate 時 loss 短暫上升"
+                )
         else:
             # 舊格式（只有 model weights）：恢復模型；scheduler 快進（schedulefree 則略過）
             net.load_state_dict(_fix_ckpt_compat(ckpt))
@@ -305,24 +452,13 @@ def train_lnn_kolmogorov(
                 flush=True,
             )
 
-    # GradNorm setup
-    use_gradnorm = bool(args.get("use_gradnorm", False))
-    gn_weights: GradNormWeights | None = None
-    gn_ref_params: list[torch.Tensor] = []
-    gn_update_freq = int(args.get("gradnorm_update_freq", 200))
-    if use_gradnorm:
-        gn_weights = GradNormWeights(
-            init_weights=args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01])
-        ).to(device)
-        gn_ref_params = list(net.query_decoder.trunk_out.parameters())
-
     print("=== Training ===", flush=True)
     if use_tm:
         print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps", flush=True)
     if use_gradnorm:
-        init_w = args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01])
+        _gn_layout = "5 tasks: data, ns_u, ns_v, cont, bc" if use_gradnorm_bc else "4 tasks: data, ns_u, ns_v, cont"
         print(f"  GradNorm: momentum={args.get('gradnorm_ema_momentum', 0.5):.2f}  freq={gn_update_freq}  (direct formula + EMA)")
-        print(f"  GradNorm init_weights: {init_w}  (4 tasks: data, ns_u, ns_v, cont)")
+        print(f"  GradNorm init_weights: {_gn_init_w}  ({_gn_layout})")
     elif phys_warmup_steps > 0 or phys_ramp_steps > 0:
         print(
             "  physics_ramp:"
@@ -348,6 +484,13 @@ def train_lnn_kolmogorov(
     _rar_expl_ratio  = float(args.get("rar_exploration_ratio", 0.2))
 
     warmup_steps = int(args.get("warmup_steps", 0))
+
+    # NG-only：固定 collocation 機制（論文 Helmholtz/Stokes 採固定批次）。
+    # ng_resample_freq=0 → 永不重採；>0 → 每 freq 步重採一次。
+    _ng_data_cache: list = []
+    _ng_phys_cache: list = []
+    _ng_sensor_cache: list = []   # sensor_physics 點（only when use_sensor_physics）
+    _ng_resample_freq = int(args.get("ng_resample_freq", 50))
 
     for step in range(start_step + 1, args["iterations"] + 1):
         if use_tm:
@@ -417,12 +560,14 @@ def train_lnn_kolmogorov(
                         sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
                     )
                     _h_cache_lbfgs.append((_h, _st))
+                    _bd_d = body_distance_fns[_i](_xy) if _use_hard_body_bc else None
                     _pred = observed_channel_prediction(
                         net=net, xy=_xy, t_q=_tq, c_obs=_c,
                         observed_channel_names=_ds.observed_channel_names,
                         observed_channel_mean=observed_mean_list[_i],
                         observed_channel_std=observed_std_list[_i],
                         h_states=_h, s_time=_st, sensor_pos=sensor_pos_list[_i],
+                        body_distance=_bd_d,
                     )
                     _ld = _ld + ((_pred - _ref) ** 2).mean()
                 _ld = _ld / num_re
@@ -438,6 +583,7 @@ def train_lnn_kolmogorov(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
                             h_states=_h_p, s_time=_st_p,
+                            body_distance_fn=body_distance_fns[_i] if _use_hard_body_bc else None,
                         )
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
@@ -470,13 +616,200 @@ def train_lnn_kolmogorov(
             l_ns_v_total = torch.zeros(1, device=device)
             l_ns_total   = torch.zeros(1, device=device)
             l_cont_total = torch.zeros(1, device=device)
+            l_bc_total   = torch.zeros(1, device=device)  # LBFGS path 不計 BC
+            phys_weight  = _phys_weight
+
+        # ── NG path ──────────────────────────────────────────────────────────
+        # 結構與 LBFGS 類似：固定批次 + closure；差異在 closure 回傳殘差向量
+        # 而非 scalar，由 NG 內部用 J^T(JJ^T + λI)^{-1} r 求步長。
+        elif is_ng:
+            _phys_weight = physics_weight_at_step(
+                step=step,
+                final_weight=base_phys_weight,
+                warmup_steps=phys_warmup_steps,
+                ramp_steps=phys_ramp_steps,
+            )
+            _n_phys_end   = int(args["num_physics_points"])
+            _n_phys_start = int(args.get("num_physics_points_start", 0)) or _n_phys_end
+            _n_phys_wu    = int(args.get("num_physics_points_warmup_steps", 0))
+            _n_phys_ramp  = int(args.get("num_physics_points_ramp_steps", 0))
+            _n_phys = physics_points_at_step(step, _n_phys_start, _n_phys_end, _n_phys_ramp, _n_phys_wu)
+            _phys_gate = _phys_weight > 0.0 and _n_phys_end > 0
+            _phys_strategy = str(args.get("physics_collocation_strategy", "random"))
+            _phys_normalize = bool(args.get("physics_residual_normalize", False))
+            _cont_w = float(args["continuity_weight"])
+            _data_w = float(args["data_loss_weight"])
+            _scale_re = (1.0 / num_re) ** 0.5
+
+            # 固定 collocation：只在 step==1 或 step % freq == 1 時重採；
+            # 否則重用前次採樣的批次（論文 NG 必備條件）。
+            _need_resample = (
+                not _ng_data_cache
+                or (_ng_resample_freq > 0 and (step - 1) % _ng_resample_freq == 0)
+            )
+            if _need_resample:
+                _ng_data_cache.clear()
+                for i, ds in enumerate(datasets):
+                    n_q = int(args.get("num_query_points", 0)) or ds.sensor_pos.shape[0]
+                    xy_np, t_np, c_np, ref_np = ds.sample_sensor_batch(rng, n=n_q, t_max=t_max)
+                    _ng_data_cache.append((
+                        torch.tensor(xy_np, dtype=torch.float32, device=device),
+                        torch.tensor(t_np, device=device),
+                        torch.tensor(c_np, dtype=torch.long, device=device),
+                        torch.tensor(ref_np, device=device),
+                    ))
+
+                _ng_phys_cache.clear()
+                if _phys_gate:
+                    for i, ds in enumerate(datasets):
+                        xy_np, t_np = ds.sample_physics_points(
+                            rng, n=_n_phys, t_max=t_max, strategy=_phys_strategy
+                        )
+                        _ng_phys_cache.append(torch.tensor(
+                            np.concatenate([xy_np, t_np[:, None]], axis=1),
+                            dtype=torch.float32, device=device, requires_grad=True,
+                        ))
+
+                # sensor_physics：在 sensor 位置額外計算 continuity 殘差（一階導，穩定）。
+                # 與 first-order path 同邏輯，但搬到 NG path 並走 cache 機制。
+                _ng_sensor_cache.clear()
+                _use_sp = bool(args.get("use_sensor_physics", False))
+                _sp_start = int(args.get("sensor_physics_start_step", 0))
+                _sp_n_t = int(args.get("num_sensor_physics_time_samples", 4))
+                if _use_sp and step >= _sp_start and _phys_gate:
+                    for i, ds in enumerate(datasets):
+                        _t_all = ds.sensor_time
+                        _t_avail = _t_all[_t_all <= float(t_max if t_max is not None else _t_all[-1])]
+                        if len(_t_avail) == 0:
+                            _ng_sensor_cache.append(None)
+                            continue
+                        _n_t = min(_sp_n_t, len(_t_avail))
+                        _t_idx = rng.choice(len(_t_avail), size=_n_t, replace=False)
+                        _t_sp = _t_avail[_t_idx]
+                        _xy_sp = np.repeat(ds.sensor_pos, _n_t, axis=0)
+                        _t_sp_rep = np.tile(_t_sp, ds.sensor_pos.shape[0])[:, None]
+                        _ng_sensor_cache.append(torch.tensor(
+                            np.concatenate([_xy_sp, _t_sp_rep], axis=1).astype(np.float32),
+                            device=device, requires_grad=True,
+                        ))
+                else:
+                    # Pad 與 datasets 等長以便 closure 中 zip 對齊
+                    _ng_sensor_cache.extend([None] * len(datasets))
+
+            _fixed_data = _ng_data_cache  # alias，保留下方 closure 變數名
+            _fixed_phys = _ng_phys_cache
+            _fixed_sensor = _ng_sensor_cache
+
+            _ng_info: dict = {}
+
+            def ng_residual_closure() -> torch.Tensor:
+                """組裝 r ∈ R^N，使 0.5 ||r||² ≈ data_w·l_data + phys_w·(l_ns + cont_w·l_cont)。
+
+                Why scaling 寫法：
+                    pi-lnn 原始 loss 用 mean((·)²) → r_i = sqrt(w / (N_i · num_re)) · raw_i
+                    使 0.5 ||r||² 與 mean-loss 在尺度上對齊（相差固定 0.5 倍可由 lr 吸收）。
+                """
+                net.train()
+                _h_cache_ng: list[tuple[torch.Tensor, torch.Tensor]] = []
+                _parts: list[torch.Tensor] = []
+                _l_data_acc = 0.0
+                _l_ns_acc = 0.0
+                _l_cont_acc = 0.0
+
+                for _i, _ds in enumerate(datasets):
+                    _xy, _tq, _c, _ref = _fixed_data[_i]
+                    _h, _st = net.encode(
+                        sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
+                    )
+                    _h_cache_ng.append((_h, _st))
+                    _bd_d = body_distance_fns[_i](_xy) if _use_hard_body_bc else None
+                    _pred = observed_channel_prediction(
+                        net=net, xy=_xy, t_q=_tq, c_obs=_c,
+                        observed_channel_names=_ds.observed_channel_names,
+                        observed_channel_mean=observed_mean_list[_i],
+                        observed_channel_std=observed_std_list[_i],
+                        h_states=_h, s_time=_st, sensor_pos=sensor_pos_list[_i],
+                        body_distance=_bd_d,
+                    )
+                    _diff = (_pred - _ref).reshape(-1)
+                    _N_d = max(_diff.numel(), 1)
+                    _scale_d = (_data_w / _N_d) ** 0.5 * _scale_re
+                    _parts.append(_scale_d * _diff)
+                    _l_data_acc += float(_diff.detach().pow(2).mean().item())
+                _l_data_acc /= num_re
+
+                if _fixed_phys:
+                    net.eval()
+                    for _i, _ds in enumerate(datasets):
+                        _xyt = _fixed_phys[_i]
+                        _h_p, _st_p = _h_cache_ng[_i]
+                        _uvpfn = make_lnn_model_fn_uvp(
+                            net, sensor_vals_list[_i], sensor_pos_list[_i],
+                            re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
+                            h_states=_h_p, s_time=_st_p,
+                            body_distance_fn=body_distance_fns[_i] if _use_hard_body_bc else None,
+                        )
+                        _mu, _mv, _co = unsteady_ns_residuals(
+                            _uvpfn, _xyt,
+                            re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
+                            Lx=_ds.Lx, Ly=_ds.Ly,
+                        )
+                        if _phys_normalize:
+                            def _nr(r: torch.Tensor) -> torch.Tensor:
+                                return r / r.detach().std().clamp(min=1e-8)
+                            _mu, _mv, _co = _nr(_mu), _nr(_mv), _nr(_co)
+                        _N_p = max(_mu.numel(), 1)
+                        _sm = (_phys_weight / _N_p) ** 0.5 * _scale_re
+                        _sc = (_phys_weight * _cont_w / _N_p) ** 0.5 * _scale_re
+                        _parts.append(_sm * _mu.reshape(-1))
+                        _parts.append(_sm * _mv.reshape(-1))
+                        _parts.append(_sc * _co.reshape(-1))
+                        _l_ns_acc += float(
+                            (_mu.detach().pow(2).mean() + _mv.detach().pow(2).mean()).item()
+                        )
+                        _l_cont_acc += float(_co.detach().pow(2).mean().item())
+
+                        # sensor_physics: 在 sensor 位置加 continuity 殘差（一階導，穩定）
+                        _xyt_sp = _fixed_sensor[_i] if _fixed_sensor else None
+                        if _xyt_sp is not None:
+                            _uvp_sp = _uvpfn(_xyt_sp)
+                            _u_sp = _uvp_sp[:, 0:1]
+                            _v_sp = _uvp_sp[:, 1:2]
+                            _du_dx_sp = _grad(_u_sp, _xyt_sp)[:, 0:1]
+                            _dv_dy_sp = _grad(_v_sp, _xyt_sp)[:, 1:2]
+                            _cont_sp = (_du_dx_sp + _dv_dy_sp).reshape(-1)
+                            _N_sp = max(_cont_sp.numel(), 1)
+                            _sc_sp = (_phys_weight * _cont_w / _N_sp) ** 0.5 * _scale_re
+                            _parts.append(_sc_sp * _cont_sp)
+                            _l_cont_acc += float(_cont_sp.detach().pow(2).mean().item())
+                    net.train()
+                    _l_ns_acc /= num_re
+                    _l_cont_acc /= num_re
+
+                _ng_info["l_data"] = _l_data_acc
+                _ng_info["l_ns"] = _l_ns_acc
+                _ng_info["l_cont"] = _l_cont_acc
+                _ng_info["l_phys"] = _l_ns_acc + _cont_w * _l_cont_acc
+                _ng_info["l_total"] = _data_w * _l_data_acc + _phys_weight * _ng_info["l_phys"]
+                return torch.cat(_parts)
+
+            optimizer.step(ng_residual_closure)
+
+            l_data       = torch.tensor([_ng_info.get("l_data",  0.0)], device=device)
+            l_physics    = torch.tensor([_ng_info.get("l_phys",  0.0)], device=device)
+            l_total      = torch.tensor([_ng_info.get("l_total", 0.0)], device=device)
+            l_ns_u_total = torch.zeros(1, device=device)
+            l_ns_v_total = torch.zeros(1, device=device)
+            l_ns_total   = torch.tensor([_ng_info.get("l_ns",    0.0)], device=device)
+            l_cont_total = torch.tensor([_ng_info.get("l_cont",  0.0)], device=device)
+            l_bc_total   = torch.zeros(1, device=device)  # NG path 尚未實作 BC
             phys_weight  = _phys_weight
 
         else:
         # ── First-order path ─────────────────────────────────────────────────
             optimizer.zero_grad()
 
-        if not is_lbfgs:
+        if not is_lbfgs and not is_ng:
             l_data = torch.zeros(1, device=device)
             # temporal trim 後的 sensor 輸入快取，physics loop 同步使用，
             # 確保 data / physics 兩條路徑看到相同的 encoder 輸入。
@@ -514,6 +847,7 @@ def train_lnn_kolmogorov(
                 t_q = torch.tensor(t_np, device=device)
                 c = torch.tensor(c_np, dtype=torch.long, device=device)
                 ref = torch.tensor(ref_np, device=device)
+                bd_q = body_distance_fns[i](xy) if _use_hard_body_bc else None
                 pred = observed_channel_prediction(
                     net=net,
                     xy=xy,
@@ -525,6 +859,7 @@ def train_lnn_kolmogorov(
                     h_states=h_states,
                     s_time=s_time,
                     sensor_pos=sensor_pos_list[i],
+                    body_distance=bd_q,
                 )
                 per_sample_loss = (pred - ref) ** 2
                 t0_w = float(args.get("t_early_weight", 1.0))
@@ -614,6 +949,7 @@ def train_lnn_kolmogorov(
                         re_norm=ds.re_norm,
                         sensor_time=_st_phys,
                         device=device,
+                        body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
                         h_states=_h_phys,
                         s_time=_st_phys_cached,
                     )
@@ -665,8 +1001,13 @@ def train_lnn_kolmogorov(
                 #   body    : Dirichlet u=v=0 （no-slip）
                 #   y=0/y=1 : Neumann (slip)；簡化為 v=0（資料 std(v_top/bot) 小）
                 #   outlet (x=1): Neumann ∂u/∂x≈0（暫未實作，wake 區資料密隱式約束）
-                # 尺度：所有項都在 normalized 空間（除以 obs std），與 data loss 同尺度。
-                #       (pred_norm - target_norm)² 展開後 mean 相消，僅需除以 std。
+                #
+                # 計算協定（修正前的 bug）：
+                #   _bc_fn 回傳 normalized model output (mean~0, std~1)。
+                #   舊 code 寫 ((pred_norm - u_inf_phys) / std)² 是雙重 normalize，
+                #   實質要求 pred_norm = u_inf_phys + mean，違反 no-slip / inflow 物理。
+                # 修正：把 physical target 轉到 normalized 空間，loss 在 normalized 空間
+                # 直接做 (pred_norm - target_norm)²，與 data loss 同尺度。
                 l_bc_total = torch.zeros(1, device=device)
                 _bc_weight = float(args.get("bc_loss_weight", 0.0))
                 if _bc_weight > 0.0 and str(args.get("dataset_type", "")) == "cylinder":
@@ -682,14 +1023,21 @@ def train_lnn_kolmogorov(
                         _u_inf = float(getattr(ds, "bc_inflow_u", _u_inf_cfg if _u_inf_cfg is not None else 0.33))
                         _u_idx = ds.observed_channel_names.index("u")
                         _v_idx = ds.observed_channel_names.index("v")
-                        _u_std_i = observed_std_list[i][_u_idx]
-                        _v_std_i = observed_std_list[i][_v_idx]
+                        _u_mean_i = observed_mean_list[i][_u_idx]
+                        _v_mean_i = observed_mean_list[i][_v_idx]
+                        _u_std_i  = observed_std_list[i][_u_idx]
+                        _v_std_i  = observed_std_list[i][_v_idx]
+                        # Physical → normalized targets (一次算好，多 BC 共用)
+                        _u_inf_norm  = (_u_inf - _u_mean_i) / _u_std_i.clamp(min=1e-8)
+                        _u_zero_norm = (0.0   - _u_mean_i) / _u_std_i.clamp(min=1e-8)
+                        _v_zero_norm = (0.0   - _v_mean_i) / _v_std_i.clamp(min=1e-8)
                         _t_lo, _t_hi = float(ds.sensor_time[0]), _t_max_bc
 
                         _sv_bc, _st_bc = _trim_cache[i]
                         _bc_fn = make_lnn_model_fn(
                             net, _sv_bc, sensor_pos_list[i],
                             re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
+                            body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
                         )
 
                         # 1. Inflow BC（x=0：u=u_inf, v=0）
@@ -703,8 +1051,8 @@ def train_lnn_kolmogorov(
                         _v_in = _bc_fn(_xyt_in, c=1)
                         l_bc_total = (
                             l_bc_total
-                            + torch.mean(((_u_in - _u_inf) / _u_std_i) ** 2)
-                            + torch.mean((_v_in / _v_std_i) ** 2)
+                            + torch.mean((_u_in - _u_inf_norm) ** 2)
+                            + torch.mean((_v_in - _v_zero_norm) ** 2)
                         )
 
                         # 2. Body no-slip BC（cylinder 內部：u=v=0）
@@ -722,8 +1070,8 @@ def train_lnn_kolmogorov(
                             _v_body = _bc_fn(_xyt_body, c=1)
                             l_bc_total = (
                                 l_bc_total
-                                + torch.mean((_u_body / _u_std_i) ** 2)
-                                + torch.mean((_v_body / _v_std_i) ** 2)
+                                + torch.mean((_u_body - _u_zero_norm) ** 2)
+                                + torch.mean((_v_body - _v_zero_norm) ** 2)
                             )
 
                         # 3. Slip BC（y=0, y=1 簡化為 v=0）
@@ -744,7 +1092,43 @@ def train_lnn_kolmogorov(
                                 device=device,
                             )
                             _v_slip = _bc_fn(_xyt_slip, c=1)
-                            l_bc_total = l_bc_total + torch.mean((_v_slip / _v_std_i) ** 2)
+                            l_bc_total = l_bc_total + torch.mean((_v_slip - _v_zero_norm) ** 2)
+
+                        # 4. Outlet BC (x=1: ∂u/∂x ≈ 0, free-stream 出口)
+                        # Why: 沒有 outlet BC 時 model 在 x→1 區域沒物理約束，
+                        #      wake 漂移到出口時可能形成 unphysical recirculation。
+                        #      Lily-Pad solver 用 Neumann ∂u/∂x=0；用 autograd 計算
+                        #      gradient 並懲罰其偏離 0。
+                        _n_outlet = int(args.get("bc_outlet_n_points", 0))
+                        if _n_outlet > 0:
+                            _y_out = rng.uniform(0.0, 1.0, size=(_n_outlet,)).astype(np.float32)
+                            _x_out = np.ones(_n_outlet, dtype=np.float32)  # x=1
+                            _t_out = rng.uniform(_t_lo, _t_hi, size=(_n_outlet,)).astype(np.float32)
+                            _xyt_out = torch.tensor(
+                                np.stack([_x_out, _y_out, _t_out], axis=1),
+                                device=device, requires_grad=True,
+                            )
+                            # 用 forward_uvp 取 [u, v, p]，對 x 求 gradient
+                            _uvp_out = make_lnn_model_fn_uvp(
+                                net, _sv_bc, sensor_pos_list[i],
+                                re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
+                                body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
+                            )(_xyt_out)
+                            _u_out = _uvp_out[:, 0:1]
+                            _v_out = _uvp_out[:, 1:2]
+                            _du_out = _grad(_u_out, _xyt_out)
+                            _dv_out = _grad(_v_out, _xyt_out)
+                            _du_dx_out = _du_out[:, 0:1]    # ∂u/∂x
+                            _dv_dx_out = _dv_out[:, 0:1]    # ∂v/∂x
+                            # Note: gradient 在 normalized 空間（座標 [0,1]）。
+                            # u 是 physical 量級（forward_uvp 已 denorm），
+                            # 故 (∂u/∂x_norm)² 量級 ≈ (∂u/∂x_phys × Lx)²，
+                            # 直接 mean((·)²) 跟其他 BC normalize 空間量級不可比。
+                            # 折衷：除以 std_u 讓 outlet BC 跟其他 BC 同量級。
+                            _scale_u = _u_std_i.clamp(min=1e-8)
+                            _scale_v = _v_std_i.clamp(min=1e-8)
+                            l_bc_total = l_bc_total + torch.mean((_du_dx_out / _scale_u) ** 2)
+                            l_bc_total = l_bc_total + torch.mean((_dv_dx_out / _scale_v) ** 2)
                     l_bc_total = l_bc_total / num_re
 
                 net.train()
@@ -768,7 +1152,9 @@ def train_lnn_kolmogorov(
 
             # ── Loss 組合與 backward ────────────────────────────────────────────
             if use_gradnorm and gn_weights is not None:
-                # GradNorm 模式：4 個可學習權重 [data, ns_u, ns_v, cont]，直接管理各 task 比例。
+                # GradNorm 模式：可學習權重直接管理各 task 比例。
+                #   4-task layout: [data, ns_u, ns_v, cont]    + BC 用 _bc_weight 固定
+                #   5-task layout: [data, ns_u, ns_v, cont, bc] BC 也由 GradNorm 動態
                 # physics_loss_weight 不再作為乘數，只有 num_physics_points > 0 才啟用物理項。
                 #
                 # 執行順序（關鍵）：
@@ -782,13 +1168,20 @@ def train_lnn_kolmogorov(
                 do_gn_update = phys_active and (step > warmup_steps) and (step % gn_update_freq == 0)
 
                 if do_gn_update:
+                    _gn_losses = [l_data, l_ns_u_total, l_ns_v_total, l_cont_total]
+                    if use_gradnorm_bc:
+                        _gn_losses.append(l_bc_total)
                     _gradnorm_step(
                         gn_weights,
-                        [l_data, l_ns_u_total, l_ns_v_total, l_cont_total],
+                        _gn_losses,
                         gn_ref_params,
                         ema_momentum=float(args.get("gradnorm_ema_momentum", 0.5)),
+                        min_weight=float(args.get("gradnorm_min_weight", 0.0)),
                     )
                 ws = gn_weights.weights.detach()
+
+                # BC weight：5-task 用 ws[4]，4-task 用 _bc_weight 固定
+                _bc_term_w = ws[4] if use_gradnorm_bc else _bc_weight
 
                 if phys_active:
                     l_total = (
@@ -796,10 +1189,10 @@ def train_lnn_kolmogorov(
                         + ws[1] * l_ns_u_total
                         + ws[2] * l_ns_v_total
                         + ws[3] * l_cont_total
-                        + _bc_weight * l_bc_total
+                        + _bc_term_w * l_bc_total
                     )
                 else:
-                    l_total = ws[0] * l_data + _bc_weight * l_bc_total
+                    l_total = ws[0] * l_data + _bc_term_w * l_bc_total
 
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
@@ -833,13 +1226,17 @@ def train_lnn_kolmogorov(
                     "gn_w_ns_v": ws_vals[2],
                     "gn_w_cont": ws_vals[3],
                 }
+                if use_gradnorm_bc and len(ws_vals) >= 5:
+                    extra["gn_w_bc"] = ws_vals[4]
             log_fn(step, {
                 "l_data": l_data.item(),
                 "l_physics": l_physics.item(),
                 "l_ns": l_ns_total.item(),
                 "l_cont": l_cont_total.item(),
+                "l_bc": l_bc_total.item(),
                 "l_total": l_total.item(),
                 "w_phys": phys_weight,
+                "w_bc": float(args.get("bc_loss_weight", 0.0)),
                 "t_max": t_max if t_max is not None else 0.0,
                 **extra,
             })
@@ -864,19 +1261,28 @@ def train_lnn_kolmogorov(
                 )
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
-            if use_schedulefree:
-                optimizer.eval()  # 切換到 Polyak 平均權重後再儲存
+            # Mid-step ckpt 存 train mode (param.data = x_t)，給 resume 用。
+            # Why: schedulefree 切 eval mode 會把 param.data 從 x_t (training iterate)
+            #      換成 y_t (Polyak averaged inference weights)。如果存 eval mode，
+            #      resume 後 wrapper 預設 train mode 會把 y_t 當 x_t 繼續 update，
+            #      → x 跟 z buffer 漂走 → loss 爆炸（cylinder_007b 已驗證 bug）。
+            #      所以中間 ckpt 必須存 train mode；final.pt 才存 eval mode（推理用）。
             torch.save(
                 {
                     "step": step,
                     "model_state_dict": net.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict(),
                     "scheduler_state_dict": scheduler.state_dict() if scheduler is not None else None,
+                    # GradNorm state：避免 resume 時重置成 init weights → loss 爆炸
+                    "gradnorm_state_dict": gn_weights.state_dict() if gn_weights is not None else None,
+                    # Mode metadata：evaluate 用此判斷 ckpt 是 inference-ready 還是 resume-only
+                    #   "train" = x_t (training iterate, 給 resume，inference quality 差)
+                    #   "eval"  = y_t (averaged, inference 用)
+                    #   "n/a"   = 不是 schedulefree（一般 optimizer，無此區分）
+                    "schedulefree_mode": "train" if use_schedulefree else "n/a",
                 },
                 str(checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"),
             )
-            if use_schedulefree:
-                optimizer.train()  # 恢復訓練模式
 
     if use_schedulefree:
         optimizer.eval()  # final.pt 儲存 Polyak 平均推理權重

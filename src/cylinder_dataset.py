@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 import pyarrow as pa
+import torch
 
 # cylinder Re 範圍 3000–11000 的正規化常數
 RE_MEAN: float = 7000.0
@@ -229,6 +230,26 @@ class CylinderDataset:
         body_y_norm = norm_y(y_flat[bf]).astype(np.float32)
         self.body_xy = np.stack([body_x_norm, body_y_norm], axis=1)     # [N_body, 2]
 
+        # ── Body-distance SDF（signed distance function）──────────────────
+        # Why: 用於 hard body BC 約束（Sukumar 2022 風格）：
+        #        u(x,y,t) = (φ(x,y) / scale) · NN(x,y,t)
+        #      其中 φ 在 body 邊界 = 0，fluid 內 > 0 → 強制 body 內 u=0（no-slip 物理保證）。
+        #      φ 必須對 xy 可微，否則 NS residual 算 ∂u/∂x 會缺 chain rule（cylinder_007/008
+        #      的 detach numpy lookup bug 已驗證）。所以提供：
+        #        - self._sdf_grid       : np.ndarray [H, W]（保留給 evaluate / numpy paths）
+        #        - self._sdf_grid_torch : torch.Tensor [H, W]（autograd-friendly path）
+        # 實作：對 body_mask 做 distance_transform_edt → 對每個 cell 給到最近 body cell
+        #      的 Euclidean distance（pixel 單位），再除 max(H-1, W-1) 得 normalized 座標距離。
+        from scipy.ndimage import distance_transform_edt
+        sdf_grid_pix = distance_transform_edt(~body_mask)   # [H, W]，pixel 單位
+        self._sdf_grid = (sdf_grid_pix.astype(np.float32) / max(H - 1, W - 1))   # numpy [H, W]
+        self._sdf_grid_torch = torch.from_numpy(self._sdf_grid)                  # torch [H, W]
+        self._sdf_H = int(H)
+        self._sdf_W = int(W)
+        # Hard BC scale：fluid 區的最大 distance，用於 gate normalization
+        # gate = (φ / scale).clamp(0, 1) → fluid 中心 (φ=max) gate ≈ 1
+        self.bc_distance_scale = float(self._sdf_grid.max())
+
         # KolmogorovDataset 相容欄位：用正規化的唯一 x/y 值
         self.dns_x    = np.unique(norm_x(x2d[0, :])).astype(np.float32)   # 沿 W 方向
         self.dns_y    = np.unique(norm_y(y2d[:, 0])).astype(np.float32)   # 沿 H 方向
@@ -238,6 +259,75 @@ class CylinderDataset:
         self.re_value = float(re_value)
         self.re_norm  = float((re_value - RE_MEAN) / RE_STD)
         # train/val 切割已在 sensor_vals 正規化前完成，避免統計 leak。
+
+    def query_body_distance(self, xy_normalized: np.ndarray) -> np.ndarray:
+        """Bilinear interpolate body distance field at given normalized xy points (numpy).
+
+        Args:
+            xy_normalized: [N, 2] in [0, 1]² normalized coordinates.
+
+        Returns:
+            distances: [N] distances to body boundary in normalized units (0 = on body).
+        """
+        if not hasattr(self, "_sdf_grid"):
+            raise AttributeError("SDF grid 未計算（cylinder dataset 才有）")
+        H, W = self._sdf_H, self._sdf_W
+        col = np.clip(xy_normalized[:, 0] * (W - 1), 0.0, float(W - 1))
+        row = np.clip(xy_normalized[:, 1] * (H - 1), 0.0, float(H - 1))
+        c0 = np.minimum(col.astype(np.int64), W - 2)
+        r0 = np.minimum(row.astype(np.int64), H - 2)
+        c1 = c0 + 1
+        r1 = r0 + 1
+        wc = col - c0
+        wr = row - r0
+        d00 = self._sdf_grid[r0, c0]
+        d01 = self._sdf_grid[r0, c1]
+        d10 = self._sdf_grid[r1, c0]
+        d11 = self._sdf_grid[r1, c1]
+        d0 = d00 * (1 - wc) + d01 * wc
+        d1 = d10 * (1 - wc) + d11 * wc
+        return (d0 * (1 - wr) + d1 * wr).astype(np.float32)
+
+    def query_body_distance_torch(self, xy: torch.Tensor) -> torch.Tensor:
+        """Differentiable bilinear interp on SDF grid（給 hard BC / autograd-friendly path）.
+
+        Args:
+            xy: [N, 2] tensor (with autograd) in [0, 1]² normalized coords.
+
+        Returns:
+            distances: [N] tensor with autograd graph back to xy.
+
+        Why differentiable:
+            Hard body BC 用 u = (φ/scale) · NN，autograd 必須能算 ∂φ/∂xy → ∂u/∂x 才包含
+            geometry chain rule。numpy 版會 detach；此版只用 torch ops:
+                - integer index (c0, r0) 不可微（OK，邊界局部分段線性）
+                - fractional weights (wc, wr) 對 xy 可微 → autograd 走這條 path
+            最終 d 對 xy 是分段線性可微的（標準 bilinear interp 性質）。
+        """
+        if not hasattr(self, "_sdf_grid_torch"):
+            raise AttributeError("SDF grid (torch) 未計算（cylinder dataset 才有）")
+        H, W = self._sdf_H, self._sdf_W
+        sdf = self._sdf_grid_torch.to(device=xy.device, dtype=xy.dtype)
+
+        # xy ∈ [0, 1]² → grid index ∈ [0, W-1] / [0, H-1]
+        col = (xy[:, 0] * (W - 1)).clamp(min=0.0, max=float(W - 1))
+        row = (xy[:, 1] * (H - 1)).clamp(min=0.0, max=float(H - 1))
+        # integer floor (不可微，但鄰 cell 索引切換在離散界面，bilinear 仍是分段線性)
+        c0 = col.long().clamp(min=0, max=W - 2)
+        r0 = row.long().clamp(min=0, max=H - 2)
+        c1 = c0 + 1
+        r1 = r0 + 1
+        # fractional 部分對 xy 可微（這是 bilinear 對 xy 求導的主要 path）
+        wc = col - c0.to(col.dtype)
+        wr = row - r0.to(row.dtype)
+        # bilinear interp
+        d00 = sdf[r0, c0]
+        d01 = sdf[r0, c1]
+        d10 = sdf[r1, c0]
+        d11 = sdf[r1, c1]
+        d0 = d00 * (1.0 - wc) + d01 * wc
+        d1 = d10 * (1.0 - wc) + d11 * wc
+        return d0 * (1.0 - wr) + d1 * wr
 
     # ── Public API（與 KolmogorovDataset 相同簽名）───────────────────────
 
@@ -269,13 +359,36 @@ class CylinderDataset:
     ) -> tuple[np.ndarray, np.ndarray]:
         """採樣物理殘差點 (xy_norm, t)，僅限流體域（cylinder body 已排除）。
 
-        strategy "random" 從 fluid_xy 隨機採樣，確保不落入 cylinder 內部。
-        strategy "chebyshev" 退化為 "random"（非均勻格不適用 tensor-product 節點）。
+        strategy 選項：
+          "random"     — 從 fluid_xy 均勻隨機採樣（baseline）
+          "chebyshev"  — 退化為 "random"
+          "body_aware" — 70% 均勻採樣 + 30% 偏向 body 邊界（distance < threshold）；
+                         用於強化 boundary layer 學習（Re=10031 cylinder shedding）
         """
         t_start = float(self.sensor_time[0])
         t_end   = float(self.sensor_time[-1]) if t_max is None else min(float(t_max), float(self.sensor_time[-1]))
 
-        chosen = rng.integers(0, len(self.fluid_xy), size=n)
-        xy = self.fluid_xy[chosen].astype(np.float32)
+        if strategy == "body_aware" and hasattr(self, "_sdf_grid"):
+            # 30% 偏 body 邊界，70% uniform
+            n_near = int(round(n * 0.3))
+            n_uniform = n - n_near
+            # 預計算 fluid_xy 的 SDF（一次性，cache 後重用）
+            if not hasattr(self, "_fluid_sdf"):
+                self._fluid_sdf = self.query_body_distance(self.fluid_xy)
+            # 取 distance < median 的 fluid 點作為「near-body pool」
+            _thresh = float(np.median(self._fluid_sdf))
+            _near_idx = np.where(self._fluid_sdf < _thresh)[0]
+            if len(_near_idx) == 0:
+                # fallback：全 uniform
+                chosen = rng.integers(0, len(self.fluid_xy), size=n)
+            else:
+                chosen_near = _near_idx[rng.integers(0, len(_near_idx), size=n_near)]
+                chosen_uniform = rng.integers(0, len(self.fluid_xy), size=n_uniform)
+                chosen = np.concatenate([chosen_near, chosen_uniform])
+            xy = self.fluid_xy[chosen].astype(np.float32)
+        else:
+            chosen = rng.integers(0, len(self.fluid_xy), size=n)
+            xy = self.fluid_xy[chosen].astype(np.float32)
+
         t  = rng.uniform(t_start, t_end, n).astype(np.float32)
         return xy, t

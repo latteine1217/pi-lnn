@@ -38,6 +38,26 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "t_early_threshold": 0.1,    # 早期時間定義上限
     "lbfgs_max_iter": 20,        # L-BFGS 每步最大 line-search 次數
     "lbfgs_history_size": 10,    # L-BFGS curvature history buffer 大小
+    # --- Natural Gradient (Gauss-Newton) optimizer ---
+    # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
+    # 適用範圍：N (residuals) << P (params) 才划算（pi-lnn 典型 N~200, P~10⁵）。
+    "ng_damping": 1.0e-6,          # Levenberg-Marquardt λ 初值
+    "ng_damping_strategy": "fixed",# "fixed" 或 "lm"（自適應，多花一次 closure）
+    "ng_jacobi_scaling": True,     # van der Sluis 對角預條件
+    "ng_max_residuals": 2000,      # N 上限保護（O(N·P) 記憶體）
+    "ng_solver_device": "cpu",     # 線性求解 device；cpu 對 fp64 最穩
+    "ng_resample_freq": 50,        # collocation / sensor batch 重採頻率（步）；
+                                   # 0 = 永不重採（首次採樣後固定，論文 Helmholtz 風格）；
+                                   # >0 = 每 N 步重新採樣（論文 Stokes 採 fixed within phase）
+    # Line search（論文 Stokes case "NG with Line-search"）
+    "ng_line_search": "none",      # "none" | "backtracking" | "armijo"
+    "ng_ls_max_trials": 5,         # α=1, decay, decay²,... 最多試幾次
+    "ng_ls_alpha_init": 1.0,       # 初始 step size（NG 預設 Newton step = 1.0）
+    "ng_ls_alpha_decay": 0.5,      # backtracking 衰減係數
+    "ng_ls_armijo_c1": 1.0e-4,     # Armijo sufficient decrease 條件係數
+    # SPRING momentum（論文 eq.(26)，Goldshlager et al. 2024 ref [26]）
+    "ng_use_spring": False,        # 啟用 SPRING-style momentum 加速
+    "ng_spring_momentum": 0.9,     # μ ∈ [0, 1)；0 退化為標準 NG
     "physics_loss_weight": 0.01,
     "physics_loss_warmup_steps": 0,
     "physics_loss_ramp_steps": 0,
@@ -46,7 +66,16 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "gradnorm_alpha": 1.5,   # 已棄用，保留供舊 config 相容
     "gradnorm_lr": 1e-3,     # 已棄用，保留供舊 config 相容
     "gradnorm_update_freq": 10,
-    "gradnorm_init_weights": [1.0, 0.01, 0.01, 0.01],
+    "gradnorm_min_weight": 0.0,    # Sanity floor (預設關閉，讓 GradNorm 自然動態)
+                                    # 之前 cylinder_007/008 的 div_L2 大問題已查明是 distance-as-input
+                                    # 的 detach chain rule bug（不是 GradNorm pathology），因此不需 floor。
+                                    # 仍保留作為 opt-in（>0 啟用），給未來確認 GradNorm 真的失控時用。
+    "gradnorm_init_weights": [1.0, 0.01, 0.01, 0.01, 0.1],
+    # 5-task layout: [data, ns_u, ns_v, cont, bc]（cylinder 主線 default）
+    # 4-task layout: [data, ns_u, ns_v, cont]（kolmogorov / 無 BC 場景；自動 fallback 4）
+    # Why: BC 跟 NS / cont 都是 PINN constraint 的一部分，應該被 GradNorm 統一動態
+    #      平衡。pre-fix 時 bc_loss_weight=0.1 是基於 broken BC 量級 tune 的，
+    #      修 C3 後 BC 量級變化 40×，固定 weight 失準 → 改用 GradNorm 自適應。
     "gradnorm_ema_momentum": 0.9,
     "warmup_steps": 0,
     "time_marching": True,
@@ -88,6 +117,12 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "bc_n_points": 32,        # inflow 邊界（x=0）採樣點數
     "bc_body_n_points": 0,    # cylinder body no-slip BC 採樣點數；0 = 停用
     "bc_slip_n_points": 0,    # top/bottom slip BC (y=0,y=1) 採樣點數；0 = 停用
+    "bc_outlet_n_points": 0,  # cylinder outlet (x=1) ∂u/∂x≈0 BC 採樣點數；0 = 停用
+    "use_hard_body_bc": False,           # cylinder hard body BC（Sukumar 2022 風格）：
+                                          # u = (φ/scale).clamp(0,1) · NN，物理保證 body 內 u=v=0。
+                                          # 取代有 detach bug 的 distance-as-input feature。
+                                          # True 會改 model architecture（query_in +1），ckpt 不相容
+                                          # 僅 cylinder dataset 真正需要；kolmogorov 為 dummy 1.0
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
     "lr_schedule": "none",
