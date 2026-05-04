@@ -15,7 +15,12 @@ import torch
 
 from pi_lnn.causal import causal_weighted_residual_loss
 from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
-from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
+from pi_lnn.losses import (
+    AugmentedLagrangianMultiplier,
+    GradNormWeights,
+    _gradnorm_step,
+    observed_channel_prediction,
+)
 from pi_lnn.operator import (
     LiquidOperator,
     create_lnn_model,
@@ -339,15 +344,45 @@ def train_lnn_kolmogorov(
     gn_ref_params: list[torch.Tensor] = []
     gn_update_freq = int(args.get("gradnorm_update_freq", 200))
     _gn_init_w = args.get("gradnorm_init_weights", [1.0, 0.01, 0.01, 0.01, 0.1])
-    if len(_gn_init_w) not in (4, 5):
+    # task_names: 顯式 (config 提供 gradnorm_tasks 非空) 或由長度推斷
+    _gn_tasks_cfg = list(args.get("gradnorm_tasks", []) or [])
+    _gn_task_names: list[str] | None = _gn_tasks_cfg if _gn_tasks_cfg else None
+    if _gn_task_names is None and len(_gn_init_w) not in (4, 5):
         raise ValueError(
-            f"gradnorm_init_weights 長度必須 4 (data,ns_u,ns_v,cont) 或 "
+            f"未指定 gradnorm_tasks 時 gradnorm_init_weights 長度必須 4 (data,ns_u,ns_v,cont) 或 "
             f"5 (data,ns_u,ns_v,cont,bc)，收到 {len(_gn_init_w)}: {_gn_init_w}"
         )
-    use_gradnorm_bc = (len(_gn_init_w) == 5)
     if use_gradnorm:
-        gn_weights = GradNormWeights(init_weights=_gn_init_w).to(device)
+        gn_weights = GradNormWeights(
+            init_weights=_gn_init_w, task_names=_gn_task_names
+        ).to(device)
         gn_ref_params = list(net.query_decoder.trunk_out.parameters())
+    use_gradnorm_bc = use_gradnorm and gn_weights is not None and "bc" in gn_weights
+    use_gradnorm_cont = use_gradnorm and gn_weights is not None and "cont" in gn_weights
+
+    # AL-continuity setup（spec v4 §3 / §4）
+    use_al = bool(args.get("use_augmented_lagrangian", False))
+    al_cont: AugmentedLagrangianMultiplier | None = None
+    al_update_freq = int(args.get("al_update_freq", 100))
+    if use_al:
+        # Pre-condition asserts（runtime fail-fast；config-load _validate_al_config 也會擋）
+        assert args["lr_schedule"] != "ng", "AL incompatible with lr_schedule='ng'"
+        assert not (args["lr_schedule"] == "lbfgs" and use_gradnorm), \
+            "AL + LBFGS 不支援 use_gradnorm（closure race）"
+        assert float(args.get("continuity_weight", 0.0)) == 0.0, \
+            "AL active 時 continuity_weight 必須 = 0，否則 cont 被雙重 penalty"
+        assert not bool(args.get("use_sensor_physics", False)), \
+            "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
+        if use_gradnorm and gn_weights is not None:
+            assert "cont" not in gn_weights, "AL active 時 'cont' 必須從 gradnorm_tasks 移出"
+            assert "al" not in gn_weights, \
+                "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"
+        al_cont = AugmentedLagrangianMultiplier(
+            init_lambda=float(args.get("al_init_lambda", 0.0)),
+            rho=float(args.get("al_rho", 1.0)),
+            lambda_clip=float(args.get("al_lambda_clip", 10.0)),
+            ema_momentum=float(args.get("al_ema_momentum", 0.5)),
+        ).to(device)
 
     # Resume：從 checkpoint 恢復完整訓練狀態
     start_step = 0
@@ -413,6 +448,15 @@ def train_lnn_kolmogorov(
                     "  [WARN] checkpoint 不含 GradNorm state（legacy ckpt）→ 用 init weights；"
                     "若訓練 >1000 步可能 GradNorm 重新 calibrate 時 loss 短暫上升"
                 )
+            # AL state restore：保 lambda_ / ema_C / _initialized；缺則 cold-start
+            if al_cont is not None and ckpt.get("al_state_dict") is not None:
+                al_cont.load_state_dict(ckpt["al_state_dict"])
+                print(
+                    f"  resumed AL state: λ={al_cont.lambda_.item():.3e} "
+                    f"ema_C={al_cont.ema_C.item():.3e} initialized={bool(al_cont._initialized.item())}"
+                )
+            elif al_cont is not None:
+                print("  [WARN] checkpoint 不含 AL state → 從 init λ/ema_C 重新累積")
         else:
             # 舊格式（只有 model weights）：恢復模型；scheduler 快進（schedulefree 則略過）
             net.load_state_dict(_fix_ckpt_compat(ckpt))
@@ -455,11 +499,16 @@ def train_lnn_kolmogorov(
     print("=== Training ===", flush=True)
     if use_tm:
         print(f"  time_marching: t [{tm_t_start:.1f} → {tm_t_end:.1f}]  warmup={tm_warmup} steps", flush=True)
-    if use_gradnorm:
-        _gn_layout = "5 tasks: data, ns_u, ns_v, cont, bc" if use_gradnorm_bc else "4 tasks: data, ns_u, ns_v, cont"
+    if use_gradnorm and gn_weights is not None:
+        _gn_layout = ", ".join(gn_weights.task_names)
         print(f"  GradNorm: momentum={args.get('gradnorm_ema_momentum', 0.5):.2f}  freq={gn_update_freq}  (direct formula + EMA)")
-        print(f"  GradNorm init_weights: {_gn_init_w}  ({_gn_layout})")
-    elif phys_warmup_steps > 0 or phys_ramp_steps > 0:
+        print(f"  GradNorm init_weights: {_gn_init_w}  (tasks: [{_gn_layout}])")
+    if use_al and al_cont is not None:
+        print(
+            f"  AL-continuity: λ_init={al_cont.lambda_.item():.3f} ρ={al_cont.rho:.3f} "
+            f"clip=(0,{al_cont.lambda_clip:.1f}) freq={al_update_freq} ema={al_cont.ema_momentum:.2f}"
+        )
+    if not use_gradnorm and (phys_warmup_steps > 0 or phys_ramp_steps > 0):
         print(
             "  physics_ramp:"
             f" warmup={phys_warmup_steps} steps,"
@@ -470,12 +519,19 @@ def train_lnn_kolmogorov(
         _sp_K = datasets[0].sensor_pos.shape[0]
         _sp_nt = int(args.get("num_sensor_physics_time_samples", 4))
         print(f"  sensor_physics: K={_sp_K} × n_t={_sp_nt} = {_sp_K * _sp_nt} pts/step (cond≈11 for k≤16)", flush=True)
-    if use_gradnorm:
-        print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_ns_u':>8} {'w_ns_v':>8} {'w_cont':>8} {'L_total':>12}"
-              + ("  t_max" if use_tm else ""), flush=True)
+    # Header: 動態組裝
+    # - GradNorm active：列出 GradNorm tasks 的 weight（跳過 data，因為永遠 = 1）
+    # - AL active：append `lambda_c` 與 `C_ema`（spec §5 logging layout）
+    if use_gradnorm and gn_weights is not None:
+        _w_cols = " ".join(f"{f'w_{n}':>8}" for n in gn_weights.task_names if n != "data")
+        _hdr = f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {_w_cols} {'L_total':>12}"
     else:
-        print(f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
-              + ("  t_max" if use_tm else ""), flush=True)
+        _hdr = f"{'Step':<8} {'L_data':>12} {'L_phys':>12} {'w_phys':>10} {'L_total':>12}"
+    if use_al:
+        _hdr += f" {'lambda_c':>10} {'C_ema':>10}"
+    if use_tm:
+        _hdr += "  t_max"
+    print(_hdr, flush=True)
 
     _is_rar = str(args.get("physics_collocation_strategy", "random")) == "rar"
     _rar_pool_np: list[np.ndarray] | None = None
@@ -600,14 +656,28 @@ def train_lnn_kolmogorov(
                     _lp   = _lp   / num_re
                     _lcont = _lcont / num_re
 
-                _lt = args["data_loss_weight"] * _ld + _phys_weight * (_lp + args["continuity_weight"] * _lcont)
+                # AL active in LBFGS：closure 內僅讀 λ 算 al_term，不呼叫 update()。
+                # cache _lcont.detach() 給 closure 外的 dual update 使用（spec v4 §4 LBFGS section）。
+                if al_cont is not None:
+                    _al_term = al_cont.loss_term(_lcont)
+                    _lt = args["data_loss_weight"] * _ld + _phys_weight * _lp + _al_term
+                    _lbfgs_info["l_cont_for_al"] = _lcont.detach().clone()
+                else:
+                    _lt = args["data_loss_weight"] * _ld + _phys_weight * (_lp + args["continuity_weight"] * _lcont)
                 _lt.backward()
                 _lbfgs_info["l_data"]   = _ld.item()
                 _lbfgs_info["l_phys"]   = (_lp + _lcont).item()
+                _lbfgs_info["l_cont"]   = _lcont.item()
                 _lbfgs_info["l_total"]  = _lt.item()
                 return _lt
 
             optimizer.step(closure)
+
+            # AL dual update — 嚴格在 step(closure) 之後，用 closure 最後一次的 l_cont
+            if al_cont is not None and step > 0 and step % al_update_freq == 0:
+                _last_lcont = _lbfgs_info.get("l_cont_for_al")
+                if _last_lcont is not None:
+                    al_cont.update(_last_lcont)
 
             l_data    = torch.tensor([_lbfgs_info.get("l_data",  0.0)], device=device)
             l_physics = torch.tensor([_lbfgs_info.get("l_phys",  0.0)], device=device)
@@ -615,7 +685,7 @@ def train_lnn_kolmogorov(
             l_ns_u_total = torch.zeros(1, device=device)
             l_ns_v_total = torch.zeros(1, device=device)
             l_ns_total   = torch.zeros(1, device=device)
-            l_cont_total = torch.zeros(1, device=device)
+            l_cont_total = torch.tensor([_lbfgs_info.get("l_cont", 0.0)], device=device)
             l_bc_total   = torch.zeros(1, device=device)  # LBFGS path 不計 BC
             phys_weight  = _phys_weight
 
@@ -1150,12 +1220,18 @@ def train_lnn_kolmogorov(
                 l_bc_total   = torch.zeros(1, device=device)
                 l_physics = torch.zeros(1, device=device)
 
+            # AL term（spec v4 §4）：在組 l_total 之前一次計算，後面分支共用
+            # 注意：l_cont_total 在 AL 模式下強制為 random-collocation 單一 mean
+            # （use_sensor_physics 已被 pre-condition assert 強制 false）
+            al_term: torch.Tensor | None = None
+            if al_cont is not None:
+                al_term = al_cont.loss_term(l_cont_total)
+
             # ── Loss 組合與 backward ────────────────────────────────────────────
             if use_gradnorm and gn_weights is not None:
                 # GradNorm 模式：可學習權重直接管理各 task 比例。
-                #   4-task layout: [data, ns_u, ns_v, cont]    + BC 用 _bc_weight 固定
-                #   5-task layout: [data, ns_u, ns_v, cont, bc] BC 也由 GradNorm 動態
-                # physics_loss_weight 不再作為乘數，只有 num_physics_points > 0 才啟用物理項。
+                # 動態 task layout：依 gn_weights.task_names 決定哪些 loss 進 GradNorm。
+                # AL active 時：AL term 完全不進 gn_losses（spec v4 §5），避免 mean_G 污染。
                 #
                 # 執行順序（關鍵）：
                 #   ① GradNorm weight update（autograd.grad，retain_graph=True）
@@ -1167,10 +1243,19 @@ def train_lnn_kolmogorov(
                 phys_active = int(args["num_physics_points"]) > 0
                 do_gn_update = phys_active and (step > warmup_steps) and (step % gn_update_freq == 0)
 
+                # 依 task_names 動態組裝 losses（與 task index 對齊）
+                # "poisson" 為 EXP-072 專用 5-task layout 的可選項
+                _name_to_loss = {
+                    "data": l_data,
+                    "ns_u": l_ns_u_total,
+                    "ns_v": l_ns_v_total,
+                    "cont": l_cont_total,
+                    "bc": l_bc_total,
+                    "poisson": l_poisson_total,
+                }
+                _gn_losses = [_name_to_loss[name] for name in gn_weights.task_names]
+
                 if do_gn_update:
-                    _gn_losses = [l_data, l_ns_u_total, l_ns_v_total, l_cont_total]
-                    if use_gradnorm_bc:
-                        _gn_losses.append(l_bc_total)
                     _gradnorm_step(
                         gn_weights,
                         _gn_losses,
@@ -1180,32 +1265,51 @@ def train_lnn_kolmogorov(
                     )
                 ws = gn_weights.weights.detach()
 
-                # BC weight：5-task 用 ws[4]，4-task 用 _bc_weight 固定
-                _bc_term_w = ws[4] if use_gradnorm_bc else _bc_weight
-
+                # 依 task_names 組 l_total（GradNorm-managed terms）
                 if phys_active:
-                    l_total = (
-                        ws[0] * l_data
-                        + ws[1] * l_ns_u_total
-                        + ws[2] * l_ns_v_total
-                        + ws[3] * l_cont_total
-                        + _bc_term_w * l_bc_total
-                    )
+                    l_total = sum(ws[i] * _gn_losses[i] for i in range(len(_gn_losses)))
                 else:
-                    l_total = ws[0] * l_data + _bc_term_w * l_bc_total
+                    # phys 未啟用時只留 data + (BC 若有)
+                    l_total = ws[gn_weights.index_of("data")] * l_data
+                    if "bc" in gn_weights:
+                        l_total = l_total + ws[gn_weights.index_of("bc")] * l_bc_total
+
+                # GradNorm 不管的固定 weight 項：
+                #   - BC：當 "bc" 不在 GradNorm tasks 時用固定 _bc_weight
+                if "bc" not in gn_weights:
+                    l_total = l_total + _bc_weight * l_bc_total
+                # AL term：固定 weight = 1，AL 與 GradNorm 完全解耦（spec v4 §5）
+                if al_term is not None:
+                    l_total = l_total + al_term
 
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
             else:
-                l_total = (
-                    args["data_loss_weight"] * l_data
-                    + phys_weight * l_physics
-                    + _bc_weight * l_bc_total
-                )
+                # 非 GradNorm 路徑（包含 EXP-070 純 AL）
+                if al_term is not None:
+                    # AL active：cont 由 AL 接管（cont_w 已被 assert 為 0）；
+                    # ns_u/ns_v 用固定 phys_weight，data 用 data_loss_weight
+                    l_total = (
+                        args["data_loss_weight"] * l_data
+                        + phys_weight * l_ns_total
+                        + al_term
+                        + _bc_weight * l_bc_total
+                    )
+                else:
+                    l_total = (
+                        args["data_loss_weight"] * l_data
+                        + phys_weight * l_physics
+                        + _bc_weight * l_bc_total
+                    )
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
+
+            # AL dual update（spec v4 §4）— 嚴格在 optimizer.step() 之後，且 step > 0 才動
+            # 用的是 pre-step 計算的 l_cont_total（一步延遲，acceptable，spec 已說明）
+            if al_cont is not None and step > 0 and step % al_update_freq == 0:
+                al_cont.update(l_cont_total.detach())
 
         if scheduler is not None:
             scheduler.step()
@@ -1220,14 +1324,11 @@ def train_lnn_kolmogorov(
             extra: dict[str, float] = {}
             if use_gradnorm and gn_weights is not None:
                 ws_vals = gn_weights.weights.detach().cpu().tolist()
-                extra = {
-                    "gn_w_data": ws_vals[0],
-                    "gn_w_ns_u": ws_vals[1],
-                    "gn_w_ns_v": ws_vals[2],
-                    "gn_w_cont": ws_vals[3],
-                }
-                if use_gradnorm_bc and len(ws_vals) >= 5:
-                    extra["gn_w_bc"] = ws_vals[4]
+                for name, val in zip(gn_weights.task_names, ws_vals):
+                    extra[f"gn_w_{name}"] = float(val)
+            if al_cont is not None:
+                extra["al_lambda_c"] = float(al_cont.lambda_.item())
+                extra["al_C_ema"] = float(al_cont.ema_C.item())
             log_fn(step, {
                 "l_data": l_data.item(),
                 "l_physics": l_physics.item(),
@@ -1243,22 +1344,27 @@ def train_lnn_kolmogorov(
 
         if step % max(1, args["iterations"] // 10) == 0 or step == 1:
             tm_str = f"  t≤{t_max:5.1f}" if use_tm and t_max is not None else ""
+            # 主行：依 GradNorm task_names 顯示 weight（跳過 data，與 header 對齊）
             if use_gradnorm and gn_weights is not None:
                 ws_vals = gn_weights.weights.detach().cpu().tolist()
-                print(
+                _w_str = " ".join(
+                    f"{ws_vals[i]:>8.4f}"
+                    for i, name in enumerate(gn_weights.task_names) if name != "data"
+                )
+                main = (
                     f"{step:<8} {l_data.item():>12.4e}"
-                    f" {l_physics.item():>12.4e}"
-                    f" {ws_vals[1]:>8.4f} {ws_vals[2]:>8.4f} {ws_vals[3]:>8.4f}"
-                    f" {l_total.item():>12.4e}{tm_str}",
-                    flush=True,
+                    f" {l_physics.item():>12.4e} {_w_str}"
+                    f" {l_total.item():>12.4e}"
                 )
             else:
-                print(
+                main = (
                     f"{step:<8} {l_data.item():>12.4e}"
                     f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
-                    f" {l_total.item():>12.4e}{tm_str}",
-                    flush=True,
+                    f" {l_total.item():>12.4e}"
                 )
+            if al_cont is not None:
+                main += f" {al_cont.lambda_.item():>10.3e} {al_cont.ema_C.item():>10.3e}"
+            print(main + tm_str, flush=True)
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
             # Mid-step ckpt 存 train mode (param.data = x_t)，給 resume 用。
@@ -1275,6 +1381,8 @@ def train_lnn_kolmogorov(
                     "scheduler_state_dict": scheduler.state_dict() if scheduler is not None else None,
                     # GradNorm state：避免 resume 時重置成 init weights → loss 爆炸
                     "gradnorm_state_dict": gn_weights.state_dict() if gn_weights is not None else None,
+                    # AL state：保 lambda_ / ema_C / _initialized 三 buffer
+                    "al_state_dict": al_cont.state_dict() if al_cont is not None else None,
                     # Mode metadata：evaluate 用此判斷 ckpt 是 inference-ready 還是 resume-only
                     #   "train" = x_t (training iterate, 給 resume，inference quality 差)
                     #   "eval"  = y_t (averaged, inference 用)
@@ -1288,10 +1396,24 @@ def train_lnn_kolmogorov(
         optimizer.eval()  # final.pt 儲存 Polyak 平均推理權重
     final = artifacts_dir / "lnn_kolmogorov_final.pt"
     torch.save(net.state_dict(), str(final))
-    write_json(artifacts_dir / "experiment_manifest.json", {
+
+    # Manifest: 包含 AL 最終狀態 + log columns（spec §5 logging / §8 pathology hook）
+    manifest: dict = {
         "configuration": {k: v for k, v in args.items() if k not in ("sensor_jsons", "sensor_npzs", "dns_paths")},
         "final_checkpoint": str(final),
-    })
+    }
+    if al_cont is not None:
+        manifest["al_final_state"] = {
+            "lambda_": float(al_cont.lambda_.item()),
+            "ema_C": float(al_cont.ema_C.item()),
+            "saturated_clip": bool(al_cont.lambda_.item() >= al_cont.lambda_clip - 1e-9),
+        }
+    if use_gradnorm and gn_weights is not None:
+        manifest["gradnorm_final_weights"] = dict(zip(
+            gn_weights.task_names,
+            gn_weights.weights.detach().cpu().tolist(),
+        ))
+    write_json(artifacts_dir / "experiment_manifest.json", manifest)
     print("=== Done ===")
 
 
@@ -1310,6 +1432,9 @@ def main() -> None:
     config.update(load_lnn_config(cli_args.config))
     if cli_args.device is not None:
         config["device"] = cli_args.device
+    # AL semantic validation：必須在 merge 後（spec v4 §6）
+    from pi_lnn.config import _validate_al_config
+    _validate_al_config(config)
     train_lnn_kolmogorov(config)
 
 if __name__ == "__main__":

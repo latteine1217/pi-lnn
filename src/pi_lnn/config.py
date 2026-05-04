@@ -139,6 +139,17 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "seed": 42,
     "device": "mps",
     "artifacts_dir": "artifacts/deeponet-cfc-midlong-uvomega-small",
+    # --- Augmented Lagrangian on continuity (spec v4) ---
+    # 啟用：use_augmented_lagrangian=true。詳見 docs/superpowers/specs/2026-05-04-al-continuity-design.md
+    # 與 lr_schedule="ng" 不相容；EXP-070/071 限用 SOAP 或 AdamW（"none"/"cosine"/"step"/"soap"）。
+    "use_augmented_lagrangian": False,
+    "al_init_lambda": 0.0,
+    "al_rho": 1.0,
+    "al_update_freq": 100,         # 每 N steps 執行一次 dual update
+    "al_lambda_clip": 10.0,        # 上限；clamp(0, Λ)，C ≥ 0 故無下限負值
+    "al_ema_momentum": 0.5,
+    "gradnorm_tasks": [],          # [] = 由 init_weights 長度推斷 4/5-task；
+                                   # 顯式：例如 ["data","ns_u","ns_v"] 對應 EXP-071
 }
 
 _REMOVED_KEYS = {
@@ -210,3 +221,53 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
     if "artifacts_dir" in normalized:
         normalized["artifacts_dir"] = _resolve_config_path_value(normalized["artifacts_dir"], config_path)
     return normalized
+
+
+def _validate_al_config(cfg: dict[str, Any]) -> None:
+    """What: AL semantic validation — fail fast on the FULLY MERGED config.
+
+    必須在 `DEFAULT_LNN_ARGS` 與 TOML 合併**後**呼叫（不能在 `load_lnn_config` 內），
+    否則 cfg 會缺少 default fallback 值。
+
+    參考 spec: docs/superpowers/specs/2026-05-04-al-continuity-design.md §6
+    """
+    if not cfg.get("use_augmented_lagrangian", False):
+        # AL off：仍要驗 gradnorm_tasks 不能誤刪 cont（否則 div constraint 消失）
+        tasks = list(cfg.get("gradnorm_tasks", []) or [])
+        if (
+            cfg.get("use_gradnorm", False)
+            and tasks
+            and "cont" not in tasks
+            and float(cfg.get("continuity_weight", 0.0)) > 0.0
+        ):
+            raise ValueError(
+                "use_gradnorm=True + cont not in gradnorm_tasks + continuity_weight>0 → "
+                "cont 既不被 GradNorm 平衡也不在固定 weight loss 中（無效設定）"
+            )
+        return
+
+    # AL on:
+    if cfg.get("lr_schedule") == "ng":
+        raise ValueError("use_augmented_lagrangian incompatible with lr_schedule='ng'")
+    if cfg.get("lr_schedule") == "lbfgs" and cfg.get("use_gradnorm", False):
+        raise ValueError("AL + LBFGS 不支援 use_gradnorm（closure race）")
+    if float(cfg.get("continuity_weight", 0.0)) != 0.0:
+        raise ValueError(
+            f"AL active 時 continuity_weight 必須 = 0，收到 {cfg['continuity_weight']}"
+        )
+    if cfg.get("use_sensor_physics", False):
+        raise ValueError(
+            "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
+        )
+    tasks = list(cfg.get("gradnorm_tasks", []) or [])
+    if tasks and "cont" in tasks:
+        raise ValueError("AL active 時 'cont' 必須從 gradnorm_tasks 移出（即使 use_gradnorm=False）")
+    if tasks and "al" in tasks:
+        raise ValueError(
+            "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"
+        )
+    init_w = list(cfg.get("gradnorm_init_weights", []) or [])
+    if tasks and len(init_w) != len(tasks):
+        raise ValueError(
+            f"gradnorm_init_weights 長度 ({len(init_w)}) 與 gradnorm_tasks ({len(tasks)}) 不符"
+        )

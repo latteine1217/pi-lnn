@@ -1,4 +1,4 @@
-"""Loss-side machinery: GradNorm dynamic loss weighting + sparse-channel prediction."""
+"""Loss-side machinery: GradNorm dynamic loss weighting + AL-continuity + sparse-channel prediction."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,23 +10,60 @@ if TYPE_CHECKING:
     from pi_lnn.operator import LiquidOperator  # noqa: F401  (used in annotation only)
 
 
+_DEFAULT_TASK_LAYOUTS: dict[int, list[str]] = {
+    4: ["data", "ns_u", "ns_v", "cont"],
+    5: ["data", "ns_u", "ns_v", "cont", "bc"],
+}
+
+
 class GradNormWeights(nn.Module):
     """What: GradNorm（Chen et al., 2018）的可學習 task 權重。
 
-    Why: 直接管理 [data, ns_u, ns_v, cont] 四個 task 的權重比例。
+    Why: 直接管理 [data, ns_u, ns_v, cont(, bc)] 等 task 的權重比例。
          以 w_data = 1 為基準，physics weights 表達相對 data 的比例，
          讓 GradNorm 能真正動態調整 physics/data 平衡，而非受限於 sum=const 的固定比例。
          初始值 [1.0, 0.01, 0.01, 0.01] → physics 從 1% data 出發，由 GradNorm 自行決定是否加強。
+
+    AL-continuity（spec v4）相容：當 use_augmented_lagrangian=true 時 AL term 完全在
+    GradNorm 之外處理，不應出現在 task_names 中（"al" 不允許）。
     """
 
-    def __init__(self, init_weights: list[float]) -> None:
+    def __init__(
+        self,
+        init_weights: list[float],
+        task_names: list[str] | None = None,
+    ) -> None:
         super().__init__()
         w = torch.tensor(init_weights, dtype=torch.float32)
         self.log_weights = nn.Parameter(torch.log(w))
+        # task_names: 顯式指定 → 驗長度；未指定 → 由 init_weights 長度推斷 4/5-task 預設 layout
+        if task_names is None:
+            n = len(init_weights)
+            if n not in _DEFAULT_TASK_LAYOUTS:
+                raise ValueError(
+                    f"未指定 task_names 時 init_weights 長度必須 ∈ {sorted(_DEFAULT_TASK_LAYOUTS)}，收到 {n}"
+                )
+            task_names = list(_DEFAULT_TASK_LAYOUTS[n])
+        else:
+            if len(task_names) != len(init_weights):
+                raise ValueError(
+                    f"task_names 長度 ({len(task_names)}) 與 init_weights ({len(init_weights)}) 不符"
+                )
+        self.task_names: tuple[str, ...] = tuple(task_names)
 
     @property
     def weights(self) -> torch.Tensor:
         return torch.exp(self.log_weights)
+
+    def index_of(self, name: str) -> int:
+        """What: 回傳 task 名稱對應 index；找不到 raise KeyError。"""
+        try:
+            return self.task_names.index(name)
+        except ValueError as e:
+            raise KeyError(f"task name {name!r} 不在 {self.task_names}") from e
+
+    def __contains__(self, name: str) -> bool:
+        return name in self.task_names
 
     def normalize_to_data_(self) -> None:
         """固定 w_data = 1，其餘 task 表示相對 data 的比例。
@@ -36,6 +73,59 @@ class GradNormWeights(nn.Module):
         """
         with torch.no_grad():
             self.log_weights -= self.log_weights[0].clone()
+
+
+class AugmentedLagrangianMultiplier(nn.Module):
+    """What: 單一 scalar penalty multiplier (λ, ρ) for one scalar constraint C ≥ 0.
+
+    Why: continuity 是純 scalar、無 gauge 自由度。因為 C = mean((∇·u)²) ≥ 0，
+         本實作其實是 accumulated-multiplier penalty schedule，不是 textbook 對
+         signed g(x)=0 的 AL；λ 單調非減直到 hit clip。命名沿用 AL 以對齊文獻。
+         不繼承 nn.Parameter（λ 不靠 gradient 更新，靠 dual ascent）。
+
+    參考 spec: docs/superpowers/specs/2026-05-04-al-continuity-design.md §3
+    """
+
+    def __init__(
+        self,
+        init_lambda: float = 0.0,
+        rho: float = 1.0,
+        lambda_clip: float = 10.0,
+        ema_momentum: float = 0.5,
+    ) -> None:
+        super().__init__()
+        # 全部用 buffer（含 _initialized）→ state_dict 完整保存，resume 不會 EMA cold-start
+        self.register_buffer("lambda_", torch.tensor(float(init_lambda)))
+        self.register_buffer("ema_C", torch.tensor(0.0))
+        self.register_buffer("_initialized", torch.tensor(False))
+        # rho / lambda_clip / ema_momentum 為靜態 hyperparameter（v1 不 schedule）→ Python float
+        self.rho = float(rho)
+        self.lambda_clip = float(lambda_clip)
+        self.ema_momentum = float(ema_momentum)
+
+    def loss_term(self, C: torch.Tensor) -> torch.Tensor:
+        """λ·C + (ρ/2)·C² — primal-side differentiable term.
+
+        Gradient 只流過 C（lambda_ 是 buffer 不接 autograd，rho 是 Python float）。
+        """
+        return self.lambda_ * C + 0.5 * self.rho * C ** 2
+
+    @torch.no_grad()
+    def update(self, C_batch: torch.Tensor) -> None:
+        """Dual update：λ ← clip(λ + ρ·C̃, 0, Λ)。
+
+        - C ≥ 0 always（squared divergence），故 lower clip = 0（負 λ 物理上無意義）
+        - 用 out-of-place clamp 後寫回 lambda_，避免 in-place on temp 失效
+        - C_batch 必須 scalar 或 numel==1 tensor；其他 shape 由 reshape 自然 raise
+        """
+        c_val = C_batch.detach().reshape(()).to(self.ema_C.device, self.ema_C.dtype)
+        if self.ema_momentum > 0.0 and bool(self._initialized.item()):
+            self.ema_C.mul_(self.ema_momentum).add_(c_val * (1.0 - self.ema_momentum))
+        else:
+            self.ema_C.copy_(c_val)
+            self._initialized.fill_(True)
+        new_lambda = (self.lambda_ + self.rho * self.ema_C).clamp(0.0, self.lambda_clip)
+        self.lambda_.copy_(new_lambda)
 
 
 def _gradnorm_step(
