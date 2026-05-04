@@ -14,8 +14,10 @@
 # Hypothesis: div_L2 < 0.05；KE relative error ≤ 9% (允許 trade-off)
 # Falsifiability: div_L2 連續 1000 steps 上升 → AL ρ 太大或 lambda_clip 太低
 #
-# 注意：physics_loss_weight = 0.01 是從 EXP-064 GradNorm 收斂值估計（spec §11 Q3）。
-#       理想做法是先跑 EXP-064 拿 final w_ns_u/w_ns_v 硬編碼進來，但為先做 smoke 用近似值。
+# physics_loss_weight = 0.057：從 EXP-064 (artifacts/.../exp064-sensor-physics) step 10000
+# GradNorm 收斂值取得，w_ns_u=0.0583, w_ns_v=0.0560 → 平均 0.057。
+# 因為 EXP-070 用 l_total = phys_weight · (l_ns_u + l_ns_v)（合併單一權重），
+# 對應 EXP-064 的 w_ns_u·l_ns_u + w_ns_v·l_ns_v ≈ 0.057·(l_ns_u + l_ns_v)。
 #
 # Spec ref: docs/superpowers/specs/2026-05-04-al-continuity-design.md §7 EXP-070
 
@@ -51,7 +53,7 @@ operator_rank = 256
 
 # Loss weights
 data_loss_weight = 1.0
-physics_loss_weight = 0.01    # 對應 EXP-064 GradNorm 收斂後的 ns_u/ns_v 量級（Open Q3）
+physics_loss_weight = 0.057   # 來自 EXP-064 step 10000 GradNorm 收斂：mean(w_ns_u, w_ns_v) ≈ 0.057
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 0.0       # AL 接管，必為 0（_validate_al_config 會 assert）

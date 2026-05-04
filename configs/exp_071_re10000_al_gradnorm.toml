@@ -52,7 +52,7 @@ operator_rank = 256
 
 # Loss weights
 data_loss_weight = 1.0
-physics_loss_weight = 0.01    # GradNorm 接管後不作為乘數，但保留為 fallback
+physics_loss_weight = 0.057   # GradNorm 接管後不作為乘數；保留為 fallback（與 EXP-070 對齊）
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 0.0       # AL 接管 cont
@@ -90,7 +90,9 @@ use_gradnorm = true
 gradnorm_update_freq = 1000
 gradnorm_ema_momentum = 0.9
 gradnorm_tasks = ["data", "ns_u", "ns_v"]
-gradnorm_init_weights = [1.0, 0.01, 0.01]
+gradnorm_init_weights = [1.0, 0.057, 0.057]   # warm start at EXP-064 step-10k convergence
+                                              # 避免 GradNorm 在前 ~5k 步重新爬升的 transient
+                                              # 干擾 EXP-070 vs EXP-071 對照
 
 # AL-continuity 設定（spec v4 §3）
 use_augmented_lagrangian = true
