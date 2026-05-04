@@ -2335,6 +2335,80 @@ h_new = gate · f1 + (1 - gate) · f2</div>
             </figure>
           </div>
         </div>
+
+        <div class="gallery-card">
+          <div class="gallery-head">
+            <h3>Physics Constraints</h3>
+            <div class="gallery-sub">incompressibility &amp; NS residual</div>
+          </div>
+          <p>
+            PINN 訓練的核心驗證：模型輸出是否仍貼近 NS 方程。
+            這組圖直接量化 momentum / continuity / divergence 在全段時間的殘差量級。
+          </p>
+          <div class="gallery-grid" style="margin-top: 14px;">
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Divergence</div>
+                <h3>‖∇·u‖₂ vs Time</h3>
+              </div>
+              <img src="assets/exp064/divergence_vs_time.png" alt="EXP-064 divergence L2 versus time">
+              <figcaption class="figure-caption">
+                不可壓縮性 <code>∇·u = 0</code> 的全域殘差時序。LNN 重建的 div_l2 mean 為 <code>0.184</code>
+                （DNS 數值差分本身為 <code>0.092</code>，差距源於 LNN 在 sensor 稀疏區的局部 div 漂移）。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">NS Residual</div>
+                <h3>NS Momentum &amp; Continuity RMS</h3>
+              </div>
+              <img src="assets/exp064/ns_residual_vs_time.png" alt="EXP-064 NS residual versus time">
+              <figcaption class="figure-caption">
+                NS-u / NS-v / Continuity 殘差 RMS 隨時間演化（log scale）。
+                LNN 與 DNS 的 momentum 殘差差距反映模型對黏性項與壓力梯度的擬合品質；
+                continuity 殘差是 GradNorm 直接優化的 task。
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+
+        <div class="gallery-card">
+          <div class="gallery-head">
+            <h3>Spectral Bands &amp; Vorticity</h3>
+            <div class="gallery-sub">CS limit visualization</div>
+          </div>
+          <p>
+            這組圖直接視覺化 K=100 上限：低頻已重建、中高頻完全失真。
+            band energy error 是 Section 08 資訊論論述的實驗證據。
+          </p>
+          <div class="gallery-grid" style="margin-top: 14px;">
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Bands</div>
+                <h3>Band Energy Relative Error</h3>
+              </div>
+              <img src="assets/exp064/band_energy_rel_error_vs_time.png" alt="EXP-064 band energy relative error versus time">
+              <figcaption class="figure-caption">
+                Low-k（k≤8）band 維持 ≈3.6% 誤差；Mid-k（k~8..16）與 High-k（k&gt;16）長期維持 ≈100%。
+                這正是 Compressed Sensing 對 K=100 sensor 的數學上限——直接觀察證據（詳見 Section 08）。
+              </figcaption>
+            </figure>
+
+            <figure class="figure-card">
+              <div class="figure-head">
+                <div class="mini-label">Enstrophy</div>
+                <h3>Enstrophy &amp; Vorticity Error</h3>
+              </div>
+              <img src="assets/exp064/enstrophy_vs_time.png" alt="EXP-064 enstrophy versus time">
+              <figcaption class="figure-caption">
+                Enstrophy（渦度平方積分量）反映高頻能量。LNN Ens rel-err 為 <code>29.1%</code>，
+                高於 KE rel-err（7.8%）顯示 ω ∝ k 的高頻放大效應；vorticity 場能識別主旋渦但
+                細節被平滑（同樣是 K=100 上限的另一面）。
+              </figcaption>
+            </figure>
+          </div>
+        </div>
       </div>
 
       <h3 style="margin-top: 28px; color: var(--text-hi); font-size: 19px; letter-spacing: -0.01em;">
@@ -2409,109 +2483,7 @@ h_new = gate · f1 + (1 - gate) · f2</div>
   </section>
 
   <section class="section">
-    <div class="section-label">08 · Cylinder Wake Case Study</div>
-    <div class="panel">
-      <h2 class="panel-title">Generalization to non-periodic domain: cylinder wake at Re ≈ 10031</h2>
-      <p class="panel-desc">
-        將同一 Pi-LNN 框架擴展到非週期域（cylinder wake）驗證泛化能力。
-        關鍵發現：感測器 100% 集中尾跡時，必須額外提供 inflow boundary condition loss
-        錨定來流速度，否則模型在 x≈0 區域系統性輸出 u≈0，造成 KE rel-err 51%。
-        加入 BC loss 後 KE 降至 3.5%（14.5× 改善），達到與 Kolmogorov baseline 相當的精度。
-      </p>
-
-      <div class="case-grid">
-        <div class="case-card">
-          <h3>CEXP-001 — No BC (Failure)</h3>
-          <p>
-            原始 baseline 配置直接套用至 cylinder 資料：K=100 感測器（QR-pivot 選自 RealPDEBench），
-            <code>Re=10031</code>，僅以 sensor MSE + NS residual 訓練。
-          </p>
-          <div class="signal-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 14px;">
-            <div class="signal-card">
-              <div class="metric-label">KE Rel-Err</div>
-              <div class="metric-value bad">51%</div>
-              <div class="metric-note">場系統性低估 50%；上游 u≈0。</div>
-            </div>
-            <div class="signal-card">
-              <div class="metric-label">div L2</div>
-              <div class="metric-value warn">1.13</div>
-              <div class="metric-note">不可壓縮性顯著違反。</div>
-            </div>
-          </div>
-          <p style="margin-top: 12px;">
-            <strong>根因：</strong>感測器布局 100% 落於尾跡（x &gt; 0.10），來流區（x ≈ 0）
-            無觀測 supervision，physics residual 不足以鎖定來流速度方向，模型收斂至能量低估解。
-          </p>
-        </div>
-
-        <div class="case-card">
-          <h3>CEXP-002 — With Inflow BC ✓</h3>
-          <p>
-            在 x=0 邊界採樣 64 點，加入 BC loss 懲罰 <code>(u − u<sub>inf</sub>)² + v²</code>，
-            其中 <code>u<sub>inf</sub> = 0.33 m/s</code>（來自 DNS）。BC loss weight 0.1。
-          </p>
-          <div class="signal-grid" style="grid-template-columns: repeat(2, 1fr); margin-top: 14px;">
-            <div class="signal-card">
-              <div class="metric-label">KE Rel-Err</div>
-              <div class="metric-value good">3.5%</div>
-              <div class="metric-note">14.5× 改善 vs CEXP-001。</div>
-            </div>
-            <div class="signal-card">
-              <div class="metric-label">u / v RMSE</div>
-              <div class="metric-value good">0.103 / 0.106</div>
-              <div class="metric-note">渦街結構可識別；Kármán 渦核位置偏移已收斂。</div>
-            </div>
-          </div>
-          <p style="margin-top: 12px;">
-            <strong>結論：</strong>所有非週期域問題必須在 config 中明確指定 inflow BC 參數
-            （<code>bc_loss_weight</code>、<code>bc_inflow_u</code>、<code>bc_n_points</code>），
-            Kolmogorov 週期域則不需要——這是 Pi-LNN 跨域應用的通用規則。
-          </p>
-        </div>
-      </div>
-
-      <div class="gallery-grid" style="margin-top: 18px;">
-        <figure class="figure-card">
-          <div class="figure-head">
-            <div class="mini-label">Velocity Field</div>
-            <h3>DNS vs Pi-LNN Velocity at t = 10.05 s</h3>
-          </div>
-          <img src="assets/cylinder/cexp002_field_comparison_t10.png" alt="CEXP-002 velocity field DNS vs Pi-LNN comparison">
-          <figcaption class="figure-caption">
-            CEXP-002 在 t ≈ 10s 的 (u, v) 場 — 上排 DNS / Pi-LNN / Error，下排同圖。
-            Pi-LNN 重建出尾跡渦對與來流均勻 u ≈ 0.33 m/s，主要誤差集中於圓柱表面附近的高梯度區。
-          </figcaption>
-        </figure>
-
-        <figure class="figure-card">
-          <div class="figure-head">
-            <div class="mini-label">Vorticity</div>
-            <h3>DNS vs Pi-LNN Vorticity at t = 10.05 s</h3>
-          </div>
-          <img src="assets/cylinder/cexp002_vorticity_comparison_t10.png" alt="CEXP-002 vorticity DNS vs Pi-LNN comparison">
-          <figcaption class="figure-caption">
-            渦度比較顯示 Kármán 渦街拓樸與旋轉方向被正確學到；
-            渦核強度受 K=100 sensor 限制略被平滑，與 Kolmogorov 中高頻結果同調（CS 上限）。
-          </figcaption>
-        </figure>
-      </div>
-
-      <figure class="figure-card" style="margin-top: 16px;">
-        <div class="figure-head">
-          <div class="mini-label">Temporal</div>
-          <h3>Kinetic Energy vs Time</h3>
-        </div>
-        <img src="assets/cylinder/cexp002_ke_vs_time.png" alt="CEXP-002 kinetic energy versus time">
-        <figcaption class="figure-caption">
-          KE(t) 振盪頻率與相位皆對齊 DNS（Strouhal number 已正確學到）；
-          振幅峰值較 DNS 高 ~10%，整體 KE rel-err = 3.5%。
-        </figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">09 · Information-Theoretic Limits</div>
+    <div class="section-label">08 · Information-Theoretic Limits</div>
     <div class="panel">
       <h2 class="panel-title">K=100 sensors: the mathematical ceiling of sparse reconstruction</h2>
       <p class="panel-desc">
@@ -2644,7 +2616,7 @@ h_new = gate · f1 + (1 - gate) · f2</div>
   </section>
 
   <section class="section">
-    <div class="section-label">10 · Code Anchors</div>
+    <div class="section-label">09 · Code Anchors</div>
     <div class="panel">
       <h2 class="panel-title">The page points back to the real implementation</h2>
       <p class="panel-desc">
@@ -2684,7 +2656,7 @@ seq = new_seq + seq if layer_idx &gt; 0 else new_seq</code></pre>
   </section>
 
   <footer class="footer">
-    <span>Pi-LNN · Sparse Sensor Flow Reconstruction · Kolmogorov KE 7.80% · Cylinder KE 3.5%</span>
+    <span>Pi-LNN · Sparse Sensor Flow Reconstruction · Re=10000 Kolmogorov · KE 7.80%</span>
     <span>DeepONet + CfC · NS-constrained · K=100 · CS limit confirmed × 4 (EXP-066/067/068/069)</span>
   </footer>
 
