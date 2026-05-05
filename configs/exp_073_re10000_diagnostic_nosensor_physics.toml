@@ -1,0 +1,109 @@
+# configs/exp_073_re10000_diagnostic_nosensor_physics.toml
+# What: EXP-073 — DIAGNOSTIC：EXP-064 完全相同，僅關閉 use_sensor_physics。
+#
+# Why: EXP-070/070b/072 三組 (各自不同物理機制) 評估時呈現完全相同的場崩潰：
+#        u/v RMSE ~0.25/0.20 (3.6× baseline)
+#        KE rel-err ~84% (10× baseline)
+#        omega ~0 → field 接近 mean field
+#      共同特徵：除了 EXP-072 外，都關閉 use_sensor_physics（AL spec 強制）。
+#      EXP-072 雖開 sensor_physics，但 GradNorm 5-task + Poisson 把權重推飛 (w_ns~2.0)。
+#
+# Hypothesis: use_sensor_physics 是 EXP-064 場品質保住的核心；
+#             K=100 sensors 額外的物理約束點是 generalization 關鍵。
+#
+# Diagnostic 設計：
+#   - 與 EXP-064 完全相同
+#   - 只改：use_sensor_physics = false
+#   - 預測：若也崩 → 確認 sensor_physics 是場品質關鍵
+#           若不崩 → AL/Poisson 本身有更深問題（不是 sensor_physics）
+#
+# 唯一改動 (vs EXP-064):
+#   - use_sensor_physics: true → false
+#   - num_sensor_physics_time_samples: 1 → 0 (防呆)
+#   - sensor_physics_start_step: 1000 → 99999 (防呆)
+#   - checkpoint_period: 500 → 5000 (磁碟安全)
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-064 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights — 與 EXP-064 完全一致
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# GradNorm — 與 EXP-064 完全一致
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# AL — 不啟用
+use_augmented_lagrangian = false
+
+checkpoint_period = 5000              # ← 改：500 → 5000（磁碟安全）
+seed = 42
+device = "mps"
+
+# ← 唯一診斷改動：sensor_physics 全部關
+use_sensor_physics = false
+num_sensor_physics_time_samples = 0
+sensor_physics_start_step = 99999
+
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp073-diagnostic-no-sensor-physics"

@@ -97,14 +97,36 @@ EXP-064 (Kolmogorov, K=100, Re=10000) 已建立基線：
 
 ---
 
-## 7. 觸發重新評估的條件
+## 7. 觸發重新評估的條件 / 已執行實驗回饋
+
+### 7.1 EXP-070..073 實驗結果（2026-05-04 ~ 2026-05-06）
+
+| Exp | Setup | div L2 | u RMSE | KE rel-err | 結論 |
+|---|---|---|---|---|---|
+| EXP-064 (baseline) | GradNorm 4-task, sensor_physics=true | 0.184 | 0.069 | 7.8% | 場品質保住 |
+| EXP-070 | AL ρ=1.0, clip=10, **sensor_physics=false** | 0.040 ✓ | 0.252 | **84.3%** | 場崩潰 |
+| EXP-070b | AL ρ=0.1, clip=0.05, **sensor_physics=false** | 0.170 | 0.251 | **84.4%** | 場崩潰（不是 AL 強度問題）|
+| EXP-072 | Poisson + GradNorm 5-task, sensor_physics=true | 0.089 | 0.253 | **84.7%** | 場崩潰（GradNorm w_ns 暴走至 ~2.0）|
+| **EXP-073** (diagnostic) | **EXP-064 同設定 - sensor_physics**(只關此一) | 0.118 | 0.251 | **84.5%** | **崩潰** — 確認 sensor_physics 是關鍵 |
+
+**核心發現**：四個崩潰的 EXP（070/070b/072/073）的 u/v/KE/ω metrics 像素級相同，只有 div_L2 隨 physics 強度浮動。**真正的差異變數不是 AL/Poisson/GradNorm，而是 `use_sensor_physics`**。
+
+**機制**：K=100 sensor 位置在 wavelet 域對 k≤16 條件數約 11（well-conditioned），是稀疏場景下唯一能穩定 anchoring 物理約束的點集。隨機 collocation 64 點/step 沒有此 conditioning 保證。EXP-064 GradNorm 收斂到 w_ns≈0.057 / w_cont≈0.039 是 **K=100 場景下能保住場品質的最強物理壓力**；任何把 effective physics gradient 推遠超此值的設計（AL ramp、5-task GradNorm 推飛、隨機 collocation 主導）都會把模型推離 informationally feasible region。
+
+### 7.2 結論：AL spec v5 (Option 2) 取代 v4
+
+v4 設計把 `use_sensor_physics=false` 寫進 pre-condition assert（理由是 sum-of-two-means 污染 EMA）。v5 反向：**AL constraint C 必須從 sensor 位置 cont² 計算，`use_sensor_physics=true` 為必要條件**。
+
+此修正與 ADR-001 §1 主張（sparse-sensor reconstruction 受 information-theoretic limit 約束）邏輯一致：物理約束的有效性受限於 sensor 條件數，而非可由模型強行壓出來。
+
+### 7.3 解凍清單（保留原條款 + 新增）
 
 下列任一發生時，本 ADR 部分條款可重新討論：
 
-- **AL-continuity (EXP-070..072) 都未能將 div L2 從 0.184 降到 < 0.05** → 重新考慮 stream function reparam 或 pseudo-FVM。
-- **K-ablation 顯示 K=200 對 mid-band 有顯著改善** → information bottleneck 論述需修正，可能值得做 K=500 並重新評估 sensor placement uncertainty。
-- **multi-Re / multi-forcing 訓練成為主線** → 解凍 global physics tokens 的討論。
-- **bidirectional CfC ablation 顯示 t≈0 仍有顯著誤差** → 解凍 temporal window attention。
+- **EXP-074 (AL Option 2) 仍未能達 div L2 < 0.10** → AL 機制本身與 sensor_physics 共存仍有問題 → 重新考慮 stream function reparam 或 pseudo-FVM
+- **K-ablation 顯示 K=200 對 mid-band 有顯著改善** → information bottleneck 論述需修正，可能值得做 K=500 並重新評估 sensor placement uncertainty
+- **multi-Re / multi-forcing 訓練成為主線** → 解凍 global physics tokens 的討論
+- **bidirectional CfC ablation 顯示 t≈0 仍有顯著誤差** → 解凍 temporal window attention
 
 ---
 

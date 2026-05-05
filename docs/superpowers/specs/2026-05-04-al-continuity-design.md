@@ -606,6 +606,15 @@ v2 改用 **C_ema** 作為主要收斂指標：
   - §9 風險表加 LBFGS 契約 / clip 飽和 / resume cold-start 共 3 項
   - §10 tests 從 3 個擴成 7 個（補 checkpoint round-trip / NG raise / clip boundary / multi-RE）+ smoke 從 100 → 300 steps
 
+- **v5 (2026-05-06)**：EXP-070..073 實驗證實 v1-v4 的 `use_sensor_physics=false` pre-condition 是錯誤假設。EXP-073 diagnostic（=EXP-064 完全相同 - 只關 sensor_physics）也產生與 EXP-070/070b/072 完全相同的場崩潰（u/v RMSE ~0.25, KE 84%, ω~0），證實 K=100 sensor 位置是 well-conditioned constraint 點，是場品質保住的核心。v5 反轉設計（Option 2）：
+  - **§3 Pre-condition 翻轉**：`use_sensor_physics=true` 從「禁止」變「必要」
+  - **§4 AL constraint 來源**：C = `mean(cont²)` at sensor positions only（well-conditioned subset），而非整個 random colloc 集合
+  - **§4 dual update**：用 `l_cont_sensor_total`（與 `al_term` 同源），確保 primal-dual 一致性
+  - **訓練 loop**：新增 `l_cont_sensor_total` accumulator 與 `l_cont_total` 並列；非 AL 路徑保持原行為（cont = random + sensor 兩者和）
+  - **§6 `_validate_al_config`**：`use_sensor_physics=False` 時 raise（取代之前的 True 時 raise）
+  - **§10 tests**：`test_al_validator.py` 改測 `without_sensor_physics_raises`；`_base_al_on()` fixture 改 `use_sensor_physics=True`
+  - **EXP-074** 為 v5 首次驗證 run，clip=0.05 + sensor_physics=true + AL Option 2
+
 - **v4 (2026-05-04)**：第三輪 architect-review 抓出 v3 的 BLOCKER B-V3-1 — `pin_(w_al)=1.0` 看似解耦但 `_gradnorm_step` 內 `mean_G = mean(G_stack)` 仍含 `G_al`，污染 `w_ns_u/w_ns_v` 計算。v4 修補：
   - **§5 / §4 / §7 EXP-071**：AL term **完全不進 `gn_losses` 列表**。`gradnorm_tasks = ["data","ns_u","ns_v"]`（3 元素），AL term 在 GradNorm 之外以 weight=1 加進 `l_total`。從根本上消除 `G_al → mean_G → sibling weights` 的耦合鏈
   - **§5**：移除 `GradNormWeights.pin_(name, value)` API（v3 設計，不再需要）

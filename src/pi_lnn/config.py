@@ -255,9 +255,10 @@ def _validate_al_config(cfg: dict[str, Any]) -> None:
         raise ValueError(
             f"AL active 時 continuity_weight 必須 = 0，收到 {cfg['continuity_weight']}"
         )
-    if cfg.get("use_sensor_physics", False):
+    if not cfg.get("use_sensor_physics", False):
         raise ValueError(
-            "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
+            "AL v5 (Option 2) 必須 use_sensor_physics=true — AL constraint 從 sensor 位置 cont² "
+            "(well-conditioned, K=100, cond≈11) 計算。EXP-073 diagnostic 證實這是場品質保住的關鍵。"
         )
     tasks = list(cfg.get("gradnorm_tasks", []) or [])
     if tasks and "cont" in tasks:

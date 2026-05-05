@@ -1,0 +1,112 @@
+# configs/exp_070b_re10000_al_pure_rho_lite.toml
+# What: EXP-070b v2 — al_lambda_clip 0.05 + ρ=0.1 → 把 AL 等效強度卡在 EXP-064 baseline。
+#
+# Why: EXP-070 (ρ=1.0, clip=10) 結果失敗：
+#        div_L2: 0.184 → 0.040 ✓ 達標
+#        u/v RMSE: 3.3-3.7× worse
+#        KE rel-err: 7.8% → 84.3% (10.8× worse)  ← 場崩潰
+#      EXP-072 (Poisson + 5-task GradNorm) 完全相同的 collapse pattern。
+#
+# 失敗根因（已分析）：兩條路徑各自把 effective physics 壓力推到 EXP-064 的 30-46×：
+#   - EXP-064 baseline: GradNorm 收斂在 w_cont = 0.039（K=100 sparse 場景的「自然平衡點」）
+#   - EXP-070: λ + ρC = 1.78（46× 過強）→ 模型放棄場結構去滿足 div=0
+#   - EXP-072: GradNorm 把 w_ns 推到 ~2.0（35× 過強）→ Poisson 干擾平衡
+#
+# v2 修法：把 AL effective penalty 卡在 EXP-064 等效強度
+#   - al_lambda_clip 10.0 → 0.05（cap λ at EXP-064 w_cont = 0.039 量級）
+#   - al_rho 1.0 → 0.1（讓 λ 在前 ~500 步 ramp 到 clip，後段穩定）
+#   - 結果：effective gradient = (λ + ρC) ≈ 0.05 + 0.1·0.005 ≈ 0.0505 ≈ EXP-064 w_cont
+#
+# Disk safety:
+#   - checkpoint_period 500 → 5000（只存 step 5000 + final.pt，省 1.6GB）
+#
+# Hypothesis: div_L2 ≈ 0.10-0.15（vs EXP-064 0.184），u/v RMSE ≤ 1.3× baseline，
+#             KE rel-err ≤ 1.5× baseline → 證明 EXP-064 的 cont 強度就已經是上限
+#
+# Falsifiability: 若仍崩 → 即使等效強度，AL 的「λ ramp 動態」本身就破壞訓練
+#                 若改善但 div 不降 → AL 無法贏過 GradNorm-on-cont
+#
+# Spec ref: docs/superpowers/specs/2026-05-04-al-continuity-design.md §9 Risks +
+#           實驗結論補入 ADR-001 §7 重評估區
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-064/070 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights（與 EXP-070 相同）
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = false
+
+# AL-continuity 設定 — v2 變更：clip 大幅縮小到 EXP-064 等效強度
+use_augmented_lagrangian = true
+al_init_lambda = 0.0
+al_rho = 0.1                  # 適中 ramp 速率
+al_update_freq = 100
+al_lambda_clip = 0.05         # ← v2 關鍵：cap λ at EXP-064 w_cont ≈ 0.039 量級
+al_ema_momentum = 0.5
+
+checkpoint_period = 5000      # ← v2: 省磁碟（只存 step 5000 + final.pt）
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/deeponet-cfc-re10000-exp070b-al-pure-rho-lite"

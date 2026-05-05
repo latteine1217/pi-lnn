@@ -366,13 +366,16 @@ def train_lnn_kolmogorov(
     al_update_freq = int(args.get("al_update_freq", 100))
     if use_al:
         # Pre-condition asserts（runtime fail-fast；config-load _validate_al_config 也會擋）
+        # spec v5 (Option 2): AL constraint 從 sensor 位置 cont²（well-conditioned, K=100, cond≈11）
+        # 計算 — 這是 EXP-064 場品質保住的關鍵。EXP-073 diagnostic 確認 use_sensor_physics=true
+        # 是必要條件（關掉就崩成 mean field，無論用什麼 GradNorm/AL 設定）。
         assert args["lr_schedule"] != "ng", "AL incompatible with lr_schedule='ng'"
         assert not (args["lr_schedule"] == "lbfgs" and use_gradnorm), \
             "AL + LBFGS 不支援 use_gradnorm（closure race）"
         assert float(args.get("continuity_weight", 0.0)) == 0.0, \
             "AL active 時 continuity_weight 必須 = 0，否則 cont 被雙重 penalty"
-        assert not bool(args.get("use_sensor_physics", False)), \
-            "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
+        assert bool(args.get("use_sensor_physics", False)), \
+            "AL v5 (Option 2) 必須 use_sensor_physics=true — AL constraint 從 sensor 位置 cont²計算"
         if use_gradnorm and gn_weights is not None:
             assert "cont" not in gn_weights, "AL active 時 'cont' 必須從 gradnorm_tasks 移出"
             assert "al" not in gn_weights, \
@@ -973,6 +976,9 @@ def train_lnn_kolmogorov(
                 l_ns_v_total = torch.zeros(1, device=device)
                 l_ns_total = torch.zeros(1, device=device)
                 l_cont_total = torch.zeros(1, device=device)
+                # AL v5 (Option 2): 額外追蹤 sensor 位置的 cont² mean（well-conditioned subset）
+                # — 給 AL update 用作 C；非 AL 路徑不使用此值，l_cont_total 仍含 sensor cont
+                l_cont_sensor_total = torch.zeros(1, device=device)
                 l_poisson_total = torch.zeros(1, device=device)
                 phys_strategy = str(args.get("physics_collocation_strategy", "random"))
                 phys_normalize = bool(args.get("physics_residual_normalize", False))
@@ -1061,7 +1067,9 @@ def train_lnn_kolmogorov(
                         du_dx_sp = _grad(u_sp, _xyt_sp)[:, 0:1]
                         dv_dy_sp = _grad(v_sp, _xyt_sp)[:, 1:2]
                         cont_sp = du_dx_sp + dv_dy_sp
-                        l_cont_total = l_cont_total + torch.mean(cont_sp ** 2)
+                        _sensor_mean = torch.mean(cont_sp ** 2)
+                        l_cont_total = l_cont_total + _sensor_mean
+                        l_cont_sensor_total = l_cont_sensor_total + _sensor_mean
                     if poisson_weight > 0.0:
                         poisson_res = pressure_poisson_residual(uvp_fn, xyt, Lx=ds.Lx, Ly=ds.Ly)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
@@ -1206,6 +1214,7 @@ def train_lnn_kolmogorov(
                 l_ns_v_total = l_ns_v_total / num_re
                 l_ns_total = l_ns_u_total + l_ns_v_total
                 l_cont_total = l_cont_total / num_re
+                l_cont_sensor_total = l_cont_sensor_total / num_re
                 l_poisson_total = l_poisson_total / num_re
                 l_physics = (
                     l_ns_total
@@ -1220,12 +1229,17 @@ def train_lnn_kolmogorov(
                 l_bc_total   = torch.zeros(1, device=device)
                 l_physics = torch.zeros(1, device=device)
 
-            # AL term（spec v4 §4）：在組 l_total 之前一次計算，後面分支共用
-            # 注意：l_cont_total 在 AL 模式下強制為 random-collocation 單一 mean
-            # （use_sensor_physics 已被 pre-condition assert 強制 false）
+            # AL term（spec v5 §4 Option 2）：
+            # AL 用 l_cont_sensor_total（well-conditioned, K=100, cond≈11 for k≤16）作為 constraint C，
+            # 而非 l_cont_total（含 random colloc，條件數差）。
+            # 為何：EXP-073 diagnostic 證實 use_sensor_physics 是場品質保住的關鍵；
+            #       sensor 位置殘差是最具資訊量的物理約束點。
             al_term: torch.Tensor | None = None
+            al_C_for_update: torch.Tensor | None = None
             if al_cont is not None:
-                al_term = al_cont.loss_term(l_cont_total)
+                # Option 2: AL 只看 sensor 位置 cont² (already use_sensor_physics=true asserted)
+                al_C_for_update = l_cont_sensor_total
+                al_term = al_cont.loss_term(al_C_for_update)
 
             # ── Loss 組合與 backward ────────────────────────────────────────────
             if use_gradnorm and gn_weights is not None:
@@ -1306,10 +1320,11 @@ def train_lnn_kolmogorov(
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
 
-            # AL dual update（spec v4 §4）— 嚴格在 optimizer.step() 之後，且 step > 0 才動
-            # 用的是 pre-step 計算的 l_cont_total（一步延遲，acceptable，spec 已說明）
+            # AL dual update（spec v5 §4 Option 2）— 嚴格在 optimizer.step() 之後，且 step > 0 才動
+            # 用 sensor 位置的 l_cont_sensor_total（與 al_term 計算用同一 C，保持 dual update 一致）
             if al_cont is not None and step > 0 and step % al_update_freq == 0:
-                al_cont.update(l_cont_total.detach())
+                assert al_C_for_update is not None
+                al_cont.update(al_C_for_update.detach())
 
         if scheduler is not None:
             scheduler.step()

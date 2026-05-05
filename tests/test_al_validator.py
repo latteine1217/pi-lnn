@@ -29,7 +29,7 @@ def _base_al_on(**overrides):
         **DEFAULT_LNN_ARGS,
         "use_augmented_lagrangian": True,
         "continuity_weight": 0.0,
-        "use_sensor_physics": False,
+        "use_sensor_physics": True,   # v5 Option 2 required
         "lr_schedule": "soap",
     }
     cfg.update(overrides)
@@ -71,9 +71,10 @@ def test_al_with_continuity_weight_nonzero_raises() -> None:
         _validate_al_config(_base_al_on(continuity_weight=1.0))
 
 
-def test_al_with_sensor_physics_raises() -> None:
-    with pytest.raises(ValueError, match="use_sensor_physics"):
-        _validate_al_config(_base_al_on(use_sensor_physics=True))
+def test_al_without_sensor_physics_raises() -> None:
+    """v5 Option 2: AL 必須 use_sensor_physics=true（先前 v1-v4 是反向限制）。"""
+    with pytest.raises(ValueError, match="use_sensor_physics=true"):
+        _validate_al_config(_base_al_on(use_sensor_physics=False))
 
 
 def test_al_with_cont_in_tasks_raises() -> None:
