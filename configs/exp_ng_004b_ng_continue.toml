@@ -1,0 +1,74 @@
+# configs/exp_ng_004b_ng_continue.toml
+# What: Phase B — NG 從 Adam warmup checkpoint resume，跑 100 步看 high-accuracy 細調。
+#
+# Why: Phase A 的 1000 步 AdamW 把 model 帶離 zero field、學到 base flow + IC；
+#      NG 此時看到的 J^T J 結構已有 meaningful curvature，physics gradient 訊號顯現。
+#      論文（Jnini 2026 Stokes）NG 階段約 1500 步收斂到 high accuracy；我們先 100 步試。
+#
+# Phase A → B 銜接：
+#   - resume_checkpoint = step_1000.pt（含 model_state_dict）
+#   - NG path 會跳過 optimizer state 載入（is_ng → 跳過），重建 fresh NG optimizer
+#   - LM 從 ng_damping=1e-4 開始，每步 accept 後 ÷2、reject 後 ×10
+#
+# Hypothesis: NG 100 步從 base flow 出發，l_phys 從 5e-3 降到 1e-4 量級
+# Falsifiability: 若 l_phys 仍卡 5e-3 不動，NG 對此 model 完全無能為力，
+#                 應放棄 NG 改用 LBFGS 或更長 Adam。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 與 exp_ng_004a 完全一致
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 1.0
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+num_query_points = 32
+num_physics_points = 16
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === Phase B: NG continuation ===
+lr_schedule = "ng"
+learning_rate = 1.0
+ng_damping = 1.0e-4
+ng_damping_strategy = "lm"
+ng_jacobi_scaling = true
+ng_max_residuals = 2000
+ng_solver_device = "cpu"
+ng_resample_freq = 50
+weight_decay = 0.0
+
+iterations = 1100               # resume from step 1000，跑到 step 1100（NG 100 步）
+checkpoint_period = 100
+seed = 42
+device = "cpu"
+artifacts_dir = "artifacts/exp_ng_004b_ng_continue"
+
+# 從 Phase A 的最後 checkpoint resume
+resume_checkpoint = "artifacts/exp_ng_004a_adam_warmup/checkpoints/lnn_kolmogorov_step_1000.pt"

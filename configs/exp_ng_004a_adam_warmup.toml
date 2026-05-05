@@ -1,0 +1,61 @@
+# configs/exp_ng_004a_adam_warmup.toml
+# What: Phase A — AdamW 暖機 1000 步，讓 model 離開 zero field 學到 base flow + IC，
+#       為後續 NG 細調提供有意義的 Hessian curvature 起點。
+#
+# Why: NG 在 cold-start zero field 上 LM 全部 reject step (見 NG003 50 步 l_phys 卡死)；
+#      原因是 model output ≈ 0 → NS residual 由 forcing 主導，physics gradient 訊號弱。
+#      論文 (Jnini 2026) Stokes 也採同 pattern: Adam/SOAP standalone warmup → 切 NG。
+#
+# 與 exp_ng_003 共用：架構、weights、resample、normalization。
+# 差異：lr_schedule="none" (AdamW), iterations=1000, checkpoint_period=1000
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 與 exp_ng_003 完全一致
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 1.0
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+num_query_points = 32
+num_physics_points = 16
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === Phase A: AdamW warmup ===
+lr_schedule = "none"             # AdamW with constant lr
+learning_rate = 1.0e-3
+weight_decay = 1.0e-4
+max_grad_norm = 1.0
+
+iterations = 1000
+checkpoint_period = 1000         # 在 step 1000 存完整 payload (model+optimizer+scheduler+step)
+seed = 42
+device = "cpu"
+artifacts_dir = "artifacts/exp_ng_004a_adam_warmup"

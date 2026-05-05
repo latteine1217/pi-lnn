@@ -1,0 +1,57 @@
+# configs/exp_ng_001_baseline_adam.toml
+# What: NG 對照組 — 同網路、同採樣、同 device (CPU)，跑 Adam 1500 步。
+# Why: 公平比較 NG vs Adam 在相近 wall-time 預算下的最終 loss。
+#      NG 200 步 ≈ 514s（CPU）；Adam CPU 每步 ~0.3s → 1500 步 ≈ 450s 對齊。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 模型：與 NG 完全一致
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+# Loss：與 NG 完全一致
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+# 採樣：與 NG 完全一致
+num_query_points = 32
+num_physics_points = 8
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === Adam baseline ===
+lr_schedule = "none"          # 純 Adam，無 schedule
+learning_rate = 1.0e-3
+weight_decay = 1.0e-4
+max_grad_norm = 1.0
+
+iterations = 1500             # wall-time 對齊（CPU Adam ~0.3s/step）
+checkpoint_period = 0
+seed = 42
+device = "cpu"
+artifacts_dir = "artifacts/exp_ng_001_baseline_adam"

@@ -41,9 +41,14 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     # --- Natural Gradient (Gauss-Newton) optimizer ---
     # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
     # 適用範圍：N (residuals) << P (params) 才划算（pi-lnn 典型 N~200, P~10⁵）。
-    "ng_damping": 1.0e-6,          # Levenberg-Marquardt λ 初值
+    "ng_damping": 1.0e-6,          # LM 正則化強度旋鈕。注意 ng_jacobi_scaling=True
+                                   # 時 effective regulariser 為 λD（row-magnitude
+                                   # weighted），非 isotropic λI；λ 仍是調整旋鈕，
+                                   # 但其絕對量級對應 row-relative 而非全域 isotropic。
+                                   # 詳見 solve_ng_step docstring。
     "ng_damping_strategy": "fixed",# "fixed" 或 "lm"（自適應，多花一次 closure）
-    "ng_jacobi_scaling": True,     # van der Sluis 對角預條件
+    "ng_jacobi_scaling": True,     # van der Sluis 對角預條件；改變 damping 結構，
+                                   # 見 ng_damping 與 solve_ng_step docstring。
     "ng_max_residuals": 2000,      # N 上限保護（O(N·P) 記憶體）
     "ng_solver_device": "cpu",     # 線性求解 device；cpu 對 fp64 最穩
     "ng_resample_freq": 50,        # collocation / sensor batch 重採頻率（步）；
