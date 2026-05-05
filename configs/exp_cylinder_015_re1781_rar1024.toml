@@ -1,0 +1,119 @@
+# configs/exp_cylinder_015_re1781_rar1024.toml
+# What: cylinder_014 (256+RAR) 仍偏離文獻；典型 PINN 用 1024-10000 collocation
+#       per epoch（Raissi 2019、NSFnets、Wang 2021）。本實驗 jump 到 1024 接近
+#       文獻 lower bound。
+#
+# Hypothesis（最終版）:
+#   - 64 random → 7 wake points / batch ≈ 3% wake gradient → 訓練 collapse
+#   - 256 + RAR → ~150 wake points expected → 50× signal 放大
+#   - 1024 + RAR → ~600 wake points → 完全 dominant，符合文獻 baseline
+#
+# 變更（vs cylinder_014）:
+#   num_physics_points:   256 → 1024  (4× 再放大)
+#   iterations:          5000 → 2500  (控 wall clock；1024 collocation 每 step ~3×慢)
+#
+# 預估資源:
+#   每 step 約 4-6 sec（vs 256 的 1.8 sec），2500 step ≈ 3-4 hr
+#   RAR pool size = 10240，每 50 step update 一次 ≈ 100 次 × 10s = ~17 min overhead
+#   M2 Mac MPS unified memory: 1024 collocation 估計 ~12-16 GB（tight 但可行）
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00020-of-00092.arrow",
+]
+re_values = [1781.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# Full capacity (cyl_013 證明降容量沒救)
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 96
+bc_slip_n_points = 32
+bc_outlet_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+# === 核心：collocation 1024 + RAR adaptive，比 cylinder_014 再 4× ===
+num_physics_points = 1024            # 64 → 256 → 1024 (16× vs cyl_012)
+physics_collocation_strategy = "rar"
+rar_update_freq = 50                  # 每 50 步 update pool
+# [RISK: KNOWN_PITFALLS — SOAP + rar_update_freq=50 觸發 EXP-053 失敗模式；
+#         穩定下限 ≥1000。延續 exp_014 探索路徑，需密切監控 L_phys 軌跡。]
+rar_pool_multiplier = 10              # pool size = 10240
+rar_exploration_ratio = 0.2           # 20% random 防 trivial trap
+
+use_hard_body_bc = true
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01, 0.1]
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 2500              # 5000 → 2500 控 wall clock；總 sample visits = 2.56M
+                               # vs cyl_012 的 320K（仍 8× 多 sample visits）
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 1000          # 2000 → 1000 (按比例縮小)
+soap_use_step_decay = true
+lr_decay_steps = 1000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 500
+
+checkpoint_period = 250         # 500 → 250 (iter 半，ckpt 也半)
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp015-re1781-rar1024"

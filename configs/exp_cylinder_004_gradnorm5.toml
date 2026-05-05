@@ -1,0 +1,103 @@
+# configs/exp_cylinder_004_gradnorm5.toml
+# What: cylinder K=100 + post-fix + **5-task GradNorm**（含 BC）。
+#       與 exp_003 唯一差異：gradnorm_init_weights 從 4 → 5 元素
+#       用於對比「BC 固定 weight vs GradNorm-managed」效果。
+#
+# Hypothesis: 5-task GradNorm 把 BC 也納入動態平衡 → 修 C3 後 BC 量級降 40×
+#             用 GradNorm 自動補回應有的 enforce 力度 → KE rel-err 應顯著改善
+# Falsifiability: 若 step 3000 KE rel-err > 15%（exp_003 同步數），表示 GradNorm-BC
+#                 沒幫助，可能因 BC gradient noise 太大。
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# BC：bc_loss_weight 不再作為乘數（5-task GradNorm 模式下用 ws[4]）
+# 但保留 init=0.1 給 GradNorm 起步時用同樣量級
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# === 5-task GradNorm（新版）===
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+# 5 個 init weights: [data, ns_u, ns_v, cont, bc]
+# bc 起始 0.1 跟 exp_003 的 bc_loss_weight=0.1 一致
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01, 0.1]
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 3000           # 短跑驗證，跟 exp_003 step 3000 控制變量比
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp004-gradnorm5"

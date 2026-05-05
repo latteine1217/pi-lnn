@@ -1,0 +1,104 @@
+# configs/exp_cylinder_006_bc_lite.toml
+# What: cylinder K=100 + B (lite outlet BC + moderate body) + C (body_aware sampling)
+#
+# 與 exp_005 差異（point budget 縮減）：
+#   bc_body_n_points:    256 → 96   (從 64 增 50%，不是 4×)
+#   bc_outlet_n_points:  64  → 32   (outlet 仍加但少量)
+#
+# 總 BC points: inflow 64 + body 96 + slip 32 + outlet 32 = 224
+#               (vs exp_004 160; vs exp_005 416)
+#
+# Hypothesis: lighter BC budget 仍能改善 wake fidelity，本地 MPS 跑得動。
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# === BC（lite 版）===
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 96       # ← 比 exp_004 (64) 多 50%
+bc_slip_n_points = 32
+bc_outlet_n_points = 32     # ← 新增但少量
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+# C：body_aware sampling（不變，SDF lookup 成本可忽略）
+physics_collocation_strategy = "body_aware"
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01, 0.1]
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 3000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp006-bc-lite"

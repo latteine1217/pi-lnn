@@ -1,0 +1,111 @@
+# configs/exp_cylinder_003_postfix.toml
+# What: EXP-CYLINDER-003 — 修 normalize bugs 後重訓 cylinder K=100，驗證 BC fix 效果。
+#
+# 與 exp_cylinder_002 唯一差異：
+#   artifacts_dir 改成 -postfix（避免覆蓋舊 002 checkpoint）
+#
+# 修法已自動生效：
+#   ✅ C2 forward_uvp denorm（training.py 注入 mean/std）
+#   ✅ C3 BC loss 改用 normalized target（不再雙重 normalize）
+#   ✅ M3 Poisson 透過 uvp_fn 自動 denorm
+#
+# Hypothesis: 修 BC 後 KE rel-err 應顯著改善（exp_002 KE=51%→ exp_003 預期 <30%）
+#             u 預測在 inflow 不再有 ~0.86 normalized 偏移
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# 空間編碼
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+
+# 時間
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# 模型容量
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Physics loss
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# Inflow / body / slip BC（修後仍開啟，但內部用 normalized target）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# GradNorm
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# Time marching
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+# Optimizer
+iterations = 3000   # 縮短驗證跑：MPS ~2.7s/step → ~2 hr。後續可從 checkpoint resume 到 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp003-postfix"
