@@ -128,6 +128,7 @@ def _rar_update_pool(
     domain_length: float,
     device,
     exploration_ratio: float = 0.2,
+    body_distance_fns: list | None = None,
 ) -> list[np.ndarray]:
     """What: RAR（Residual Adaptive Refinement）pool 更新。
 
@@ -158,9 +159,13 @@ def _rar_update_pool(
             np.concatenate([xy_np, t_np[:, None]], axis=1),
             dtype=torch.float32, device=device, requires_grad=True,
         )
+        # Hard body BC：必須傳 body_distance_fn（differentiable SDF callable）。
+        # operator.py 在 use_hard_body_bc=True 但 fn=None 時會 raise ValueError。
+        # RAR pool 評估只用 first-order grads，body_distance_fn 不需 create_graph。
         uvp_fn = make_lnn_model_fn_uvp(
             net, sensor_vals_list[i], sensor_pos_list[i],
             re_norm=ds.re_norm, sensor_time=sensor_time_list[i], device=device,
+            body_distance_fn=body_distance_fns[i] if body_distance_fns is not None else None,
         )
         uvp = uvp_fn(xyt_pool)
         u = uvp[:, 0:1]
