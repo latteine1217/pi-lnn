@@ -1,0 +1,119 @@
+# configs/exp_cylinder_013_re1781_small.toml
+# What: cylinder_012 (Re=1781) 在 high-capacity model 下發生 spectral collapse —
+#       u/v/ω 預測收斂到 mean flow（wake 為 0），despite RMSE 數字看似 OK。
+#       本實驗降低 model capacity 4-8×，測試「容量過大 + 低 SNR wake → NTK
+#       低頻 bias dominate」的 hypothesis。
+#
+# Hypothesis (Wang 2022 "When and why PINNs fail"; Cao 2020 "Frequency Principle"):
+#   寬 NN 的 implicit bias 偏好 minimum-norm / low-frequency 解。
+#   Re=1781 wake 是 mean flow 上的 small perturbation（u'/u_mean ≈ 15%）→
+#   高容量 model 找到 trivial mean-flow 解就能把 data loss 壓低，wake 不解。
+#   Capacity 對齊問題尺度後，model 「沒有額外 capacity 浪費在低頻 mean」，
+#   被迫去解 high-frequency wake。
+#
+# 變更（vs cylinder_012）:
+#   d_model:                    256 → 128   (4× params)
+#   fourier_embed_dim:          128 → 64    (2× embedding)
+#   operator_rank:              256 → 128   (rank ↓)
+#   query_mlp_hidden_dim:       256 → 128   (decoder MLP)
+#   num_token_attention_layers: 2 → 1       (depth ↓)
+#   fourier_harmonics:          16 → 12     (低 Re wake 頻率窄)
+#
+# 其他（sensor / hard BC / body_aware / GradNorm 5-task）完全與 cylinder_012 一致，
+# 構成 *capacity ablation* 的乾淨控制變因。
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00020-of-00092.arrow",
+]
+re_values = [1781.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# === 降容量：fourier / d_model / operator_rank / decoder MLP / attention depth ===
+fourier_harmonics = 12          # 16 → 12（低 Re wake 頻譜窄）
+fourier_embed_dim = 64          # 128 → 64
+use_periodic_domain = false
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 128                   # 256 → 128（query embedding）
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1  # 2 → 1（attention depth）
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 128      # 256 → 128（decoder MLP）
+output_head_gain = 1.0
+operator_rank = 128             # 256 → 128（DeepONet rank）
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# BC（與 cylinder_010/012 一致）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 96
+bc_slip_n_points = 32
+bc_outlet_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "body_aware"
+use_hard_body_bc = true
+
+# 5-task GradNorm（natural dynamics, no floor）
+# Hypothesis: capacity 對齊後 trivial-solution attractor 消失 → GradNorm 不會 over-push physics
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01, 0.1]
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 5000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp013-re1781-small"

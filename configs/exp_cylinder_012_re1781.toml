@@ -1,0 +1,113 @@
+# configs/exp_cylinder_012_re1781.toml
+# What: 跨雷諾數泛化探索 — 從 Re=10031（高，turbulent wake）切到 Re=1781（最低，laminar wake）。
+#       同 setup（hard BC + body_aware sampling + 5-task GradNorm + hybrid 20+80 sensor），
+#       驗證模型架構在低 Re 條件下的訓練穩定性與重建品質。
+#
+# Hypothesis:
+#   - Re=1781 的 NS 非線性較弱 → physics_loss 量級較小，PINN 訓練更易收斂
+#   - Wake 結構相對 laminar（vortex shedding 規則）→ 模型容量需求降低
+#   - 預期 div_L2 < 1.0（優於 cylinder_010 的 1.08）
+#
+# Reference experiment:
+#   cylinder_010 (Re=10031): div_L2=1.08, KE rel-err=12%, wake amplitude weak.
+#
+# Sensor:
+#   hybrid 20 farthest + 80 QR (與 cylinder_010 同策略，但因為 wake 較簡單，
+#   可能 80 QR 集中位置不同 → 需用 plot_sensor_distribution.py 比對)
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_hybrid20qr80_K100_cylinder_Re1781_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00020-of-00092.arrow",
+]
+re_values = [1781.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# BC（與 cylinder_010 一致）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33     # fallback；dataset 自動從 DNS 量測 inflow_u 覆蓋
+bc_n_points = 64
+bc_body_n_points = 96
+bc_slip_n_points = 32
+bc_outlet_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "body_aware"
+
+# Hard body BC（output transformation；與 cylinder_010 一致）
+use_hard_body_bc = true
+
+# 5-task GradNorm（natural dynamics, no floor）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01, 0.1]
+# gradnorm_min_weight = 0.0  (default; 不啟用 floor)
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 5000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp012-re1781"
