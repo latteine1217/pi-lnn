@@ -965,6 +965,9 @@ def train_lnn_kolmogorov(
                     pool_size=max(n_phys * _rar_pool_mult, n_phys + 1),
                     t_max=t_max, k_f=k_f, A=A, domain_length=domain_length, device=device,
                     exploration_ratio=_rar_expl_ratio,
+                    # Hard body BC 相容：傳 body_distance_fn 給 RAR pool 內部
+                    # make_lnn_model_fn_uvp，否則 use_hard_body_bc=True 時 raise。
+                    body_distance_fns=body_distance_fns if _use_hard_body_bc else None,
                 )
 
             if phys_gate:
