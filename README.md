@@ -148,11 +148,19 @@ EXP-064 is the global optimum at the current K=100 + architecture configuration.
 
 ```bash
 uv sync
+git submodule update --init --recursive
+# Optional, Apple MPS only — explicit-CPU LinAlg patch (~30% faster than auto-fallback):
+./scripts/apply_soap_patches.sh
 ```
+
+> The SOAP submodule is third-party (`nikhilvyas/SOAP`). MPS-specific QR/eigh
+> optimizations live under [`patches/`](patches/) and are applied locally by the
+> script above (idempotent; supports `--check` and `--revert`). Re-run after any
+> `git submodule update`.
 
 **Train (Re=10000, EXP-064 active baseline):**
 ```bash
-export PYTORCH_ENABLE_MPS_FALLBACK=1   # SOAP eigh fallback on Apple MPS
+export PYTORCH_ENABLE_MPS_FALLBACK=1   # safety net for any MPS-unsupported ops
 uv run python src/lnn_kolmogorov.py \
   --config configs/exp_064_re10000_xlarge_sensor_physics.toml \
   --device mps
