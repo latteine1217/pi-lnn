@@ -1,0 +1,110 @@
+# configs/exp_064_ng.toml
+# What: EXP-064 架構 + Natural Gradient optimizer + 大量 collocation。
+#
+# 沿用 exp_064 設定：
+#   - Re=10000 sensors (K=100, si100, N=256 DNS)
+#   - xlarge architecture: d_model=256, fourier_embed=128, operator_rank=256
+#   - LearnableFourier + temporal_anchor + 2-layer attention
+#
+# 改成 NG：
+#   lr_schedule:           soap         → ng
+#   use_gradnorm:          true         → false   (與 NG 衝突：兩者都管 loss weight)
+#   use_schedule_free:     true         → false   (NG 不是 torch.optim.Optimizer)
+#   use_sensor_physics:    true         → true    (NG path 已補上 sensor cont 殘差)
+#   physics_loss_weight:   0.01 (gradnormed) → 1.0  (NG 要看到 raw physics 殘差)
+#   num_physics_points:    64           → 64      (沿用 exp_064 原值；N 控制在 ~324)
+#   ng_resample_freq:      —            → 50      (論文 Helmholtz 風格)
+#   iterations:            10000        → 100     (NG 高昂每步成本，先短跑驗證)
+#   device:                mps          → mps     (試 MPS forward 加速；solver 仍 cpu fp64)
+#
+# 預估：N = 32 + 3*128 = 416；P~3M；J 矩陣 ~5GB；
+#       每步 416 次 backward × xlarge model（MPS forward 估 ~10ms × 416 = 4s + LinAlg ~1s = ~5-6 s/step）
+#       100 步 ~10 分鐘
+#
+# 風險：
+#   1. MPS + xlarge stateful CfC 可能 NaN（沒測過）→ fallback device=cpu
+#   2. J 大矩陣搬 MPS→CPU(fp64) 可能 OOM → 降 num_physics_points 到 64
+#   3. l_phys 可能仍如 NG003 不動（CfC 二階導數對 weights 訊號弱）
+#
+# Hypothesis: NG 50 步內 l_data 降 3 個數量級以上（達 ~1e-3 ~ 1e-5），
+#             顯著優於 exp_064 SOAP+GradNorm 同 wall-time 的表現。
+# Falsifiability: 若 MPS NaN 或 50 步內 l_data 仍 > 0.1，需要 fallback 路徑。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構：與 exp_064 完全一致（xlarge）
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss：physics-dominant (NG 要求)
+data_loss_weight = 1.0
+physics_loss_weight = 1.0       # ← 從 0.01 → 1.0
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# t_early_weight 仍保留（與 NG closure 內 (pred-ref)² 相容）
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+# Collocation：num_physics_points=64（exp_064 原值；N=32+192+100=324）
+num_query_points = 32           # 從 K=100 縮到 32 控制 N
+num_physics_points = 64         # ← 沿用 exp_064 原值
+physics_collocation_strategy = "random"
+
+# Time marching 沿用
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === NG optimizer ===
+lr_schedule = "ng"
+learning_rate = 1.0
+ng_damping = 1.0e-4
+ng_damping_strategy = "lm"
+ng_jacobi_scaling = true
+ng_max_residuals = 2000          # N=416 安全
+ng_solver_device = "cpu"         # fp64 LinAlg 必 CPU
+ng_resample_freq = 50            # 50 步 resample 一次（論文 Helmholtz 風格）
+weight_decay = 0.0
+
+# 關閉與 NG 衝突的機制
+use_gradnorm = false             # NG 不需要 GradNorm（已直接解 LSQ）；保留可能干擾 LM 拒絕邏輯
+use_schedule_free = false        # 真互斥：schedule_free 包裝 torch.optim.Optimizer，NG 非其子類
+use_sensor_physics = true        # NG path 已支援；sensor 位置額外 continuity 殘差
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 0    # NG 從 step 1 就啟用（不像 first-order 要 warmup）
+
+iterations = 100
+checkpoint_period = 0
+seed = 42
+device = "mps"                   # 試 MPS forward 加速；fallback cpu 若 NaN
+artifacts_dir = "artifacts/exp_064_ng"

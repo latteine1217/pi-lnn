@@ -1,0 +1,76 @@
+# configs/exp_ng_001_re1000_smoke.toml
+# What: NG (Natural Gradient / Gauss-Newton) optimizer 首次驗證，Kolmogorov Re=1000 small.
+#
+# Why: 驗證論文 "Curvature-Aware Optimization for High-Accuracy PINNs" (Jnini 2026) 的 NG
+#      在 pi-lnn 架構（CfC + DeepONet 變形）下是否可行。重點觀察：
+#        (a) loss 下降曲線是否如論文那樣前期極陡
+#        (b) 每步 wall-time（J 重建成本 ~ N 次 backward）
+#        (c) 與相同 wall-time 預算的 Adam 比較最終 loss
+#
+# Hypothesis: 200 步 NG 達到 Adam 1500 步左右的 loss（依論文 Stokes 24× 估計）。
+# Falsifiability: 若 200 步 NG 的 l_total 未低於同 wall-time Adam，NG 在此配置不適用。
+#
+# 設計取捨：
+#   - device=cpu：NG 的 LinAlg 必須 fp64，MPS 不支援 → 強制 CPU
+#   - num_query=32 + num_physics=8 → N = 56，每步 56 次 backward 構造 J
+#   - time_marching=false：簡化首次測試
+#   - 小網路 (~44k params) → kernel trick 路徑（N << P）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 模型：小網路（與 smoke 對齊，~44k params）
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+# Loss 權重
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+# 採樣（控制 N，避免 J 構造太慢）
+num_query_points = 32
+num_physics_points = 8
+
+# 簡化設定
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === NG 核心設定 ===
+lr_schedule = "ng"
+learning_rate = 1.0          # Newton step 預設 α=1，不要動
+ng_damping = 1.0e-3          # LM regularization 起步值
+ng_damping_strategy = "lm"   # 自適應：接受步驟 λ÷2，拒絕 ×10 並回退
+ng_jacobi_scaling = true     # van der Sluis 對角預條件
+ng_max_residuals = 2000      # N=56 << 2000，安全
+ng_solver_device = "cpu"     # fp64 LinAlg 必須 CPU
+weight_decay = 0.0           # NG 內部不用，留空避免誤導
+
+# 訓練長度：先 200 步看曲線
+iterations = 200
+checkpoint_period = 50
+seed = 42
+device = "cpu"               # MPS 不支援 fp64 solve
+artifacts_dir = "artifacts/exp_ng_001_re1000_smoke"

@@ -1,0 +1,70 @@
+# configs/exp_ng_002_re1000_paper_setup.toml
+# What: NG 第二次嘗試 — 對齊論文 (Jnini 2026) Helmholtz/Stokes 的 NG 設定。
+#
+# 與 exp_ng_001 的差異（按論文校正）：
+#   ng_resample_freq:           每步重採   →  0（永不重採，固定批次）
+#   physics_loss_weight:        0.01       →  1.0（physics-dominant，論文純 PINN 風格）
+#   num_physics_points:         8          →  16（增 J 的 rank）
+#   ng_damping:                 1e-3       →  1e-4（fixed batch 較穩，可較小 λ）
+#   iterations:                 200        →  300
+#
+# Hypothesis: 修正後 NG 應在 ~300 步內顯著穩定下降，l_phys 收到接近 1e-3 ~ 1e-4。
+# Falsifiability: 若 300 步後 l_total 仍震盪在 [0.3, 1.5]，NG 在 pi-lnn 架構基本不適用。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 模型：與 exp_ng_001 相同
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+# === 對齊論文：physics-dominant ===
+data_loss_weight = 1.0
+physics_loss_weight = 1.0    # ← 從 0.01 → 1.0，讓 physics residual 真正進入 NG 求解
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+# === 對齊論文：較大批次 + 固定 collocation ===
+num_query_points = 32
+num_physics_points = 16      # ← 從 8 → 16，N = 32 + 48 = 80
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# === NG 核心 ===
+lr_schedule = "ng"
+learning_rate = 1.0
+ng_damping = 1.0e-4          # ← 較小 λ（固定批次能撐）
+ng_damping_strategy = "lm"
+ng_jacobi_scaling = true
+ng_max_residuals = 2000
+ng_solver_device = "cpu"
+ng_resample_freq = 0         # ← 0 = 永不重採，論文 Helmholtz 風格
+weight_decay = 0.0
+
+iterations = 300
+checkpoint_period = 0
+seed = 42
+device = "cpu"
+artifacts_dir = "artifacts/exp_ng_002_re1000_paper_setup"

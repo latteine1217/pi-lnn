@@ -1,0 +1,64 @@
+# configs/exp_ng_003_re1000_resample50.toml
+# What: NG 第三次嘗試 — 在 v2 (固定 batch) 與 v1 (每步 resample) 中間取平衡。
+#
+# v2 觀察：固定 batch 下 NG 30 步從 3.88 降到 4.5e-3（5 個數量級！），但之後卡 fixed point。
+# v3 修正：每 50 步 resample 一次 batch，讓 NG 跳出單一 batch 的 local minimum，
+#         同時每個 batch 內仍給 NG 充分時間收斂（~50 步是論文 Helmholtz 風格）。
+#
+# Hypothesis: 300 步 NG 在 5 次 batch resample 中持續下降，final l_total < 1e-3
+# Falsifiability: 若每次 resample 後 loss 反彈到 ~1.0 且不再回到先前低點，
+#                 說明 model 對不同 batch 過度敏感（capacity 不足或 overfitting batch）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy",
+]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+
+d_model = 64
+d_time = 8
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 1
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 64
+output_head_gain = 1.0
+operator_rank = 64
+
+data_loss_weight = 1.0
+physics_loss_weight = 1.0
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+
+num_query_points = 32
+num_physics_points = 16
+
+time_marching = false
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+lr_schedule = "ng"
+learning_rate = 1.0
+ng_damping = 1.0e-4
+ng_damping_strategy = "lm"
+ng_jacobi_scaling = true
+ng_max_residuals = 2000
+ng_solver_device = "cpu"
+ng_resample_freq = 50         # ← v3 關鍵：50 步 resample 一次（論文 Helmholtz 風格）
+weight_decay = 0.0
+
+iterations = 300
+checkpoint_period = 0
+seed = 42
+device = "cpu"
+artifacts_dir = "artifacts/exp_ng_003_re1000_resample50"
