@@ -4,7 +4,7 @@
 
 We reconstruct Re=10000 Kolmogorov flow from 100 velocity sensors without full-field supervision using a DeepONet-style query decoder, CfC temporal encoder, cross-attention over sensor tokens, and Navier–Stokes residual constraints.
 
-> **Live demo page** → [latteine1217.github.io/pi-lnn/lnn_architecture.html](https://latteine1217.github.io/pi-lnn/lnn_architecture.html)
+> **Live demo page** → [latteine1217.github.io/pi-lnn](https://latteine1217.github.io/pi-lnn/) (Overview · Details)
 > **Full experiment history** → [`docs/experiment_log.md`](docs/experiment_log.md)
 
 ---
@@ -35,7 +35,7 @@ branch basis ⊙ trunk basis  →  u / v / p   [N_q, 1]
 - `ω`, KE, Enstrophy, E(k) are evaluation diagnostics — never enter training.
 - **Training signal:** sensor MSE on `u, v` + NS-momentum residual + continuity, all GradNorm-balanced.
 
-A full annotated walkthrough (with cards, time grid, decoder zoom-in) lives on the [live demo page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html).
+A full annotated walkthrough — time grid, decoder zoom-in, parameter spec, full results gallery, ablation chain — lives on the [Details page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html).
 
 ---
 
@@ -140,7 +140,7 @@ EXP-064 is the global optimum at the current K=100 + architecture configuration.
 
 **Paths to break the limit:** K ≥ 5 000 sensors · K = 200+ with extended training (EXP-066) · 4D-Var time-series data assimilation · DNS-POD basis as high-frequency prior *(engineering non-transferable, research-only)*.
 
-→ Full information-theoretic analysis: [Section 09 of the architecture page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html). Detailed records: [`docs/experiment_log.md`](docs/experiment_log.md).
+→ Information limit summary on the [Overview](https://latteine1217.github.io/pi-lnn/#limit); full ablation chain on the [Details page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html#ablations). Detailed records: [`docs/experiment_log.md`](docs/experiment_log.md).
 
 ---
 
@@ -194,8 +194,10 @@ scripts/
   generate_sensors_qrpivot.py
 
 docs/
-  lnn_architecture.html   # interactive architecture + result figures
+  index.html              # presentation landing page (Overview)
+  lnn_architecture.html   # detailed model card, training, gallery, ablations (Details)
   experiment_log.md       # full experiment state (decisions, metrics, configs)
+  assets/architecture.png # end-to-end signal-flow diagram used on Overview
   assets/exp064/          # all figures referenced above
 
 artifacts/
