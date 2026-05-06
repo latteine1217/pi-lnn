@@ -73,6 +73,7 @@
 | 主要優勢 | KE **7.80%**（-0.85pp vs EXP-063）、div_l2 **0.184**（-9.6%）、kf_phase_err **-0.0228 rad**（-53%） |
 | 已確認上限 | band_mid/high@t=5 ≈100% 為 K=100 感測器資訊論硬上限；sensor physics continuity 已無法突破此限 |
 | **結案狀態** | **K=100 稀疏重建結案（2026-04-26）**：此結果接受為最終主線，中高頻不可達為數學必然（CS 需 ~5000 sensors，K=100 差 50 倍），後續提升需 K≥5000 感測器或 DNS 高頻先驗 |
+| **AL-line 重新驗證（2026-05-04~06）** | 5 個 AL/Poisson 變體（EXP-070/070b/072/073/074）全部負面；EXP-073 diagnostic 確認 sensor_physics 是 EXP-064 場品質核心；任何試圖把 effective physics gradient 推遠超 EXP-064 GradNorm 自然平衡（w_ns≈0.057, w_cont≈0.039）的設計都會把模型推離 informationally feasible region。**EXP-064 主線地位重新確認**；AL 程式碼保留（spec v5、tests 全綠）但暫不用於 Re=10000 主線實驗。 |
 
 ### 主線固定假設
 
@@ -398,6 +399,11 @@ rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
 | ID | Status | 主題 | 一句結論 |
 |---|---|---|---|
 | `EXP-040` | `NEGATIVE_RESULT` | Re=10000 transfer from EXP-030（架構不匹配）| `size mismatch`：EXP-030 d=64/harmonics=8 vs target d=128/harmonics=16；直接 transfer 不可行 |
+| `EXP-070` | `NEGATIVE_RESULT` | AL-cont pure (ρ=1, clip=10, sensor_phys=false)| div_L2 0.040 ✓ 但 u/v RMSE 3.66×、KE 84% — 場崩潰；AL gradient 比 EXP-064 強 46× |
+| `EXP-070b` | `NEGATIVE_RESULT` | AL-cont bounded (clip=0.05, sensor_phys=false) | clip 卡至 EXP-064 等效強度；場仍崩潰，div_L2 0.170 — 證實「降強度」無解 |
+| `EXP-072` | `NEGATIVE_RESULT` | Pressure Poisson + GradNorm 5-task | GradNorm w_ns 暴衝至 ~2.0；場崩潰同 EXP-070；Poisson 干擾 GradNorm 平衡 |
+| `EXP-073` | `NEGATIVE_RESULT` | EXP-064 - sensor_physics（diagnostic）| **關鍵**：只關 sensor_physics 即觀察與 EXP-070/072 完全相同的場崩潰；確認 sensor_physics 為 EXP-064 場品質核心 |
+| `EXP-074` | `NEGATIVE_RESULT` | AL Option 2 (sensor cont² as C, sensor_phys=true) | 訓練 L_data 9e-4（EXP-064 8×好），但 div_L2 **0.71（baseline 4×差）**；切斷 random colloc cont smoothing 導致 sensor 之間 div ringing |
 | `EXP-027` | `NEGATIVE_RESULT` | `SOAP resume → 5000 steps`（已取消）| 先取消改做 SOAP+SF；無有效訓練結果 |
 | `EXP-002` | `NEGATIVE_RESULT` | `omega` 作為 data supervision | 設定不合理且數值明顯失控 |
 | `EXP-004` | `NEGATIVE_RESULT` | 低載 baseline | 能跑，但仍 near-zero collapse |

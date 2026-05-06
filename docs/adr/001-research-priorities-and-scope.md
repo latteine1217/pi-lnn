@@ -99,7 +99,7 @@ EXP-064 (Kolmogorov, K=100, Re=10000) 已建立基線：
 
 ## 7. 觸發重新評估的條件 / 已執行實驗回饋
 
-### 7.1 EXP-070..073 實驗結果（2026-05-04 ~ 2026-05-06）
+### 7.1 EXP-070..074 實驗結果（2026-05-04 ~ 2026-05-06）
 
 | Exp | Setup | div L2 | u RMSE | KE rel-err | 結論 |
 |---|---|---|---|---|---|
@@ -108,25 +108,49 @@ EXP-064 (Kolmogorov, K=100, Re=10000) 已建立基線：
 | EXP-070b | AL ρ=0.1, clip=0.05, **sensor_physics=false** | 0.170 | 0.251 | **84.4%** | 場崩潰（不是 AL 強度問題）|
 | EXP-072 | Poisson + GradNorm 5-task, sensor_physics=true | 0.089 | 0.253 | **84.7%** | 場崩潰（GradNorm w_ns 暴走至 ~2.0）|
 | **EXP-073** (diagnostic) | **EXP-064 同設定 - sensor_physics**(只關此一) | 0.118 | 0.251 | **84.5%** | **崩潰** — 確認 sensor_physics 是關鍵 |
+| **EXP-074** (Option 2) | AL clip=0.05, sensor_physics=true, AL constraint = sensor cont² | **0.71** ❌ | 0.259 | 85.6% | **新型失敗**：訓練 L_data 9e-4（最好），但切斷 random colloc cont 後 sensor 之間 div ringing |
 
 **核心發現**：四個崩潰的 EXP（070/070b/072/073）的 u/v/KE/ω metrics 像素級相同，只有 div_L2 隨 physics 強度浮動。**真正的差異變數不是 AL/Poisson/GradNorm，而是 `use_sensor_physics`**。
 
 **機制**：K=100 sensor 位置在 wavelet 域對 k≤16 條件數約 11（well-conditioned），是稀疏場景下唯一能穩定 anchoring 物理約束的點集。隨機 collocation 64 點/step 沒有此 conditioning 保證。EXP-064 GradNorm 收斂到 w_ns≈0.057 / w_cont≈0.039 是 **K=100 場景下能保住場品質的最強物理壓力**；任何把 effective physics gradient 推遠超此值的設計（AL ramp、5-task GradNorm 推飛、隨機 collocation 主導）都會把模型推離 informationally feasible region。
 
-### 7.2 結論：AL spec v5 (Option 2) 取代 v4
+### 7.2 結論：AL line 全面負面結果，主線退回 EXP-064
 
-v4 設計把 `use_sensor_physics=false` 寫進 pre-condition assert（理由是 sum-of-two-means 污染 EMA）。v5 反向：**AL constraint C 必須從 sensor 位置 cont² 計算，`use_sensor_physics=true` 為必要條件**。
+**5 個 AL/Poisson 變體全部失敗**，包含理論最合理的 EXP-074 Option 2（sensor cont² as well-conditioned constraint）。失敗模式分為兩種：
+1. **Mean-field collapse**（EXP-070/070b/072/073）：所有指標退化到場 ≈ 0
+2. **Aliasing/ringing collapse**（EXP-074）：訓練 L_data 最好但 div_L2 比 baseline 4× 差
 
-此修正與 ADR-001 §1 主張（sparse-sensor reconstruction 受 information-theoretic limit 約束）邏輯一致：物理約束的有效性受限於 sensor 條件數，而非可由模型強行壓出來。
+**深層解釋**：EXP-064 的 GradNorm 自然平衡（w_ns≈0.057, w_cont≈0.039）+ sensor_physics（K=100 well-conditioned points）構成「K=100 sparse 場景下能保住場品質的最強物理壓力」。任何試圖：
+- 切斷 sensor_physics（EXP-070/070b/073）
+- 過度推高 ns/cont 權重（EXP-072 GradNorm w_ns 跑到 2.0）
+- 把 cont 約束集中在 sensor 位置而切斷 random colloc smoothing（EXP-074）
 
-### 7.3 解凍清單（保留原條款 + 新增）
+都會把模型推離 informationally feasible region。**這與 ADR-001 §1 主張（sparse-sensor reconstruction 受 information-theoretic limit 約束）邏輯一致**：強物理約束在 sparse setting 不是 free lunch，K=100 已達該架構在 Re=10000 場景下的 information limit。
 
-下列任一發生時，本 ADR 部分條款可重新討論：
+### 7.3 決策：AL 程式碼保留，主線退回 EXP-064
 
-- **EXP-074 (AL Option 2) 仍未能達 div L2 < 0.10** → AL 機制本身與 sensor_physics 共存仍有問題 → 重新考慮 stream function reparam 或 pseudo-FVM
-- **K-ablation 顯示 K=200 對 mid-band 有顯著改善** → information bottleneck 論述需修正，可能值得做 K=500 並重新評估 sensor placement uncertainty
-- **multi-Re / multi-forcing 訓練成為主線** → 解凍 global physics tokens 的討論
-- **bidirectional CfC ablation 顯示 t≈0 仍有顯著誤差** → 解凍 temporal window attention
+- **AL 程式碼保留**：`AugmentedLagrangianMultiplier` class、`_validate_al_config`、spec v5 全部保留供未來解凍。8 tests 全綠（56/56）。
+- **AL configs 標 NEGATIVE_RESULT**：EXP-070/070b/072/073/074 寫入 `experiment_log.md` `[INDEX] Negative` 區。
+- **Re=10000 主線重新確認為 EXP-064**（GradNorm 4-task + sensor_physics + KE=7.8% / div_L2=0.184）。
+- AL 解凍條件：除非有以下證據之一：
+  - K=200 / K=500 K-ablation 證明資訊上限不在 K=100
+  - 新的 well-conditioned constraint 機制（如 stream function reparam → div=0 by construction）
+  - multi-Re / cylinder 線出現 EXP-064 baseline 不能解的問題
+
+### 7.4 下一階段方向（取代失敗的 AL line）
+
+依 ADR-001 §5 排序，優先序變動：
+
+1. **K-ablation**（提至優先）：跑 K=200（已有 EXP-066）+ K=50 對照，量化 information limit
+2. **Ensemble uncertainty**：3-5 seeds × EXP-064，建立場品質的 confidence interval
+3. **Cylinder 線**：另一個物理場景，獨立驗證 EXP-064 baseline 通用性
+4. **Smoothing/Filtering positioning**（README framing）：仍延後但不再被 AL 結果阻擋
+5. **Stream function reparam**（解凍考慮）：div=0 by construction，不需 AL 也不需 cont weight
+6. **AL line**：暫停，除非 K-ablation 顯示 information limit 可突破
+
+### 7.5 凍結清單持續有效
+
+ADR §6 凍結項保持原狀（temporal window attention / geometry token / global physics token / pseudo-FVM / forecasting）。Stream function reparam 從凍結轉為「條件解凍」（需 K-ablation 結果支持）。
 
 ---
 
