@@ -88,6 +88,13 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "time_marching_warmup": 0.5,
     "domain_length": 1.0,
     "use_periodic_domain": True,
+    # NS residual 路徑是否反正規化 model output 到物理量級。
+    # True  → 用 dataset.observed_channel_mean/std 反算，與物理 ν=1/Re commensurate；
+    #         cylinder 主線需要（u_std~0.15，黏性項 ν∇²u 否則被壓掉）。
+    # False → NS residual 直接用 normalized u/v，相對 ν 量級被 std⁻² 改寫，
+    #         等效 Re_eff = Re·std²；Kolmogorov（u_std~0.44）的 EXP-064 在此路徑下取得 KE 7.80%。
+    # 向後相容：False 預設保持 EXP-064 baseline 路徑。
+    "use_physics_denormalization": False,
     "dataset_type": "kolmogorov",
     "arrow_shards": [],
     "sensor_subsample": 1,

@@ -32,6 +32,7 @@ sensor_subsample = 20   # T=3990 → T=200，與 Kolmogorov T=201 計算量相�
 fourier_harmonics = 16
 fourier_embed_dim = 128
 use_periodic_domain = false   # 關閉 relpos_bias 的週期折疊
+use_physics_denormalization = true   # cylinder 必要：u_std~0.15，黏性項否則被壓掉
 
 # 時間
 use_temporal_anchor = true

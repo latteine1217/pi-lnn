@@ -172,15 +172,17 @@ def train_lnn_kolmogorov(
     #      倍，physics gradient signal 進入 NG 時幾乎消失（l_phys 看似小但物理發散度大）。
     # 兩個觀測通道為 ("u", "v") 才能正確 map（其他通道組合需重新計算 mean_p）。
     #
-    # Diagnostic toggle (Step 1 of denorm regression check, 2026-05-06)：
-    #   PINN_DISABLE_PHYS_DENORM=1 → 跳過 set_physics_normalization() 呼叫，
-    #   保留 buffer 預設值 (mean=0, std=1) ≡ identity，等價於 EXP-064 baseline 路徑。
-    #   只給 Kolmogorov 重現 EXP-064 量級用，不應在 cylinder 主線啟用。
-    _disable_phys_denorm = os.environ.get(
+    # Config flag `use_physics_denormalization`（2026-05-07，取代 PINN_DISABLE_PHYS_DENORM env var）：
+    #   True  → 注入 dataset stats，physics path 使用物理量級（cylinder 主線）。
+    #   False → buffer 留在 (mean=0, std=1) ≡ identity，physics path 用 normalized u/v
+    #            （EXP-064 baseline 路徑；Kolmogorov 主線預設）。
+    #   後向相容性：env var `PINN_DISABLE_PHYS_DENORM=1` 仍可作為臨時 override 強制關閉。
+    _env_disable = os.environ.get(
         "PINN_DISABLE_PHYS_DENORM", ""
     ).lower() in ("1", "true", "yes")
+    _enable_denorm = bool(args.get("use_physics_denormalization", False)) and not _env_disable
     _obs_names = tuple(args.get("observed_sensor_channels", ("u", "v")))
-    if (not _disable_phys_denorm) and _obs_names == ("u", "v") and num_re == 1:
+    if _enable_denorm and _obs_names == ("u", "v") and num_re == 1:
         _u_idx = _obs_names.index("u")
         _v_idx = _obs_names.index("v")
         _ch_mean = datasets[0].observed_channel_mean
@@ -196,16 +198,24 @@ def train_lnn_kolmogorov(
         net.set_physics_normalization(_mean_uvp, _std_uvp)
         print(f"  physics_output_mean: {_mean_uvp.tolist()}", flush=True)
         print(f"  physics_output_std : {_std_uvp.tolist()}", flush=True)
-    elif _disable_phys_denorm:
+    elif _enable_denorm:
+        # 觸發條件不滿足（多 Re 或非 (u,v) 觀測），明確 WARN
         print(
-            "  [PINN_DISABLE_PHYS_DENORM=1] physics denorm 已跳過（identity buffers）— "
-            "對齊 EXP-064 baseline 路徑（normalized u/v）。",
+            f"  [WARN] use_physics_denormalization=True 但條件不滿足（obs={_obs_names}, num_re={num_re}）；"
+            f"physics path 將留在 identity 路徑。",
+            flush=True,
+        )
+    elif _env_disable:
+        print(
+            "  [PINN_DISABLE_PHYS_DENORM=1] env var override：強制關閉 physics denorm，"
+            "對齊 EXP-064 baseline 路徑。",
             flush=True,
         )
     else:
+        # use_physics_denormalization=False（預設），EXP-064 baseline 路徑
         print(
-            f"  [WARN] physics denormalization 未注入（obs={_obs_names}, num_re={num_re}）；"
-            f"NS residual 仍會用 normalized u/v 計算，l_phys 量級被 std 壓縮.",
+            "  physics denorm: identity（use_physics_denormalization=False）— "
+            "NS residual 用 normalized u/v，等同 EXP-064 baseline 路徑。",
             flush=True,
         )
 

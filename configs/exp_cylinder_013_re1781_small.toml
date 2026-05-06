@@ -42,6 +42,7 @@ sensor_subsample = 20
 fourier_harmonics = 12          # 16 → 12（低 Re wake 頻譜窄）
 fourier_embed_dim = 64          # 128 → 64
 use_periodic_domain = false
+use_physics_denormalization = true   # cylinder 必要：u_std~0.15，黏性項否則被壓掉
 use_temporal_anchor = true
 T_total = 20.0
 temporal_anchor_harmonics = 2

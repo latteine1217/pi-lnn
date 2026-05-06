@@ -282,17 +282,52 @@ rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
 
 ---
 
-## [DIAGNOSTIC] Physics Output Denormalization Silent Regression（2026-05-06，進行中）
+## [DIAGNOSTIC] Physics Output Denormalization Silent Regression（2026-05-06，已結論）
 
 `d62e698 feat(cylinder+physics)` 為 cylinder 加入的 `physics_output_denormalization` 在 [`src/pi_lnn/training.py:178`](../src/pi_lnn/training.py) 沒有 opt-out flag，**Kolmogorov 主線完全滿足自動觸發條件**，導致 EXP-070+ 所有 Re=10000 主線實驗都跑在 denorm 啟用路徑下，物理 NS residual 量級被改變。
 
-**已驗證**：smoke 對照（`PINN_DISABLE_PHYS_DENORM=1`）證明 denorm OFF 時 step 1 L_phys byte-identical EXP-064 baseline；denorm ON 時 L_phys 縮 ~5×、w_ns_u 漲 4.5×。
+**已驗證 Part 1（smoke 對照）**：`PINN_DISABLE_PHYS_DENORM=1` 證明 denorm OFF 時 step 1 L_phys byte-identical EXP-064 baseline；denorm ON 時 L_phys 縮 ~5×、w_ns_u 漲 4.5×。
 
-**已修補**（diagnostic toggle）：
-- `src/pi_lnn/training.py`：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數 toggle（預設不變）
+**已驗證 Part 2（EXP-070 重跑滿 10k 步）**：
+
+config: [`configs/exp_070_denorm_off_diag.toml`](../configs/exp_070_denorm_off_diag.toml)（EXP-070 + `PINN_DISABLE_PHYS_DENORM=1` + `al_rho: 1.0→0.2` + `al_lambda_clip: 10→2`，補償 cont 量級放大）
+artifact: [`artifacts/deeponet-cfc-re10000-exp070-denorm-off-diag`](../artifacts/deeponet-cfc-re10000-exp070-denorm-off-diag)
+
+| 指標 @ step 10000 | EXP-064 baseline | 原 EXP-070 (denorm ON, ρ=1.0) | 新 EXP-070-diag (denorm OFF, ρ=0.2) |
+|---|---|---|---|
+| **KE rel-err** | **7.80%** | 84.29% | **84.36%** |
+| div_l2 | 0.184 | 0.040 | 0.258 |
+| u_rel_l2_mean | — | 0.614 | 0.606 |
+| v_rel_l2_mean | — | 0.681 | 0.702 |
+| omega_rel_l2 | — | 0.738 | 0.750 |
+| ek_ratio_kf_last | — | 0.156 | 0.148 |
+
+**結論**：denorm OFF + AL ρ 補償後 KE 仍 84.36%，與 denorm ON 路徑（84.29%）幾乎一致。
+
+| 推論 | 結果 |
+|---|---|
+| 「EXP-070~074 KE=84% 是 denorm 造成」 | ❌ **證偽** |
+| 「ADR-001 §7.2 結論被 denorm 污染、需修訂」 | ❌ **證偽** |
+| 「AL 設計在 K=100 sparse Re=10000 場景不可行」 | ✅ **強化證據** |
+
+→ ADR-001 §7.2「AL 把 model 推離 informationally feasible region」**不需修訂**。
+
+**Bonus 發現**：原 EXP-070 的 AL 超參（ρ=1.0, clip=10）與 denorm 路徑強耦合——denorm OFF 路徑下 cont 量級放大 ~5×，warmup 結束（step 3000, t_max 從 3.5→5.0）時 C_ema 暴衝 1136×、L_total 飛上 10^5 直接訓練爆。需把 ρ 縮到 0.2、clip 縮到 2.0 才能完成訓練。
+
+**已修補（Step 1, 2026-05-06）**（diagnostic toggle）：
+- `src/pi_lnn/training.py`：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數 toggle
 - `SOAP/soap.py`：修 `_linalg_eigh_mps` dtype/device 順序 bug
 
-**待驗證**：用 `PINN_DISABLE_PHYS_DENORM=1` 重跑 EXP-070 滿 10k 步，判斷 KE=84% 是 denorm 路徑量級不匹配還是 AL 設計本身失敗。
+**已修補（Step 2, 2026-05-07）**（升格為 config flag）：
+- `src/pi_lnn/config.py`：`DEFAULT_LNN_ARGS` 新增 `"use_physics_denormalization": False`
+- `src/pi_lnn/training.py`：env var toggle 改為 config flag（env var 仍保留為 emergency override）
+- `configs/exp_cylinder_*.toml`：17 個 cylinder configs 全部主動加 `use_physics_denormalization = true`（在 `use_periodic_domain` 旁邊）
+- 行為對齊：
+  - **Kolmogorov 主線**（包括 EXP-064 ~ EXP-072 + 後續新實驗）→ 預設 OFF，與 EXP-064 baseline 路徑 byte-aligned
+  - **所有 cylinder experiments** → config 主動 ON，保留 d62e698 的 fix 對 cylinder 的真實效益
+- 驗證：
+  - Smoke：Kolmogorov EXP-064 印 `physics denorm: identity（use_physics_denormalization=False）`；Cylinder CEXP-002 印 `physics_output_mean: [0.242, 0.0007, 0.0]`
+  - pytest 全套 185 passed（不含 1 個 pre-existing TDD-RED test）
 
 **完整診斷報告**（含量級分析、時間線、修法計畫）：見 [`docs/analysis_reports.md`](analysis_reports.md)。
 
@@ -305,7 +340,8 @@ rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
 | amplitude ratio=0.9965 是否 overfitting | EXP-015 更高（0.9965），需確認是否對訓練時段過度擬合；若有新時段資料可做 OOD 測試 | 開放（低優先） |
 | K=200 band_mid 突破後，低頻退步是否可藉延伸訓練恢復 | EXP-066 L_phys@10k=2.95（未充分收斂）；K=200 主線暫停 | **CLOSED**：K=100 主線結案，K=200 屬另一資料密度配置，如重啟需獨立實驗 |
 | 高頻重建的可行路徑 | CS 理論確認：K=100/200 均遠低於 ~5000 門檻；zeroth-order AIM 已證偽 | **CLOSED**：高頻不可達為數學必然，未來路徑需 DNS POD 先驗或 4D-Var（工程不可遷移）|
-| EXP-070 KE=84% 是否因 denorm 路徑量級不匹配（vs AL 設計失敗） | DIAGNOSTIC 區證實 denorm 改變 baseline 量級；EXP-070 重跑加 `PINN_DISABLE_PHYS_DENORM=1` 進行中 | **進行中**（2026-05-06）|
+| EXP-070 KE=84% 是否因 denorm 路徑量級不匹配（vs AL 設計失敗） | denorm OFF + AL ρ 補償重跑 KE 仍 84.36%（vs denorm ON 84.29%）→ AL 設計本身失敗，與 ADR-001 §7.2 一致 | **CLOSED**（2026-05-06）|
+| `physics_output_denormalization` silent regression 是否需修 | 不影響 ADR-001 §7.2 主結論，但仍會破壞 baseline 重現性與後續對照公平性 | **開放**（待升格為 config flag）|
 
 ---
 

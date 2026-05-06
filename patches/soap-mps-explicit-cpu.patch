@@ -1,8 +1,8 @@
 diff --git a/soap.py b/soap.py
-index a6362cc..cb26ab1 100644
+index a6362cc..9a7abc1 100644
 --- a/soap.py
 +++ b/soap.py
-@@ -8,6 +8,30 @@ from itertools import chain
+@@ -8,6 +8,31 @@ from itertools import chain
  # Parts of the code are modifications of code from https://github.com/jiaweizzhao/GaLore/blob/master/galore_torch/galore_projector.py
  
  
@@ -27,13 +27,14 @@ index a6362cc..cb26ab1 100644
 +    Measured: fallback 3.52ms → explicit ~2.66ms（n=256，-24%）。
 +    """
 +    vals, vecs = torch.linalg.eigh(A.cpu().double())
-+    return vals.to(A.device).to(A.dtype), vecs.to(A.device).to(A.dtype)
++    # MPS 不支援 fp64，必須先 cast 到 A.dtype 再搬回 device，否則 .to(MPS) 直接 crash。
++    return vals.to(A.dtype).to(A.device), vecs.to(A.dtype).to(A.device)
 +
 +
  class SOAP(optim.Optimizer):
      """
      Implements SOAP algorithm (https://arxiv.org/abs/2409.11321).
-@@ -358,9 +382,14 @@ class SOAP(optim.Optimizer):
+@@ -358,9 +383,14 @@ class SOAP(optim.Optimizer):
                  final.append([])
                  continue
              try:
@@ -51,7 +52,7 @@ index a6362cc..cb26ab1 100644
                  Q = Q.to(m.dtype)
              Q = torch.flip(Q, [1])
  
-@@ -414,7 +443,10 @@ class SOAP(optim.Optimizer):
+@@ -414,7 +444,10 @@ class SOAP(optim.Optimizer):
              exp_avg_sq = exp_avg_sq.index_select(ind, sort_idx)
              o = o[:,sort_idx]
              power_iter = m @ o
