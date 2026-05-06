@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi-LNN · Flow Reconstruction from Sparse Sensors</title>
+<meta name="description" content="Pi-LNN reconstructs Re=10000 2D Kolmogorov flow from K=100 sparse velocity sensors using DeepONet + CfC and NS-residual physics constraints.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   THEME · editorial-laboratory-notebook
+   Light (paper) is the canonical presentation mode.
+   Dark (ink) is the optional, late-night reading mode.
+   ========================================================= */
+:root {
+  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --maxw: 1180px;
+}
+
+[data-theme="light"] {
+  --paper:        #F4EFE5;
+  --paper-soft:   #F8F4EB;
+  --surface:      #FFFFFF;
+  --surface-2:    #FBF8F1;
+  --ink:          #1A1F2C;
+  --ink-mid:      #4D5468;
+  --ink-soft:     #7C859A;
+  --rule:         #D9D0BD;
+  --rule-soft:    #E7DECC;
+  --accent:       #2A3E6B;   /* deep ink blue */
+  --accent-soft:  rgba(42, 62, 107, 0.08);
+  --highlight:    #B05A2C;   /* warm rust */
+  --highlight-soft: rgba(176, 90, 44, 0.10);
+  --good:         #2F6F4F;
+  --warn:         #B05A2C;
+  --bad:          #9E3232;
+  --shadow-1:     0 1px 0 rgba(26, 31, 44, 0.04), 0 12px 24px -12px rgba(26, 31, 44, 0.10);
+  --grid-tint:    rgba(26, 31, 44, 0.035);
+}
+
+[data-theme="dark"] {
+  --paper:        #0D1017;
+  --paper-soft:   #11151E;
+  --surface:      #141923;
+  --surface-2:    #181E2A;
+  --ink:          #E8E1CF;
+  --ink-mid:      #A7AFC1;
+  --ink-soft:     #6E7689;
+  --rule:         #2A3142;
+  --rule-soft:    #1E2533;
+  --accent:       #8FB1F2;
+  --accent-soft:  rgba(143, 177, 242, 0.10);
+  --highlight:    #E59A6A;
+  --highlight-soft: rgba(229, 154, 106, 0.12);
+  --good:         #80D2A6;
+  --warn:         #E59A6A;
+  --bad:          #F08F8F;
+  --shadow-1:     0 1px 0 rgba(0, 0, 0, 0.4), 0 14px 32px -16px rgba(0, 0, 0, 0.6);
+  --grid-tint:    rgba(232, 225, 207, 0.04);
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--paper);
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--grid-tint) 1px, transparent 0);
+  background-size: 28px 28px;
+  transition: background-color var(--transition), color var(--transition);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--highlight); }
+
+img { max-width: 100%; display: block; }
+
+code, pre, .mono {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.9em;
+}
+
+code:not(pre code) {
+  padding: 1px 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--r-sm);
+  font-size: 0.86em;
+}
+
+/* =========================================================
+   NAV
+   ========================================================= */
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px clamp(20px, 4vw, 56px);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.nav-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: "Fraunces", serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.nav-brand .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--highlight);
+  display: inline-block;
+  transform: translateY(-3px);
+}
+
+.nav-brand .sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: 1;
+  justify-content: center;
+}
+
+/* page-level segmented control (Overview / Details) */
+.page-tabs {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  box-shadow: var(--shadow-1);
+}
+
+.page-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-mid);
+  letter-spacing: 0.01em;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.page-tabs .tab:hover { color: var(--ink); }
+
+.page-tabs .tab.active {
+  background: var(--ink);
+  color: var(--paper);
+  cursor: default;
+}
+
+.page-tabs .tab.active:hover { color: var(--paper); }
+
+.page-tabs .tab .dot-mini {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.page-tabs .tab.active .dot-mini {
+  background: var(--highlight);
+  opacity: 1;
+}
+
+/* in-page section anchors — secondary */
+.nav-links {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
+}
+
+.nav-links a {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+
+.nav-links a:hover { color: var(--ink); }
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: var(--highlight);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition);
+}
+
+.nav-links a:hover::after { transform: scaleX(1); }
+
+.nav-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+.btn.primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--paper);
+}
+
+.btn .icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.6;
+}
+
+.theme-toggle {
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
+
+.theme-toggle svg { width: 15px; height: 15px; }
+
+/* =========================================================
+   PAGE FRAME
+   ========================================================= */
+.page {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 56px);
+}
+
+section { padding: clamp(56px, 8vw, 96px) 0; border-bottom: 1px solid var(--rule); }
+section:last-of-type { border-bottom: none; }
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--highlight);
+}
+
+h1, h2, h3 {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+h2 {
+  font-size: clamp(28px, 4.4vw, 46px);
+  line-height: 1.04;
+  margin-bottom: 18px;
+}
+
+h3 {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+
+p { color: var(--ink-mid); max-width: 70ch; }
+
+.lede { font-size: 17px; line-height: 1.7; max-width: 64ch; }
+
+/* =========================================================
+   HERO
+   ========================================================= */
+.hero {
+  padding-top: clamp(48px, 9vh, 110px);
+  padding-bottom: clamp(56px, 9vh, 90px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 60px);
+  align-items: end;
+}
+
+.hero-title {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144, "SOFT" 80;
+  font-size: clamp(40px, 6.8vw, 78px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+.hero-title em {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  color: var(--highlight);
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  margin-bottom: 28px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  background: var(--surface);
+}
+
+.hero-tag .badge {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  background: var(--highlight);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.hero-sub {
+  margin-top: 26px;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--ink-mid);
+  max-width: 56ch;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.hero-meta {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 24px 26px;
+  box-shadow: var(--shadow-1);
+}
+
+.hero-meta-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hero-meta-title .pill {
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+}
+
+.meta-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 0;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 13.5px;
+}
+
+.meta-row:last-child { border-bottom: none; }
+
+.meta-row dt {
+  color: var(--ink-soft);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+.meta-row dd {
+  color: var(--ink);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* =========================================================
+   STATS · presented as classical typographic strip
+   ========================================================= */
+.stats {
+  padding: 56px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.stat {
+  padding: 6px 28px;
+  border-left: 1px solid var(--rule);
+  position: relative;
+}
+
+.stat:first-child { border-left: none; padding-left: 0; }
+
+.stat-value {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144, "SOFT" 40;
+  font-size: clamp(38px, 4.6vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-weight: 400;
+}
+
+.stat-value .unit {
+  font-size: 0.42em;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+.stat-value.good { color: var(--good); }
+
+.stat-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 14px;
+}
+
+.stat-note {
+  font-size: 12.5px;
+  color: var(--ink-mid);
+  margin-top: 8px;
+  line-height: 1.55;
+}
+
+/* =========================================================
+   SECTIONS
+   ========================================================= */
+.section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: end;
+  margin-bottom: 44px;
+}
+
+@media (max-width: 720px) {
+  .section-head { grid-template-columns: 1fr; }
+}
+
+.section-num {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--highlight);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.cards-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cards-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .cards-3, .cards-2 { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 24px 24px 22px;
+  transition: border-color var(--transition), transform var(--transition);
+}
+
+.card:hover {
+  border-color: var(--ink-soft);
+}
+
+.card .num {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--highlight);
+  margin-bottom: 8px;
+}
+
+.card p {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--ink-mid);
+}
+
+.card .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.card .tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  color: var(--ink-mid);
+  letter-spacing: 0.02em;
+}
+
+/* =========================================================
+   FIGURE BLOCKS
+   ========================================================= */
+figure {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin: 0;
+}
+
+figure img {
+  width: 100%;
+  height: auto;
+  background: var(--surface-2);
+}
+
+figure figcaption {
+  padding: 16px 20px 18px;
+  font-size: 13px;
+  color: var(--ink-mid);
+  border-top: 1px solid var(--rule-soft);
+  line-height: 1.65;
+}
+
+figure figcaption .label {
+  display: block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  margin-bottom: 6px;
+}
+
+/* ---- Wide architecture diagram ---- */
+.diagram { margin-top: 8px; }
+
+.diagram img {
+  padding: 18px 22px;
+  background: #FFFFFF;
+}
+
+[data-theme="dark"] .diagram img {
+  background: #F4EFE5;   /* keep diagram readable on warm paper in dark mode */
+}
+
+.diagram .errata {
+  display: block;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--rule-soft);
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.diagram .errata strong {
+  color: var(--ink-mid);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.diagram-key {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+@media (max-width: 860px) {
+  .diagram-key { grid-template-columns: 1fr; }
+}
+
+.key-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule-soft);
+  border-radius: var(--r-md);
+}
+
+.key-item .key-num {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 17px;
+  color: var(--highlight);
+  flex-shrink: 0;
+  min-width: 18px;
+  line-height: 1.3;
+}
+
+.key-item .key-body {
+  font-size: 13px;
+  color: var(--ink-mid);
+  line-height: 1.6;
+}
+
+.key-item .key-body strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 500;
+  margin-bottom: 3px;
+  font-size: 13.5px;
+}
+
+.figure-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+@media (max-width: 860px) {
+  .figure-row { grid-template-columns: 1fr; }
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 860px) {
+  .setup-grid { grid-template-columns: 1fr; }
+}
+
+.fact-list {
+  list-style: none;
+  display: grid;
+  gap: 14px;
+}
+
+.fact-list li {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 18px;
+  align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--rule);
+}
+
+.fact-list li:last-child { border-bottom: none; }
+
+.fact-list dt {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.fact-list dd {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.fact-list dd .note {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-mid);
+  font-size: 12.5px;
+}
+
+/* =========================================================
+   RESULTS METRIC ROW
+   ========================================================= */
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 980px) {
+  .metric-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 540px) {
+  .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.metric {
+  padding: 22px 20px 20px;
+  border-left: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
+}
+
+.metric:first-child,
+.metric:nth-child(7),
+.metric:nth-child(13) { border-left: none; }
+
+.metric:nth-child(-n+6) { border-top: none; }
+
+@media (max-width: 980px) {
+  .metric { border-top: 1px solid var(--rule); }
+  .metric:nth-child(-n+3) { border-top: none; }
+  .metric:nth-child(3n+1) { border-left: none; }
+  .metric:not(:nth-child(3n+1)) { border-left: 1px solid var(--rule); }
+}
+
+.metric-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+.metric-value.good { color: var(--good); }
+.metric-value.warn { color: var(--warn); }
+
+.metric-note {
+  font-size: 12px;
+  color: var(--ink-mid);
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   TABLE · academic style
+   ========================================================= */
+.table-wrap {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+thead th {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+tbody tr:last-child td { border-bottom: none; }
+
+tbody td.label {
+  font-weight: 500;
+}
+
+tbody td.good { color: var(--good); }
+tbody td.warn { color: var(--warn); }
+
+/* =========================================================
+   CALLOUT · for limit / takeaway boxes
+   ========================================================= */
+.callout {
+  margin-top: 28px;
+  padding: 22px 26px;
+  background: var(--highlight-soft);
+  border-left: 3px solid var(--highlight);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+
+.callout h3 {
+  font-size: 16px;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.callout p {
+  font-size: 14px;
+  color: var(--ink-mid);
+  line-height: 1.7;
+}
+
+.callout.accent {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+/* =========================================================
+   RESOURCES
+   ========================================================= */
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .resource-grid { grid-template-columns: 1fr; }
+}
+
+.resource {
+  display: block;
+  padding: 24px 24px 22px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  color: var(--ink);
+  transition: all var(--transition);
+  position: relative;
+}
+
+.resource:hover {
+  border-color: var(--ink);
+  transform: translateY(-2px);
+  color: var(--ink);
+}
+
+.resource .arrow {
+  position: absolute;
+  top: 22px;
+  right: 22px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  transition: all var(--transition);
+}
+
+.resource:hover .arrow {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  transform: rotate(-45deg);
+}
+
+.resource .arrow svg { width: 12px; height: 12px; }
+
+.resource .label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  margin-bottom: 12px;
+}
+
+.resource h3 {
+  font-size: 19px;
+  margin-bottom: 6px;
+}
+
+.resource p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+footer {
+  padding: 36px clamp(20px, 4vw, 56px);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+footer .left {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+footer .left .mark {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  color: var(--ink-mid);
+}
+
+footer .right {
+  display: flex;
+  gap: 18px;
+}
+
+footer a { color: var(--ink-mid); }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 980px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat { padding: 18px 0; border-left: none; border-bottom: 1px solid var(--rule); }
+  .stat:nth-child(odd) { padding-right: 18px; }
+  .stat:nth-child(even) { padding-left: 18px; border-left: 1px solid var(--rule); }
+  .stat:nth-last-child(-n+2) { border-bottom: none; }
+}
+
+@media (max-width: 980px) {
+  /* hide section anchors first; keep page tabs visible */
+  .nav-links { display: none; }
+  .nav-center { justify-content: flex-start; }
+}
+
+@media (max-width: 720px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .stat { border-left: none !important; padding: 18px 0 !important; }
+  .nav-brand .sub { display: none; }
+  .page-tabs .tab { padding: 6px 12px; font-size: 12.5px; }
+}
+
+/* =========================================================
+   SUBTLE LOAD-IN ANIMATION
+   ========================================================= */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero > *,
+.section-head > *,
+.cards-3 > *,
+.cards-2 > *,
+.figure-row > * {
+  animation: rise 0.6s ease both;
+}
+
+.cards-3 > *:nth-child(2),
+.cards-2 > *:nth-child(2) { animation-delay: 0.06s; }
+.cards-3 > *:nth-child(3) { animation-delay: 0.12s; }
+
+</style>
+</head>
+<body>
+
+<nav class="nav" role="navigation">
+  <a href="#top" class="nav-brand">
+    <span class="dot"></span>
+    Pi-LNN
+    <span class="sub">Re=10000</span>
+  </a>
+
+  <div class="nav-center">
+    <div class="page-tabs" role="tablist" aria-label="Page selector">
+      <a href="index.html" class="tab active" aria-current="page">
+        <span class="dot-mini"></span>
+        Overview
+      </a>
+      <a href="lnn_architecture.html" class="tab">
+        Details
+      </a>
+    </div>
+    <div class="nav-links">
+      <a href="#setup">Setup</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#results">Results</a>
+      <a href="#limit">Limit</a>
+    </div>
+  </div>
+
+  <div class="nav-actions">
+    <a class="btn" href="https://github.com/latteine1217/pi-lnn" aria-label="GitHub repository">
+      <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+    </a>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="page" id="top">
+
+  <!-- =========================================================
+       HERO
+       ========================================================= -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-tag">
+          <span class="badge">●</span>
+          EXP-064 · Final · K=100 ceiling reached
+        </div>
+        <h1 class="hero-title">
+          Flow reconstruction from <em>sparse sensors.</em>
+        </h1>
+        <p class="hero-sub">
+          Pi-LNN combines DeepONet operator learning with CfC (closed-form continuous-time) memory
+          to reconstruct a Re&nbsp;=&nbsp;10,000 two-dimensional Kolmogorov flow from only K&nbsp;=&nbsp;100
+          velocity sensors. The model never sees a full DNS field — its supervision is pointwise sensor
+          MSE plus the residual of the Navier–Stokes equations.
+        </p>
+        <div class="hero-cta">
+          <a class="btn primary" href="lnn_architecture.html">
+            View full architecture
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>
+          </a>
+          <a class="btn" href="https://github.com/latteine1217/pi-lnn">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+            GitHub
+          </a>
+          <a class="btn" href="experiment_log.md">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+            Experiment log
+          </a>
+        </div>
+      </div>
+
+      <aside class="hero-meta" aria-label="Configuration">
+        <div class="hero-meta-title">
+          <span>Configuration</span>
+          <span class="pill">Apple M3 · MPS</span>
+        </div>
+        <dl>
+          <div class="meta-row"><dt>Reynolds</dt><dd>Re = 10,000</dd></div>
+          <div class="meta-row"><dt>Sensors</dt><dd>K = 100 (u, v only)</dd></div>
+          <div class="meta-row"><dt>Domain</dt><dd>[0,1]² periodic</dd></div>
+          <div class="meta-row"><dt>Forcing</dt><dd>f<sub>x</sub> = 0.1·sin(4πy)</dd></div>
+          <div class="meta-row"><dt>Architecture</dt><dd>d = 256 / rank = 256</dd></div>
+          <div class="meta-row"><dt>Parameters</dt><dd>3.14 M</dd></div>
+          <div class="meta-row"><dt>Optimizer</dt><dd>SOAP · Schedule-Free</dd></div>
+          <div class="meta-row"><dt>Wall-clock</dt><dd>≈ 7 h 17 m / 10k steps</dd></div>
+        </dl>
+      </aside>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       STATS
+       ========================================================= -->
+  <section class="stats" aria-label="Headline metrics">
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-value good">7.80<span class="unit">%</span></div>
+        <div class="stat-label">KE Relative Error</div>
+        <div class="stat-note">Kinetic energy error across the full T = [0, 5] window.</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">17.0<span class="unit">/ 20.2 %</span></div>
+        <div class="stat-label">u / v Relative L²</div>
+        <div class="stat-note">‖pred − ref‖₂ / ‖ref‖₂; standard PINN field metric.</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">0.184</div>
+        <div class="stat-label">Divergence L²</div>
+        <div class="stat-note">Global incompressibility residual, ∇·u → 0.</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">0.962</div>
+        <div class="stat-label">k<sub>f</sub> Amplitude Ratio</div>
+        <div class="stat-note">Forcing-mode amplitude vs DNS; phase error −0.023 rad.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SETUP
+       ========================================================= -->
+  <section id="setup">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 01 — Problem setup</div>
+        <h2>A real engineering sensor scene, reconstructed by physics alone.</h2>
+      </div>
+      <p class="lede">
+        We take the engineering scenario seriously: only point-wise velocity samples are available, and
+        the only auxiliary signal is the governing PDE. Full DNS fields are used <em>offline</em> as a
+        benchmark — never as supervision.
+      </p>
+    </div>
+
+    <div class="setup-grid">
+      <ul class="fact-list">
+        <li>
+          <dt>Flow</dt>
+          <dd>Two-dimensional Kolmogorov turbulence on a strict periodic [0, 1]² domain.</dd>
+        </li>
+        <li>
+          <dt>Reynolds</dt>
+          <dd>Re = 10,000.<span class="note">High-Re regime with a wide inertial range and rich small-scale vortices.</span></dd>
+        </li>
+        <li>
+          <dt>DNS reference</dt>
+          <dd><code>N = 256</code>, <code>T = 201</code> snapshots, <code>dt = 0.025</code>.<span class="note">Used only to extract sensor values and for offline diagnostics.</span></dd>
+        </li>
+        <li>
+          <dt>Forcing</dt>
+          <dd><code>f<sub>x</sub> = A sin(2π k<sub>f</sub> y)</code>, <code>A = 0.1</code>, <code>k<sub>f</sub> = 2</code>.</dd>
+        </li>
+        <li>
+          <dt>Observation</dt>
+          <dd><code>K = 100</code> sensors (QR-pivot placement), velocity components <code>u, v</code> only.<span class="note">Pressure <code>p</code> is unobserved and emerges as an internal physics field.</span></dd>
+        </li>
+        <li>
+          <dt>Training signal</dt>
+          <dd>Sensor MSE + NS momentum + continuity residual. Nothing else.</dd>
+        </li>
+      </ul>
+
+      <figure>
+        <img src="assets/kolmogorov_dns_vorticity_re10000_t5.png" alt="DNS vorticity field at Re=10000, t=5">
+        <figcaption>
+          <span class="label">DNS · Reference snapshot</span>
+          Re = 10,000 vorticity field at <code>t = 5.0</code>. The model never trains on this field
+          — it is the offline yard-stick against which every reconstruction figure below is measured.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       ARCHITECTURE
+       ========================================================= -->
+  <section id="architecture">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 02 — Architecture</div>
+        <h2>Two parallel paths, fused in a DeepONet-style readout.</h2>
+      </div>
+      <p class="lede">
+        A <strong>branch</strong> path turns the sensor stream into a continuous-time memory; a
+        <strong>trunk</strong> path lifts each query <code>(x, y, t)</code> into an aligned condition
+        feature. Cross-attention fuses them into a field value.
+      </p>
+    </div>
+
+    <figure class="diagram">
+      <img src="assets/architecture.png"
+           alt="Pi-LNN architecture: a branch path turns sensor observations into spatial tokens via Fourier or RFF encoding, then a CfC closed-form continuous-time memory advances them through token attention with causal updates; a trunk path carries the query coordinates (x, y, t) with a temporal anchor; the DeepONet decoder fuses the two via query-token attention and emits the (u, v, p) field; the loss combines sensor MSE with NS momentum and continuity residuals; the SOAP preconditioned optimiser updates parameters; full-field DNS is never used as supervision.">
+      <figcaption>
+        <span class="label">Figure · End-to-end signal flow</span>
+        Branch (left) builds a dt-aware sensor memory; trunk (centre) carries the query
+        <code>(x, y, t)</code> with a temporal anchor; the DeepONet decoder fuses them and emits
+        <code>(u, v, p)</code>. Training loss is sensor MSE plus NS momentum and continuity
+        residuals; SOAP applies the preconditioned update. Full-field DNS is used only offline.
+        <span class="errata">
+          Diagram errata: the third branch block reads <em>“CIC Memory”</em> — should be
+          <strong>CfC Memory</strong> (closed-form continuous-time). A clean re-render is queued.
+        </span>
+      </figcaption>
+    </figure>
+
+    <div class="diagram-key">
+      <div class="key-item">
+        <span class="key-num">i.</span>
+        <div class="key-body">
+          <strong>Branch · Sensor memory</strong>
+          Fourier embedding <code>d = 128</code> → SpatialSetEncoder → token attention →
+          <code>CfC(dt)</code> causal state, yielding a dt-aware token bank.
+        </div>
+      </div>
+      <div class="key-item">
+        <span class="key-num">ii.</span>
+        <div class="key-body">
+          <strong>Trunk · Query path</strong>
+          Continuous <code>(x, y, t)</code> with temporal anchor of <code>t<sub>q</sub></code>;
+          shares the same <code>d = 256</code> latent space as the branch tokens.
+        </div>
+      </div>
+      <div class="key-item">
+        <span class="key-num">iii.</span>
+        <div class="key-body">
+          <strong>Decoder · Operator fusion</strong>
+          Cross-attention readout at operator rank <code>= 256</code>; output <code>(u, v, p)</code>,
+          with <code>p</code> recovered from the NS residual.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout accent">
+      <h3>Want the full graph?</h3>
+      <p>
+        Component-by-component nodes, time semantics, decoder zoom-in, and the closed-form CfC
+        update are documented in the <a href="lnn_architecture.html">detailed architecture page</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       RESULTS
+       ========================================================= -->
+  <section id="results">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 03 — Results</div>
+        <h2>Re&nbsp;=&nbsp;10,000 reconstruction quality from K&nbsp;=&nbsp;100.</h2>
+      </div>
+      <p class="lede">
+        Field structure, spectral content, and physics constraints are evaluated on the full
+        <code>T = [0, 5]</code> window. Numbers are versus DNS; the model has not seen any of these
+        full fields during training.
+      </p>
+    </div>
+
+    <div class="metric-row">
+      <div class="metric">
+        <div class="metric-label">KE rel. err</div>
+        <div class="metric-value good">7.80%</div>
+        <div class="metric-note">Energy across full window.</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">u rel. L²</div>
+        <div class="metric-value good">17.0%</div>
+        <div class="metric-note">‖uₚ − u_ref‖₂ / ‖u_ref‖₂.</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">v rel. L²</div>
+        <div class="metric-value good">20.2%</div>
+        <div class="metric-note">RMSE = 6.21 × 10⁻².</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">ω rel. L²</div>
+        <div class="metric-value warn">45.4%</div>
+        <div class="metric-note">k² amplifies high freq.</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">div L²</div>
+        <div class="metric-value good">0.184</div>
+        <div class="metric-note">Incompressibility residual.</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">k<sub>f</sub> phase</div>
+        <div class="metric-value good">−0.023 rad</div>
+        <div class="metric-note">Forcing-mode phase error.</div>
+      </div>
+    </div>
+
+    <div class="figure-row">
+      <figure>
+        <img src="assets/exp064/field_comparison_t5.png" alt="Velocity field comparison at t=5">
+        <figcaption>
+          <span class="label">Field · Velocity at t = 5</span>
+          Reconstruction tracks the large-scale shape and the dominant Kolmogorov streaks; residual
+          error concentrates on vortex sheets and high-gradient interfaces.
+        </figcaption>
+      </figure>
+
+      <figure>
+        <img src="assets/exp064/energy_spectrum.png" alt="Energy spectrum comparison">
+        <figcaption>
+          <span class="label">Spectrum · Energy E(k)</span>
+          Low-wavenumber energy band is recovered; the model rolls off above the K = 100
+          information barrier — a structural ceiling, not an optimisation gap (see §04).
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       INFORMATION LIMIT
+       ========================================================= -->
+  <section id="limit">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 04 — Information-theoretic limit</div>
+        <h2>K&nbsp;=&nbsp;100 is a mathematical ceiling, not an optimisation gap.</h2>
+      </div>
+      <p class="lede">
+        The Re = 10,000 velocity field is highly sparse in a db4 wavelet basis (Gini ≈ 0.983).
+        Compressed-sensing theory requires <em>M ≥ O(s · log N) ≈ 5,000</em> sensors for exact
+        recovery. K = 100 is short by a factor of ~50.
+      </p>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Frequency band</th>
+            <th>Energy share</th>
+            <th>Wavelet DOF</th>
+            <th>Feasible at K = 100?</th>
+            <th>EXP-064 band err.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="label">Low &nbsp;(k ≤ 8)</td>
+            <td>94.4 %</td>
+            <td>~196</td>
+            <td class="good">Underdetermined — feasible</td>
+            <td class="good">3.62 %</td>
+          </tr>
+          <tr>
+            <td class="label">Mid &nbsp;(8 &lt; k ≤ 16)</td>
+            <td>4.8 %</td>
+            <td>~588</td>
+            <td class="warn">Exceeds capacity</td>
+            <td class="warn">≈ 100 %</td>
+          </tr>
+          <tr>
+            <td class="label">High &nbsp;(16 &lt; k ≤ 32)</td>
+            <td>0.8 %</td>
+            <td>~1,452</td>
+            <td class="warn">Far exceeds capacity</td>
+            <td class="warn">≈ 100 %</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <h3>Convergent evidence — the wall is real</h3>
+      <p>
+        Three independent turbulence-aware variants (multi-scale CfC time-constants, frequency-tiered
+        Fourier, PINN causal weighting; EXP-067 / 068 / 069) all <em>fail to break</em> the mid- and
+        high-band errors. KE regresses by +1.9 to +12.3 percentage points; the band-mid error stays
+        ≈ 100 %. EXP-064 (K = 100, KE 7.80 %) is the global optimum under the current architecture
+        configuration. Further progress requires either more sensors (K ≥ 5,000) or a physical prior
+        that is, by construction, engineering-non-transferable.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       RESOURCES
+       ========================================================= -->
+  <section id="resources">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 05 — Resources</div>
+        <h2>Read deeper, run it yourself, or follow the experiment chain.</h2>
+      </div>
+    </div>
+
+    <div class="resource-grid">
+      <a class="resource" href="lnn_architecture.html">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">/docs/lnn_architecture.html</div>
+        <h3>Detailed architecture</h3>
+        <p>
+          Component-by-component nodes, time semantics, decoder internals, training-loss design,
+          and the closed-form CfC update.
+        </p>
+      </a>
+      <a class="resource" href="https://github.com/latteine1217/pi-lnn">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">github.com/latteine1217/pi-lnn</div>
+        <h3>Source code</h3>
+        <p>
+          PyTorch implementation, configs, training scripts, and the evaluation pipeline used for
+          every figure on this page.
+        </p>
+      </a>
+      <a class="resource" href="experiment_log.md">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">/docs/experiment_log.md</div>
+        <h3>Experiment log</h3>
+        <p>
+          Linear chronicle of every run from EXP-001 through the K = 100 ceiling, including
+          hypothesis, falsifying evidence, and post-mortems.
+        </p>
+      </a>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="left">
+    <span class="mark">Pi-LNN</span>
+    <span>·</span>
+    <span>Sparse-sensor flow reconstruction · Re = 10,000 · K = 100 · KE 7.80 %</span>
+  </div>
+  <div class="right">
+    <a href="lnn_architecture.html">Architecture</a>
+    <a href="experiment_log.md">Log</a>
+    <a href="https://github.com/latteine1217/pi-lnn">GitHub</a>
+  </div>
+</footer>
+
+<script>
+  /* ---------- Theme toggle (persists across visits) ---------- */
+  const html = document.documentElement;
+  const toggle = document.getElementById("themeToggle");
+  const KEY = "pi-lnn-index-theme";
+  const saved = localStorage.getItem(KEY);
+  if (saved === "dark" || saved === "light") {
+    html.setAttribute("data-theme", saved);
+  } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    html.setAttribute("data-theme", "dark");
+  }
+  toggle.addEventListener("click", () => {
+    const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    html.setAttribute("data-theme", next);
+    localStorage.setItem(KEY, next);
+  });
+
+  /* ---------- Smooth-scroll for in-page anchors ---------- */
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener("click", e => {
+      const id = a.getAttribute("href").slice(1);
+      if (!id) return;
+      const target = document.getElementById(id);
+      if (!target) return;
+      e.preventDefault();
+      const navH = document.querySelector(".nav").offsetHeight;
+      const y = target.getBoundingClientRect().top + window.scrollY - navH - 8;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    });
+  });
+</script>
+
+</body>
+</html>

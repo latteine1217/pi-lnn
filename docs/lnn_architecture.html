@@ -1,2711 +1,1711 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pi-LNN Architecture & Experiment State</title>
+<title>Pi-LNN · Details · Model card, training, and ablations</title>
+<meta name="description" content="Detailed Pi-LNN documentation: dataset specification, parameter breakdown, training protocol, decoder internals, full results gallery, ablation chain (EXP-064 → 069), reproducibility.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+/* =========================================================
+   THEME · editorial-laboratory-notebook (matches index.html)
+   ========================================================= */
 :root {
-  --transition: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-[data-theme="dark"] {
-  --bg: #090c11;
-  --bg-alt: #0e1219;
-  --panel: rgba(14, 18, 25, 0.88);
-  --panel-2: rgba(18, 24, 34, 0.92);
-  --panel-3: rgba(10, 14, 22, 0.9);
-  --border: rgba(132, 151, 181, 0.16);
-  --border-strong: rgba(132, 151, 181, 0.32);
-  --text: #d0d8e6;
-  --text-mid: #93a1b8;
-  --text-dim: #66738a;
-  --text-hi: #f3f7ff;
-  --blue: #63a7ff;
-  --teal: #5ee5c4;
-  --orange: #f5ad63;
-  --red: #ff8e8e;
-  --chip: rgba(255, 255, 255, 0.05);
-  --shadow: 0 24px 64px rgba(0, 0, 0, 0.24);
-  --grid: rgba(99, 167, 255, 0.06);
-  --page-glow: radial-gradient(circle at top left, rgba(94, 229, 196, 0.1), transparent 32%),
-               radial-gradient(circle at top right, rgba(99, 167, 255, 0.1), transparent 28%);
+  --transition: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --r-sm: 6px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --maxw: 1180px;
 }
 
 [data-theme="light"] {
-  --bg: #f3f5f8;
-  --bg-alt: #ffffff;
-  --panel: rgba(255, 255, 255, 0.95);
-  --panel-2: rgba(250, 251, 253, 0.98);
-  --panel-3: rgba(246, 248, 251, 0.98);
-  --border: rgba(37, 55, 88, 0.12);
-  --border-strong: rgba(37, 55, 88, 0.24);
-  --text: #415067;
-  --text-mid: #627188;
-  --text-dim: #8592a7;
-  --text-hi: #101722;
-  --blue: #2563eb;
-  --teal: #089981;
-  --orange: #d97706;
-  --red: #dc2626;
-  --chip: rgba(16, 23, 34, 0.04);
-  --shadow: 0 18px 40px rgba(34, 48, 74, 0.08);
-  --grid: rgba(37, 99, 235, 0.05);
-  --page-glow: radial-gradient(circle at top left, rgba(8, 153, 129, 0.08), transparent 30%),
-               radial-gradient(circle at top right, rgba(37, 99, 235, 0.08), transparent 24%);
+  --paper:        #F4EFE5;
+  --paper-soft:   #F8F4EB;
+  --surface:      #FFFFFF;
+  --surface-2:    #FBF8F1;
+  --ink:          #1A1F2C;
+  --ink-mid:      #4D5468;
+  --ink-soft:     #7C859A;
+  --rule:         #D9D0BD;
+  --rule-soft:    #E7DECC;
+  --accent:       #2A3E6B;
+  --accent-soft:  rgba(42, 62, 107, 0.08);
+  --highlight:    #B05A2C;
+  --highlight-soft: rgba(176, 90, 44, 0.10);
+  --good:         #2F6F4F;
+  --warn:         #B05A2C;
+  --bad:          #9E3232;
+  --code-bg:      #1A1F2C;
+  --code-fg:      #E8E1CF;
+  --code-muted:   #7C859A;
+  --shadow-1:     0 1px 0 rgba(26, 31, 44, 0.04), 0 12px 24px -12px rgba(26, 31, 44, 0.10);
+  --grid-tint:    rgba(26, 31, 44, 0.035);
 }
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+[data-theme="dark"] {
+  --paper:        #0D1017;
+  --paper-soft:   #11151E;
+  --surface:      #141923;
+  --surface-2:    #181E2A;
+  --ink:          #E8E1CF;
+  --ink-mid:      #A7AFC1;
+  --ink-soft:     #6E7689;
+  --rule:         #2A3142;
+  --rule-soft:    #1E2533;
+  --accent:       #8FB1F2;
+  --accent-soft:  rgba(143, 177, 242, 0.10);
+  --highlight:    #E59A6A;
+  --highlight-soft: rgba(229, 154, 106, 0.12);
+  --good:         #80D2A6;
+  --warn:         #E59A6A;
+  --bad:          #F08F8F;
+  --code-bg:      #050810;
+  --code-fg:      #E8E1CF;
+  --code-muted:   #6E7689;
+  --shadow-1:     0 1px 0 rgba(0, 0, 0, 0.4), 0 14px 32px -16px rgba(0, 0, 0, 0.6);
+  --grid-tint:    rgba(232, 225, 207, 0.04);
 }
 
-html {
-  scroll-behavior: smooth;
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 body {
-  min-height: 100vh;
-  font-family: "IBM Plex Sans", sans-serif;
-  color: var(--text);
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.1), transparent 20%),
-    var(--page-glow),
-    var(--bg);
-  transition: background var(--transition), color var(--transition);
+  font-family: "Inter Tight", system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--paper);
+  background-image: radial-gradient(circle at 1px 1px, var(--grid-tint) 1px, transparent 0);
+  background-size: 28px 28px;
+  transition: background-color var(--transition), color var(--transition);
+  -webkit-font-smoothing: antialiased;
 }
 
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-  background-size: 36px 36px;
-  pointer-events: none;
-  z-index: 0;
+a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
+a:hover { color: var(--highlight); }
+
+img { max-width: 100%; display: block; }
+
+code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.9em; }
+
+code:not(pre code) {
+  padding: 1px 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: var(--r-sm);
+  font-size: 0.86em;
 }
 
-a {
-  color: inherit;
-}
-
-.page {
-  position: relative;
-  z-index: 1;
-  width: min(1280px, calc(100vw - 40px));
-  margin: 0 auto;
-  padding: 40px 0 56px;
-}
-
-.theme-toggle {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 10;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--border-strong);
-  background: var(--panel);
-  color: var(--text-mid);
-  border-radius: 999px;
-  padding: 10px 14px;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  cursor: pointer;
-  backdrop-filter: blur(18px);
-  box-shadow: var(--shadow);
-}
-
-.theme-toggle:hover {
-  color: var(--text-hi);
-  border-color: var(--blue);
-}
-
-.theme-toggle .icon {
-  font-size: 14px;
-}
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.9fr);
-  gap: 24px;
-  align-items: stretch;
-  margin-bottom: 28px;
-}
-
-.hero-card,
-.panel,
-.figure-card,
-.code-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(18px);
-}
-
-.hero-main {
-  padding: 28px 30px 28px;
-}
-
-.eyebrow,
-.section-label,
-.mini-label,
-.chip,
-.code-meta,
-.metric-label,
-.table-wrap thead th {
-  font-family: "IBM Plex Mono", monospace;
-}
-
-.eyebrow {
-  color: var(--teal);
-  font-size: 11px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-.hero-main h1 {
-  color: var(--text-hi);
-  font-size: clamp(32px, 4vw, 56px);
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-  margin-bottom: 14px;
-}
-
-.hero-main p {
-  color: var(--text-mid);
-  font-size: 15px;
-  line-height: 1.85;
-  max-width: 62ch;
-}
-
-.chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--chip);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 11px;
-  color: var(--text-mid);
-  letter-spacing: 0.04em;
-}
-
-.chip b {
-  color: var(--text-hi);
-  font-weight: 600;
-}
-
-.hero-side {
-  padding: 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.stat-card {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px 18px 16px;
-}
-
-.metric-label {
-  color: var(--text-dim);
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.metric-value {
-  color: var(--text-hi);
-  font-size: 28px;
-  line-height: 1;
-  font-weight: 700;
-  letter-spacing: -0.03em;
-}
-
-.metric-value.good {
-  color: var(--teal);
-}
-
-.metric-value.warn {
-  color: var(--orange);
-}
-
-.metric-value.bad {
-  color: var(--red);
-}
-
-.metric-note {
-  color: var(--text-mid);
-  font-size: 12px;
-  line-height: 1.55;
-  margin-top: 10px;
-}
-
-.section {
-  margin-top: 20px;
-}
-
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
-  color: var(--text-dim);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.section-label::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: linear-gradient(90deg, var(--border-strong), transparent);
-}
-
-.panel {
-  padding: 24px;
-}
-
-.panel-title {
-  color: var(--text-hi);
-  font-size: 22px;
-  letter-spacing: -0.02em;
-  margin-bottom: 8px;
-}
-
-.panel-desc {
-  color: var(--text-mid);
-  font-size: 14px;
-  line-height: 1.8;
-  margin-bottom: 20px;
-}
-
-.architecture-flow {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-}
-
-.parallel-arch {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.92fr);
-  gap: 18px;
-  align-items: stretch;
-}
-
-.lane {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 18px;
-}
-
-.lane.sensor-lane {
-  border-color: rgba(99, 167, 255, 0.28);
-}
-
-.lane.query-lane {
-  border-color: rgba(245, 173, 99, 0.28);
-}
-
-.lane-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.lane-title {
-  color: var(--text-hi);
-  font-size: 20px;
-  letter-spacing: -0.02em;
-}
-
-.lane-sub {
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.lane-desc {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.75;
-  margin-bottom: 16px;
-}
-
-.lane-steps {
-  display: grid;
-  gap: 12px;
-}
-
-.lane-step {
-  position: relative;
-  background: var(--panel-3);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 16px 16px 14px 52px;
-}
-
-.lane-step::before {
-  content: "";
-  position: absolute;
-  left: 22px;
+/* =========================================================
+   NAV (identical structure to index.html)
+   ========================================================= */
+.nav {
+  position: sticky;
   top: 0;
-  bottom: -12px;
-  width: 2px;
-  background: var(--border-strong);
-}
-
-.lane-step:last-child::before {
-  bottom: 0;
-}
-
-.lane-step.sensor-step::before {
-  background: linear-gradient(180deg, var(--blue), rgba(99, 167, 255, 0.15));
-}
-
-.lane-step.query-step::before {
-  background: linear-gradient(180deg, var(--orange), rgba(245, 173, 99, 0.15));
-}
-
-.lane-index {
-  position: absolute;
-  left: 10px;
-  top: 16px;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
+  z-index: 50;
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--panel);
-  border: 1px solid var(--border-strong);
-  color: var(--text-hi);
+  gap: 24px;
+  padding: 14px clamp(20px, 4vw, 56px);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--rule);
 }
 
-.sensor-step .lane-index {
-  border-color: rgba(99, 167, 255, 0.3);
-  color: var(--blue);
-}
-
-.query-step .lane-index {
-  border-color: rgba(245, 173, 99, 0.3);
-  color: var(--orange);
-}
-
-.lane-step h3 {
-  color: var(--text-hi);
-  font-size: 17px;
-  margin-bottom: 8px;
-}
-
-.lane-step p {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.75;
-}
-
-.shape-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.merge-panel {
-  display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 14px;
-}
-
-.merge-card {
-  background: linear-gradient(135deg, rgba(94, 229, 196, 0.08), rgba(99, 167, 255, 0.06));
-  border: 1px solid rgba(94, 229, 196, 0.18);
-  border-radius: 20px;
-  padding: 18px;
-}
-
-.nozzle-wrap {
-  position: relative;
-  padding: 8px 0 4px;
-}
-
-.nozzle-flow {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 10px;
-}
-
-.nozzle-inlet {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--panel-3);
-  padding: 12px 14px;
-}
-
-.nozzle-inlet.sensor-inlet {
-  border-color: rgba(99, 167, 255, 0.28);
-}
-
-.nozzle-inlet.query-inlet {
-  border-color: rgba(245, 173, 99, 0.28);
-}
-
-.nozzle-label {
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.nozzle-inlet p,
-.nozzle-outlet p {
-  color: var(--text-mid);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.nozzle-core {
-  position: relative;
-  margin: 0 auto;
-  width: min(100%, 340px);
-  padding: 18px 20px 20px;
-  background: linear-gradient(135deg, rgba(94, 229, 196, 0.14), rgba(99, 167, 255, 0.08));
-  border: 1px solid rgba(94, 229, 196, 0.24);
-  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
-}
-
-.nozzle-core h3 {
-  color: var(--text-hi);
-  font-size: 18px;
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.nozzle-core p {
-  color: var(--text-mid);
-  font-size: 12px;
-  line-height: 1.75;
-  text-align: center;
-}
-
-.nozzle-outlet {
-  margin: 10px auto 0;
-  width: min(100%, 220px);
-  border: 1px solid rgba(94, 229, 196, 0.24);
-  border-radius: 999px;
-  background: var(--panel-3);
-  padding: 12px 16px;
-  text-align: center;
-}
-
-.comfy-board {
-  position: relative;
-  overflow-x: auto;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at 18px 18px, rgba(99, 167, 255, 0.16) 1px, transparent 1px),
-    linear-gradient(135deg, rgba(99, 167, 255, 0.04), rgba(94, 229, 196, 0.025));
-  background-size: 26px 26px, auto;
-}
-
-.comfy-canvas {
-  position: relative;
-  min-width: 1120px;
-  height: 760px;
-}
-
-.graph-links {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.graph-link {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  opacity: 0.82;
-}
-
-.graph-link[data-kind="sensor"] {
-  stroke: var(--blue);
-}
-
-.graph-link[data-kind="query"] {
-  stroke: var(--orange);
-}
-
-.graph-link[data-kind="merge"] {
-  stroke: var(--teal);
-}
-
-.graph-link[data-kind="blocked"] {
-  stroke: var(--red);
-  stroke-dasharray: 8 8;
-  opacity: 0.5;
-}
-
-.graph-node {
-  position: absolute;
-  z-index: 2;
-  width: 220px;
-  min-height: 158px;
-  border: 1px solid var(--border-strong);
-  border-radius: 18px;
-  background: rgba(14, 18, 25, 0.94);
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.22);
-  overflow: hidden;
-}
-
-[data-theme="light"] .graph-node {
-  background: rgba(255, 255, 255, 0.97);
-}
-
-.graph-node.sensor {
-  border-color: rgba(99, 167, 255, 0.34);
-}
-
-.graph-node.query {
-  border-color: rgba(245, 173, 99, 0.34);
-}
-
-.graph-node.memory,
-.graph-node.decoder,
-.graph-node.output {
-  border-color: rgba(94, 229, 196, 0.34);
-}
-
-.graph-node.blocked {
-  border-color: rgba(255, 142, 142, 0.28);
-  opacity: 0.75;
-}
-
-.node-titlebar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.nav-brand {
+  display: inline-flex;
+  align-items: baseline;
   gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(90deg, rgba(99, 167, 255, 0.12), transparent);
-}
-
-.graph-node.query .node-titlebar {
-  background: linear-gradient(90deg, rgba(245, 173, 99, 0.13), transparent);
-}
-
-.graph-node.memory .node-titlebar,
-.graph-node.decoder .node-titlebar,
-.graph-node.output .node-titlebar {
-  background: linear-gradient(90deg, rgba(94, 229, 196, 0.13), transparent);
-}
-
-.graph-node.blocked .node-titlebar {
-  background: linear-gradient(90deg, rgba(255, 142, 142, 0.12), transparent);
-}
-
-.node-titlebar h3 {
-  color: var(--text-hi);
-  font-size: 15px;
-  line-height: 1.2;
-}
-
-.node-type {
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: "Fraunces", serif;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
   white-space: nowrap;
 }
 
-.node-body {
-  padding: 13px 14px 14px;
+.nav-brand .dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--highlight);
+  display: inline-block;
+  transform: translateY(-3px);
 }
 
-.node-body p {
-  color: var(--text-mid);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.node-chip-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 12px;
-}
-
-.node-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 5px 8px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--chip);
-  color: var(--text-hi);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-}
-
-.graph-port {
-  position: absolute;
-  z-index: 3;
-  width: 13px;
-  height: 13px;
-  border-radius: 999px;
-  border: 2px solid var(--panel);
-  box-shadow: 0 0 0 1px var(--border-strong), 0 0 18px currentColor;
-}
-
-.graph-port.in {
-  left: -7px;
-}
-
-.graph-port.out {
-  right: -7px;
-}
-
-.graph-port[data-kind="sensor"] {
-  color: var(--blue);
-  background: var(--blue);
-}
-
-.graph-port[data-kind="query"] {
-  color: var(--orange);
-  background: var(--orange);
-}
-
-.graph-port[data-kind="merge"] {
-  color: var(--teal);
-  background: var(--teal);
-}
-
-.graph-port[data-kind="blocked"] {
-  color: var(--red);
-  background: var(--red);
-}
-
-.graph-lane-label {
-  position: absolute;
-  z-index: 2;
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
+.nav-brand .sub {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 400;
 }
 
-.graph-note-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 14px;
+.nav-center {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  flex: 1;
+  justify-content: center;
 }
 
-.graph-note {
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: var(--panel-2);
-  padding: 13px 14px;
+.page-tabs {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  box-shadow: var(--shadow-1);
 }
 
-.graph-note h4 {
-  color: var(--text-hi);
-  font-size: 14px;
-  margin-bottom: 6px;
-}
-
-.graph-note p {
-  color: var(--text-mid);
-  font-size: 12px;
-  line-height: 1.65;
-}
-
-.merge-card h3 {
-  color: var(--text-hi);
-  font-size: 19px;
-  margin-bottom: 8px;
-}
-
-.merge-card p {
-  color: var(--text-mid);
+.page-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 16px;
+  border-radius: 999px;
   font-size: 13px;
-  line-height: 1.8;
+  font-weight: 500;
+  color: var(--ink-mid);
+  letter-spacing: 0.01em;
+  transition: all var(--transition);
+  white-space: nowrap;
 }
 
-.merge-list {
-  display: grid;
+.page-tabs .tab:hover { color: var(--ink); }
+
+.page-tabs .tab.active {
+  background: var(--ink);
+  color: var(--paper);
+  cursor: default;
+}
+
+.page-tabs .tab.active:hover { color: var(--paper); }
+
+.page-tabs .tab .dot-mini {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.page-tabs .tab.active .dot-mini {
+  background: var(--highlight);
+  opacity: 1;
+}
+
+.nav-links {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding-left: 14px;
+  border-left: 1px solid var(--rule);
+}
+
+.nav-links a {
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+
+.nav-links a:hover { color: var(--ink); }
+
+.nav-links a::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -4px;
+  height: 1px;
+  background: var(--highlight);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--transition);
+}
+
+.nav-links a:hover::after { transform: scaleX(1); }
+
+.nav-actions {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
 }
 
-.merge-item {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 14px 16px;
-}
-
-.merge-item h4 {
-  color: var(--text-hi);
-  font-size: 15px;
-  margin-bottom: 6px;
-}
-
-.merge-item p {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.75;
-}
-
-.arch-card {
-  position: relative;
-  padding: 18px 18px 16px;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  min-height: 240px;
-}
-
-.arch-card::after {
-  content: "";
-  position: absolute;
-  top: 32px;
-  right: -16px;
-  width: 16px;
-  height: 2px;
-  background: var(--border-strong);
-}
-
-.arch-card:last-child::after {
-  display: none;
-}
-
-.arch-card.blue { border-color: rgba(99, 167, 255, 0.28); }
-.arch-card.teal { border-color: rgba(94, 229, 196, 0.28); }
-.arch-card.orange { border-color: rgba(245, 173, 99, 0.28); }
-
-.mini-label {
-  display: inline-block;
-  margin-bottom: 12px;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-}
-
-.arch-card h3 {
-  color: var(--text-hi);
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.arch-card p,
-.feature-card p,
-.note-card p,
-.figure-caption,
-.bullet-list li {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.75;
-}
-
-.shape {
-  display: inline-block;
-  margin-top: 14px;
-  padding: 6px 10px;
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--rule);
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--chip);
-  color: var(--text-hi);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
-}
-
-.detail-grid,
-.feature-grid,
-.note-grid,
-.config-grid,
-.signal-grid,
-.figure-grid,
-.code-grid {
-  display: grid;
-  gap: 16px;
-}
-
-.detail-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin-top: 18px;
-}
-
-.feature-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.note-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.config-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.signal-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin-top: 18px;
-}
-
-.time-grid,
-.zoom-grid,
-.gallery-stack {
-  display: grid;
-  gap: 16px;
-}
-
-.case-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
-  gap: 16px;
-  align-items: stretch;
-}
-
-.case-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.time-grid {
-  grid-template-columns: minmax(0, 1.05fr) minmax(280px, 0.95fr);
-}
-
-.case-card,
-.time-card,
-.zoom-card,
-.gallery-card {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px;
-}
-
-.case-card h3,
-.time-card h3,
-.zoom-card h3,
-.gallery-card h3 {
-  color: var(--text-hi);
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.case-card p,
-.time-card p,
-.zoom-card p,
-.gallery-card p {
-  color: var(--text-mid);
+  background: var(--surface);
+  color: var(--ink);
   font-size: 13px;
-  line-height: 1.75;
+  font-weight: 500;
+  transition: all var(--transition);
+  cursor: pointer;
 }
 
-.param-card {
-  min-height: 154px;
+.btn:hover {
+  border-color: var(--ink);
+  transform: translateY(-1px);
 }
 
-.param-value {
-  color: var(--text-hi);
-  font-size: 24px;
-  line-height: 1.08;
+.btn .icon { width: 14px; height: 14px; stroke-width: 1.6; }
+
+.theme-toggle {
+  width: 34px; height: 34px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.theme-toggle:hover { border-color: var(--ink); color: var(--ink); }
+.theme-toggle svg { width: 15px; height: 15px; }
+
+/* =========================================================
+   PAGE FRAME
+   ========================================================= */
+.page {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 56px);
+}
+
+section { padding: clamp(56px, 8vw, 96px) 0; border-bottom: 1px solid var(--rule); }
+section:last-of-type { border-bottom: none; }
+
+h1, h2, h3, h4 {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-weight: 400;
+}
+
+h2 { font-size: clamp(28px, 4.4vw, 46px); line-height: 1.04; margin-bottom: 18px; }
+h3 { font-size: 19px; font-weight: 500; letter-spacing: -0.01em; margin-bottom: 8px; }
+h4 { font-size: 15.5px; font-weight: 500; color: var(--ink); margin-bottom: 6px; }
+
+p { color: var(--ink-mid); max-width: 70ch; }
+
+.lede { font-size: 17px; line-height: 1.7; max-width: 64ch; }
+
+.section-num {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--highlight);
+  margin-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+.section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: end;
+  margin-bottom: 44px;
+}
+
+@media (max-width: 720px) {
+  .section-head { grid-template-columns: 1fr; }
+}
+
+/* =========================================================
+   HERO (no headline metrics — those live on Overview)
+   ========================================================= */
+.hero {
+  padding-top: clamp(48px, 9vh, 110px);
+  padding-bottom: clamp(56px, 9vh, 90px);
+  border-bottom: 1px solid var(--rule);
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 60px);
+  align-items: end;
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 6px 12px;
+  margin-bottom: 28px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  background: var(--surface);
+}
+
+.hero-tag .badge {
+  display: inline-grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  background: var(--highlight);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 9px;
+}
+
+.hero-title {
+  font-family: "Fraunces", serif;
+  font-variation-settings: "opsz" 144, "SOFT" 80;
+  font-size: clamp(36px, 5.6vw, 64px);
+  line-height: 1.0;
   letter-spacing: -0.03em;
-  font-weight: 700;
-  margin-bottom: 10px;
+  color: var(--ink);
+  font-weight: 400;
 }
 
-.param-value code {
-  font-size: 0.82em;
+.hero-title em {
+  font-style: italic;
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  color: var(--highlight);
 }
 
-.case-visual {
-  display: flex;
-  flex-direction: column;
+.hero-sub {
+  margin-top: 24px;
+  font-size: 16.5px;
+  line-height: 1.7;
+  color: var(--ink-mid);
+  max-width: 56ch;
+}
+
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-1);
+}
+
+.toc-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+
+.toc ol {
+  list-style: none;
+  display: grid;
+  gap: 4px;
+}
+
+.toc li {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 13.5px;
+}
+
+.toc li:last-child { border-bottom: none; }
+
+.toc li .n {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  color: var(--highlight);
+  font-size: 13px;
+}
+
+.toc li a {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.toc li a:hover { color: var(--highlight); }
+
+/* =========================================================
+   CARDS / GRIDS (matches index.html)
+   ========================================================= */
+.cards-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.cards-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+
+@media (max-width: 860px) {
+  .cards-3, .cards-2 { grid-template-columns: 1fr; }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 24px 24px 22px;
+  transition: border-color var(--transition);
+}
+
+.card:hover { border-color: var(--ink-soft); }
+
+.card .num {
+  font-family: "Fraunces", serif;
+  font-style: italic;
+  font-size: 13px;
+  color: var(--highlight);
+  margin-bottom: 8px;
+}
+
+.card p { font-size: 13.5px; line-height: 1.7; color: var(--ink-mid); }
+
+.card .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+
+.card .tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  color: var(--ink-mid);
+}
+
+/* Fact list (key-value pairs) */
+.fact-list {
+  list-style: none;
+  display: grid;
   gap: 14px;
 }
 
-.case-visual img {
-  width: 100%;
-  display: block;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--panel-3);
-}
-
-.case-caption {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.78;
-}
-
-.time-axis {
-  position: relative;
-  margin-top: 18px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--panel-3);
-}
-
-.time-rail {
-  position: relative;
-  height: 188px;
-  overflow: hidden;
-}
-
-.time-track {
-  position: absolute;
-  left: 7%;
-  right: 7%;
-  top: 96px;
-  height: 4px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(99, 167, 255, 0.2), rgba(99, 167, 255, 0.28));
-}
-
-.time-window-active {
-  position: absolute;
-  top: 86px;
-  height: 24px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(94, 229, 196, 0.16), rgba(245, 173, 99, 0.16));
-  border: 1px solid rgba(94, 229, 196, 0.22);
-}
-
-.time-window-blocked {
-  position: absolute;
-  top: 52px;
-  bottom: 18px;
-  border-radius: 14px;
-  background: rgba(245, 173, 99, 0.06);
-  border: 1px dashed rgba(245, 173, 99, 0.28);
-}
-
-.time-window-label,
-.time-blocked-label {
-  position: absolute;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  line-height: 1.25;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.time-window-label {
-  top: 58px;
-  color: var(--teal);
-}
-
-.time-blocked-label {
-  top: 22px;
-  color: var(--orange);
-}
-
-.time-events {
-  position: absolute;
-  inset: 0;
-}
-
-.time-event {
-  position: absolute;
-  top: 30px;
-  width: 68px;
-  transform: translateX(-50%);
-  text-align: center;
-}
-
-.time-event.query-event {
-  width: 70px;
-}
-
-.time-tag {
-  display: inline-block;
-  margin-bottom: 14px;
-  color: var(--text-hi);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  background: var(--panel);
-  border: 1px solid var(--border);
-}
-
-.time-event.query-event .time-tag {
-  border-color: rgba(245, 173, 99, 0.35);
-  color: var(--orange);
-}
-
-.time-event.memory-event .time-tag {
-  border-color: rgba(99, 167, 255, 0.28);
-  color: var(--blue);
-}
-
-.time-marker {
-  position: relative;
-  margin: 0 auto;
-  width: 18px;
-  height: 18px;
-  border-radius: 999px;
-  border: 3px solid rgba(99, 167, 255, 0.45);
-  background: var(--panel);
-  z-index: 2;
-}
-
-.time-event.query-event .time-marker {
-  width: 22px;
-  height: 22px;
-  border-color: rgba(245, 173, 99, 0.72);
-  background: rgba(245, 173, 99, 0.08);
-}
-
-.time-event.future-event .time-marker {
-  border-style: dashed;
-  border-color: rgba(132, 151, 181, 0.35);
-}
-
-.time-caption {
-  margin-top: 14px;
-  color: var(--text-mid);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  line-height: 1.35;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.time-legend-grid {
+.fact-list li {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+  grid-template-columns: 150px 1fr;
+  gap: 18px;
+  align-items: baseline;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--rule);
 }
 
-.time-legend {
-  padding: 12px 13px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--panel-2);
-}
+.fact-list li:last-child { border-bottom: none; }
 
-.time-legend strong {
-  display: block;
-  color: var(--text-hi);
-  font-size: 13px;
-  margin-bottom: 5px;
-}
-
-.time-legend p {
-  color: var(--text-mid);
+.fact-list dt {
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
-  line-height: 1.55;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
-.time-rule-list {
+.fact-list dd { font-size: 14px; line-height: 1.65; color: var(--ink); }
+
+.fact-list dd .note {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-mid);
+  font-size: 12.5px;
+}
+
+.setup-grid {
   display: grid;
-  gap: 10px;
-  margin-top: 14px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
 }
 
-.time-rule {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--panel-3);
-  border: 1px solid var(--border);
+@media (max-width: 860px) { .setup-grid { grid-template-columns: 1fr; } }
+
+/* =========================================================
+   FIGURES
+   ========================================================= */
+figure {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin: 0;
 }
 
-.zoom-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
+figure img { width: 100%; height: auto; background: var(--surface-2); }
 
-.zoom-stage {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 16px 16px 14px;
-}
-
-.zoom-stage h3 {
-  color: var(--text-hi);
-  font-size: 17px;
-  margin-bottom: 8px;
-}
-
-.zoom-stage p {
-  color: var(--text-mid);
+figure figcaption {
+  padding: 16px 20px 18px;
   font-size: 13px;
-  line-height: 1.75;
+  color: var(--ink-mid);
+  border-top: 1px solid var(--rule-soft);
+  line-height: 1.65;
 }
 
-.zoom-stage.blue { border-color: rgba(99, 167, 255, 0.28); }
-.zoom-stage.orange { border-color: rgba(245, 173, 99, 0.28); }
-.zoom-stage.teal { border-color: rgba(94, 229, 196, 0.28); }
-
-.gallery-stack {
-  margin-top: 18px;
+figure figcaption .label {
+  display: block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  margin-bottom: 6px;
 }
 
-.gallery-head {
+.figure-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 860px) { .figure-row { grid-template-columns: 1fr; } }
+
+.gallery-group { margin-top: 32px; }
+
+.gallery-group:first-of-type { margin-top: 0; }
+
+.gallery-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.gallery-group-head h3 { margin-bottom: 0; }
+
+.gallery-group-head .gtag {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+.table-wrap {
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  overflow: hidden;
+  overflow-x: auto;
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+
+thead th {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: left;
+  padding: 14px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--rule-soft);
+  vertical-align: top;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+tbody tr:last-child td { border-bottom: none; }
+tbody td.label { font-weight: 500; }
+tbody td.good { color: var(--good); }
+tbody td.warn { color: var(--warn); }
+tbody td.bad { color: var(--bad); }
+tbody td.mono { font-family: "JetBrains Mono", monospace; font-size: 12.5px; }
+
+/* Spec / param block */
+.spec-block {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  padding: 24px 26px;
+}
+
+.spec-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--rule);
+  align-items: baseline;
+}
+
+.spec-row:last-child { border-bottom: none; }
+
+.spec-row .key {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.spec-row .key .role {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.spec-row .val {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  color: var(--ink-mid);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.spec-row .val .hl { color: var(--highlight); }
+
+/* =========================================================
+   CALLOUT / METRIC ROW
+   ========================================================= */
+.callout {
+  margin-top: 28px;
+  padding: 22px 26px;
+  background: var(--highlight-soft);
+  border-left: 3px solid var(--highlight);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+}
+
+.callout h3 { font-size: 16px; margin-bottom: 6px; color: var(--ink); }
+.callout p { font-size: 14px; color: var(--ink-mid); line-height: 1.7; }
+
+.callout.accent { background: var(--accent-soft); border-left-color: var(--accent); }
+.callout.muted { background: var(--surface-2); border-left-color: var(--rule); }
+
+/* =========================================================
+   CODE ANCHOR BLOCKS
+   ========================================================= */
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin: 0;
+}
+
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.code-head .file {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--code-fg);
+  opacity: 0.85;
+}
+
+.code-head .role {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--highlight);
+}
+
+.code-block pre {
+  padding: 18px 22px;
+  margin: 0;
+  overflow-x: auto;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--code-fg);
+  white-space: pre;
+}
+
+.code-block pre code { font-size: inherit; background: none; color: inherit; padding: 0; }
+
+.code-block + .code-block { margin-top: 16px; }
+
+/* =========================================================
+   ABLATION GRID
+   ========================================================= */
+.exp-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink-soft);
+  border-radius: var(--r-md);
+  padding: 20px 22px 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.exp-card.positive { border-left-color: var(--good); }
+.exp-card.negative { border-left-color: var(--bad); }
+.exp-card.mixed    { border-left-color: var(--warn); }
+.exp-card.baseline { border-left-color: var(--accent); background: var(--accent-soft); }
+
+.exp-card .head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 
-.gallery-sub {
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.figure-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.code-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.feature-card,
-.note-card,
-.config-card,
-.signal-card {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 18px;
-}
-
-.feature-card h3,
-.note-card h3,
-.figure-card h3,
-.code-card h3 {
-  color: var(--text-hi);
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.bullet-list {
-  list-style: none;
-  display: grid;
-  gap: 10px;
-}
-
-.bullet-list li {
-  position: relative;
-  padding-left: 16px;
-}
-
-.bullet-list li::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: 0;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--teal);
-}
-
-.formula {
-  display: block;
-  margin-top: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: var(--panel-3);
-  color: var(--text-hi);
-  font-family: "IBM Plex Mono", monospace;
+.exp-card .id {
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
-  line-height: 1.8;
-  white-space: pre-wrap;
-}
-
-.config-card .metric-value {
-  font-size: 22px;
-}
-
-.config-card .metric-note {
-  margin-top: 8px;
-}
-
-.signal-card .metric-value {
-  font-size: 24px;
-}
-
-.signal-card .metric-note {
-  margin-top: 8px;
-}
-
-.table-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  background: var(--panel-2);
-  margin-top: 18px;
-}
-
-.table-wrap table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.table-wrap thead th {
-  color: var(--text-dim);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  text-align: left;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.table-wrap tbody td {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.6;
-  vertical-align: top;
-}
-
-.table-wrap tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.table-wrap .strong {
-  color: var(--text-hi);
-  font-weight: 600;
-}
-
-.table-wrap .good {
-  color: var(--teal);
-  font-weight: 600;
-}
-
-.table-wrap .warn {
-  color: var(--orange);
-  font-weight: 600;
-}
-
-.figure-card {
-  overflow: hidden;
-}
-
-.figure-head {
-  padding: 18px 18px 0;
-}
-
-.figure-card img {
-  display: block;
-  width: 100%;
-  height: auto;
-  margin-top: 14px;
-  border-top: 1px solid var(--border);
-  background: var(--panel-3);
-}
-
-.figure-caption {
-  padding: 14px 18px 18px;
-}
-
-.result-banner {
-  display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.callout {
-  background: linear-gradient(135deg, rgba(94, 229, 196, 0.08), rgba(99, 167, 255, 0.05));
-  border: 1px solid rgba(94, 229, 196, 0.18);
-  border-radius: 18px;
-  padding: 18px;
-}
-
-.callout h3 {
-  color: var(--text-hi);
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-
-.callout p {
-  color: var(--text-mid);
-  font-size: 13px;
-  line-height: 1.8;
-}
-
-.code-card {
-  padding: 18px;
-}
-
-.code-meta {
-  color: var(--blue);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 12px;
-}
-
-pre {
-  overflow-x: auto;
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--panel-3);
-  border: 1px solid var(--border);
-  color: var(--text-hi);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-code {
-  font-family: "IBM Plex Mono", monospace;
-}
-
-.footer {
-  margin-top: 22px;
-  padding: 20px 6px 0;
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  color: var(--text-dim);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 11px;
   letter-spacing: 0.06em;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.exp-card .id .verdict {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  letter-spacing: 0.10em;
   text-transform: uppercase;
+  background: var(--ink);
+  color: var(--paper);
 }
 
-@media (max-width: 1120px) {
-  .hero,
-  .result-banner,
-  .case-layout {
-    grid-template-columns: 1fr;
-  }
+.exp-card.positive .id .verdict { background: var(--good); }
+.exp-card.negative .id .verdict { background: var(--bad); }
+.exp-card.mixed    .id .verdict { background: var(--warn); }
+.exp-card.baseline .id .verdict { background: var(--accent); }
 
-  .architecture-flow,
-  .config-grid,
-  .case-grid,
-  .graph-note-strip,
-  .signal-grid,
-  .time-grid,
-  .zoom-grid,
-  .note-grid,
-  .detail-grid,
-  .feature-grid,
-  .figure-grid,
-  .gallery-grid,
-  .code-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .arch-card::after {
-    display: none;
-  }
+.exp-card .topic {
+  font-size: 13.5px;
+  color: var(--ink-mid);
 }
 
-@media (max-width: 760px) {
-  .page {
-    width: min(100vw - 24px, 1280px);
-    padding-top: 78px;
-  }
+.exp-card .topic strong { color: var(--ink); font-weight: 500; }
 
-  .theme-toggle {
-    top: 12px;
-    right: 12px;
-  }
-
-  .hero-side,
-  .case-layout,
-  .architecture-flow,
-  .config-grid,
-  .case-grid,
-  .graph-note-strip,
-  .signal-grid,
-  .time-grid,
-  .zoom-grid,
-  .note-grid,
-  .detail-grid,
-  .feature-grid,
-  .figure-grid,
-  .gallery-grid,
-  .code-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .time-points {
-    grid-template-columns: 1fr;
-  }
-
-  .time-legend-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-main,
-  .panel,
-  .figure-card,
-  .code-card {
-    border-radius: 18px;
-  }
-
-  .footer {
-    flex-direction: column;
-  }
+.exp-card .metrics {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11.5px;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  margin-top: 4px;
 }
+
+.exp-card .verdict-text {
+  font-size: 12.5px;
+  color: var(--ink-mid);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+.exp-list { display: grid; gap: 12px; }
+
+/* =========================================================
+   FOOTER
+   ========================================================= */
+footer {
+  padding: 36px clamp(20px, 4vw, 56px);
+  border-top: 1px solid var(--rule);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+footer .left { display: flex; gap: 12px; align-items: center; }
+footer .left .mark { font-family: "Fraunces", serif; font-style: italic; color: var(--ink-mid); }
+footer .right { display: flex; gap: 18px; }
+footer a { color: var(--ink-mid); }
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+@media (max-width: 980px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+  .nav-links { display: none; }
+  .nav-center { justify-content: flex-start; }
+  .spec-row { grid-template-columns: 1fr; }
+  .spec-row .val { text-align: left; }
+}
+
+@media (max-width: 720px) {
+  .nav-brand .sub { display: none; }
+  .page-tabs .tab { padding: 6px 12px; font-size: 12.5px; }
+  .fact-list li { grid-template-columns: 1fr; gap: 4px; }
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero > *, .section-head > *, .cards-3 > *, .cards-2 > *, .figure-row > * {
+  animation: rise 0.6s ease both;
+}
+.cards-3 > *:nth-child(2), .cards-2 > *:nth-child(2) { animation-delay: 0.06s; }
+.cards-3 > *:nth-child(3) { animation-delay: 0.12s; }
+
 </style>
 </head>
 <body>
 
-<button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
-  <span class="icon">◑</span>
-  <span id="theme-label">light</span>
-</button>
+<nav class="nav" role="navigation" aria-label="Pi-LNN page navigation">
+  <a href="index.html" class="nav-brand">
+    <span class="dot"></span>
+    Pi-LNN
+    <span class="sub">Re=10000</span>
+  </a>
 
-<div class="page">
+  <div class="nav-center">
+    <div class="page-tabs" role="tablist" aria-label="Page selector">
+      <a href="index.html" class="tab">Overview</a>
+      <a href="lnn_architecture.html" class="tab active" aria-current="page">
+        <span class="dot-mini"></span>
+        Details
+      </a>
+    </div>
+    <div class="nav-links">
+      <a href="#dataset">Dataset</a>
+      <a href="#model">Model</a>
+      <a href="#training">Training</a>
+      <a href="#internals">Internals</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#ablations">Ablations</a>
+    </div>
+  </div>
 
+  <div class="nav-actions">
+    <a class="btn" href="https://github.com/latteine1217/pi-lnn" aria-label="GitHub repository">
+      <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.27-1.69-1.27-1.69-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.34.96.1-.74.4-1.25.72-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .96-.31 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.19-1.49 3.15-1.18 3.15-1.18.62 1.59.23 2.76.11 3.05.74.81 1.18 1.84 1.18 3.1 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.8.55C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/></svg>
+    </a>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+    </button>
+  </div>
+</nav>
+
+<div class="page" id="top">
+
+  <!-- =========================================================
+       HERO
+       ========================================================= -->
   <section class="hero">
-    <div class="hero-card hero-main">
-      <div class="eyebrow">Pi-LNN · Re=10000 · 2D Kolmogorov Flow</div>
-      <h1>Flow Reconstruction<br>from Sparse Sensors</h1>
+    <div class="hero-grid">
+      <div>
+        <div class="hero-tag">
+          <span class="badge">●</span>
+          Supplementary · the long form
+        </div>
+        <h1 class="hero-title">
+          Inside the model:<br>
+          <em>data, parameters, and the full experiment chain.</em>
+        </h1>
+        <p class="hero-sub">
+          The <a href="index.html">Overview page</a> answers <em>what</em> Pi-LNN does and the
+          headline numbers. This page answers <em>how</em> — the dataset, the parameter budget,
+          the training protocol, the decoder internals, the full results gallery, and which ablations
+          worked, which didn't, and why the K = 100 ceiling is real.
+        </p>
+      </div>
+
+      <aside class="toc" aria-label="Table of contents">
+        <div class="toc-title">Contents</div>
+        <ol>
+          <li><span class="n">i.</span><a href="#dataset">Dataset specification</a></li>
+          <li><span class="n">ii.</span><a href="#model">Model size &amp; parameter budget</a></li>
+          <li><span class="n">iii.</span><a href="#training">Training protocol</a></li>
+          <li><span class="n">iv.</span><a href="#internals">Decoder &amp; time-logic internals</a></li>
+          <li><span class="n">v.</span><a href="#gallery">Full results gallery</a></li>
+          <li><span class="n">vi.</span><a href="#ablations">Ablations &amp; discussion</a></li>
+          <li><span class="n">vii.</span><a href="#repro">Reproducibility</a></li>
+          <li><span class="n">viii.</span><a href="#code">Code anchors</a></li>
+        </ol>
+      </aside>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       § 01 — DATASET
+       ========================================================= -->
+  <section id="dataset">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 01 — Dataset specification</div>
+        <h2>From a fp64 ETDRK4 DNS to K = 100 sensor observations.</h2>
+      </div>
+      <p class="lede">
+        The training signal is built by sampling a high-fidelity DNS at K = 100 deterministically
+        chosen positions. The full field exists offline as a yardstick — never as supervision.
+      </p>
+    </div>
+
+    <div class="setup-grid">
+      <ul class="fact-list">
+        <li><dt>DNS solver</dt>
+          <dd>fp64 ETDRK4 spectral integration of 2D incompressible NS.<span class="note">Saved at <code>dt = 2.5 × 10⁻⁴</code> with stride <code>si = 100</code>, downsampled grid by 4.</span></dd>
+        </li>
+        <li><dt>Domain</dt>
+          <dd>[0, 1]² strict periodic on x and y.</dd>
+        </li>
+        <li><dt>Reynolds</dt>
+          <dd>Re = 10,000 — high-Re regime with a wide inertial range.</dd>
+        </li>
+        <li><dt>Forcing</dt>
+          <dd><code>f<sub>x</sub> = A · sin(2π k<sub>f</sub> y)</code>, <code>A = 0.1</code>, <code>k<sub>f</sub> = 2</code>, <code>f<sub>y</sub> = 0</code>.</dd>
+        </li>
+        <li><dt>Field shape</dt>
+          <dd><code>N = 256</code> grid, <code>T = 201</code> snapshots, <code>dt_save = 0.025</code>, total time <code>T<sub>total</sub> = 5.0</code>.</dd>
+        </li>
+        <li><dt>Sensor placement</dt>
+          <dd><strong>QR-pivot</strong> on the column-pivoted reduced basis of the snapshot matrix.<span class="note">For K = 100, conditioning of the sensing operator is ≈ 11 for k ≤ 16 — well-posed.</span></dd>
+        </li>
+        <li><dt>Observed channels</dt>
+          <dd><code>u, v</code> only.<span class="note">Pressure <code>p</code> is unobserved; recovered as an internal physics field.</span></dd>
+        </li>
+        <li><dt>Splits</dt>
+          <dd>Single trajectory; the full <code>T = [0, 5]</code> is used both for training (sensor MSE + collocation) and for the offline DNS benchmark — no train/test sensor split, since the sensor stream is causal and full-time.</dd>
+        </li>
+        <li><dt>Files on disk</dt>
+          <dd class="mono">
+            <code>data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy</code><br>
+            <code>data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json</code>
+          </dd>
+        </li>
+      </ul>
+
+      <figure>
+        <img src="assets/sensor_spectral_coverage.png" alt="QR-pivot sensor spectral coverage diagnostic">
+        <figcaption>
+          <span class="label">Sensors · Spectral coverage</span>
+          QR-pivot diagnostic: the K = 100 placement attains useful conditioning up to <code>k ≈ 20</code>;
+          beyond that, the sensing operator becomes ill-posed regardless of the network. The K = 200
+          diagnostic reaches <code>k ≈ 41</code> — see ablation EXP-066 in §06.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       § 02 — MODEL
+       ========================================================= -->
+  <section id="model">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 02 — Model size &amp; parameter budget</div>
+        <h2>3.14 M parameters at <code>d = 256</code>, operator rank 256.</h2>
+      </div>
+      <p class="lede">
+        Pi-LNN is intentionally small enough to train on a consumer Apple Silicon laptop. The full
+        config below is a verbatim snapshot of <code>configs/exp_064_re10000_xlarge_sensor_physics.toml</code>.
+      </p>
+    </div>
+
+    <div class="cards-2" style="margin-bottom: 28px;">
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Hyperparameters &mdash; architecture</h3>
+
+        <div class="spec-row">
+          <div class="key">d_model <span class="role">latent dim</span></div>
+          <div class="val"><span class="hl">256</span></div>
+        </div>
+        <div class="spec-row">
+          <div class="key">operator_rank <span class="role">deeponet</span></div>
+          <div class="val"><span class="hl">256</span></div>
+        </div>
+        <div class="spec-row">
+          <div class="key">fourier_embed_dim <span class="role">spatial enc.</span></div>
+          <div class="val">128</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">fourier_harmonics <span class="role">RFF order</span></div>
+          <div class="val">16</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">d_time <span class="role">time encoding</span></div>
+          <div class="val">16</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">temporal_anchor_harmonics <span class="role">trunk</span></div>
+          <div class="val">2</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">num_spatial_cfc_layers</div>
+          <div class="val">1</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">num_temporal_cfc_layers</div>
+          <div class="val">1</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">num_token_attention_layers</div>
+          <div class="val">2</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">token_attention_heads</div>
+          <div class="val">4</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">num_query_mlp_layers</div>
+          <div class="val">1</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">query_mlp_hidden_dim</div>
+          <div class="val">256</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">output_head_gain</div>
+          <div class="val">1.0</div>
+        </div>
+      </div>
+
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Counts &amp; compute</h3>
+
+        <div class="spec-row">
+          <div class="key">Trainable params <span class="role">total</span></div>
+          <div class="val"><span class="hl">3,138,890</span></div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Parameter precision</div>
+          <div class="val">fp32</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Sensor count K</div>
+          <div class="val">100</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Time steps per batch</div>
+          <div class="val">T = 201</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Branch token shape</div>
+          <div class="val">[T, K, 256]</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Random collocation pts/step</div>
+          <div class="val">64</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Sensor-position phys pts/step</div>
+          <div class="val">100 × 1 = 100</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Total iterations</div>
+          <div class="val">10,000</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Wall-clock</div>
+          <div class="val">≈ 7 h 17 m <span class="hl">(~2.6 s/step)</span></div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Peak memory</div>
+          <div class="val">≈ 6 GB</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Hardware</div>
+          <div class="val">Apple M3, 16 GB</div>
+        </div>
+        <div class="spec-row">
+          <div class="key">Backend</div>
+          <div class="val">PyTorch MPS</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h3>What 3.14 M parameters buys you in 2D turbulence</h3>
       <p>
-        Pi-LNN 結合 DeepONet 的 operator learning 框架與 CfC（Closed-form Continuous-time）的因果時序記憶，
-        從 K=100 個稀疏速度感測器重建 Re=10000 二維 Kolmogorov 週期流場。
-        模型在訓練時只接觸感測器量測值與 NS 方程殘差，不依賴任何完整 DNS 場。
+        Most NS / PINN papers run on H100/A100-class GPUs with hundred-million-parameter operators.
+        Pi-LNN is two orders of magnitude smaller and trains in 7 hours on a laptop, yet reaches
+        <strong>KE = 7.80 %</strong> at Re = 10,000 from K = 100 sensors. Compute is no longer the
+        gate — sensor information content is. This is the central empirical result of the project,
+        and it is what the ablation chain in §06 confirms by exhaustion.
       </p>
-      <div class="chip-row">
-        <div class="chip"><b>Re</b> 10000</div>
-        <div class="chip"><b>Sensors</b> K=100 sparse (u, v)</div>
-        <div class="chip"><b>Space</b> LearnableFourierEmb d=128</div>
-        <div class="chip"><b>Temporal</b> CfC + temporal anchor</div>
-        <div class="chip"><b>Scale</b> d=256 / rank=256</div>
-        <div class="chip"><b>Physics</b> NS momentum + continuity</div>
-      </div>
-    </div>
-
-    <div class="hero-card hero-side">
-      <div class="stat-card">
-        <div class="metric-label">KE Relative Error</div>
-        <div class="metric-value good">7.80%</div>
-        <div class="metric-note">Re=10000 整段時間的動能相對誤差。</div>
-      </div>
-      <div class="stat-card">
-        <div class="metric-label">u / v Relative L2</div>
-        <div class="metric-value good">17.0% / 20.2%</div>
-        <div class="metric-note">場結構誤差 ‖pred − ref‖₂ / ‖ref‖₂（PINN 標準度量）。</div>
-      </div>
-      <div class="stat-card">
-        <div class="metric-label">k_f Amplitude / Phase</div>
-        <div class="metric-value good">0.962 / −0.023 rad</div>
-        <div class="metric-note">主強迫模態的幅值比值與相位誤差。</div>
-      </div>
-      <div class="stat-card">
-        <div class="metric-label">Divergence L2</div>
-        <div class="metric-value good">0.184</div>
-        <div class="metric-note">不可壓縮性約束的全域殘差量級。</div>
-      </div>
     </div>
   </section>
 
-  <section class="section">
-    <div class="section-label">01 · Problem Setup</div>
-    <div class="panel">
-      <h2 class="panel-title">Sparse reconstruction of 2D turbulent Kolmogorov flow</h2>
-      <p class="panel-desc">
-        目標是在真實工程感測場景下重建流場：僅有 K 個點的速度量測值，加上已知的 NS 方程。
-        DNS 資料的合法用途限於從中提取 sensor values 作為訓練 supervision；
-        訓練時模型從未看到完整流場，所有重建能力來自 sensor MSE 與 physics residual 的組合。
-      </p>
-
-      <div class="case-layout">
-        <div class="case-grid">
-          <div class="case-card param-card">
-            <div class="mini-label">Flow</div>
-            <div class="param-value">2D Kolmogorov</div>
-            <p>
-              Periodic box on <code>[0,1]²</code>，x / y 方向均為 strict periodic boundary。
-              Fourier 編碼與週期相對位置處理都建立在此假設上。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">Reynolds Number</div>
-            <div class="param-value">Re = 10000</div>
-            <p>
-              高 Reynolds number regime，慣性尺度跨越範圍大，小尺度渦旋豐富，
-              對稀疏 sensor 的空間覆蓋與模型表達力提出較高要求。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">DNS Reference</div>
-            <div class="param-value"><code>N = 256</code></div>
-            <p>
-              <code>T = 201</code> 個時間點、<code>dt = 0.025</code> 的高解析度 DNS 序列，
-              僅用於離線 benchmark 與提取 sensor 觀測值。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">Forcing</div>
-            <div class="param-value"><code>f_x = 0.1 sin(4πy)</code></div>
-            <p>
-              <code>A = 0.1</code>、<code>k_f = 2</code>、<code>L = 1</code>、<code>f_y = 0</code>。
-              單向正弦強迫在 y 方向注入能量，形成週期性大渦结構。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">Observation</div>
-            <div class="param-value"><code>K = 100</code> sensors</div>
-            <p>
-              QR-pivot 選取的 100 個空間位置，只觀測 <code>u, v</code> 兩個速度分量。
-              壓力 <code>p</code> 不作觀測，由模型作為內部 physics 場自由求解。
-            </p>
-          </div>
-          <div class="case-card param-card">
-            <div class="mini-label">Training Signal</div>
-            <div class="param-value">Sensor MSE + NS residual</div>
-            <p>
-              訓練 loss 只有兩項：sensor 位置的速度 MSE（資料一致性）與
-              NS momentum + continuity 殘差（物理一致性）。
-            </p>
-          </div>
-        </div>
-
-        <div class="case-card case-visual">
-          <div>
-            <div class="mini-label">DNS Reference Snapshot</div>
-            <h3>Re=10000 Vorticity at t = 5.0</h3>
-          </div>
-          <img src="assets/kolmogorov_dns_vorticity_re10000_t5.png" alt="DNS vorticity field for Reynolds number 10000 at t equals 5">
-          <p class="case-caption">
-            DNS 渦度場作為離線 benchmark 參考。模型在訓練時從未接觸此完整場；
-            後續的 field、vorticity、spectrum 與 forcing-mode 圖展示的都是模型從稀疏感測器重建的結果，
-            與此圖的差距即為重建誤差的直觀呈現。
-          </p>
-        </div>
+  <!-- =========================================================
+       § 03 — TRAINING
+       ========================================================= -->
+  <section id="training">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 03 — Training protocol</div>
+        <h2>Loss, balancing, optimizer, and physics-point sampling.</h2>
       </div>
+      <p class="lede">
+        Three knobs matter: the loss formulation, the per-task gradient balancing, and the
+        SOAP + Schedule-Free preconditioned update. Everything else is plumbing.
+      </p>
     </div>
-  </section>
 
-  <section class="section">
-    <div class="section-label">02 · Architecture</div>
-    <div class="panel">
-      <h2 class="panel-title">Two parallel paths: sensor memory and query readout</h2>
-      <p class="panel-desc">
-        模型由兩條平行路徑組成：左側（Branch）沿時間序列建立 sensor memory，
-        右側（Trunk）為每個空間查詢點建立條件特徵；兩條路徑在 decoder 的 cross-attention 交會，
-        完成任意 <code>(x, y, t)</code> 的場值讀取。
-      </p>
-
-      <div class="comfy-board" aria-label="ComfyUI-style model architecture graph">
-        <div class="comfy-canvas">
-          <svg class="graph-links" aria-hidden="true">
-            <path class="graph-link" data-from="sensor-stream:out" data-to="spatial:in" data-kind="sensor"></path>
-            <path class="graph-link" data-from="spatial:out" data-to="temporal:in" data-kind="sensor"></path>
-            <path class="graph-link" data-from="temporal:out" data-to="memory:in" data-kind="merge"></path>
-            <path class="graph-link" data-from="query-request:out" data-to="query-conditioning:in" data-kind="query"></path>
-            <path class="graph-link" data-from="query-conditioning:out" data-to="decoder:query-in" data-kind="query"></path>
-            <path class="graph-link" data-from="memory:out" data-to="decoder:memory-in" data-kind="merge"></path>
-            <path class="graph-link" data-from="decoder:out" data-to="field:in" data-kind="merge"></path>
-            <path class="graph-link" data-from="memory:in" data-to="future:in" data-kind="blocked"></path>
-          </svg>
-
-          <div class="graph-lane-label" style="left: 42px; top: 34px;">Sensor Memory Path</div>
-          <div class="graph-lane-label" style="left: 42px; top: 500px;">Query Path</div>
-
-          <article class="graph-node sensor" style="left: 40px; top: 82px;">
-            <span class="graph-port out" data-port="sensor-stream:out" data-kind="sensor" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>Sparse Sensor Stream</h3>
-              <div class="node-type">input</div>
-            </div>
-            <div class="node-body">
-              <p>真實觀測只包含 <code>u, v</code>，並保留 sensor position 與 sensor time。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">T=201</span>
-                <span class="node-chip">K=100</span>
-                <span class="node-chip">Re=10000</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node sensor" style="left: 330px; top: 82px;">
-            <span class="graph-port in" data-port="spatial:in" data-kind="sensor" style="top: 62px;"></span>
-            <span class="graph-port out" data-port="spatial:out" data-kind="sensor" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>SpatialSetEncoder</h3>
-              <div class="node-type">tokenizer</div>
-            </div>
-            <div class="node-body">
-              <p><code>LearnableFourierEmb(embed_dim=128)</code> 加上 residual MLP，把每個 sensor 轉成 token。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">embed_dim=128</span>
-                <span class="node-chip">tokens [K,256]</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node sensor" style="left: 620px; top: 82px;">
-            <span class="graph-port in" data-port="temporal:in" data-kind="sensor" style="top: 62px;"></span>
-            <span class="graph-port out" data-port="temporal:out" data-kind="merge" style="top: 142px;"></span>
-            <div class="node-titlebar">
-              <h3>TemporalCfCEncoder</h3>
-              <div class="node-type">memory update</div>
-            </div>
-            <div class="node-body">
-              <p>token self-attention 後，以 <code>CfC(dt)</code> 沿時間推進 causal state。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">dt-aware</span>
-                <span class="node-chip">1 layer</span>
-                <span class="node-chip">attn x2</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node memory" style="left: 620px; top: 320px;">
-            <span class="graph-port in" data-port="memory:in" data-kind="merge" style="top: -7px; left: 103px;"></span>
-            <span class="graph-port out" data-port="memory:out" data-kind="merge" style="top: 142px;"></span>
-            <div class="node-titlebar">
-              <h3>Branch Memory Bank</h3>
-              <div class="node-type">cache</div>
-            </div>
-            <div class="node-body">
-              <p>保留所有可被 query 讀取的 branch states，decoder 只能讀到 causal 可用時間。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">h_states [T,K,256]</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node query" style="left: 40px; top: 540px;">
-            <span class="graph-port out" data-port="query-request:out" data-kind="query" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>Query Request</h3>
-              <div class="node-type">input</div>
-            </div>
-            <div class="node-body">
-              <p>每個 query 指定位置、時間與要輸出的 component。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">(x,y,t,c)</span>
-                <span class="node-chip">N_q</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node query" style="left: 330px; top: 540px;">
-            <span class="graph-port in" data-port="query-conditioning:in" data-kind="query" style="top: 62px;"></span>
-            <span class="graph-port out" data-port="query-conditioning:out" data-kind="query" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>Query Conditioning</h3>
-              <div class="node-type">trunk build</div>
-            </div>
-            <div class="node-body">
-              <p>組合週期 Fourier、temporal anchor、<code>dt_to_query</code> 與 component embedding。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">trunk [N_q,256]</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node decoder" style="left: 620px; top: 540px;">
-            <span class="graph-port in" data-port="decoder:query-in" data-kind="query" style="top: 62px;"></span>
-            <span class="graph-port in" data-port="decoder:memory-in" data-kind="merge" style="top: -7px; left: 103px;"></span>
-            <span class="graph-port out" data-port="decoder:out" data-kind="merge" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>DeepONetCfCDecoder</h3>
-              <div class="node-type">decoder nozzle</div>
-            </div>
-            <div class="node-body">
-              <p>causal lookup 後做 cross-attention readout，再以 branch / trunk basis 融合輸出場值。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">attention</span>
-                <span class="node-chip">rank=256</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node output" style="left: 895px; top: 540px; width: 185px;">
-            <span class="graph-port in" data-port="field:in" data-kind="merge" style="top: 62px;"></span>
-            <div class="node-titlebar">
-              <h3>Field Outlet</h3>
-              <div class="node-type">output</div>
-            </div>
-            <div class="node-body">
-              <p>在任意 <code>(x,y,t)</code> 輸出 <code>u, v, p</code>。</p>
-              <div class="node-chip-row">
-                <span class="node-chip">out [N_q,1]</span>
-              </div>
-            </div>
-          </article>
-
-          <article class="graph-node blocked" style="left: 910px; top: 122px; width: 180px; min-height: 116px;">
-            <span class="graph-port in" data-port="future:in" data-kind="blocked" style="top: 96px;"></span>
-            <div class="node-titlebar">
-              <h3>Future State</h3>
-              <div class="node-type">blocked</div>
-            </div>
-            <div class="node-body">
-              <p><code>t_{k+1}</code> 不可被 query 讀取，避免偷看未來。</p>
-            </div>
-          </article>
-        </div>
-      </div>
-
-      <div class="graph-note-strip">
-        <div class="graph-note">
-          <h4>Memory Path</h4>
-          <p>上方藍線負責把 sensor stream 轉成 branch memory；主線仍以 causal CfC 為主。</p>
-        </div>
-        <div class="graph-note">
-          <h4>Query Path</h4>
-          <p>下方橘線負責把每個 <code>(x,y,t,c)</code> 轉成 trunk query。</p>
-        </div>
-        <div class="graph-note">
-          <h4>Decoder Merge</h4>
-          <p>綠線表示 memory 與 query 在 decoder 匯流，而不是單一路徑直通。</p>
-        </div>
-        <div class="graph-note">
-          <h4>Causality</h4>
-          <p>紅色虛線代表被封鎖的 future state，對應 <code>searchsorted</code> 的 causal lookup。</p>
-        </div>
-      </div>
-
-      <div class="feature-grid" style="margin-top: 18px;">
-        <div class="feature-card">
-          <h3>Branch: Sensor Memory</h3>
-          <p>
-            <code>SpatialSetEncoder</code> 將 K=100 個感測器轉成 token，
-            <code>TemporalCfCEncoder</code> 以連續時間 CfC 沿 sensor timeline 推進 causal state，
-            產生完整的 branch memory bank <code>h_states [T, K, d]</code>。
-          </p>
-        </div>
-        <div class="feature-card">
-          <h3>Trunk: Query Conditioning</h3>
-          <p>
-            對每個查詢點，組合 <code>LearnableFourierEmb</code> 的週期空間特徵、
-            <code>dt_to_query</code>（查詢時刻與最近 memory 的時間差）與 temporal anchor，
-            建立 query-specific trunk feature。
-          </p>
-        </div>
-        <div class="feature-card">
-          <h3>Decoder: Operator Fusion</h3>
-          <p>
-            trunk 對 branch tokens 做 cross-attention（帶等向距離 bias），
-            讀取 query-specific branch context，再以 branch/trunk basis 的 dot-product fusion
-            輸出 <code>u, v, p</code>。
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">03 · Time Logic</div>
-    <div class="panel">
-      <h2 class="panel-title">How time enters the model and constrains the readout</h2>
-      <p class="panel-desc">
-        這個模型有兩種和時間有關的處理：memory path 會沿著感測器時間序列遞推，
-        query path 則在任意查詢時刻 <code>t_q</code> 上建立讀取條件。兩者在 decoder 中透過
-        causal lookup 對齊。
-      </p>
-
-      <div class="time-grid">
-        <div class="time-card">
-          <h3>Sensor timeline and query time</h3>
-          <p>
-            branch memory 是以感測器取樣時間建立的，因此 query 並不是直接跨到任意未來狀態，
-            而是先找到當下可用的 memory，再補上 <code>dt_to_query</code> 做局部讀取。
-          </p>
-          <div class="time-axis">
-            <div class="time-rail">
-              <div class="time-track"></div>
-              <div class="time-window-active" style="left:58%; width:14%;"></div>
-              <div class="time-window-label" style="left:58%; width:14%; text-align:center;">dt_to_query</div>
-              <div class="time-window-blocked" style="left:76%; width:16%;"></div>
-              <div class="time-blocked-label" style="left:76%; width:16%; text-align:center;">blocked</div>
-
-              <div class="time-events">
-                <div class="time-event memory-event" style="left:8%;">
-                  <div class="time-tag">t₀</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">sensor start</div>
-                </div>
-                <div class="time-event memory-event" style="left:26%;">
-                  <div class="time-tag">t₁</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">CfC update</div>
-                </div>
-                <div class="time-event memory-event" style="left:43%;">
-                  <div class="time-tag">t₂</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">CfC update</div>
-                </div>
-                <div class="time-event memory-event" style="left:58%;">
-                  <div class="time-tag">tₖ</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">valid memory</div>
-                </div>
-                <div class="time-event query-event" style="left:72%;">
-                  <div class="time-tag">t_q</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">query time</div>
-                </div>
-                <div class="time-event future-event" style="left:88%;">
-                  <div class="time-tag">tₖ₊₁</div>
-                  <div class="time-marker"></div>
-                  <div class="time-caption">not readable</div>
-                </div>
-              </div>
-            </div>
-            <div class="time-legend-grid">
-              <div class="time-legend">
-                <strong>1. Memory is sampled</strong>
-                <p><code>TemporalCfCEncoder</code> 只沿 sensor time 產生 <code>h_k</code>。</p>
-              </div>
-              <div class="time-legend">
-                <strong>2. Query reads backward</strong>
-                <p><code>searchsorted</code> 選到不晚於 <code>t_q</code> 的最新 memory。</p>
-              </div>
-              <div class="time-legend">
-                <strong>3. Future is blocked</strong>
-                <p><code>t_{k+1}</code> 尚不可讀，避免 query 偷看未來狀態。</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="time-card">
-          <h3>Three timing rules</h3>
-          <div class="time-rule-list">
-            <div class="time-rule">
-              <div class="mini-label">Rule 1</div>
-              <p><code>TemporalCfCEncoder</code> 依 <code>sensor_time</code> 的相鄰差值更新 token memory。</p>
-            </div>
-            <div class="time-rule">
-              <div class="mini-label">Rule 2</div>
-              <p>decoder 先用 <code>searchsorted(sensor_time, t_q)</code> 找到可用的 branch state index。</p>
-            </div>
-            <div class="time-rule">
-              <div class="mini-label">Rule 3</div>
-              <p><code>dt_to_query = t_q - sensor_time[idx]</code> 進入 trunk，補充 query 與 memory 的時間差。</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">04 · Decoder Zoom-In</div>
-    <div class="panel">
-      <h2 class="panel-title">Inside the decoder: from conditional readout to field value</h2>
-      <p class="panel-desc">
-        decoder 不是單一線性層，而是一個有明確步驟的 readout block。它先決定能讀哪個時間片，再決定該讀哪些 token，
-        最後才做 operator fusion 生成輸出。
-      </p>
-
-      <div class="zoom-grid">
-        <div class="zoom-stage blue">
-          <div class="mini-label">Step A</div>
-          <h3>Causal Indexing</h3>
-          <p>
-            以 <code>searchsorted(sensor_time, t_q)</code> 找到 query 當下對應的 branch memory，
-            先確定能讀哪一段時間。
-          </p>
-          <div class="shape">h_branch_tokens [N_q, K, d]</div>
-        </div>
-        <div class="zoom-stage orange">
-          <div class="mini-label">Step B</div>
-          <h3>Trunk Feature Build</h3>
-          <p>
-            用週期 Fourier、<code>dt_to_query</code>、temporal anchor 與 component embedding
-            組成 query feature。
-          </p>
-          <div class="shape">trunk_feat [N_q, d]</div>
-        </div>
-        <div class="zoom-stage teal">
-          <div class="mini-label">Step C</div>
-          <h3>Cross-Attention Readout</h3>
-          <p>
-            trunk query 對 branch tokens 做 attention scoring，加上 isotropic relative bias，
-            取回 query-specific branch context。
-          </p>
-          <div class="shape">branch_ctx [N_q, d]</div>
-        </div>
-        <div class="zoom-stage teal">
-          <div class="mini-label">Step D</div>
-          <h3>Operator Fusion</h3>
-          <p>
-            branch basis 與 trunk basis 做 dot-product fusion，再依 component scale / bias
-            輸出最終 <code>u, v, p</code>。
-          </p>
-          <div class="shape">out [N_q, 1]</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">05 · LNN / CfC Traits</div>
-    <div class="panel">
-      <h2 class="panel-title">Continuous-time operator memory with query-driven readout</h2>
-      <p class="panel-desc">
-        LNN 的角色是提供連續時間記憶；DeepONet decoder 的角色是把這份記憶轉成任意查詢位置的場值。
-        這兩者在本模型中是分工合作，而不是彼此替代。
-      </p>
-
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h3>Closed-form Continuous Update</h3>
-          <p>
-            CfC 用可學習的時間尺度控制 gate，避免 LTC-style 數值 ODE solver 的額外 sub-stepping 成本。
-          </p>
-          <div class="formula">xh    = cat([x, h], dim=-1)
-f1    = tanh(W1 · xh)
-f2    = tanh(W2 · xh)
-tau_a = exp(log_tau_a)
-t_b   = Wb · xh + b
-gate  = sigmoid(-tau_a · dt + t_b)
-h_new = gate · f1 + (1 - gate) · f2</div>
-        </div>
-
-        <div class="feature-card">
-          <h3>dt-aware Token Memory</h3>
-          <p>
-            <code>sensor_time</code> 不只是索引。CfC 直接使用相鄰時間差
-            <code>dt = sensor_time[t] - sensor_time[t-1]</code>，所以狀態轉移對時間尺度敏感，
-            可以明確表達 causal time evolution。
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>Temporal Anchor for Query Time</h3>
-          <p>
-            主線開啟 <code>use_temporal_anchor=true</code>，把
-            <code>sin/cos(2π n t / T_total)</code> 注入 trunk，目的不是硬塞 supervision，
-            而是降低 query time 相位辨識的模糊性。
-          </p>
-        </div>
-
-        <div class="feature-card">
-          <h3>Isotropic Relative Bias</h3>
-          <p>
-            decoder 的 attention bias 現在只用距離 <code>|rel|</code>，
-            不再用方向向量 <code>(rel_x, rel_y)</code>。這是因為 sensor x 分佈不均，
-            方向資訊會把感測器佈局偏差注入成 x-direction stripe artifact。
-          </p>
-        </div>
-      </div>
-
-      <div class="note-grid" style="margin-top: 18px;">
-        <div class="note-card">
-          <h3>Tokenized Branch Memory</h3>
-          <p>
-            branch 保留成 token 序列，讓不同 query 能讀到不同的 sensor group 與時間片段，
-            更符合 sparse operator reconstruction 的需求。
-          </p>
-        </div>
-        <div class="note-card">
-          <h3>Query-driven Readout</h3>
-          <p>
-            每個 query 都會依自己的位置、時間與分量，對 branch tokens 做條件式 cross-attention，
-            所以讀出的上下文會隨查詢而變化。
-          </p>
-        </div>
-        <div class="note-card">
-          <h3>Physics-aligned Output</h3>
-          <p>
-            decoder 最終輸出的是 <code>u, v, p</code>，並透過 momentum + continuity 殘差約束，
-            讓場重建不只貼近量測，也維持物理解釋性。
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">06 · Training Design</div>
-    <div class="panel">
-      <h2 class="panel-title">Loss, physics constraints, and optimization</h2>
-      <p class="panel-desc">
-        訓練設計的核心原則：loss 只使用在真實工程場景中可取得的訊號——sensor 量測值與已知 PDE。
-        不使用完整 DNS 場作為 supervision，以保證方法在無 DNS 的真實環境中也可複現。
-      </p>
-
-      <div class="feature-grid">
-        <div class="feature-card">
-          <h3>Data Loss</h3>
-          <ul class="bullet-list">
-            <li>在 K=100 感測器位置上對 <code>u, v</code> 做 MSE supervision。</li>
-            <li><code>t_early_weight = 10</code>（<code>t ≤ 0.05</code>）加強初始條件約束，改善 t=0 附近重建品質。</li>
-            <li>壓力 <code>p</code> 無觀測 supervision，由 physics loss 間接約束。</li>
-          </ul>
-        </div>
-        <div class="feature-card">
-          <h3>Physics Loss</h3>
-          <ul class="bullet-list">
-            <li>NS primitive momentum + continuity 殘差，64 個隨機 collocation 點。</li>
-            <li>感測器位置額外計算 continuity（一階導數），在資訊密度最高的位置加強不可壓縮約束。</li>
-            <li><code>GradNorm</code>（freq=1000, momentum=0.9）自動動態均衡 data / ns_u / ns_v / cont 四個 task 的梯度比例。</li>
-          </ul>
-        </div>
-        <div class="feature-card">
-          <h3>Optimizer</h3>
-          <ul class="bullet-list">
-            <li><code>SOAP + Schedule-Free</code>：二階曲率估計搭配 Polyak 平均，在有限步數內獲得更穩定收斂。</li>
-            <li><code>lr = 1e-3</code>，<code>betas=(0.9, 0.999)</code>，<code>warmup=2000</code>，step decay。</li>
-            <li><code>weight_decay = 0</code>，<code>precond_freq = 2</code>。</li>
-          </ul>
-        </div>
-        <div class="feature-card">
-          <h3>Spatial Encoding</h3>
-          <ul class="bullet-list">
-            <li><code>LearnableFourierEmb(embed_dim=128, σ=2.0)</code>：可學習投影矩陣，讓模型自適應選取最有效的頻率方向。</li>
-            <li>相較確定性 Fourier 諧波，顯著改善低頻模態重建精度。</li>
-            <li>attention bias 使用等向距離 <code>|rel|</code>，避免感測器空間非均勻分佈引入方向性偽差。</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="config-grid" style="margin-top: 18px;">
-        <div class="config-card">
-          <div class="metric-label">Observed Channels</div>
-          <div class="metric-value">u, v</div>
-          <div class="metric-note">只觀測速度兩分量；壓力 p 不作觀測，由 physics residual 間接約束。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Fourier Embed Dim</div>
-          <div class="metric-value">128</div>
-          <div class="metric-note"><code>LearnableFourierEmb</code> 輸出維度；σ=2.0 初始化。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Temporal Anchor</div>
-          <div class="metric-value">2</div>
-          <div class="metric-note">兩組 sin/cos 絕對時間基底。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">d_model</div>
-          <div class="metric-value">256</div>
-          <div class="metric-note">Re=10000 湍流的寬頻頻譜需要足夠的模型容量。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Operator Rank</div>
-          <div class="metric-value">256</div>
-          <div class="metric-note">branch / trunk fusion 與大模型容量對齊。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Token Attn Heads</div>
-          <div class="metric-value">4</div>
-          <div class="metric-note">並搭配 <code>num_token_attention_layers = 2</code>。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">GradNorm</div>
-          <div class="metric-value">freq=1000</div>
-          <div class="metric-note">momentum=0.9；自動均衡 data/ns_u/ns_v/cont 四個 task 梯度比例。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Physics Points</div>
-          <div class="metric-value">64</div>
-          <div class="metric-note">隨機 collocation + K=100 感測器位置 continuity（sensor_physics=true）。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Learning Rate</div>
-          <div class="metric-value">1e-3</div>
-          <div class="metric-note"><code>lr_schedule = "soap"</code>，warmup=2000，step_decay(2000, 0.9)。</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section">
-    <div class="section-label">07 · Compute Profile</div>
-    <div class="panel">
-      <h2 class="panel-title">Model size, training time, and hardware</h2>
-      <p class="panel-desc">
-        本表呈現 EXP-064 主線（Re=10000 Kolmogorov）在實驗環境下的計算規模。
-        所有結果皆於同一台 Apple Silicon Mac 訓練，未使用任何 NVIDIA GPU；
-        模型大小與訓練時間反映了 sparse-data PINN 在消費級硬體上的可重現性。
-      </p>
-
-      <div class="config-grid">
-        <div class="config-card">
-          <div class="metric-label">Trainable Parameters</div>
-          <div class="metric-value">3.14 M</div>
-          <div class="metric-note">3,138,890 個權重 — 全模型 fp32；含 spatial / temporal encoder + DeepONet decoder。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Architecture Size</div>
-          <div class="metric-value">d=256 / rank=256</div>
-          <div class="metric-note"><code>d_model=256</code>、<code>operator_rank=256</code>、<code>fourier_embed_dim=128</code>；spatial/temporal CfC 各 1 層；2 層 token attention。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Training Steps</div>
-          <div class="metric-value">10,000</div>
-          <div class="metric-note">SOAP + Schedule-Free，<code>lr=1e-3</code>，<code>warmup=2000</code>，step decay <code>(2000, 0.9)</code>。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Wall-clock Time</div>
-          <div class="metric-value">~7 h 17 m</div>
-          <div class="metric-note">EXP-067 實測（同架構同步數），約 <code>2.6 s/step</code>；EXP-064 baseline 時間相當。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Hardware</div>
-          <div class="metric-value">Apple M3</div>
-          <div class="metric-note">8 cores（4 Performance + 4 Efficiency），16 GB unified memory。MPS backend。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Backend</div>
-          <div class="metric-value">PyTorch MPS</div>
-          <div class="metric-note">需 <code>PYTORCH_ENABLE_MPS_FALLBACK=1</code>（SOAP 的 <code>torch.linalg.eigh</code> 需 CPU fallback）。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Physics Points / step</div>
-          <div class="metric-value">64 + 100</div>
-          <div class="metric-note">64 隨機 collocation + 100 sensor-position continuity points；<code>num_query_points=K=100</code>。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">Peak Memory</div>
-          <div class="metric-value">~6 GB</div>
-          <div class="metric-note">MPS 訓練期間典型峰值；含 autograd graph、二階導數中間值與 sensor memory bank。</div>
-        </div>
-      </div>
-
-      <div class="callout" style="margin-top: 18px;">
-        <h3>Why this matters</h3>
+    <div class="cards-2" style="margin-bottom: 24px;">
+      <article class="card">
+        <div class="num">i.</div>
+        <h3>Loss formulation</h3>
         <p>
-          多數 PINN / Neural Operator 文獻使用 NVIDIA H100 / A100 大記憶體 GPU。
-          本工作於消費級 Apple Silicon 訓練至 KE 7.80%，證明 sparse-data PINN 在硬體門檻上
-          已不再依賴大型 GPU，研究可在筆電/工作站重現；同時 ~7 小時的訓練時間意味著
-          每天可完成 2~3 個完整實驗，加速 hypothesis-driven 的研究迭代。
+          Sensor MSE on observed <code>(u, v)</code>, plus the residual of the NS momentum equation
+          on <code>u</code> and <code>v</code>, plus the continuity residual <code>∇·u</code>.
+          Pressure <code>p</code> is free and constrained only through the residual.
+        </p>
+        <div class="tags">
+          <span class="tag">data_loss_weight = 1.0</span>
+          <span class="tag">continuity_weight = 1.0</span>
+          <span class="tag">poisson_loss_weight = 0</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="num">ii.</div>
+        <h3>GradNorm balancing</h3>
+        <p>
+          Four per-task losses (data, NS<sub>u</sub>, NS<sub>v</sub>, continuity) are balanced with
+          <strong>GradNorm</strong>. <code>physics_loss_weight</code> is a placeholder when GradNorm
+          is on — actual coefficients are learned.
+        </p>
+        <div class="tags">
+          <span class="tag">update_freq = 1000</span>
+          <span class="tag">momentum = 0.9</span>
+          <span class="tag">init [1, 0.01, 0.01, 0.01]</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="num">iii.</div>
+        <h3>SOAP + Schedule-Free</h3>
+        <p>
+          Second-order curvature preconditioning (SOAP) with Polyak averaging (Schedule-Free) is
+          the only combination that survives high-Re chaotic flow training. RAR frequency must
+          be ≥ 1000 to avoid disturbing the preconditioner.
+        </p>
+        <div class="tags">
+          <span class="tag">lr = 1e-3</span>
+          <span class="tag">betas = (0.9, 0.999)</span>
+          <span class="tag">precond_freq = 2</span>
+          <span class="tag">warmup = 2000</span>
+          <span class="tag">step_decay = (2000, 0.9)</span>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="num">iv.</div>
+        <h3>Physics-point sampling</h3>
+        <p>
+          Each step evaluates the NS residual at <strong>64 random collocation points</strong>
+          (drawn uniformly in [0, 1]² × [0, T]) plus <strong>100 sensor-position continuity
+          points</strong> (added from step 1000 onward).
+        </p>
+        <div class="tags">
+          <span class="tag">collocation = 64</span>
+          <span class="tag">use_sensor_physics = true</span>
+          <span class="tag">start_step = 1000</span>
+        </div>
+      </article>
+    </div>
+
+    <div class="cards-2">
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Schedule &amp; warmup</h3>
+        <div class="spec-row"><div class="key">iterations</div><div class="val">10,000</div></div>
+        <div class="spec-row"><div class="key">physics_loss_warmup_steps</div><div class="val">0 (handled by GradNorm)</div></div>
+        <div class="spec-row"><div class="key">physics_loss_ramp_steps</div><div class="val">0</div></div>
+        <div class="spec-row"><div class="key">t_early_weight</div><div class="val">10.0</div></div>
+        <div class="spec-row"><div class="key">t_early_threshold</div><div class="val">0.05</div></div>
+        <div class="spec-row"><div class="key">time_marching</div><div class="val">true</div></div>
+        <div class="spec-row"><div class="key">time_marching_start</div><div class="val">0.5</div></div>
+        <div class="spec-row"><div class="key">time_marching_warmup</div><div class="val">0.3</div></div>
+      </div>
+
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Loss weights (initial)</h3>
+        <div class="spec-row"><div class="key">data <span class="role">sensor MSE</span></div><div class="val">1.0</div></div>
+        <div class="spec-row"><div class="key">ns_u <span class="role">x-momentum</span></div><div class="val">0.01 <span class="hl">(GradNorm-managed)</span></div></div>
+        <div class="spec-row"><div class="key">ns_v <span class="role">y-momentum</span></div><div class="val">0.01 <span class="hl">(GradNorm-managed)</span></div></div>
+        <div class="spec-row"><div class="key">continuity <span class="role">∇·u</span></div><div class="val">0.01 <span class="hl">(GradNorm-managed)</span></div></div>
+        <div class="spec-row"><div class="key">poisson_loss_weight</div><div class="val">0.0 <span class="role">disabled</span></div></div>
+        <div class="spec-row"><div class="key">physics_loss_weight</div><div class="val">0.01 <span class="role">placeholder</span></div></div>
+      </div>
+    </div>
+
+    <div class="callout muted">
+      <h3>Loss equation</h3>
+      <p style="font-family:'JetBrains Mono', monospace; font-size: 13px; color: var(--ink);">
+        ℒ&nbsp;=&nbsp;w<sub>data</sub>&middot;ℒ<sub>data</sub>(u,&nbsp;v)
+        + w<sub>ns,u</sub>&middot;‖R<sub>ns,u</sub>‖²
+        + w<sub>ns,v</sub>&middot;‖R<sub>ns,v</sub>‖²
+        + w<sub>c</sub>&middot;‖∇·u‖²
+      </p>
+      <p>
+        Weights <code>w<sub>•</sub></code> are reset every 1000 steps by GradNorm to equalise the
+        per-task gradient norms. The residual operators <code>R<sub>ns,u</sub></code>,
+        <code>R<sub>ns,v</sub></code> are evaluated by autograd on the model output at every
+        collocation and sensor-position point.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       § 04 — INTERNALS
+       ========================================================= -->
+  <section id="internals">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 04 — Decoder &amp; time-logic internals</div>
+        <h2>How time enters, and what the decoder actually does.</h2>
+      </div>
+      <p class="lede">
+        The architecture image on the <a href="index.html#architecture">Overview</a> shows the
+        signal flow. This section zooms in on the three places where the design is non-obvious:
+        time semantics, cross-attention readout, and the closed-form CfC update.
+      </p>
+    </div>
+
+    <h3 style="margin-bottom: 18px;">Three timing rules</h3>
+    <div class="cards-3" style="margin-bottom: 32px;">
+      <article class="card">
+        <div class="num">i.</div>
+        <h3>Causal indexing</h3>
+        <p>
+          For a query time <code>t<sub>q</sub></code>, the branch memory is indexed by
+          <code>j</code> such that <code>t<sub>j</sub> ≤ t<sub>q</sub></code>. The decoder never
+          sees future tokens. This makes the readout a strict causal operator.
+        </p>
+      </article>
+      <article class="card">
+        <div class="num">ii.</div>
+        <h3>dt-aware update</h3>
+        <p>
+          The CfC cell takes <code>dt = t<sub>j</sub> − t<sub>j-1</sub></code> as an explicit input
+          to its closed-form gate. Irregular sensor sampling is therefore correct without
+          interpolation — the cell handles non-uniform <code>dt</code> natively.
+        </p>
+      </article>
+      <article class="card">
+        <div class="num">iii.</div>
+        <h3>Temporal anchor</h3>
+        <p>
+          The query feature is conditioned on a Fourier basis of <code>t<sub>q</sub></code>
+          (<code>temporal_anchor_harmonics = 2</code>), not on the raw <code>t<sub>q</sub></code>.
+          This decouples query time from latent magnitude and avoids drift at large <code>t</code>.
+        </p>
+      </article>
+    </div>
+
+    <h3 style="margin-bottom: 18px;">DeepONet decoder zoom-in</h3>
+    <div class="cards-2">
+      <div class="spec-block">
+        <div class="section-num" style="margin-bottom: 10px;">step 1</div>
+        <h3>Trunk feature build</h3>
+        <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-mid); margin-top: 6px;">
+          Continuous <code>(x, y, t<sub>q</sub>)</code> is lifted via a learnable Fourier embedding
+          (<code>fourier_embed_dim = 128</code>) and concatenated with the temporal anchor of
+          <code>t<sub>q</sub></code>. A 1-layer query MLP at width <code>256</code> projects this
+          into the same latent space as the branch tokens.
+        </p>
+      </div>
+      <div class="spec-block">
+        <div class="section-num" style="margin-bottom: 10px;">step 2</div>
+        <h3>Cross-attention readout</h3>
+        <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-mid); margin-top: 6px;">
+          The trunk feature acts as <em>queries</em>; branch tokens at causal index <code>j</code>
+          act as <em>keys / values</em>. Multi-head attention (<code>4 heads</code>) returns a
+          query-conditioned summary of the sensor memory at time <code>t<sub>q</sub></code>.
+        </p>
+      </div>
+      <div class="spec-block">
+        <div class="section-num" style="margin-bottom: 10px;">step 3</div>
+        <h3>Operator fusion</h3>
+        <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-mid); margin-top: 6px;">
+          The summary is fused with the trunk feature in a low-rank operator product
+          (<code>operator_rank = 256</code>). This is the DeepONet structure: branch &otimes; trunk
+          → field. The resulting <code>d = 256</code> vector is the operator readout.
+        </p>
+      </div>
+      <div class="spec-block">
+        <div class="section-num" style="margin-bottom: 10px;">step 4</div>
+        <h3>Output head</h3>
+        <p style="font-size: 13.5px; line-height: 1.7; color: var(--ink-mid); margin-top: 6px;">
+          A linear head with <code>output_head_gain = 1.0</code> projects to
+          <code>(u, v, p)</code>. Pressure has no observation channel, so its gradient comes
+          entirely from the NS residual. This is a standard PINN convention; no DNS pressure is
+          consulted at any stage.
         </p>
       </div>
     </div>
-  </section>
 
-  <section class="section">
-    <div class="section-label">08 · Results</div>
-    <div class="panel">
-      <h2 class="panel-title">Re=10000 reconstruction quality</h2>
-      <p class="panel-desc">
-        以下指標與圖像來自 Re=10000 模型在完整 T=[0, 5] 時段上的評估。
-        評估使用 DNS 場作為離線 benchmark，模型在訓練中從未接觸這些資料。
-      </p>
-
-      <div class="result-banner">
-        <div class="callout">
-          <h3>Field &amp; Spectral Reconstruction</h3>
-          <p>
-            field 和 vorticity 圖檢查空間結構完整性；energy spectrum 確認頻譜斜率是否符合高 Re 物理預期；
-            forcing mode 圖驗證主強迫模態的幅值與相位是否與 DNS 一致。
-          </p>
-        </div>
-        <div class="callout">
-          <h3>Temporal Stability</h3>
-          <p>
-            時間序列圖確認模型在全段 T=5 上的誤差演化是否穩定，
-            以及動能 KE(t) 是否跟隨 DNS 的物理演化，不出現能量累積或發散。
-          </p>
-        </div>
-      </div>
-
-      <div class="signal-grid">
-        <div class="signal-card">
-          <div class="metric-label">KE Rel. Err</div>
-          <div class="metric-value good">7.80%</div>
-          <div class="metric-note">整段時間平均動能的相對誤差。</div>
-        </div>
-        <div class="signal-card">
-          <div class="metric-label">u Relative L2</div>
-          <div class="metric-value good">17.0%</div>
-          <div class="metric-note">‖u<sub>pred</sub> − u<sub>ref</sub>‖₂ / ‖u<sub>ref</sub>‖₂；對齊 PINN 文獻標準度量。</div>
-        </div>
-        <div class="signal-card">
-          <div class="metric-label">v Relative L2</div>
-          <div class="metric-value good">20.2%</div>
-          <div class="metric-note">v 分量結構誤差；RMSE 對應 6.21e-2。</div>
-        </div>
-        <div class="signal-card">
-          <div class="metric-label">ω Relative L2</div>
-          <div class="metric-value warn">45.4%</div>
-          <div class="metric-note">渦度場（k² 放大高頻）；Ens rel-err 29.1%。</div>
-        </div>
-        <div class="signal-card">
-          <div class="metric-label">Divergence L2</div>
-          <div class="metric-value good">0.184</div>
-          <div class="metric-note">不可壓縮性 <code>∇·u = 0</code> 的全域殘差量級。</div>
-        </div>
-        <div class="signal-card">
-          <div class="metric-label">k_f Phase Err</div>
-          <div class="metric-value good">−0.023 rad</div>
-          <div class="metric-note">t=5 主強迫模態相位誤差；幅值比值 0.962。</div>
-        </div>
-      </div>
-
-      <div class="gallery-stack">
-        <div class="gallery-card">
-          <div class="gallery-head">
-            <h3>Field Structure</h3>
-            <div class="gallery-sub">shape and vortex texture</div>
-          </div>
-          <p>先看空間結構是否成形，再看誤差是否集中在高梯度或渦旋邊界。</p>
-          <div class="gallery-grid" style="margin-top: 14px;">
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Field</div>
-                <h3>Velocity Field Comparison at t = 5.0</h3>
-              </div>
-              <img src="assets/exp064/field_comparison_t5.png" alt="EXP-064 field comparison at t equals 5">
-              <figcaption class="figure-caption">
-                直接看主場重建、預測與誤差分佈。這張圖用來回答高 Re 下整體場形狀是否仍對得上。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Vorticity</div>
-                <h3>Vorticity Comparison at t = 5.0</h3>
-              </div>
-              <img src="assets/exp064/vorticity_comparison_t5.png" alt="EXP-064 vorticity comparison at t equals 5">
-              <figcaption class="figure-caption">
-                用來檢查小尺度渦旋是否被過度平滑，以及高 Re 下誤差是否集中在強剪切區。
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-
-        <div class="gallery-card">
-          <div class="gallery-head">
-            <h3>Temporal Behavior</h3>
-            <div class="gallery-sub">error and energy over time</div>
-          </div>
-          <p>這組圖回答模型在整段時間上是否穩定，以及能量尺度有沒有逐步偏離。</p>
-          <div class="gallery-grid" style="margin-top: 14px;">
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Error</div>
-                <h3>UV Error vs Time</h3>
-              </div>
-              <img src="assets/exp064/uv_error_vs_time.png" alt="EXP-064 UV error versus time">
-              <figcaption class="figure-caption">
-                直接看整段時間上速度誤差如何演化，確認模型沒有在後段快速崩掉。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Time Series</div>
-                <h3>Kinetic Energy vs Time</h3>
-              </div>
-              <img src="assets/exp064/kinetic_energy_vs_time.png" alt="EXP-064 kinetic energy versus time">
-              <figcaption class="figure-caption">
-                動能時間演化曲線，對應整體 KE 相對誤差 7.80%。
-                可用來確認模型輸出的能量尺度在全段時間上是否與 DNS 吻合。
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-
-        <div class="gallery-card">
-          <div class="gallery-head">
-            <h3>Mode and Spectrum</h3>
-            <div class="gallery-sub">global structure diagnostics</div>
-          </div>
-          <p>最後看主模態與頻譜，確認全域結構沒有因局部誤差改善而失真。</p>
-          <div class="gallery-grid" style="margin-top: 14px;">
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Spectrum</div>
-                <h3>Energy Spectrum</h3>
-              </div>
-              <img src="assets/exp064/energy_spectrum.png" alt="EXP-064 energy spectrum">
-              <figcaption class="figure-caption">
-                這張圖專門檢查高 Re 頻譜是否過度平滑；目前高波數端仍是主要難點，但主能量帶已被抓住。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Forcing Mode</div>
-                <h3>k_f Amplitude vs Time</h3>
-              </div>
-              <img src="assets/exp064/kf_mode_amplitude_vs_time.png" alt="EXP-064 forcing mode amplitude versus time">
-              <figcaption class="figure-caption">
-                forcing mode amplitude ratio 目前為 <code>0.962</code>，代表主模態強度已相當接近 DNS。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Forcing Mode</div>
-                <h3>k_f Phase vs Time</h3>
-              </div>
-              <img src="assets/exp064/kf_mode_phase_vs_time.png" alt="EXP-064 forcing mode phase versus time">
-              <figcaption class="figure-caption">
-                主強迫模態相位隨時間的演化曲線。末端 phase error 為 <code>-0.023 rad</code>，
-                反映模型在長時間積分後仍能維持正確的主模態相位。
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-
-        <div class="gallery-card">
-          <div class="gallery-head">
-            <h3>Physics Constraints</h3>
-            <div class="gallery-sub">incompressibility &amp; NS residual</div>
-          </div>
-          <p>
-            PINN 訓練的核心驗證：模型輸出是否仍貼近 NS 方程。
-            這組圖直接量化 momentum / continuity / divergence 在全段時間的殘差量級。
-          </p>
-          <div class="gallery-grid" style="margin-top: 14px;">
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Divergence</div>
-                <h3>‖∇·u‖₂ vs Time</h3>
-              </div>
-              <img src="assets/exp064/divergence_vs_time.png" alt="EXP-064 divergence L2 versus time">
-              <figcaption class="figure-caption">
-                不可壓縮性 <code>∇·u = 0</code> 的全域殘差時序。LNN 重建的 div_l2 mean 為 <code>0.184</code>
-                （DNS 數值差分本身為 <code>0.092</code>，差距源於 LNN 在 sensor 稀疏區的局部 div 漂移）。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">NS Residual</div>
-                <h3>NS Momentum &amp; Continuity RMS</h3>
-              </div>
-              <img src="assets/exp064/ns_residual_vs_time.png" alt="EXP-064 NS residual versus time">
-              <figcaption class="figure-caption">
-                NS-u / NS-v / Continuity 殘差 RMS 隨時間演化（log scale）。
-                LNN 與 DNS 的 momentum 殘差差距反映模型對黏性項與壓力梯度的擬合品質；
-                continuity 殘差是 GradNorm 直接優化的 task。
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-
-        <div class="gallery-card">
-          <div class="gallery-head">
-            <h3>Spectral Bands &amp; Vorticity</h3>
-            <div class="gallery-sub">CS limit visualization</div>
-          </div>
-          <p>
-            這組圖直接視覺化 K=100 上限：低頻已重建、中高頻完全失真。
-            band energy error 是 Section 09 資訊論論述的實驗證據。
-          </p>
-          <div class="gallery-grid" style="margin-top: 14px;">
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Bands</div>
-                <h3>Band Energy Relative Error</h3>
-              </div>
-              <img src="assets/exp064/band_energy_rel_error_vs_time.png" alt="EXP-064 band energy relative error versus time">
-              <figcaption class="figure-caption">
-                Low-k（k≤8）band 維持 ≈3.6% 誤差；Mid-k（k~8..16）與 High-k（k&gt;16）長期維持 ≈100%。
-                這正是 Compressed Sensing 對 K=100 sensor 的數學上限——直接觀察證據（詳見 Section 09）。
-              </figcaption>
-            </figure>
-
-            <figure class="figure-card">
-              <div class="figure-head">
-                <div class="mini-label">Enstrophy</div>
-                <h3>Enstrophy &amp; Vorticity Error</h3>
-              </div>
-              <img src="assets/exp064/enstrophy_vs_time.png" alt="EXP-064 enstrophy versus time">
-              <figcaption class="figure-caption">
-                Enstrophy（渦度平方積分量）反映高頻能量。LNN Ens rel-err 為 <code>29.1%</code>，
-                高於 KE rel-err（7.8%）顯示 ω ∝ k 的高頻放大效應；vorticity 場能識別主旋渦但
-                細節被平滑（同樣是 K=100 上限的另一面）。
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-      </div>
-
-      <h3 style="margin-top: 28px; color: var(--text-hi); font-size: 19px; letter-spacing: -0.01em;">
-        Turbulence-aware ablations: hypothesis-driven negative results
-      </h3>
-      <p style="color: var(--text-mid); font-size: 13px; line-height: 1.8; margin-top: 6px; margin-bottom: 16px;">
-        為驗證 K=100 上限是否仍有架構面的進步空間，於 2026-04-29 設計三項 turbulence-aware
-        提案：(#3) CfC log_tau 範圍對齊湍流多尺度、(#6) 頻率分層 LearnableFourierEmb、
-        (#5) PINN causal weighting (Wang 2022)。三項皆 <em>hypothesis falsified</em>，
-        進一步佐證 EXP-064 已達當前架構配置下的最優點。
-      </p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Experiment</th>
-              <th>Mechanism</th>
-              <th>KE Rel-Err</th>
-              <th>u Rel-L2</th>
-              <th>div L2</th>
-              <th>k_f Phase</th>
-              <th>Verdict</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="strong">EXP-064</td>
-              <td>Baseline (sensor physics + GradNorm)</td>
-              <td class="good">7.80%</td>
-              <td class="good">17.0%</td>
-              <td class="good">0.184</td>
-              <td class="good">−0.023 rad</td>
-              <td class="good">★ Active baseline</td>
-            </tr>
-            <tr>
-              <td class="strong">EXP-067</td>
-              <td>#3 CfC τ ∈ (e⁻³, e¹) + #6 freq-stratified σ=(1,4,12)</td>
-              <td class="warn">11.20%</td>
-              <td>18.6%</td>
-              <td>0.263</td>
-              <td>−0.028 rad</td>
-              <td class="warn">+3.4 pp 退步</td>
-            </tr>
-            <tr>
-              <td class="strong">EXP-068</td>
-              <td>#5 PINN causal weighting (eps=1.0, 16 bins)</td>
-              <td class="warn">9.73%</td>
-              <td>21.2%</td>
-              <td class="warn">0.680</td>
-              <td>−0.057 rad</td>
-              <td class="warn">+1.9 pp / div ↑269%</td>
-            </tr>
-            <tr>
-              <td class="strong">EXP-069</td>
-              <td>三項組合（#3 + #6 + #5）</td>
-              <td class="warn">20.13%</td>
-              <td class="warn">29.2%</td>
-              <td class="warn">1.404</td>
-              <td class="warn">+0.112 rad</td>
-              <td class="warn">負面交互（如預測）</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p style="color: var(--text-mid); font-size: 12px; line-height: 1.7; margin-top: 12px;">
-        三項機制的負面交互模式各異：CfC fast channels (τ≈e⁻³≈0.05) 對 sensor dt=0.025 過敏感
-        引入高頻噪音；σ=12 高頻段微改善 band_mid 但 12.5% 通道分配犧牲低頻精度；causal
-        weighting 的 cumsum 由量級大的 momentum 主導，壓低 continuity 約束導致 div_l2 嚴重退步。
-        詳見 <code>docs/experiment_log.md</code> 第 39–41 條。
+    <div class="callout">
+      <h3>Why CfC, not GRU / LSTM?</h3>
+      <p>
+        Sensor sampling is inherently irregular in time. CfC's closed-form gate
+        <code>σ(−τ · dt + b(x, h))</code> takes <code>dt</code> as an input and stays numerically
+        well-behaved across orders of magnitude — no interpolation, no fixed time-step assumption.
+        Empirically, attempts to widen the time-constant range (EXP-067) hurt rather than help —
+        the chosen <code>τ</code> already covers the relevant turbulent timescales.
       </p>
     </div>
   </section>
 
-  <section class="section">
-    <div class="section-label">09 · Information-Theoretic Limits</div>
-    <div class="panel">
-      <h2 class="panel-title">K=100 sensors: the mathematical ceiling of sparse reconstruction</h2>
-      <p class="panel-desc">
-        EXP-064（KE 7.80%）已達 K=100 sensor 配置的資訊論硬上限，稀疏重建主線正式結案。
-        低頻成分（k≤8，佔 94.4% 能量）已被可靠重建；中高頻的 ≈100% 誤差是 Compressed Sensing 理論的數學必然，
-        與優化器選擇、physics loss 設計、架構容量及感測器位置物理約束均無關。
+  <!-- =========================================================
+       § 05 — RESULTS GALLERY
+       ========================================================= -->
+  <section id="gallery">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 05 — Full results gallery</div>
+        <h2>Twelve diagnostic figures, grouped by what they answer.</h2>
+      </div>
+      <p class="lede">
+        All figures are the EXP-064 model evaluated on the full <code>T = [0, 5]</code> window
+        against the DNS reference. The two figures already on
+        <a href="index.html#results">Overview</a> are repeated here for completeness.
       </p>
+    </div>
 
-      <div class="result-banner">
-        <div class="callout">
-          <h3>Compressed Sensing Bound</h3>
-          <p>
-            Re=10000 速度場在 db4 wavelet 域極度稀疏（Gini ≈ 0.983）。精確重建 s ≈ 328 個顯著係數
-            需要 M ≥ O(s log N) ≈ 5000 個感測器（N = 65536）。
-            K=100 差了約 50 倍。換成 Fourier 基底不改變結論——
-            兩種基底的稀疏度等價，自由度上限不因基底選擇改變。
-          </p>
-        </div>
-        <div class="callout">
-          <h3>EXP-064: Accepted Final Result</h3>
-          <p>
-            在 K=100 已達數學上限的前提下，EXP-064（KE 7.80%、div_l2 0.184、kf_phase −0.023 rad）
-            是此設定下可達的最佳重建品質。
-            主能量帶已被可靠重建；進一步提升中高頻需要 K ≥ 5000 個感測器，
-            或引入 DNS-based 高頻先驗（工程不可遷移）。
-          </p>
-        </div>
+    <div class="gallery-group">
+      <div class="gallery-group-head">
+        <h3>A · Field structure</h3>
+        <div class="gtag">spatial reconstruction</div>
       </div>
-
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Frequency Band</th>
-              <th>Energy Share</th>
-              <th>Wavelet DOF Required</th>
-              <th>Feasible with K=100?</th>
-              <th>EXP-064 Band Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="strong">Low (k ≤ 8)</td>
-              <td>94.4%</td>
-              <td>~196</td>
-              <td class="good">✓ Underdetermined, feasible</td>
-              <td class="good">3.62%</td>
-            </tr>
-            <tr>
-              <td class="strong">Mid (k ~ 8..16)</td>
-              <td>4.8%</td>
-              <td>~588</td>
-              <td class="warn">✗ Exceeds K=100 capacity</td>
-              <td class="warn">~100%</td>
-            </tr>
-            <tr>
-              <td class="strong">High (k ~ 16..32)</td>
-              <td>0.8%</td>
-              <td>~1452</td>
-              <td class="warn">✗ Far exceeds K=100</td>
-              <td class="warn">~100%</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="figure-row">
+        <figure>
+          <img src="assets/exp064/field_comparison_t5.png" alt="Velocity field comparison at t=5">
+          <figcaption>
+            <span class="label">Field · u, v at t = 5</span>
+            Reconstruction tracks dominant Kolmogorov streaks; residual error concentrates on
+            vortex sheets.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/vorticity_comparison_t5.png" alt="Vorticity comparison at t=5">
+          <figcaption>
+            <span class="label">Vorticity · ω at t = 5</span>
+            Vorticity error 45.4 % is amplified by <code>k²</code>; small-scale vortices are the
+            visible casualty of K = 100.
+          </figcaption>
+        </figure>
       </div>
+    </div>
 
-      <div class="config-grid" style="margin-top: 18px;">
-        <div class="config-card">
-          <div class="metric-label">Gini Coefficient (u / v)</div>
-          <div class="metric-value">0.983 / 0.985</div>
-          <div class="metric-note">db4 2D wavelet 域稀疏度；Gini=1.0 為完全稀疏。CS 前提條件成立，但 sensor 數量不足。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">99% Energy — Coefficients</div>
-          <div class="metric-value">~328 (top 0.5%)</div>
-          <div class="metric-note">速度場在 65536 個 wavelet 係數中，僅 top 0.5% 攜帶 99% 能量；流場稀疏但非均勻。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">CS Recovery Threshold</div>
-          <div class="metric-value">~5000</div>
-          <div class="metric-note">M ≥ O(s log N) 精確重建所需感測器數；K=100 不足 50 倍，K=200 仍不足 25 倍。</div>
-        </div>
-        <div class="config-card">
-          <div class="metric-label">K=200 band_mid (EXP-066)</div>
-          <div class="metric-value">32.9%</div>
-          <div class="metric-note">K=200 使 band_mid 從 100% 降至 32.9%，確認增加感測器確實有效；但低頻退步，需更長訓練。</div>
-        </div>
+    <div class="gallery-group">
+      <div class="gallery-group-head">
+        <h3>B · Temporal stability</h3>
+        <div class="gtag">how errors evolve</div>
       </div>
-
-      <div class="note-grid" style="margin-top: 18px;">
-        <div class="note-card">
-          <h3>What K=100 can reconstruct</h3>
-          <p>
-            低頻主能量帶（k≤8，94.4% 能量）已以 KE 7.80% 精度重建。
-            主強迫模態幅值比值 0.962、相位誤差 −0.023 rad，均接近 DNS。
-            整體動能尺度在全段 T=5 保持穩定，不可壓縮性殘差 div_l2 0.184。
-          </p>
-        </div>
-        <div class="note-card">
-          <h3>What K=100 cannot reconstruct</h3>
-          <p>
-            中頻（k~8..16，4.8% 能量）需 ~588 個 wavelet 自由度，超出 K=100 容量。
-            已試驗的所有方向——SOAP optimizer、GradNorm、sensor continuity physics、trunk 加深、
-            CfC 多尺度 τ、頻率分層 Fourier、PINN causal weighting（EXP-067/068/069）——
-            皆無法改變此硬上限。原因是 CS 約束，而非模型問題。
-          </p>
-        </div>
-        <div class="note-card">
-          <h3>Paths to break the limit</h3>
-          <p>
-            （1）K≥5000 感測器達到 CS 精確重建門檻；
-            （2）K=200+ 加上更長訓練（EXP-066 初步突破 band_mid）；
-            （3）4D-Var 時序同化利用物理模式耦合補足資訊；
-            （4）DNS POD 基底作為高頻先驗（工程不可遷移，僅研究用）。
-          </p>
-        </div>
+      <div class="figure-row">
+        <figure>
+          <img src="assets/exp064/uv_error_vs_time.png" alt="UV error vs time">
+          <figcaption>
+            <span class="label">Time · u, v error</span>
+            Worst-case at <code>t ≈ 0.10</code> (early-time IC adjustment); flattens to a steady
+            band for <code>t &gt; 1</code>.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/kinetic_energy_vs_time.png" alt="Kinetic energy vs time">
+          <figcaption>
+            <span class="label">Time · KE(t)</span>
+            Predicted KE follows the DNS curve with a stable offset; no energy drift across the
+            full window.
+          </figcaption>
+        </figure>
       </div>
+    </div>
 
-      <div class="callout" style="margin-top: 18px;">
-        <h3>Convergent evidence: EXP-067/068/069 reaffirm the ceiling</h3>
-        <p>
-          三項 turbulence-aware 嘗試（CfC 多尺度時間常數、頻率分層 Fourier、PINN causal weighting）
-          皆 hypothesis falsified——KE 退步 +1.9 ~ +12.3 pp，div_l2 最差 +663%，
-          band_mid/high@t=5 仍 ≈100%。任何在 K=100 + 當前架構配置下的進一步「巧妙設計」都已撞牆。
-          這提供了 EXP-064 為 <em>當前架構配置下的全域最優點</em> 的強佐證；
-          進一步突破必須改變問題本身（增加 K 或引入物理先驗），而非優化器/loss/初始化的調整。
-        </p>
+    <div class="gallery-group">
+      <div class="gallery-group-head">
+        <h3>C · Spectral content</h3>
+        <div class="gtag">where the energy lives</div>
+      </div>
+      <div class="figure-row">
+        <figure>
+          <img src="assets/exp064/energy_spectrum.png" alt="Energy spectrum E(k)">
+          <figcaption>
+            <span class="label">Spectrum · E(k)</span>
+            Low-band energy recovered to within 3.6 %; roll-off above the K = 100 information
+            barrier — see CS bound on the Overview.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/kf_mode_amplitude_vs_time.png" alt="kf mode amplitude vs time">
+          <figcaption>
+            <span class="label">Forcing mode · |k<sub>f</sub>|(t)</span>
+            Amplitude ratio vs DNS settles to 0.962 at <code>t = 5</code>; the dominant forcing
+            mode is captured cleanly.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/kf_mode_phase_vs_time.png" alt="kf mode phase vs time">
+          <figcaption>
+            <span class="label">Forcing mode · arg(k<sub>f</sub>)(t)</span>
+            Phase error reaches <code>−0.023 rad</code> at <code>t = 5</code> — a 53 % improvement
+            over EXP-063 from adding the sensor-position continuity points.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/band_energy_rel_error_vs_time.png" alt="band energy relative error vs time">
+          <figcaption>
+            <span class="label">Bands · E(k) by tier</span>
+            Low band (<code>k ≤ 8</code>) stays near 3 %; mid and high bands sit at ≈ 100 % — the
+            information-theoretic ceiling visualised over time.
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+
+    <div class="gallery-group">
+      <div class="gallery-group-head">
+        <h3>D · Physics constraints</h3>
+        <div class="gtag">how well the PDE is satisfied</div>
+      </div>
+      <div class="figure-row">
+        <figure>
+          <img src="assets/exp064/divergence_vs_time.png" alt="divergence L2 vs time">
+          <figcaption>
+            <span class="label">Continuity · ‖∇·u‖₂(t)</span>
+            Global incompressibility residual stabilises around 0.184; the sensor-position
+            continuity points contribute the remaining 9.6 % improvement vs EXP-063.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/ns_residual_vs_time.png" alt="NS residual RMS vs time">
+          <figcaption>
+            <span class="label">Momentum · ‖R<sub>NS</sub>‖<sub>RMS</sub>(t)</span>
+            <code>ns_u_rms ≈ 0.523</code>, <code>ns_v_rms ≈ 0.506</code> — non-zero, as expected:
+            the residual is balanced against data, not driven to machine zero.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/enstrophy_vs_time.png" alt="enstrophy vs time">
+          <figcaption>
+            <span class="label">Enstrophy · Ω(t)</span>
+            Enstrophy relative error 27.6 %; tracks the high-frequency tail of the spectrum, so
+            inherits the K = 100 ceiling.
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="assets/exp064/vorticity_error_vs_time.png" alt="vorticity error vs time">
+          <figcaption>
+            <span class="label">Vorticity · |ω| error(t)</span>
+            Vorticity error grows mildly with <code>t</code> — consistent with mid/high-band
+            information loss accumulating over the rollout.
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
 
-  <section class="section">
-    <div class="section-label">10 · Code Anchors</div>
-    <div class="panel">
-      <h2 class="panel-title">The page points back to the real implementation</h2>
-      <p class="panel-desc">
-        這兩段不是偽碼，而是對應目前工作樹中的核心邏輯：CfC 的 closed-form update，以及
-        最近加入的 optional bidirectional temporal scan。
+  <!-- =========================================================
+       § 06 — ABLATIONS
+       ========================================================= -->
+  <section id="ablations">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 06 — Ablations &amp; discussion</div>
+        <h2>Four falsifiability tests, all converging on the same wall.</h2>
+      </div>
+      <p class="lede">
+        After EXP-064 reached KE = 7.80 %, we tested four orthogonal directions for further
+        improvement: optimizer, physics density, sensor count, model expressivity. Each one
+        falsified the hypothesis that K = 100 is an optimisation problem.
       </p>
+    </div>
 
-      <div class="code-grid">
-        <article class="code-card">
-          <div class="code-meta">src/lnn_kolmogorov.py · CfCCell.forward</div>
-          <h3>Closed-form temporal update</h3>
-          <pre><code>xh = torch.cat([x, h], dim=-1)
+    <div class="exp-list">
+      <article class="exp-card baseline">
+        <div class="head">
+          <div class="id">EXP-064 <span class="verdict">Baseline · accepted</span></div>
+        </div>
+        <div class="topic"><strong>EXP-063 + sensor-position continuity points</strong>; K = 100; 10 k steps; SOAP+SF + GradNorm.</div>
+        <div class="metrics">KE = 7.80 % &nbsp;·&nbsp; div_L² = 0.184 &nbsp;·&nbsp; phase_err = −0.023 rad &nbsp;·&nbsp; band_low = 3.6 % / band_mid = 99.97 %</div>
+        <div class="verdict-text">
+          New Re = 10,000 record: −0.85 pp KE and −9.6 % div<sub>L²</sub> over EXP-063, with a
+          <strong>53 % phase-error reduction</strong>. Mid/high-band errors stay at ≈ 100 %, which
+          motivated the next four ablations.
+        </div>
+      </article>
+
+      <article class="exp-card negative">
+        <div class="head">
+          <div class="id">EXP-065 <span class="verdict">Falsified</span></div>
+        </div>
+        <div class="topic"><strong>Hypothesis:</strong> deeper trunk MLP (1 → 2 layers, +132 K params) gives the model the expressivity to represent <code>k &gt; 5</code> spatial modes.</div>
+        <div class="metrics">KE = 7.74 % (≈ baseline) &nbsp;·&nbsp; band_mid_last = 99.88 % &nbsp;·&nbsp; band_high_last = 99.998 %</div>
+        <div class="verdict-text">
+          Mid/high bands totally unmoved. This <strong>rules out architecture expressivity</strong>
+          as the bottleneck — adding capacity does not help when the input does not contain the
+          information.
+        </div>
+      </article>
+
+      <article class="exp-card mixed">
+        <div class="head">
+          <div class="id">EXP-066 <span class="verdict">Mixed result</span></div>
+        </div>
+        <div class="topic"><strong>Hypothesis:</strong> doubling sensors to K = 200 should improve mid-band reconstruction (QR-pivot diagnostic predicts useful conditioning to <code>k ≈ 41</code>).</div>
+        <div class="metrics">KE = 29.94 % (regressed) &nbsp;·&nbsp; band_mid_last = <strong>32.90 %</strong> (first breakthrough!) &nbsp;·&nbsp; band_low_last = 38.65 % (regressed) &nbsp;·&nbsp; L_phys @ 10 k = 2.95 (undertrained)</div>
+        <div class="verdict-text">
+          The mid-band breakthrough is real and confirms the information-theoretic argument:
+          <strong>more sensors do reach more modes</strong>. But the run was undertrained at 10 k
+          steps — the low-band regression is almost certainly an optimisation artefact, not a
+          fundamental defect of K = 200. Continuation runs are queued.
+        </div>
+      </article>
+
+      <article class="exp-card negative">
+        <div class="head">
+          <div class="id">EXP-067 <span class="verdict">Falsified</span></div>
+        </div>
+        <div class="topic"><strong>Hypothesis:</strong> widening CfC time-constant range (<code>log_τ ∈ (−3, 1)</code>) plus frequency-tiered Fourier embeddings (<code>(1, 4, 12)</code> with <code>(50 / 37.5 / 12.5 %)</code> channel split) should give the model multi-scale temporal and spatial expressivity.</div>
+        <div class="metrics">KE = 11.20 % (+3.40 pp) &nbsp;·&nbsp; band_low = 7.19 % (regressed)</div>
+        <div class="verdict-text">
+          Fast CfC channels with <code>τ ≈ 0.05</code> become hyper-sensitive at the sensor
+          <code>dt = 0.025</code>; high-frequency Fourier channels divert capacity from the dominant
+          low-band modes. The two effects compound. <strong>Diagnostic, not architectural,
+          progress.</strong>
+        </div>
+      </article>
+
+      <article class="exp-card negative">
+        <div class="head">
+          <div class="id">EXP-068 <span class="verdict">Falsified</span></div>
+        </div>
+        <div class="topic"><strong>Hypothesis:</strong> PINN causal weighting (<code>ε = 1.0</code>, <code>num_bins = 16</code>) should focus physics enforcement on early time and cascade improvements forward.</div>
+        <div class="metrics">KE = 9.73 % (+1.93 pp) &nbsp;·&nbsp; div_L² = 0.680 (+269 % regression)</div>
+        <div class="verdict-text">
+          The current causal-weighting implementation aggregates over the sum of all residual
+          terms; the larger-magnitude momentum residual dominates the weight curve, and the
+          continuity constraint is suppressed. Need a per-task cumsum or momentum-only weighting.
+          <strong>Implementation issue, not concept-level.</strong>
+        </div>
+      </article>
+
+      <article class="exp-card negative">
+        <div class="head">
+          <div class="id">EXP-069 <span class="verdict">Falsified · catastrophic</span></div>
+        </div>
+        <div class="topic"><strong>Hypothesis:</strong> combining all three ideas above should reinforce.</div>
+        <div class="metrics">KE = 20.13 % (+12.33 pp) &nbsp;·&nbsp; div_L² = 1.404 (+663 %)</div>
+        <div class="verdict-text">
+          Negative interactions compound. The lesson is operational: each diagnostic improvement
+          must be validated <em>independently</em> before combination, especially when the K = 100
+          ceiling is so close to the baseline that there is little headroom.
+        </div>
+      </article>
+    </div>
+
+    <div class="callout accent">
+      <h3>Convergent reading of the four tests</h3>
+      <p>
+        Optimiser (EXP-061 history), physics density (EXP-053/054, sensor-position continuity in
+        EXP-064 itself), sensor position (EXP-065 trunk depth — proxy for "is it the model?") and
+        model expressivity (EXP-065 directly) all give the same verdict: <strong>K = 100 is a
+        compressed-sensing-bound, not an optimisation gap</strong>. EXP-066 supplies the positive
+        complement — when K is increased, the wall recedes, exactly where the theory predicts.
+        Further progress at K = 100 is therefore not blocked on engineering effort.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       § 07 — REPRODUCIBILITY
+       ========================================================= -->
+  <section id="repro">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 07 — Reproducibility</div>
+        <h2>Hardware, environment, and the operational pitfalls.</h2>
+      </div>
+      <p class="lede">
+        The full training is reproducible on any 16 GB Apple Silicon laptop. Three pitfalls below
+        are real, observed bugs from this project — be aware of them.
+      </p>
+    </div>
+
+    <div class="cards-2" style="margin-bottom: 28px;">
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Environment</h3>
+        <div class="spec-row"><div class="key">OS</div><div class="val">macOS 14+ on Apple M3</div></div>
+        <div class="spec-row"><div class="key">Cores</div><div class="val">8 (4 P + 4 E)</div></div>
+        <div class="spec-row"><div class="key">Unified memory</div><div class="val">16 GB</div></div>
+        <div class="spec-row"><div class="key">Backend</div><div class="val">PyTorch MPS</div></div>
+        <div class="spec-row"><div class="key">Required env var</div><div class="val"><code>PYTORCH_ENABLE_MPS_FALLBACK=1</code></div></div>
+        <div class="spec-row"><div class="key">Python</div><div class="val">3.12 via <code>uv</code></div></div>
+        <div class="spec-row"><div class="key">Wall-clock target</div><div class="val">≈ 7 h 17 m / 10 k steps</div></div>
+      </div>
+
+      <div class="spec-block">
+        <h3 style="margin-bottom: 14px;">Operational pitfalls (observed)</h3>
+        <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7;"><strong>1. stdout buffering.</strong> Long runs redirected to a log file appear to hang for hours when in fact <code>print()</code> is block-buffered. All key prints in this project use <code>flush=True</code>. <em>Cost when missed: 75 minutes lost in EXP-059.</em></p>
+        <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7; margin-top: 10px;"><strong>2. SOAP eigh on MPS.</strong> <code>torch.linalg.eigh</code> is unsupported on MPS; the env var above forces a CPU fallback. Without it, training crashes at the first preconditioner step.</p>
+        <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7; margin-top: 10px;"><strong>3. Config–code drift.</strong> Any new TOML key must be added to <code>DEFAULT_LNN_ARGS</code> in <code>src/lnn_kolmogorov.py</code>, otherwise validation fails immediately at startup.</p>
+      </div>
+    </div>
+
+    <div class="callout muted">
+      <h3>Run the EXP-064 baseline</h3>
+      <pre style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: transparent; color: var(--ink); margin-top: 8px; line-height: 1.7;">$ export PYTORCH_ENABLE_MPS_FALLBACK=1
+$ uv run python -m src.lnn_kolmogorov \
+    --config configs/exp_064_re10000_xlarge_sensor_physics.toml</pre>
+      <p style="margin-top: 12px;">
+        Artifacts (checkpoints, evaluation summaries, logs) land under
+        <code>artifacts/deeponet-cfc-re10000-exp064-sensor-physics/</code>. The single evaluation
+        target is <code>checkpoints/lnn_kolmogorov_step_10000.pt</code> — earlier checkpoints are
+        intermediate.
+      </p>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       § 08 — CODE ANCHORS
+       ========================================================= -->
+  <section id="code">
+    <div class="section-head">
+      <div>
+        <div class="section-num">§ 08 — Code anchors</div>
+        <h2>Two snippets that are not pseudo-code.</h2>
+      </div>
+      <p class="lede">
+        These are verbatim from the working tree. They cover the closed-form CfC update and the
+        optional bidirectional temporal scan.
+      </p>
+    </div>
+
+    <article class="code-block">
+      <div class="code-head">
+        <span class="file">src/lnn_kolmogorov.py · CfCCell.forward</span>
+        <span class="role">closed-form update</span>
+      </div>
+      <pre><code>xh = torch.cat([x, h], dim=-1)
 f1 = torch.tanh(self.ff1(xh))
 f2 = torch.tanh(self.ff2(xh))
 tau_a = torch.exp(self.log_tau_a)
 t_b = self.time_b(xh)
 gate = torch.sigmoid(-tau_a * dt + t_b)
 return gate * f1 + (1.0 - gate) * f2</code></pre>
-        </article>
+    </article>
 
-        <article class="code-card">
-          <div class="code-meta">src/lnn_kolmogorov.py · TemporalCfCEncoder.forward</div>
-          <h3>Optional bidirectional temporal scan</h3>
-          <pre><code># re_bias 預先加進 seq，移除 _run_cfc_pass 內部 view call
+    <article class="code-block" style="margin-top: 16px;">
+      <div class="code-head">
+        <span class="file">src/lnn_kolmogorov.py · TemporalCfCEncoder.forward</span>
+        <span class="role">optional bidirectional scan</span>
+      </div>
+      <pre><code># re_bias added to seq up-front, removing the inner view() call
 attended_with_bias = attended + re_bias
 fwd = self._run_cfc_pass(attended_with_bias, self.cells, dts, layer_idx, reverse=False)
 if self.use_bidirectional:
@@ -2715,103 +1715,64 @@ else:
     new_seq = fwd
 
 seq = new_seq + seq if layer_idx &gt; 0 else new_seq</code></pre>
-        </article>
-      </div>
+    </article>
+
+    <div class="callout">
+      <h3>The page points back to the implementation</h3>
+      <p>
+        The closed-form gate <code>σ(−τ·dt + b(x, h))</code> is the entire reason CfC handles
+        irregular sensor sampling without interpolation. The bidirectional path is off by default
+        (causal training), but is wired so future work — e.g. assimilation-style smoothing — can
+        flip it on without architectural changes.
+      </p>
     </div>
   </section>
 
-  <footer class="footer">
-    <span>Pi-LNN · Sparse Sensor Flow Reconstruction · Re=10000 Kolmogorov · KE 7.80%</span>
-    <span>DeepONet + CfC · NS-constrained · K=100 · CS limit confirmed × 4 (EXP-066/067/068/069)</span>
-  </footer>
-
 </div>
 
+<footer>
+  <div class="left">
+    <span class="mark">Pi-LNN</span>
+    <span>·</span>
+    <span>Details · Re = 10,000 · K = 100 · KE 7.80 % · 4 falsifiability tests passed</span>
+  </div>
+  <div class="right">
+    <a href="index.html">Overview</a>
+    <a href="experiment_log.md">Log</a>
+    <a href="https://github.com/latteine1217/pi-lnn">GitHub</a>
+  </div>
+</footer>
+
 <script>
-const html = document.documentElement;
-const label = document.getElementById("theme-label");
-const toggle = document.getElementById("theme-toggle");
-const storageKey = "pi-lnn-theme";
-
-function applyTheme(theme) {
-  html.setAttribute("data-theme", theme);
-  label.textContent = theme === "dark" ? "light" : "dark";
-  requestAnimationFrame(updateGraphLinks);
-}
-
-function graphPortCenter(port, canvasRect) {
-  const rect = port.getBoundingClientRect();
-  return {
-    x: rect.left - canvasRect.left + rect.width / 2,
-    y: rect.top - canvasRect.top + rect.height / 2,
-  };
-}
-
-function graphBezier(from, to) {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const mostlyVertical = Math.abs(dx) < 24 && Math.abs(dy) > 24;
-
-  if (mostlyVertical) {
-    const handle = Math.max(40, Math.abs(dy) * 0.5);
-    const y1 = from.y + Math.sign(dy || 1) * handle;
-    const y2 = to.y - Math.sign(dy || 1) * handle;
-    return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${from.x.toFixed(1)} ${y1.toFixed(1)}, ${to.x.toFixed(1)} ${y2.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+  /* ---------- Theme toggle (shared key with Overview) ---------- */
+  const html = document.documentElement;
+  const toggle = document.getElementById("themeToggle");
+  const KEY = "pi-lnn-index-theme";
+  const saved = localStorage.getItem(KEY);
+  if (saved === "dark" || saved === "light") {
+    html.setAttribute("data-theme", saved);
+  } else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    html.setAttribute("data-theme", "dark");
   }
-
-  const handle = Math.min(Math.max(32, Math.abs(dx) * 0.45), Math.max(24, Math.abs(dx) * 0.5));
-  const direction = Math.sign(dx || 1);
-  const x1 = from.x + direction * handle;
-  const x2 = to.x - direction * handle;
-  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${x1.toFixed(1)} ${from.y.toFixed(1)}, ${x2.toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
-}
-
-function updateGraphLinks() {
-  const canvas = document.querySelector(".comfy-canvas");
-  const svg = document.querySelector(".graph-links");
-  if (!canvas || !svg) return;
-
-  const canvasRect = canvas.getBoundingClientRect();
-  svg.setAttribute("viewBox", `0 0 ${canvas.offsetWidth} ${canvas.offsetHeight}`);
-
-  document.querySelectorAll(".graph-link[data-from][data-to]").forEach((link) => {
-    const fromPort = canvas.querySelector(`[data-port="${link.dataset.from}"]`);
-    const toPort = canvas.querySelector(`[data-port="${link.dataset.to}"]`);
-    if (!fromPort || !toPort) return;
-
-    const from = graphPortCenter(fromPort, canvasRect);
-    const to = graphPortCenter(toPort, canvasRect);
-    link.setAttribute("d", graphBezier(from, to));
+  toggle.addEventListener("click", () => {
+    const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
+    html.setAttribute("data-theme", next);
+    localStorage.setItem(KEY, next);
   });
-}
 
-const saved = localStorage.getItem(storageKey);
-if (saved === "light" || saved === "dark") {
-  applyTheme(saved);
-} else {
-  applyTheme("dark");
-}
-
-toggle.addEventListener("click", () => {
-  const next = html.getAttribute("data-theme") === "dark" ? "light" : "dark";
-  localStorage.setItem(storageKey, next);
-  applyTheme(next);
-});
-
-window.addEventListener("load", updateGraphLinks);
-window.addEventListener("resize", updateGraphLinks);
-
-const comfyBoard = document.querySelector(".comfy-board");
-if (comfyBoard) {
-  comfyBoard.addEventListener("scroll", updateGraphLinks, { passive: true });
-}
-
-const comfyCanvas = document.querySelector(".comfy-canvas");
-if (comfyCanvas && "ResizeObserver" in window) {
-  new ResizeObserver(updateGraphLinks).observe(comfyCanvas);
-}
-
-requestAnimationFrame(updateGraphLinks);
+  /* ---------- Smooth-scroll for in-page anchors ---------- */
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener("click", e => {
+      const id = a.getAttribute("href").slice(1);
+      if (!id) return;
+      const target = document.getElementById(id);
+      if (!target) return;
+      e.preventDefault();
+      const navH = document.querySelector(".nav").offsetHeight;
+      const y = target.getBoundingClientRect().top + window.scrollY - navH - 8;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    });
+  });
 </script>
 
 </body>
