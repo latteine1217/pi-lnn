@@ -12,6 +12,7 @@ os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
 from pi_lnn.config import DEFAULT_LNN_ARGS, _validate_al_config, load_lnn_config
 from pi_lnn.decoder import DeepONetCfCDecoder
+from pi_lnn.dns_align import find_dns_time_idx
 from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
 from pi_lnn.encodings import (
     FourierEmbs,
@@ -56,6 +57,7 @@ __all__ = [
     "configure_torch_runtime",
     "count_parameters",
     "create_lnn_model",
+    "find_dns_time_idx",
     "load_lnn_config",
     "main",
     "make_lnn_model_fn",

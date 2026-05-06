@@ -21,6 +21,15 @@ import numpy as np
 import torch
 
 from lnn_kolmogorov import create_lnn_model, load_lnn_config
+# Why: evaluator 必須跟訓練端用 *完全相同* 的 stats / train-val split / RE_MEAN/STD。
+#      重複 hardcode RE_MEAN/STD（line 671 之前）會 silent drift；改 import dataset class，
+#      所有常數從 dataset 內部抽（dataset 自己用 RE_MEAN/RE_STD 算 re_norm，
+#      evaluator 直接用 ds.re_norm）。
+from kolmogorov_dataset import KolmogorovDataset
+from pi_lnn import find_dns_time_idx   # 共用 module（避免兩 evaluator 重複實作 → drift）
+
+# 訓練端 hardcoded train_ratio=0.8（pi_lnn/training.py:88）。evaluator 對齊。
+TRAIN_RATIO_FALLBACK = 0.8
 
 
 # 期刊風格繪圖（NeurIPS/ICLR）— 全域 rcParams 設定。
@@ -107,13 +116,30 @@ def parse_args() -> argparse.Namespace:
         help="Evaluation device.",
     )
     parser.add_argument(
+        "--eval-stride", type=int, default=1,
+        help=(
+            "每隔幾個 sensor time step 評估一次（預設 1=全部）。"
+            " IMP-2: T_sub 大時用 stride>1 加速；對 T_sub=2001 + stride=10 約 200 query × 3 component"
+            " ~= cylinder 等級工作量。stride>1 會 subsample summary_steps，但 NS residual"
+            " 的時間導數在 stride 後仍正確（np.gradient 接 nonuniform spacing）。"
+        ),
+    )
+    parser.add_argument(
+        "--apply-denormalization",
+        action="store_true",
+        help=(
+            "Apply output denormalization (raw * std + mean) before metrics."
+            " 預設 False — model 直接學 physical 量級 raw output（見 losses.py:223"
+            " 的 (raw - mean)/std loss），evaluator 不該再套 denorm，否則 double-scale。"
+            " 此 flag 留作向後相容；正常 use case 都不該開。"
+        ),
+    )
+    parser.add_argument(
         "--legacy-checkpoint",
         action="store_true",
         help=(
-            "Skip output denormalization (raw model output × std + mean)."
-            " 用於修 normalize bug 之前訓的 checkpoint —— 那些 model 隱含學了"
-            " physical 量級 raw output，加 denorm 會 double-scale 造成數字錯。"
-            " 修後（physics_output_mean/std 注入過）訓的 checkpoint 不要加此 flag。"
+            "[DEPRECATED] 之前指「跳過 denorm」是 opt-in；現在 default 已是跳過 denorm。"
+            " 此 flag 保留為 no-op 以維持向後相容（舊 script 不會 break）。"
         ),
     )
     return parser.parse_args()
@@ -198,7 +224,16 @@ def laplacian_periodic(field: np.ndarray, dx: float) -> np.ndarray:
 
 
 def time_derivative_series(field_series: np.ndarray, time_vals: np.ndarray) -> np.ndarray:
-    """What: 沿時間軸計算一階導數。"""
+    """What: 沿時間軸計算一階導數。
+
+    CRIT-1: T < 2 時 fail-fast。np.gradient 在 len=1 會 IndexError；
+            evaluator 在 sensor_time 過短時應立即 raise，而非到 ns_residual_fields 才炸。
+    """
+    if len(time_vals) < 2:
+        raise RuntimeError(
+            f"time_derivative_series 需要至少 2 個時間點，收到 {len(time_vals)}。"
+            f" sensor_time 過短無法做 NS residual 時間導數，請增加 sensor_time 取樣。"
+        )
     edge_order = 2 if len(time_vals) >= 3 else 1
     return np.gradient(field_series, time_vals.astype(np.float64), axis=0, edge_order=edge_order)
 
@@ -248,6 +283,18 @@ def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndar
     Why: 替代原 Python for-loop（每 spectrum N/2 次 mask + sum），改用 np.bincount
          在 ravel 後一次 scatter-add，速度提升 ~10-50×；保留 ordinary wavenumber
          單位（cycles/domain）對齊 k_f=2.0。
+
+    Normalization (Parseval check)：
+        uh = fft2(u) / n²  →  Σ |uh|² = mean(|u|²)
+        所以 Σ E(k) ≈ 0.5 (mean u² + mean v²) = KE（narrow-band 場）。`/n²` 是對的。
+
+    Bin truncation (I2 + IMP-1 caveat)：
+        kk = √(kx²+ky²) 最大可達 √2 · n/2（角落超過 Nyquist）。
+        bin_idx > n//2 的 bin 物理上沒有意義（超過 Nyquist），mask 掉而非塞 last bin。
+        **副作用**：對 broad-band 場（如 white noise），落在 isotropic Nyquist 與 corner
+        之間的能量 (~19% 量級) 會被 mask 掉，造成 Σ E(k) < KE。
+        對 Kolmogorov narrow-band 場（能量集中在 k~k_f 附近）影響微小。
+        若需嚴格 Parseval consistency 在所有場上，請用 1D unwrap 而非 isotropic bin。
     """
     n = u.shape[0]
     k1d = np.fft.fftfreq(n, d=dx)
@@ -256,17 +303,15 @@ def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndar
     e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
     kx, ky = np.meshgrid(k1d, k1d, indexing="ij")
     kk = np.sqrt(kx**2 + ky**2)
-    n_bins = n // 2 + 1
-    # bin 對應原版 edges = [0.5, 1.5, ..., n//2+0.5]，共 n_bins 個 bin
-    # idx = floor(k - 0.5 + 1) = floor(k + 0.5)；k=0 → idx=0；k≥0.5 → idx≥1
-    # 但原版 k=0 不被任何 bin 包含（從 0.5 起），所以這裡需排除 idx=0 對應的 k<0.5
+    # n_bins 對應 [k=1, k=2, ..., k=n//2]（Nyquist 上限），共 n//2 個 bin。
+    n_bins = n // 2
+    # bin_idx ∈ [1, n//2] valid；> n//2（含對角線超 Nyquist 區）mask out。
     bin_idx = np.floor(kk + 0.5).astype(np.int64)
-    # k < 0.5（DC + 極低頻）不計入，遮罩為 -1
     valid = (bin_idx >= 1) & (bin_idx <= n_bins)
     flat_idx = np.where(valid, bin_idx - 1, 0)  # shift 到 [0, n_bins-1]
     weights = np.where(valid, e2d, 0.0).ravel()
     e_k = np.bincount(flat_idx.ravel(), weights=weights, minlength=n_bins).astype(np.float64)
-    edges = np.arange(0.5, n_bins + 1, 1.0)  # length n_bins+1
+    edges = np.arange(0.5, n_bins + 1.5, 1.0)  # length n_bins+1（centers = 1, 2, ..., n//2）
     return 0.5 * (edges[:-1] + edges[1:]), e_k
 
 
@@ -382,14 +427,25 @@ def load_model_weights_strict(model: torch.nn.Module, state: dict[str, torch.Ten
         )
 
 
-def forcing_mode_coeff_u(u: np.ndarray, y: np.ndarray, k_forcing: float) -> tuple[float, float]:
+def forcing_mode_coeff_u(
+    u: np.ndarray,
+    y: np.ndarray,
+    k_forcing: float,
+    domain_length: float = 1.0,
+) -> tuple[float, float]:
     """What: 擷取 x-平均後 u(y) 在 forcing mode 的複數 Fourier 係數。
 
     Why: 目前關鍵問題不是場完全崩潰，而是主模態是否被正確學到。
          直接量 amplitude / phase，比只看總能譜更容易判斷是沒學到還是相位錯。
+
+    I4: phase_arg 必須與 ns_residual_fields 的 forcing 一致：
+        forcing(y) = A·sin(2π·k_f·y / domain_length)
+        所以投影 basis 也要用同樣 wavelength；之前 hardcode `2π·k·y`
+        相當於假設 domain_length=1，雖然 dataset 都是 1.0，但若未來改 domain
+        會 silent 偏。
     """
     u_bar = u.mean(axis=0)
-    phase_arg = -2.0 * np.pi * float(k_forcing) * y
+    phase_arg = -2.0 * np.pi * float(k_forcing) * y / float(domain_length)
     basis = np.exp(1j * phase_arg)
     coeff = np.mean(u_bar * basis)
     return float(np.abs(coeff)), float(np.angle(coeff))
@@ -629,23 +685,49 @@ def main() -> None:
     load_model_weights_strict(model, state)
     model.eval()
 
-    sensor_json = json.loads(Path(cfg["sensor_jsons"][0]).read_text(encoding="utf-8"))
-    sensor_npz = np.load(cfg["sensor_npzs"][0])
-    dns = np.load(cfg["dns_paths"][0], allow_pickle=True).item()
+    # Flag 互斥檢查
+    if args.apply_denormalization and args.legacy_checkpoint:
+        print(
+            "  [WARN] --apply-denormalization 與 --legacy-checkpoint 同時設定；"
+            " --apply-denormalization 強制走 raw*std+mean，"
+            "--legacy-checkpoint (deprecated) 在此情況下無作用。"
+        )
 
-    sensor_pos = np.array(sensor_json["selected_coordinates"], dtype=np.float32)
-    requested = tuple(cfg.get("observed_sensor_channels", ["u", "v"]))
-    observed_fields = []
-    for key in requested:
-        if key in sensor_npz:
-            observed_fields.append(sensor_npz[key].astype(np.float32))
-    if not observed_fields:
-        raise ValueError(f"sensor_npz 不含指定感測器通道 {requested}。")
-    sensor_vals = np.stack(observed_fields, axis=2)  # [K, T, C_obs]
-    sensor_mean = sensor_vals.mean(axis=(0, 1), keepdims=True)
-    sensor_std = np.maximum(sensor_vals.std(axis=(0, 1), keepdims=True), 1.0e-6)
-    sensor_vals = ((sensor_vals - sensor_mean) / sensor_std).astype(np.float32)
-    sensor_time = sensor_npz["time"].astype(np.float32)
+    # ── 重建 dataset 拿單一真相源的 stats / train_t_idx / val_t_idx ────────
+    # Why: 之前 evaluator 自己重新算 sensor mean/std；雖然對 Kolmogorov 是 full-data
+    #      stats（與 dataset 一致），但 RE_MEAN/STD 寫死、train_t_idx/val_t_idx
+    #      無法區分 → 跟 cylinder evaluator 對稱地用 dataset import。
+    ds_seed = int(cfg.get("seed", 42))
+    ds = KolmogorovDataset(
+        sensor_json=cfg["sensor_jsons"][0],
+        sensor_npz=cfg["sensor_npzs"][0],
+        dns_path=cfg["dns_paths"][0],
+        re_value=float(cfg.get("re_values", [1000.0])[0]),
+        observed_channel_names=tuple(cfg.get("observed_sensor_channels", ["u", "v"])),
+        train_ratio=TRAIN_RATIO_FALLBACK,   # 跟 pi_lnn/training.py:88 hardcode 一致
+        seed=ds_seed,
+    )
+    sensor_pos  = ds.sensor_pos.astype(np.float32)            # [K, 2]
+    sensor_vals = ds.sensor_vals.astype(np.float32)           # [K, T, C]，已 normalize
+    sensor_time = ds.sensor_time.astype(np.float32)
+    # 仍 expose mean/std 兩個 [1,1,C] tensor 給 denorm path 用（與舊行為等價）
+    sensor_mean = ds.observed_channel_mean[None, None, :].astype(np.float32)
+    sensor_std  = ds.observed_channel_std [None, None, :].astype(np.float32)
+
+    # IMP-6: 驗證 sensor_time uniform（dataset.dt_phys 假設 uniform，但無 assert）。
+    #        nonuniform sensor_time 會讓 summary 的 dt_phys 失真，且訓練端某些
+    #        physics scheduling 也假設 uniform。
+    if len(sensor_time) >= 2:
+        _diffs = np.diff(sensor_time.astype(np.float64))
+        _dt_med = float(np.median(_diffs))
+        if _dt_med > 0 and not np.allclose(_diffs, _dt_med, rtol=1e-3):
+            print(
+                f"  [WARN] sensor_time 非 uniform（max rel-diff "
+                f"{float(np.max(np.abs(_diffs - _dt_med)) / _dt_med):.2e}）；"
+                f"dt_phys={_dt_med:.4e} 是 median，下游 NS residual time-derivative 仍正確。"
+            )
+
+    dns = np.load(cfg["dns_paths"][0], allow_pickle=True).item()
 
     x_g, y_g = coarse_reference_grid(
         dns["x"].astype(np.float32),
@@ -659,22 +741,22 @@ def main() -> None:
     sv_t = torch.tensor(sensor_vals.transpose(1, 0, 2), dtype=torch.float32, device=device)
     sp_t = torch.tensor(sensor_pos, dtype=torch.float32, device=device)
     st_t = torch.tensor(sensor_time, dtype=torch.float32, device=device)
-    re_value = float(cfg.get("re_values", [1000.0])[0])
-    re_norm = float((re_value - 5500.0) / 4000.0)
+    re_value = ds.re_value
+    re_norm  = ds.re_norm   # = (re_value - RE_MEAN) / RE_STD，dataset 內部用 import 來的常數
 
     with torch.no_grad():
         h_states, s_time = model.encode(sv_t, sp_t, re_norm, st_t)
 
-    # Per-component denormalization stats（與訓練一致：u, v 從 sensor stats 取，p 無監督保 raw）
-    # Why: model query_decoder 學的是 normalized target → output 量級為 unit-std。
-    #      Evaluator 之前直接把 normalized output 與 physical DNS 比，所有 RMSE/rel-L2/KE
-    #      都單位 mismatch。現在統一在 physical 空間比較。
-    # Legacy checkpoint：修前訓的 model raw ≈ physical，套 denorm 反而錯，故給 identity。
-    if args.legacy_checkpoint:
-        print("  [legacy mode] skip denormalization (identity transform)")
-        _denorm_mean = (0.0, 0.0, 0.0)
-        _denorm_std  = (1.0, 1.0, 1.0)
-    else:
+    # Per-component denormalization stats — 預設 identity（不套 denorm）。
+    # Why: model raw output 已經是 physical 量級。
+    #      losses.py:223 的 data loss 是 (raw - mean)/std vs normalized_target，
+    #      最佳解 raw == normalized_target * std + mean = physical_target。
+    #      所以 evaluator 直接拿 raw 跟 physical DNS 比是對的；額外套 denorm 會 double-scale。
+    # 歷史：d62e698 (2026-05-03) 誤判 model 學 normalized → evaluator default 套 denorm。
+    #       這個 silent regression 把 EXP-070~074 的 KE 全部誤報成 ~84%；
+    #       用 identity 後真實 KE 約 6-9%（見 docs/experiment_log.md DIAGNOSTIC section）。
+    if args.apply_denormalization:
+        print("  [WARN] --apply-denormalization 啟用：raw * std + mean。預期會 double-scale。")
         _denorm_mean = (
             float(sensor_mean[0, 0, 0]),  # u
             float(sensor_mean[0, 0, 1]),  # v
@@ -685,6 +767,12 @@ def main() -> None:
             float(sensor_std[0, 0, 1]),
             1.0,
         )
+    else:
+        # 預設路徑：identity transform，物理上正確。
+        if args.legacy_checkpoint:
+            print("  [INFO] --legacy-checkpoint deprecated（現在 default 即 identity）")
+        _denorm_mean = (0.0, 0.0, 0.0)
+        _denorm_std  = (1.0, 1.0, 1.0)
 
     # Kolmogorov 是 periodic flow，無 body → 不應該啟用 use_hard_body_bc。
     # 如果 model 是 hard BC 訓的（誤用），這裡 raise 而不是 silent 退化。
@@ -711,15 +799,66 @@ def main() -> None:
         # Denormalize: phys = raw * std + mean，使預測場與 DNS 同物理單位。
         return raw * _denorm_std[comp_idx] + _denorm_mean[comp_idx]
 
+    # I8: dx/dy 分開，未來若支援非正方 grid 不會 silent 算錯。
     dx = float(x_g[1] - x_g[0]) if len(x_g) > 1 else 1.0
+    dy = float(y_g[1] - y_g[0]) if len(y_g) > 1 else 1.0
+    if not np.isclose(dx, dy):
+        raise ValueError(
+            f"目前 spectrum / vorticity / divergence 假設 dx==dy（isotropic FFT），"
+            f"但 coarse grid dx={dx:.6e}, dy={dy:.6e} 不一致。"
+        )
+
+    # I5: time alignment sanity — 對 sensor_time 預先做一次性 dns_idx mapping，
+    #     若任一點對齊偏差 > 0.5·dns_dt 立即 raise；防 silent 全部 collapse 到 dns[0]。
+    t_dns = dns["time"].astype(np.float64)
+    if len(t_dns) < 2:
+        raise RuntimeError(f"DNS time axis 長度 {len(t_dns)}（< 2），無法對齊")
+    _dns_dt = float(np.median(np.diff(t_dns)))
+    if _dns_dt <= 0:
+        raise RuntimeError(f"DNS dt 非正：{_dns_dt}")
+    sensor_to_dns_idx = np.empty(len(sensor_time), dtype=np.int64)
+    for _i, _tv in enumerate(sensor_time):
+        # find_dns_time_idx 內含 two-tier 對齊（nearest with ULP tolerance → floor），
+        # 已吸收 f32 round-trip 損失，無需外層 _eps 後處理。
+        _ix = find_dns_time_idx(t_dns, float(_tv))
+        # Sanity: 即使 floor 也可能差太多（sensor_time 完全錯軸時）→ raise 而非 silent
+        _diff = abs(float(t_dns[_ix]) - float(_tv))
+        if _diff > 0.5 * _dns_dt:
+            raise RuntimeError(
+                f"DNS time alignment 失敗 (sensor i={_i} t={_tv:.4f})："
+                f"floor DNS t={t_dns[_ix]:.4f}, 差 {_diff:.4e} > 0.5·dt={0.5 * _dns_dt:.4e}"
+            )
+        sensor_to_dns_idx[_i] = _ix
+
+    # IMP-2: 套用 --eval-stride，subsample sensor_time 到 eval 用陣列。
+    #         T_sub 大時可大幅加速；NS residual 的時間導數對 nonuniform spacing 仍正確
+    #         （np.gradient(field, time_vals) 接 nonuniform）。stride=1 等於原行為。
+    if args.eval_stride < 1:
+        raise ValueError(f"--eval-stride 必須 ≥ 1，收到 {args.eval_stride}")
+    eval_tidx = np.arange(0, len(sensor_time), args.eval_stride, dtype=np.int64)
+    sensor_time = sensor_time[eval_tidx]                      # subsample
+    sensor_to_dns_idx = sensor_to_dns_idx[eval_tidx]
+    if len(sensor_time) < 2:
+        raise RuntimeError(
+            f"--eval-stride={args.eval_stride} 太大，subsample 後只有 {len(sensor_time)} 個時間點"
+            f"（NS residual 需 ≥ 2）。"
+        )
+
+    # C3: train/val 標註 — Kolmogorov dataset 的 train_t_idx / val_t_idx 是 DNS time index，
+    #     evaluator loop over sensor_time → dns_idx，依 dns_idx 屬於哪邊判斷。
+    #     PINN sparse-data inversion 是 transductive setting，但仍須區分以驗證 generalization。
+    _train_dns_set = set(int(i) for i in ds.train_t_idx.tolist())
+    sensor_is_train = np.array([int(i) in _train_dns_set for i in sensor_to_dns_idx], dtype=bool)
+    sensor_is_val   = ~sensor_is_train
+
     u_pred_series = []
     v_pred_series = []
     p_pred_series = []
     u_ref_series = []
     v_ref_series = []
     p_ref_series = []
-    for t_val in sensor_time:
-        dns_idx = int(np.argmin(np.abs(dns["time"].astype(np.float64) - float(t_val))))
+    for _i, t_val in enumerate(sensor_time):
+        dns_idx = int(sensor_to_dns_idx[_i])
         u_pred_series.append(query_field(0, float(t_val)).astype(np.float32))
         v_pred_series.append(query_field(1, float(t_val)).astype(np.float32))
         p_pred_series.append(query_field(2, float(t_val)).astype(np.float32))
@@ -807,9 +946,15 @@ def main() -> None:
     band_rel_err_series = {"low": [], "mid": [], "high": []}
     summary_steps: list[dict[str, float]] = []
     k_ref = e_ref = k_pred = e_pred = None
+    _domain_length = float(cfg.get("domain_length", 1.0))
+    _kf = float(cfg["kolmogorov_k_f"])
     for idx, t_val in enumerate(sensor_time):
-        amp_ref, phase_ref = forcing_mode_coeff_u(u_ref_arr[idx], y_g, float(cfg["kolmogorov_k_f"]))
-        amp_pred, phase_pred = forcing_mode_coeff_u(u_pred_arr[idx], y_g, float(cfg["kolmogorov_k_f"]))
+        amp_ref, phase_ref = forcing_mode_coeff_u(
+            u_ref_arr[idx], y_g, _kf, domain_length=_domain_length,
+        )
+        amp_pred, phase_pred = forcing_mode_coeff_u(
+            u_pred_arr[idx], y_g, _kf, domain_length=_domain_length,
+        )
         k_ref_i, e_ref_i = energy_spectrum_1d(u_ref_arr[idx], v_ref_arr[idx], dx)
         k_pred_i, e_pred_i = energy_spectrum_1d(u_pred_arr[idx], v_pred_arr[idx], dx)
         bands_ref = compute_band_energies(k_ref_i, e_ref_i)
@@ -825,6 +970,7 @@ def main() -> None:
         summary_steps.append(
             {
                 "time": float(t_val),
+                "split": "train" if bool(sensor_is_train[idx]) else "val",
                 "u_rmse": float(u_rmse[idx]),
                 "v_rmse": float(v_rmse[idx]),
                 "omega_rmse": float(omega_rmse[idx]),
@@ -835,8 +981,9 @@ def main() -> None:
                 "v_std": float(pred_std_v[idx]),
                 "ke_rel_err": float(ke_rel_err[idx]),
                 "ens_rel_err": float(ens_rel_err[idx]),
-                "div_l2": float(div_l2_pred[idx]),
-                "div_linf": float(div_linf_pred[idx]),
+                "div_l2":     float(div_l2_pred[idx]),
+                "div_ref_l2": float(div_l2_ref[idx]),     # 與 cylinder summary_steps 對稱
+                "div_linf":   float(div_linf_pred[idx]),
                 "ns_u_rms": float(ns_u_rms_pred[idx]),
                 "ns_v_rms": float(ns_v_rms_pred[idx]),
                 "ns_cont_rms": float(ns_cont_rms_pred[idx]),
@@ -989,33 +1136,51 @@ def main() -> None:
         "band_rel_err_high": summarize_time_local_metric(sensor_time, band_rel_err_series["high"]),
     }
 
-    summary = {
+    # C3: train/val split — 重要 caveat：訓練端 sample_sensor_batch 目前**沒有**
+    #     按 dataset.train_t_idx 過濾 supervision pool（src/kolmogorov_dataset.py:140,
+    #     src/pi_lnn/training.py 用 ds.sample_sensor_batch caller 群均如此），所以
+    #     evaluator 報的 `*_val` 是 dataset 內部 random partition (transductive)，
+    #     不是嚴格意義上的 unseen-by-training metric。
+    def _add_split(out: dict, key: str, arr: np.ndarray) -> None:
+        """Backward-compat schema: plain float on `key` + `key_train` + `key_val`。
+
+        Why: 之前下游 (compare_experiments.py) 預期 plain float；新增 split 用 suffix
+             避免 break。空集合的 split 不寫對應 key。
+        """
+        out[key] = float(np.mean(arr))
+        if sensor_is_train.any():
+            out[f"{key}_train"] = float(np.mean(arr[sensor_is_train]))
+        if sensor_is_val.any():
+            out[f"{key}_val"] = float(np.mean(arr[sensor_is_val]))
+
+    summary: dict = {
         "config": str(args.config.resolve()),
         "checkpoint": str(args.checkpoint.resolve()),
         "device": str(device),
-        "u_rmse_mean": float(np.mean(u_rmse)),
-        "v_rmse_mean": float(np.mean(v_rmse)),
-        "omega_rmse_mean": float(np.mean(omega_rmse)),
-        "u_rel_l2_mean": float(np.mean(u_rel_l2)),       # ‖u_pred-u_ref‖₂/‖u_ref‖₂ (PINN 標準度量)
-        "v_rel_l2_mean": float(np.mean(v_rel_l2)),
-        "omega_rel_l2_mean": float(np.mean(omega_rel_l2)),
-        "u_rel_l2_last": float(u_rel_l2[-1]),
-        "v_rel_l2_last": float(v_rel_l2[-1]),
+        "re_value":      float(re_value),
+        "re_norm":       float(re_norm),
+        "domain_length": float(_domain_length),
+        "k_forcing":     float(_kf),
+        "n_eval_steps":  int(len(sensor_time)),
+        "n_eval_train":  int(sensor_is_train.sum()),
+        "n_eval_val":    int(sensor_is_val.sum()),
+        "grid_n":        int(len(x_g)),
+        "dx":            float(dx),
+        "dy":            float(dy),
+        # B3: dt_phys 直接用 dataset 的（與 cylinder 對稱，single source of truth）
+        "dt_phys":       float(ds.dt_phys),
+        "apply_denormalization": bool(args.apply_denormalization),
+        # CRIT-3: cfg-level metadata for reproducibility / drift detection
+        "eval_stride":     int(args.eval_stride),
+        "train_ratio":     float(TRAIN_RATIO_FALLBACK),
+        "ds_seed":         int(ds_seed),
+        "u_rel_l2_last":   float(u_rel_l2[-1]),
+        "v_rel_l2_last":   float(v_rel_l2[-1]),
         "omega_rel_l2_last": float(omega_rel_l2[-1]),
-        "u_std_mean": float(np.mean(pred_std_u)),
-        "v_std_mean": float(np.mean(pred_std_v)),
-        "ke_rel_err_mean": float(np.mean(ke_rel_err)),
-        "ens_rel_err_mean": float(np.mean(ens_rel_err)),
-        "div_l2_mean": float(np.mean(div_l2_pred)),
-        "div_linf_mean": float(np.mean(div_linf_pred)),
-        "div_ref_l2_mean": float(np.mean(div_l2_ref)),
+        "u_std_mean":      float(np.mean(pred_std_u)),
+        "v_std_mean":      float(np.mean(pred_std_v)),
+        "div_linf_mean":     float(np.mean(div_linf_pred)),
         "div_ref_linf_mean": float(np.mean(div_linf_ref)),
-        "ns_u_rms_mean": float(np.mean(ns_u_rms_pred)),
-        "ns_v_rms_mean": float(np.mean(ns_v_rms_pred)),
-        "ns_cont_rms_mean": float(np.mean(ns_cont_rms_pred)),
-        "ns_u_rms_ref_mean": float(np.mean(ns_u_rms_ref)),
-        "ns_v_rms_ref_mean": float(np.mean(ns_v_rms_ref)),
-        "ns_cont_rms_ref_mean": float(np.mean(ns_cont_rms_ref)),
         "ek_ratio_kf_last": float(ek_ratio),
         "band_energy_rel_err_mean": {
             band: float(np.mean(values)) for band, values in band_rel_err_series.items()
@@ -1032,17 +1197,48 @@ def main() -> None:
         "time_local": time_local,
         "steps": summary_steps,
     }
+    # 主要 metric — 用 backward-compat schema：plain float key + _train/_val suffix
+    _add_split(summary, "u_rmse_mean",       u_rmse)
+    _add_split(summary, "v_rmse_mean",       v_rmse)
+    _add_split(summary, "omega_rmse_mean",   omega_rmse)
+    _add_split(summary, "u_rel_l2_mean",     u_rel_l2)
+    _add_split(summary, "v_rel_l2_mean",     v_rel_l2)
+    _add_split(summary, "omega_rel_l2_mean", omega_rel_l2)
+    _add_split(summary, "ke_rel_err_mean",   ke_rel_err)
+    _add_split(summary, "ens_rel_err_mean",  ens_rel_err)
+    _add_split(summary, "div_l2_mean",       div_l2_pred)
+    _add_split(summary, "div_ref_l2_mean",   div_l2_ref)   # 與 cylinder 鍵名統一（R3）
+    _add_split(summary, "ns_u_rms_mean",     ns_u_rms_pred)
+    _add_split(summary, "ns_v_rms_mean",     ns_v_rms_pred)
+    _add_split(summary, "ns_cont_rms_mean",  ns_cont_rms_pred)
+    _add_split(summary, "ns_u_rms_ref_mean", ns_u_rms_ref)
+    _add_split(summary, "ns_v_rms_ref_mean", ns_v_rms_ref)
+    _add_split(summary, "ns_cont_rms_ref_mean", ns_cont_rms_ref)
+
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    def _fmt(key: str) -> str:
+        """格式化 plain mean + train/val（若 summary 中存在 _train / _val key）。"""
+        parts = [f"all={summary[key]:.4e}"]
+        if f"{key}_train" in summary:
+            parts.append(f"train={summary[f'{key}_train']:.4e}")
+        if f"{key}_val" in summary:
+            parts.append(f"val={summary[f'{key}_val']:.4e}")
+        return "  ".join(parts)
 
     print("=== DeepONet+CfC Evaluation ===")
     print(f"checkpoint: {args.checkpoint.resolve()}")
-    print(f"u RMSE mean = {summary['u_rmse_mean']:.4e}   rel-L2 mean = {summary['u_rel_l2_mean']:.4e}")
-    print(f"v RMSE mean = {summary['v_rmse_mean']:.4e}   rel-L2 mean = {summary['v_rel_l2_mean']:.4e}")
+    print(f"n_eval: {summary['n_eval_steps']} (train={summary['n_eval_train']}, val={summary['n_eval_val']})")
+    print(f"u  RMSE  : {_fmt('u_rmse_mean')}")
+    print(f"v  RMSE  : {_fmt('v_rmse_mean')}")
+    print(f"u  rel-L2: {_fmt('u_rel_l2_mean')}")
+    print(f"v  rel-L2: {_fmt('v_rel_l2_mean')}")
     print(f"u std mean  = {summary['u_std_mean']:.4e}")
     print(f"v std mean  = {summary['v_std_mean']:.4e}")
-    print(f"omega RMSE mean = {summary['omega_rmse_mean']:.4e}   rel-L2 mean = {summary['omega_rel_l2_mean']:.4e}")
-    print(f"KE rel-err mean  = {summary['ke_rel_err_mean']:.4e}")
-    print(f"Ens rel-err mean = {summary['ens_rel_err_mean']:.4e}")
+    print(f"omega RMSE  : {_fmt('omega_rmse_mean')}")
+    print(f"omega rel-L2: {_fmt('omega_rel_l2_mean')}")
+    print(f"KE rel-err  : {_fmt('ke_rel_err_mean')}")
+    print(f"Ens rel-err : {_fmt('ens_rel_err_mean')}")
     print(f"div L2 mean = {summary['div_l2_mean']:.4e}  (DNS {summary['div_ref_l2_mean']:.4e})")
     print(
         "NS residual RMS mean = "

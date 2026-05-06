@@ -282,37 +282,70 @@ rel_r = torch.sqrt((rel**2).sum(dim=-1, keepdim=True) + 1e-8)
 
 ---
 
-## [DIAGNOSTIC] Physics Output Denormalization Silent Regression（2026-05-06，已結論）
+## [DIAGNOSTIC] Physics Output Denormalization Silent Regression（2026-05-06~07，最終結論）
 
-`d62e698 feat(cylinder+physics)` 為 cylinder 加入的 `physics_output_denormalization` 在 [`src/pi_lnn/training.py:178`](../src/pi_lnn/training.py) 沒有 opt-out flag，**Kolmogorov 主線完全滿足自動觸發條件**，導致 EXP-070+ 所有 Re=10000 主線實驗都跑在 denorm 啟用路徑下，物理 NS residual 量級被改變。
+### 結構
 
-**已驗證 Part 1（smoke 對照）**：`PINN_DISABLE_PHYS_DENORM=1` 證明 denorm OFF 時 step 1 L_phys byte-identical EXP-064 baseline；denorm ON 時 L_phys 縮 ~5×、w_ns_u 漲 4.5×。
+問題分**兩個獨立的 silent regression**，皆由 `d62e698 feat(cylinder+physics)`（2026-05-03）引入：
 
-**已驗證 Part 2（EXP-070 重跑滿 10k 步）**：
+1. **Training-side regression** — `set_physics_normalization` 在 [`src/pi_lnn/training.py:178`](../src/pi_lnn/training.py) 沒有 opt-out flag，自動套到 Kolmogorov 主線。
+2. **Evaluator-side regression** — `scripts/evaluate_deeponet_cfc.py` 預設套 `raw * std + mean`，但 model raw output 本來就是 physical 量級（[`losses.py:223`](../src/pi_lnn/losses.py#L223) 的 `(raw - mean)/std` 強制），結果是 **double-scaled**，KE 被誤報成 ~84%。
 
-config: [`configs/exp_070_denorm_off_diag.toml`](../configs/exp_070_denorm_off_diag.toml)（EXP-070 + `PINN_DISABLE_PHYS_DENORM=1` + `al_rho: 1.0→0.2` + `al_lambda_clip: 10→2`，補償 cont 量級放大）
-artifact: [`artifacts/deeponet-cfc-re10000-exp070-denorm-off-diag`](../artifacts/deeponet-cfc-re10000-exp070-denorm-off-diag)
+### Part 1: Training-side regression
 
-| 指標 @ step 10000 | EXP-064 baseline | 原 EXP-070 (denorm ON, ρ=1.0) | 新 EXP-070-diag (denorm OFF, ρ=0.2) |
-|---|---|---|---|
-| **KE rel-err** | **7.80%** | 84.29% | **84.36%** |
-| div_l2 | 0.184 | 0.040 | 0.258 |
-| u_rel_l2_mean | — | 0.614 | 0.606 |
-| v_rel_l2_mean | — | 0.681 | 0.702 |
-| omega_rel_l2 | — | 0.738 | 0.750 |
-| ek_ratio_kf_last | — | 0.156 | 0.148 |
+`d62e698` 在 training.py 加入 `set_physics_normalization`，自動觸發條件 `obs=("u","v") and num_re==1` 對 Kolmogorov 主線生效。
 
-**結論**：denorm OFF + AL ρ 補償後 KE 仍 84.36%，與 denorm ON 路徑（84.29%）幾乎一致。
+- step 1 對照：denorm OFF 時 L_phys=3.21e-1（baseline）；denorm ON 時 L_phys=1.71e-1（縮 47%）
+- AL 超參與 denorm 路徑強耦合：原 EXP-070 ρ=1.0 在 denorm OFF 路徑下 warmup 結束時直接訓練爆（C_ema 暴衝 1136×）；ρ→0.2 補償後才能完成訓練
 
-| 推論 | 結果 |
+**已修（Step 1, 2026-05-06）**：env var `PINN_DISABLE_PHYS_DENORM=1` toggle
+**已修（Step 2, 2026-05-07）**：升格為 `use_physics_denormalization` config flag，預設 False；17 個 cylinder configs 主動 `= true`
+
+### Part 2: Evaluator-side regression（2026-05-07 才發現的真凶）
+
+evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + mean`。但 [`losses.py:223`](../src/pi_lnn/losses.py#L223) 的 data loss `(raw - mean)/std vs normalized_target` 強制 model raw output 收斂到 physical 量級。所以 evaluator 預設的 denorm 是 **double-scale**：
+
+- `pred_default = raw_phys * std + mean = physical_target * std + (mean + 0)` → 量級錯約 5×
+- `pred_correct (--legacy-checkpoint)` = `raw_phys` → 等於 physical_target
+
+**已修（2026-05-07）**：evaluator default 反轉為 identity；新加 `--apply-denormalization` opt-in flag（warn-on-use）；`--legacy-checkpoint` 留作 deprecated alias（no-op）。
+
+驗證：
+- Smoke 三模式對照（同個 EXP-064 重跑 ckpt）：default → 8.28%、`--apply-denormalization` → 84.23%（confirms double-scale）、`--legacy-checkpoint` → 8.28%（deprecated alias，等同 default）
+- pytest 全套 185 passed
+
+### 三方真實 KE 對比（2026-05-07 全套重評）
+
+| EXP | 紀錄 KE | 真實 KE | 紀錄 div_l2 | 真實 div_l2 | 受 evaluator bug 影響？ |
+|---|---|---|---|---|---|
+| EXP-062 | 10.4% | **10.44%** | 0.571 | 0.571 | ❌ 紀錄即真實（d62e698 前評估）|
+| EXP-063 | 8.65% | **8.65%** | 0.204 | 0.204 | ❌ |
+| EXP-064 | **7.80%** | **7.80%** | **0.184** | **0.184** | ❌ |
+| EXP-064 重跑 | — | 8.28% | — | 0.232 | reproducibility ±6% |
+| EXP-066 | 29.94% | 29.94% | 2.493 | 2.493 | ❌ |
+| EXP-067 | 11.20% | 11.20% | 0.263 | 0.263 | ❌ |
+| EXP-068 | 9.73% | 9.73% | 0.680 | 0.680 | ❌ |
+| EXP-069 | 20.13% | 20.13% | 1.404 | 1.404 | ❌ |
+| **EXP-070** | **84.29%** | **6.30%** | 0.040 | 0.682 | ✅ **bug 翻轉** |
+| **EXP-070b** | **84%** | **7.06%** | 0.170 | 0.735 | ✅ **bug 翻轉** |
+| **EXP-072** | **85%** | **11.76%**（step 5000）| 0.089 | 0.670 | ✅ **bug 翻轉** |
+| **EXP-073** | **85%** | **8.48%** | 0.118 | 0.693 | ✅ **bug 翻轉** |
+| **EXP-074** | **86%** | **15.98%** | 0.71 | 1.867 | ✅ **bug 翻轉** |
+| EXP-070-diag (Step 1 重跑)| — | 9.10% | — | 0.110 | denorm OFF 訓練 |
+
+### 翻轉的結論
+
+| 之前認為 | 實際 |
 |---|---|
-| 「EXP-070~074 KE=84% 是 denorm 造成」 | ❌ **證偽** |
-| 「ADR-001 §7.2 結論被 denorm 污染、需修訂」 | ❌ **證偽** |
-| 「AL 設計在 K=100 sparse Re=10000 場景不可行」 | ✅ **強化證據** |
+| 「EXP-070~074 KE=84% 場崩」| **真實 KE 6-16%、跟 baseline 7.80% 同量級**，evaluator double-scale 假象 |
+| 「AL 設計在 K=100 sparse 不可行」| AL 實際 work（EXP-070 KE=6.30% 比 baseline 還好）|
+| 「ADR-001 §7.2 結論成立」| **需重訪**——AL 真實 KE 與 baseline 同量級，但 div_l2 普遍變差 3-10×（trade-off 仍存在，但「失敗」描述錯誤）|
+| 「Step 1 重跑 EXP-070-diag 證實 AL 失敗」| **同樣假象**：那次重評也用 default eval（已 KE=84.36%），其實真實 KE=9.10% |
 
-→ ADR-001 §7.2「AL 把 model 推離 informationally feasible region」**不需修訂**。
+### 待重訪
 
-**Bonus 發現**：原 EXP-070 的 AL 超參（ρ=1.0, clip=10）與 denorm 路徑強耦合——denorm OFF 路徑下 cont 量級放大 ~5×，warmup 結束（step 3000, t_max 從 3.5→5.0）時 C_ema 暴衝 1136×、L_total 飛上 10^5 直接訓練爆。需把 ρ 縮到 0.2、clip 縮到 2.0 才能完成訓練。
+- **ADR-001 §7.2** — AL 設計實際上在 KE 維度跟 baseline 競爭，div_l2 trade-off 是真實的；原「KE=84% 場崩」描述需修正為「AL 把 div trade-off 換成 KE 維持」
+- **EXP-072 step 5000 vs step 10000** — EXP-072 ckpt 只到 step 5000，需跑完 10k 步才能公平對比
 
 **已修補（Step 1, 2026-05-06）**（diagnostic toggle）：
 - `src/pi_lnn/training.py`：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數 toggle
