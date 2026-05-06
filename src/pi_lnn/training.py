@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any, Callable
 
@@ -170,8 +171,16 @@ def train_lnn_kolmogorov(
     # Why: NS residual 用物理 ν=1/Re，若 u, v 是 normalized 量級 → 黏性項 ν∇²u 被壓 std⁻¹
     #      倍，physics gradient signal 進入 NG 時幾乎消失（l_phys 看似小但物理發散度大）。
     # 兩個觀測通道為 ("u", "v") 才能正確 map（其他通道組合需重新計算 mean_p）。
+    #
+    # Diagnostic toggle (Step 1 of denorm regression check, 2026-05-06)：
+    #   PINN_DISABLE_PHYS_DENORM=1 → 跳過 set_physics_normalization() 呼叫，
+    #   保留 buffer 預設值 (mean=0, std=1) ≡ identity，等價於 EXP-064 baseline 路徑。
+    #   只給 Kolmogorov 重現 EXP-064 量級用，不應在 cylinder 主線啟用。
+    _disable_phys_denorm = os.environ.get(
+        "PINN_DISABLE_PHYS_DENORM", ""
+    ).lower() in ("1", "true", "yes")
     _obs_names = tuple(args.get("observed_sensor_channels", ("u", "v")))
-    if _obs_names == ("u", "v") and num_re == 1:
+    if (not _disable_phys_denorm) and _obs_names == ("u", "v") and num_re == 1:
         _u_idx = _obs_names.index("u")
         _v_idx = _obs_names.index("v")
         _ch_mean = datasets[0].observed_channel_mean
@@ -185,12 +194,19 @@ def train_lnn_kolmogorov(
             dtype=torch.float32, device=device,
         )
         net.set_physics_normalization(_mean_uvp, _std_uvp)
-        print(f"  physics_output_mean: {_mean_uvp.tolist()}")
-        print(f"  physics_output_std : {_std_uvp.tolist()}")
+        print(f"  physics_output_mean: {_mean_uvp.tolist()}", flush=True)
+        print(f"  physics_output_std : {_std_uvp.tolist()}", flush=True)
+    elif _disable_phys_denorm:
+        print(
+            "  [PINN_DISABLE_PHYS_DENORM=1] physics denorm 已跳過（identity buffers）— "
+            "對齊 EXP-064 baseline 路徑（normalized u/v）。",
+            flush=True,
+        )
     else:
         print(
             f"  [WARN] physics denormalization 未注入（obs={_obs_names}, num_re={num_re}）；"
-            f"NS residual 仍會用 normalized u/v 計算，l_phys 量級被 std 壓縮。"
+            f"NS residual 仍會用 normalized u/v 計算，l_phys 量級被 std 壓縮.",
+            flush=True,
         )
 
     print("=== Configuration ===")
