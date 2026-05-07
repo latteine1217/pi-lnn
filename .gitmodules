@@ -1,3 +1,8 @@
 [submodule "SOAP"]
 	path = SOAP
 	url = https://github.com/nikhilvyas/SOAP.git
+	# 我們透過 patches/soap-*.patch 套用 MPS 優化（見 scripts/apply_soap_patches.sh），
+	# 這會讓 SOAP working tree 永遠 dirty。設 ignore=dirty 避免 main repo 的 git status
+	# 顯示為 modified、避免 git commit -a 誤把 -dirty 標記帶入 super-project commit。
+	# submodule pointer 變更（真正切到別的 commit）仍會被偵測。
+	ignore = dirty

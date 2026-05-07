@@ -1,11 +1,30 @@
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+.coverage.*
+htmlcov/
 
-# Local environment
-.DS_Store
+# Virtual environments
+.venv/
+venv/
+env/
 .python-version
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
 
 # Artifacts and datasets
 artifacts/
