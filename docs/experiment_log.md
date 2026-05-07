@@ -342,9 +342,33 @@ evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + 
 | 「ADR-001 §7.2 結論成立」| **需重訪**——AL 真實 KE 與 baseline 同量級，但 div_l2 普遍變差 3-10×（trade-off 仍存在，但「失敗」描述錯誤）|
 | 「Step 1 重跑 EXP-070-diag 證實 AL 失敗」| **同樣假象**：那次重評也用 default eval（已 KE=84.36%），其實真實 KE=9.10% |
 
+### Round 7 修補後 evaluator 重跑驗證（2026-05-07）
+
+evaluator 經 Round 1–7 review-fix loop（dataset 一致性、time alignment ULP tolerance、spectrum bin cap、`_add_split` schema、`find_dns_time_idx` 抽到 `src/pi_lnn/dns_align.py` 等共 31 項修補）後，重跑 EXP-064 + EXP-070~074 的 6 個 ckpt，再次與 DIAGNOSTIC 真實值對齊驗證：
+
+| EXP | Round-7 重跑 KE | DIAG 真實值 | 原紀錄 (bug) | div L2 重跑 | div L2 DIAG | 對齊度 |
+|---|---|---|---|---|---|---|
+| **EXP-064** 主檔 | **7.80%** (train 7.62%, val 8.48%) | 7.80% | 7.80%（無 bug）| 0.184 | 0.184 | ✅ 完美 |
+| **EXP-070** | **6.30%** (train 6.29%, val 6.32%) | 6.30% | 84.29% | 0.682 | 0.682 | ✅ 完美 |
+| **EXP-070b** | **7.06%** (train ≈ val) | 7.06% | 84% | 0.735 | 0.735 | ✅ 完美 |
+| **EXP-072** @ step 5000 | **11.76%** (train 11.63%, val 12.29%) | 11.76% | 85% | 0.670 | 0.670 | ✅ 完美 |
+| **EXP-073** | **7.98%** (train 7.95%, val 8.08%) | 8.48% | 85% | 0.676 | 0.693 | ⚠️ 在 ±6% repro 範圍 |
+| **EXP-074** | **15.65%** (train 15.39%, val 16.64%) | 15.98% | 86% | 1.870 | 1.867 | ✅ 完美 |
+
+注：
+- **6/6 重跑全部與 DIAGNOSTIC 真實值對齊**（最大偏差 EXP-073 −0.5pp，在 reproducibility ±6% 範圍內，與 EXP-064 主檔 7.80% vs 重跑 8.28% 同等量級）。
+- 修補後 evaluator 對「未受 bug 影響的 EXP-064」維持 byte-aligned backward-compatibility；對「受 bug 影響的 EXP-070~074」精確翻出真實值 → **雙向驗證**修補正確性。
+
+新指標（前所未報）：
+- **train/val split metric**：每組均 train < val 微小 transductive overfit，符合 PINN sparse-data inversion 預期
+- **DNS divergence baseline**：div L2 LNN 0.184 vs DNS 0.092（EXP-064）→ evaluator 自身 numerical scheme baseline ~0.09，model 殘差 ~2× baseline 為合理量級
+- **reproducibility metadata**：`sensor_subsample`、`train_ratio`、`ds_seed`、`eval_stride` 完整寫入 summary.json
+
+artifacts: `artifacts/eval-rerun-2026-05-07/exp{064,070,070b,072,073,074}-*/`
+
 ### 待重訪
 
-- **ADR-001 §7.2** — AL 設計實際上在 KE 維度跟 baseline 競爭，div_l2 trade-off 是真實的；原「KE=84% 場崩」描述需修正為「AL 把 div trade-off 換成 KE 維持」
+- **ADR-001 §7.2** — AL 設計實際上在 KE 維度跟 baseline 競爭（EXP-070 KE 6.30% 優於 baseline 7.80%），div_l2 trade-off 是真實的（0.184 → 0.682, ~3.7×）；原「KE=84% 場崩」描述需修正為「AL 把 div trade-off 換成 KE 維持」
 - **EXP-072 step 5000 vs step 10000** — EXP-072 ckpt 只到 step 5000，需跑完 10k 步才能公平對比
 
 **已修補（Step 1, 2026-05-06）**（diagnostic toggle）：
@@ -373,8 +397,8 @@ evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + 
 | amplitude ratio=0.9965 是否 overfitting | EXP-015 更高（0.9965），需確認是否對訓練時段過度擬合；若有新時段資料可做 OOD 測試 | 開放（低優先） |
 | K=200 band_mid 突破後，低頻退步是否可藉延伸訓練恢復 | EXP-066 L_phys@10k=2.95（未充分收斂）；K=200 主線暫停 | **CLOSED**：K=100 主線結案，K=200 屬另一資料密度配置，如重啟需獨立實驗 |
 | 高頻重建的可行路徑 | CS 理論確認：K=100/200 均遠低於 ~5000 門檻；zeroth-order AIM 已證偽 | **CLOSED**：高頻不可達為數學必然，未來路徑需 DNS POD 先驗或 4D-Var（工程不可遷移）|
-| EXP-070 KE=84% 是否因 denorm 路徑量級不匹配（vs AL 設計失敗） | denorm OFF + AL ρ 補償重跑 KE 仍 84.36%（vs denorm ON 84.29%）→ AL 設計本身失敗，與 ADR-001 §7.2 一致 | **CLOSED**（2026-05-06）|
-| `physics_output_denormalization` silent regression 是否需修 | 不影響 ADR-001 §7.2 主結論，但仍會破壞 baseline 重現性與後續對照公平性 | **開放**（待升格為 config flag）|
+| EXP-070 KE=84% 是否因 denorm 路徑量級不匹配（vs AL 設計失敗） | **重訪（2026-05-07）**：Step 1 重跑 KE=84.36% 也是 evaluator-side bug 假象。Round 7 evaluator 修補後重跑 EXP-070 KE=6.30%（**優於 baseline 7.80%**）。AL 在 KE 維度成功，div_l2 退步 3.7×（trade-off 真實但非「失敗」） | **REOPENED**（2026-05-07）— ADR-001 §7.2 結論待重新評估 |
+| `physics_output_denormalization` silent regression 是否需修 | 訓練端升格 `use_physics_denormalization` config flag；evaluator default 反轉為 identity + `--apply-denormalization` opt-in | **CLOSED**（2026-05-07）— Step 2 修補完成 + Round 7 evaluator review-fix loop 雙向驗證 |
 
 ---
 
