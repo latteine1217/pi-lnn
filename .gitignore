@@ -38,3 +38,9 @@ wandb/
 # Claude / agent instructions (local only)
 AGENTS.md
 CLAUDE.md
+
+# Thesis (local working copy — not for GitHub)
+thesis/
+.tmp_slide_check/
+references.bib
+texput.log

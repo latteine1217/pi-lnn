@@ -18,7 +18,7 @@
 - `8647e51` (2026-05-07)：evaluator default 反轉為 identity，新增 `--apply-denormalization` opt-in flag
 - Round 1–7 evaluator review-fix loop：另外發現 30 項 issue（dataset 一致性、time alignment、spectrum bin 等），全數修補 + 200 tests pass
 
-詳見 `docs/experiment_log.md` DIAGNOSTIC section（2026-05-06~07，最終結論）。
+詳見 [`docs/diagnostics_log.md`](../diagnostics_log.md) Physics Output Denormalization Silent Regression section（2026-05-06~07，最終結論；2026-05-15 由 `docs/experiment_log.md` 拆出）。
 
 ### 1.2 修補後重跑（Round 7 evaluator）
 
@@ -152,4 +152,4 @@ Status: **Draft**（待 latteine accept）
 - T<2 / grid mismatch / `--eval-stride < 1` 等 fail-fast
 - monotonic axis assert（cylinder 非均勻格保護）
 
-200 tests pass（base 196 + 4 new safety）。詳見 `docs/experiment_log.md` DIAGNOSTIC section + `MEMORY.md` 紀錄。
+200 tests pass（base 196 + 4 new safety）。詳見 [`docs/diagnostics_log.md`](../diagnostics_log.md) Physics Output Denormalization Silent Regression section + `MEMORY.md` 紀錄。

@@ -21,6 +21,9 @@ ADR-001 §123 亦明定「個別實驗的詳細 spec 放於本資料夾」。
 ## 與 experiment_log.md 的分工
 
 - 本資料夾：**設計階段**的 plan / spec（決策過程、權衡、預期）。
-- `docs/experiment_log.md`：**實驗階段**的 RECORD（實際結果、結論、後續）。
+- `docs/experiment_log.md`：實驗 state 主檔（STATE/INDEX 結論層）。詳細 RECORD 已拆檔（2026-05-15）：
+  - EXP-001 ~ EXP-063 → `docs/experiment_archive_kolmogorov.md`
+  - EXP-064 ~ EXP-101 → `docs/experiment_archive_kolmogorov_post_k100.md`
+  - Cylinder CEXP → `docs/cylinder_log.md`
 
 新增 spec 時請沿用既有命名：`YYYY-MM-DD-<topic>-design.md`。

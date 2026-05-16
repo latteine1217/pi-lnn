@@ -6,10 +6,12 @@
 
 **讀取建議：**
 
-1. 一般查詢 → 先讀 `docs/experiment_log.md` 的 `[STATE]` 與 `[INDEX]`
-2. 需要 EXP-066/065/064 詳細指標 → `docs/experiment_log.md` 的 `[RECORD]` 區
-3. 需要更早期 EXP 細節（含 Hypothesis / Discussion / metric 比較）→ 才讀本檔對應 GROUP
-4. 量化分析（wavelet, AIM, denorm diagnostic）→ `docs/analysis_reports.md`
+1. 一般查詢 → 先讀 [`docs/experiment_log.md`](experiment_log.md) 的 `[STATE]` 與 `[INDEX]`
+2. 需要 **EXP-064 ~ EXP-101** 詳細 RECORD（K=100 結案後 AL/pivot/multi-seed/benchmark）→ [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md)
+3. 需要 **EXP-001 ~ EXP-063** 早期 EXP 細節（含 Hypothesis / Discussion / metric 比較）→ 才讀本檔對應 GROUP
+4. Cylinder Wake（CEXP 系列）→ [`docs/cylinder_log.md`](cylinder_log.md)
+5. 量化分析（wavelet, AIM, 早期 denorm diagnostic）→ [`docs/analysis_reports.md`](analysis_reports.md)
+6. CFD-rigour validation / silent regression 細節 → [`docs/diagnostics_log.md`](diagnostics_log.md)
 
 **GROUP 樣式約定：**
 
@@ -846,6 +848,8 @@ EXP-063 額外修正：`ScheduleFreeWrapper` 非 `torch.optim.Optimizer` 子類�
 
 > **完整 GROUP 索引見本檔最上方 [GROUP INDEX] 表格。**
 >
-> **更晚實驗**（EXP-067~069 等）目前以條目形式記錄於 `docs/experiment_log.md` 的 `[STATE] Supported Decisions`（item 39~41）；待累積足夠資訊（≥5 筆）後再合併為 G15 GROUP。
+> **更晚實驗**（EXP-064 ~ EXP-101 含 K=100 結案、AL series、6-lever pivot、multi-seed、benchmark）已搬到 [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md)（2026-05-15 拆出）。
 >
-> **量化分析報告**（Wavelet Sparsity / AIM / Physics Denorm Diagnostic）：見 [`docs/analysis_reports.md`](analysis_reports.md)。
+> **量化分析報告**（Wavelet Sparsity / AIM / 早期 Physics Denorm Diagnostic）：見 [`docs/analysis_reports.md`](analysis_reports.md)。
+>
+> **CFD-rigour validation / silent regression 細節**（Q5/Q7/Q8、Forward CFD baseline、physics denorm bug 翻轉）：見 [`docs/diagnostics_log.md`](diagnostics_log.md)。
