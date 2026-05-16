@@ -400,7 +400,11 @@ def train_lnn_kolmogorov(
         assert not bool(args.get("use_sensor_physics", False)), \
             "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
         if use_gradnorm and gn_weights is not None:
-            assert "cont" not in gn_weights, "AL active 時 'cont' 必須從 gradnorm_tasks 移出"
+            # ADR-001 §4 escape hatch — EXP-079 (2026-05-08) opt-in 違反此禁令以驗證假設。
+            # 預設 false 維持原語意。同 _validate_al_config 的邏輯。
+            _allow_cont = bool(args.get("al_allow_cont_in_gradnorm", False))
+            if not _allow_cont:
+                assert "cont" not in gn_weights, "AL active 時 'cont' 必須從 gradnorm_tasks 移出"
             assert "al" not in gn_weights, \
                 "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"
         al_cont = AugmentedLagrangianMultiplier(
@@ -1291,6 +1295,7 @@ def train_lnn_kolmogorov(
                         gn_ref_params,
                         ema_momentum=float(args.get("gradnorm_ema_momentum", 0.5)),
                         min_weight=float(args.get("gradnorm_min_weight", 0.0)),
+                        max_weight=float(args.get("gradnorm_max_weight", 0.0)),
                     )
                 ws = gn_weights.weights.detach()
 
@@ -1420,6 +1425,21 @@ def train_lnn_kolmogorov(
                 },
                 str(checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"),
             )
+
+            # 只保留最後 N 個 step ckpt（節省磁碟空間；N=0 = 全保留，向後相容）。
+            # Why: 大量中間 ckpt 累積會讓 artifacts/ 膨脹（每實驗 ~250MB 含 20 個 ckpt）。
+            #      Resume 用最新 ckpt，舊 ckpt 通常沒重要 — 預設 N=2 留一個 fallback。
+            _keep_n = int(args.get("keep_last_n_checkpoints", 2))
+            if _keep_n > 0:
+                _existing = sorted(
+                    checkpoints_dir.glob("lnn_kolmogorov_step_*.pt"),
+                    key=lambda p: int(p.stem.rsplit("_", 1)[1]),
+                )
+                for _old in _existing[:-_keep_n]:
+                    try:
+                        _old.unlink()
+                    except OSError:
+                        pass
 
     if use_schedulefree:
         optimizer.eval()  # final.pt 儲存 Polyak 平均推理權重

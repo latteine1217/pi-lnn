@@ -9,7 +9,7 @@ import os
 os.environ.setdefault("DDE_BACKEND", "pytorch")
 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_lnn.blocks import CfCCell, ModifiedMLPBlock, ResidualMLPBlock, TokenSelfAttentionBlock
 from pi_lnn.config import DEFAULT_LNN_ARGS, _validate_al_config, load_lnn_config
 from pi_lnn.decoder import DeepONetCfCDecoder
 from pi_lnn.dns_align import find_dns_time_idx

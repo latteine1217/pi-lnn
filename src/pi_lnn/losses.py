@@ -134,6 +134,7 @@ def _gradnorm_step(
     ref_params: list[torch.Tensor],
     ema_momentum: float = 0.5,
     min_weight: float = 0.0,
+    max_weight: float = 0.0,
 ) -> None:
     """What: 一次 GradNorm 權重更新（直接公式 + EMA，無 optimizer）。
 
@@ -147,19 +148,26 @@ def _gradnorm_step(
         w_i_raw  = mean_G / (G_i + 1e-5 * mean_G)   （梯度範數小 → 權重大）
         w_i_norm = w_i_raw / w_i_raw[0]              （data 為基準，w_data = 1）
         w_new    = momentum * w_old + (1 - momentum) * w_i_norm
-        w_new    = max(w_new, min_weight)            （sanity floor，見下方說明）
+        w_new    = clamp(w_new, min_weight, max_weight)（sanity bounds，data weight 不受限）
 
     Args:
         losses:        [l_data, l_ns_u, l_ns_v, l_cont(, l_bc)]（retain_graph=True 保留計算圖）
         ref_params:    reference layer 參數（trunk_out.weight + bias）
         ema_momentum:  EMA 動量；有效步長 = 1 - ema_momentum
-        min_weight:    所有 task weight 下限（GradNorm 仍動態調，只是不能掉下這個 floor）。
+        min_weight:    所有 task weight 下限（除 data 外，data 永遠 = 1）。
                        Why: 防 GradNorm 自我催化 pathology —— 某 task gradient 結構性弱
                             （如 PINN cont 在 distance feature 加強 NS 後相對更小）會被
                             反比公式 deprioritize 到趨近 0，該約束於 evaluate 場上崩。
                             cylinder_007/008 驗證：w_cont 跌到 0.047 → div_L2=2.95（DNS 0.03）。
                             Floor 0.05~0.1 是合理 sanity guardrail（不取代動態調）。
                             0.0 = 不加 floor（向後相容預設）。
+        max_weight:    physics task weight 上限（data 永遠 = 1，不受限）。
+                       Why: 對偶 min_weight，防 GradNorm 把 ns 權重升太高壓抑 data 學習。
+                            EXP-071 驗證：3-task GradNorm + AL 把 ns_u/ns_v 推到 0.30 級別 →
+                            data 權重相對被壓 → KE rel-err 從 7.80% → 14.57%。
+                            EXP-075 設計用 max_weight=0.20 作 cap，期望兼顧 div 與 KE。
+                            0.0 = 不加 cap（向後相容預設）。
+                            **僅 cap index ≥ 1（physics tasks），data (index 0) 永保 = 1**。
     """
     ws_old = gn_weights.weights.detach().clone()
 
@@ -183,9 +191,13 @@ def _gradnorm_step(
 
     # EMA：new = momentum * old + (1 - momentum) * computed
     w_new = ema_momentum * ws_old + (1.0 - ema_momentum) * w_computed
-    # Sanity floor：防止 GradNorm pathology（某 task 被自我催化降到 0）
+    # Sanity floor / cap：防止 GradNorm pathology
+    # 對 data weight (index 0) 不套 max_weight cap（data 永遠 = 1，cap 它無意義且會破壞歸一化）
     if min_weight > 0.0:
         w_new = torch.clamp(w_new, min=min_weight)
+    if max_weight > 0.0:
+        w_phys = w_new[1:].clamp(max=max_weight)  # physics tasks (index ≥ 1)
+        w_new = torch.cat([w_new[:1], w_phys])
     with torch.no_grad():
         gn_weights.log_weights.copy_(torch.log(w_new.clamp(min=1e-8)))
 

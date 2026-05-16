@@ -53,18 +53,40 @@ class CfCCell(nn.Module):
         return gate * f1 + (1.0 - gate) * f2
 
 
+def _build_activation(name: str) -> nn.Module:
+    """Map name → nn.Module (case-insensitive)。"""
+    n = name.lower()
+    if n == "silu" or n == "swish":
+        return nn.SiLU()
+    if n == "tanh":
+        return nn.Tanh()
+    if n == "gelu":
+        return nn.GELU()
+    if n == "relu":
+        return nn.ReLU()
+    raise ValueError(f"Unsupported activation '{name}'; expected one of silu/swish/tanh/gelu/relu")
+
+
 class ResidualMLPBlock(nn.Module):
     """What: 輕量殘差 MLP block。
 
     Why: 在 trunk path 上保留基本非線性表達力，同時維持局部可推理性。
+
+    Activation: default "silu" (== Swish-1, modern PINN choice per PirateNet 2024).
+                "tanh" 對齊 classical PINN literature (Raissi 2019, Wang 2021 mMLP).
     """
 
-    def __init__(self, d_model: int, hidden_dim: int) -> None:
+    def __init__(
+        self,
+        d_model: int,
+        hidden_dim: int,
+        activation: str = "silu",
+    ) -> None:
         super().__init__()
         self.norm = nn.LayerNorm(d_model)
         self.fc1 = nn.Linear(d_model, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, d_model)
-        self.act = nn.SiLU()
+        self.act = _build_activation(activation)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         y = self.norm(x)
@@ -72,6 +94,44 @@ class ResidualMLPBlock(nn.Module):
         y = self.act(y)
         y = self.fc2(y)
         return x + y
+
+
+class ModifiedMLPBlock(nn.Module):
+    """What: Wang 2021 modified MLP block — gating between U/V via current layer activation.
+
+    Why: PINN spectral bias 的 architectural mitigation。layer l 的 output 是
+         z_l = (1 - H_l) ⊙ U + H_l ⊙ V，其中 U, V 是 trunk_in 的兩個 nonlinear embedding，
+         H_l 是當層 activation。這 gating 機制讓 model 動態 mix raw input feature (U)
+         與 nonlinear transform (V)，緩解 NTK eigenvalue spectrum 不均（mid-k 學得慢）。
+
+    Note: 與 ResidualMLPBlock 不同，沒 explicit skip connection（gating 本身是
+          mixing mechanism）。U, V 由 caller 預先計算後傳入 forward。
+          參考: Wang et al. 2021 "Understanding and mitigating gradient pathologies in PINN"
+                arXiv:2001.04536；後續 PirateNet (Wang 2024) 也採用此 backbone。
+    """
+
+    def __init__(self, d_model: int, hidden_dim: int) -> None:
+        super().__init__()
+        if d_model != hidden_dim:
+            raise ValueError(
+                f"ModifiedMLPBlock 要求 d_model==hidden_dim 才能 gate U/V; "
+                f"收到 d_model={d_model}, hidden_dim={hidden_dim}"
+            )
+        self.norm = nn.LayerNorm(d_model)
+        self.fc = nn.Linear(d_model, hidden_dim)
+        self.act = nn.SiLU()
+
+    def forward(
+        self,
+        z: torch.Tensor,
+        U: torch.Tensor,
+        V: torch.Tensor,
+    ) -> torch.Tensor:
+        """z, U, V 都是 [N, hidden]; 返回 [N, hidden]。"""
+        h = self.norm(z)
+        h = self.fc(h)
+        h = self.act(h)
+        return (1.0 - h) * U + h * V
 
 
 class TokenSelfAttentionBlock(nn.Module):

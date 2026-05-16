@@ -22,6 +22,29 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "token_attention_heads": 4,
     "num_query_mlp_layers": 1,
     "query_mlp_hidden_dim": 64,
+    "decoder_attention_heads": 1,    # cross-attention head 數；1=原 single-head；
+                                      # >1 = multi-head reshape (param count 不變，
+                                      # 純 inductive bias 細分)。需 query_mlp_hidden_dim
+                                      # 能整除。rel_bias/locality_decay 仍 shared across heads。
+    "use_modified_mlp": False,        # Wang 2021 modified MLP (mMLP) trunk gating。
+                                      # False = 原 ResidualMLPBlock；True = ModifiedMLPBlock
+                                      # (z_l = (1-H_l)U + H_l V)。緩解 PINN spectral bias，
+                                      # 加 U/V projection 約 +130K params。
+    "use_vanilla_deeponet": False,    # B0 ablation: 純 DeepONet (MLP branch + MLP trunk +
+                                      # inner product, 無 CfC 無 cross-attention)。
+                                      # False = 主架構 (LiquidOperator)；True = VanillaDeepONetOperator。
+    "vanilla_deeponet_K_sensors": 100,        # B0 branch input dim = K * sensor_value_dim
+    "vanilla_deeponet_num_branch_layers": 3,  # B0 branch ResidualMLPBlock 層數
+    "vanilla_deeponet_num_trunk_layers": 3,   # B0 trunk ResidualMLPBlock 層數
+    "disable_cross_attention": False,         # B1 ablation: 停用 decoder cross-attention，
+                                              # 改用 mean-pool over K sensor tokens。仍保 CfC encoder。
+    "use_standard_pinn": False,               # Standard PINN baseline (Wang 2021 style):
+                                              # (x, y, t) → MLP → (u, v, p)。sensor 只入 loss。
+                                              # 用於對比「operator framework」vs「plain PINN」。
+    "standard_pinn_num_layers": 6,            # Standard PINN backbone layer 數 (典型 6-8)
+    "standard_pinn_hidden_dim": 512,          # Standard PINN backbone width (典型 256-1024)
+    "standard_pinn_activation": "silu",       # PINN activation: "silu" (= Swish-1, modern,
+                                              # PirateNet 2024) 或 "tanh" (classical, Raissi 2019)。
     "num_query_cfc_layers": 1,
     "query_gate_bias_span": 1.0,
     "output_head_gain": 1.0,
@@ -75,6 +98,11 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
                                     # 之前 cylinder_007/008 的 div_L2 大問題已查明是 distance-as-input
                                     # 的 detach chain rule bug（不是 GradNorm pathology），因此不需 floor。
                                     # 仍保留作為 opt-in（>0 啟用），給未來確認 GradNorm 真的失控時用。
+    "gradnorm_max_weight": 0.0,    # Physics task weight cap (預設關閉)。
+                                    # EXP-071 驗證：3-task GradNorm + AL 把 ns_u/ns_v 推到 0.30 級別 →
+                                    # data 權重相對被壓 → KE rel-err 從 7.80% 退步到 14.57%。
+                                    # EXP-075 設計用 cap=0.20 處理此 trade-off，期望兼顧 div 與 KE。
+                                    # **僅 cap index ≥ 1（physics tasks），data (index 0) 永保 = 1**。
     "gradnorm_init_weights": [1.0, 0.01, 0.01, 0.01, 0.1],
     # 5-task layout: [data, ns_u, ns_v, cont, bc]（cylinder 主線 default）
     # 4-task layout: [data, ns_u, ns_v, cont]（kolmogorov / 無 BC 場景；自動 fallback 4）
@@ -160,6 +188,13 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "al_update_freq": 100,         # 每 N steps 執行一次 dual update
     "al_lambda_clip": 10.0,        # 上限；clamp(0, Λ)，C ≥ 0 故無下限負值
     "al_ema_momentum": 0.5,
+    "al_allow_cont_in_gradnorm": False,    # ADR-001 §4 escape hatch — 預設禁止。
+                                            # EXP-079 (2026-05-08) 啟用驗證此禁令是否過於保守。
+                                            # 預期: KE 7-9% + div < 0.10 → §4 需修訂；
+                                            # KE > 12% 或 div > 0.30 → §4 合理。
+    "keep_last_n_checkpoints": 2,           # 只保留最後 N 個 step_*.pt 中間 ckpt（節省磁碟）。
+                                            # 預設 2 = 留最新 + 一個 fallback；resume 用最新；
+                                            # 0 = 全保留（向後相容）。final.pt 不受影響。
     "gradnorm_tasks": [],          # [] = 由 init_weights 長度推斷 4/5-task；
                                    # 顯式：例如 ["data","ns_u","ns_v"] 對應 EXP-071
 }
@@ -272,8 +307,15 @@ def _validate_al_config(cfg: dict[str, Any]) -> None:
             "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
         )
     tasks = list(cfg.get("gradnorm_tasks", []) or [])
-    if tasks and "cont" in tasks:
-        raise ValueError("AL active 時 'cont' 必須從 gradnorm_tasks 移出（即使 use_gradnorm=False）")
+    # ADR-001 §4 禁令：AL 與 GradNorm 不可同時控制同一 task。EXP-079 (2026-05-08) 開啟
+    # escape hatch 驗證此禁令是否真有必要 — opt-in via `al_allow_cont_in_gradnorm`。
+    # 若 EXP-079 結果 KE 7-9% + div < 0.10，§4 禁令需修訂；若 KE > 12% 或 div > 0.30，§4 禁令合理。
+    _allow_cont = bool(cfg.get("al_allow_cont_in_gradnorm", False))
+    if tasks and "cont" in tasks and not _allow_cont:
+        raise ValueError(
+            "AL active 時 'cont' 必須從 gradnorm_tasks 移出（即使 use_gradnorm=False）。"
+            " 若要實驗性違反 ADR-001 §4 禁令，明示設 al_allow_cont_in_gradnorm = true。"
+        )
     if tasks and "al" in tasks:
         raise ValueError(
             "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"

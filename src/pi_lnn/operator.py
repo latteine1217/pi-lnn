@@ -46,6 +46,9 @@ class LiquidOperator(nn.Module):
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
+        decoder_attention_heads: int = 1,
+        use_modified_mlp: bool = False,
+        disable_cross_attention: bool = False,
     ) -> None:
         super().__init__()
         # Hard body BC 是 output transformation：u, v ← (φ/scale).clamp(0,1) · NN
@@ -90,6 +93,9 @@ class LiquidOperator(nn.Module):
             fourier_sigma_bands=fourier_sigma_bands,
             fourier_band_dim_ratios=fourier_band_dim_ratios,
             use_hard_body_bc=use_hard_body_bc,
+            decoder_attention_heads=decoder_attention_heads,
+            use_modified_mlp=use_modified_mlp,
+            disable_cross_attention=disable_cross_attention,
         )
 
         # Physics output denormalization buffers
@@ -205,8 +211,19 @@ class LiquidOperator(nn.Module):
         return self.query_decoder(xy, t_q, c, h_states, s_time, sensor_pos)
 
 
-def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
-    """What: 從 config 建立核心 LiquidOperator。"""
+def create_lnn_model(cfg: dict[str, Any]):
+    """What: 從 config 建立核心模型。
+
+    Default: LiquidOperator (CfC-DeepONet hybrid)。
+    若 cfg["use_vanilla_deeponet"] = True，改建 VanillaDeepONetOperator
+    (純 DeepONet MLP branch + MLP trunk + inner product，B0 ablation baseline)。
+    """
+    if bool(cfg.get("use_standard_pinn", False)):
+        from pi_lnn.standard_pinn import create_standard_pinn_model
+        return create_standard_pinn_model(cfg)
+    if bool(cfg.get("use_vanilla_deeponet", False)):
+        from pi_lnn.vanilla_deeponet import create_vanilla_deeponet_model
+        return create_vanilla_deeponet_model(cfg)
     return LiquidOperator(
         fourier_harmonics=int(cfg.get("fourier_harmonics", 8)),
         sensor_value_dim=len(cfg.get("observed_sensor_channels", ["u", "v"])),
@@ -242,6 +259,9 @@ def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
         fourier_sigma_bands=cfg.get("fourier_sigma_bands"),
         fourier_band_dim_ratios=cfg.get("fourier_band_dim_ratios"),
         use_hard_body_bc=bool(cfg.get("use_hard_body_bc", False)),
+        decoder_attention_heads=int(cfg.get("decoder_attention_heads", 1)),
+        use_modified_mlp=bool(cfg.get("use_modified_mlp", False)),
+        disable_cross_attention=bool(cfg.get("disable_cross_attention", False)),
     )
 
 

@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pi_lnn.blocks import ResidualMLPBlock
+from pi_lnn.blocks import ModifiedMLPBlock, ResidualMLPBlock
 from pi_lnn.encodings import (
     FourierEmbs,
     LearnableFourierEmb,
@@ -43,10 +43,25 @@ class DeepONetCfCDecoder(nn.Module):
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
+        decoder_attention_heads: int = 1,
+        use_modified_mlp: bool = False,
+        disable_cross_attention: bool = False,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
         self.use_locality_decay = bool(use_locality_decay)
+        # B1 ablation: 停用 cross-attention，改用 mean-pool over K sensor tokens。
+        # 仍保留 branch_token_proj / branch_context / branch_proj 路徑（output basis）。
+        self.disable_cross_attention = bool(disable_cross_attention)
+        # Multi-head cross-attention：head 數須整除 query_mlp_hidden_dim。
+        # H=1 即原 single-head（向後相容）；H>1 把 hidden 切成 H 個獨立 attention pattern，
+        # rel_bias / locality_decay 仍 shared across heads（物理 distance penalty 與 head 無關）。
+        if decoder_attention_heads <= 0:
+            raise ValueError(f"decoder_attention_heads 必須 > 0，收到 {decoder_attention_heads}")
+        self.decoder_attention_heads = int(decoder_attention_heads)
+        # Modified MLP (Wang 2021 / PirateNet)：trunk path 用 gating between U/V，
+        # 緩解 spectral bias。False = 原 ResidualMLPBlock（向後相容）。
+        self.use_modified_mlp = bool(use_modified_mlp)
         # Hard body BC（Sukumar 2022 風格 output transformation）：
         #   u(x,y,t) = (φ(x,y) / scale).clamp(0,1) · NN_u(x,y,t)
         #   v(x,y,t) = (φ(x,y) / scale).clamp(0,1) · NN_v(x,y,t)
@@ -105,7 +120,15 @@ class DeepONetCfCDecoder(nn.Module):
         self.component_emb = nn.Embedding(3, 8)
         nn.init.normal_(self.component_emb.weight, mean=0.0, std=0.1)
         self.trunk_in = nn.Linear(query_in, query_mlp_hidden_dim)
+        # Modified MLP gating: U, V 是 trunk_in 的兩個 nonlinear embedding，
+        # 每層 ModifiedMLPBlock 在 U/V 之間 gate（Wang 2021）。
+        # 只在 use_modified_mlp=True 時建構，避免增加 ResidualMLP 路徑的 param。
+        if self.use_modified_mlp:
+            self.trunk_U_proj = nn.Linear(query_in, query_mlp_hidden_dim)
+            self.trunk_V_proj = nn.Linear(query_in, query_mlp_hidden_dim)
         self.trunk_blocks = nn.ModuleList([
+            ModifiedMLPBlock(d_model=query_mlp_hidden_dim, hidden_dim=query_mlp_hidden_dim)
+            if self.use_modified_mlp else
             ResidualMLPBlock(d_model=query_mlp_hidden_dim, hidden_dim=query_mlp_hidden_dim)
             for _ in range(num_query_mlp_layers)
         ])
@@ -113,6 +136,12 @@ class DeepONetCfCDecoder(nn.Module):
             raise ValueError(
                 f"query_mlp_hidden_dim 必須能被 4 整除，收到 {query_mlp_hidden_dim}"
             )
+        if query_mlp_hidden_dim % self.decoder_attention_heads != 0:
+            raise ValueError(
+                f"query_mlp_hidden_dim={query_mlp_hidden_dim} 必須能被 "
+                f"decoder_attention_heads={self.decoder_attention_heads} 整除"
+            )
+        self.attn_head_dim = query_mlp_hidden_dim // self.decoder_attention_heads
         self.branch_norm = nn.LayerNorm(query_mlp_hidden_dim)
         self.branch_token_proj = nn.Linear(d_model, query_mlp_hidden_dim)
         self.branch_query_proj = nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim)
@@ -210,8 +239,15 @@ class DeepONetCfCDecoder(nn.Module):
         emb_c_3 = emb_c_all.unsqueeze(1).expand(-1, N, -1)                      # [3, N, 8]
         trunk_in_3 = torch.cat([base_feat_3, emb_c_3], dim=-1).reshape(3 * N, -1)
         trunk_feat = F.silu(self.trunk_in(trunk_in_3))
-        for block in self.trunk_blocks:
-            trunk_feat = block(trunk_feat)
+        if self.use_modified_mlp:
+            # mMLP: 計算 U, V embedding 一次（layer-independent），每層 block 在 U/V gate。
+            U_emb = F.silu(self.trunk_U_proj(trunk_in_3))
+            V_emb = F.silu(self.trunk_V_proj(trunk_in_3))
+            for block in self.trunk_blocks:
+                trunk_feat = block(trunk_feat, U_emb, V_emb)
+        else:
+            for block in self.trunk_blocks:
+                trunk_feat = block(trunk_feat)
         trunk_basis = self.trunk_out(trunk_feat).view(3 * N, 3, self.rank)
 
         branch_query = self.branch_norm(trunk_feat)
@@ -223,13 +259,32 @@ class DeepONetCfCDecoder(nn.Module):
         rel_bias_3 = rel_bias.repeat(3, 1)                                      # [3N, K]
         rel_r_3 = rel_r.repeat(3, 1, 1)                                         # [3N, K, 1]
 
-        scores = torch.einsum("nd,nkd->nk", q, k_3) / math.sqrt(k_3.shape[-1])
-        scores = scores + rel_bias_3
-        if self.use_locality_decay:
-            decay_rate = torch.exp(self.log_locality_decay)
-            scores = scores - decay_rate * rel_r_3.squeeze(-1)
-        attn = torch.softmax(scores, dim=1)
-        branch_ctx = torch.einsum("nk,nkd->nd", attn, v_3)
+        if self.disable_cross_attention:
+            # B1 ablation: 替 cross-attention 為 mean-pool over K sensor tokens (per query)。
+            # v_3 [3N, K, hidden]; pool over dim=1 (K dimension); 結果 [3N, hidden]。
+            # rel_bias / locality_decay 都不適用 (mean-pool 不需 attention weights)。
+            branch_ctx = v_3.mean(dim=1)
+        else:
+            # Multi-head cross-attention（H=1 退化為原 single-head 行為，shape 驗證見 __init__）：
+            # q  [3N, hidden]      → [3N, H, D]
+            # k  [3N, K, hidden]   → [3N, K, H, D]
+            # v  [3N, K, hidden]   → [3N, K, H, D]
+            # scores [3N, H, K] = einsum("nhd,nkhd->nhk") / sqrt(D)
+            # rel_bias / locality_decay shared across heads → unsqueeze H 維度 broadcast。
+            H = self.decoder_attention_heads
+            D = self.attn_head_dim
+            K = k_3.shape[1]
+            q_h = q.view(3 * N, H, D)
+            k_h = k_3.view(3 * N, K, H, D)
+            v_h = v_3.view(3 * N, K, H, D)
+            scores = torch.einsum("nhd,nkhd->nhk", q_h, k_h) / math.sqrt(D)
+            scores = scores + rel_bias_3.unsqueeze(1)                                # [3N, 1, K]→broadcast H
+            if self.use_locality_decay:
+                decay_rate = torch.exp(self.log_locality_decay)
+                scores = scores - decay_rate * rel_r_3.squeeze(-1).unsqueeze(1)
+            attn = torch.softmax(scores, dim=-1)                                     # softmax over K
+            branch_ctx_h = torch.einsum("nhk,nkhd->nhd", attn, v_h)                  # [3N, H, D]
+            branch_ctx = branch_ctx_h.reshape(3 * N, H * D)                          # concat heads
         branch_ctx = branch_ctx + self.branch_context(branch_ctx)
         branch_basis = self.branch_proj(branch_ctx).view(3 * N, 3, self.rank)
 
@@ -295,9 +350,17 @@ class DeepONetCfCDecoder(nn.Module):
         trunk_inputs.append(time_e)
         # NOTE: hard body BC 是 output transformation，不在這裡 concat distance
         trunk_inputs.append(emb_c)
-        trunk_feat = F.silu(self.trunk_in(torch.cat(trunk_inputs, dim=-1)))
-        for block in self.trunk_blocks:
-            trunk_feat = block(trunk_feat)
+        trunk_in_cat = torch.cat(trunk_inputs, dim=-1)
+        trunk_feat = F.silu(self.trunk_in(trunk_in_cat))
+        if self.use_modified_mlp:
+            # 與 forward_uvp 同邏輯：U/V 從 trunk_in_cat 計算，每層 block gate U/V。
+            U_emb = F.silu(self.trunk_U_proj(trunk_in_cat))
+            V_emb = F.silu(self.trunk_V_proj(trunk_in_cat))
+            for block in self.trunk_blocks:
+                trunk_feat = block(trunk_feat, U_emb, V_emb)
+        else:
+            for block in self.trunk_blocks:
+                trunk_feat = block(trunk_feat)
 
         trunk_basis = self.trunk_out(trunk_feat).view(-1, 3, self.rank)
         branch_tokens = self.branch_token_proj(h_branch_tokens)
@@ -316,15 +379,31 @@ class DeepONetCfCDecoder(nn.Module):
         # Why: 感測器 x 分佈非均勻，方向向量會將 x-column 非均勻性注入 attention bias，
         #      造成 x 方向條紋偽影；距離已足夠描述近鄰感測器的貢獻強度。
         rel_bias = self.relpos_bias(rel_r).squeeze(-1)
-        scores = torch.einsum("nd,nkd->nk", q, k) / math.sqrt(k.shape[-1])
-        scores = scores + rel_bias
-        if self.use_locality_decay:
-            # log-space 距離懲罰：score += -α * r，使遠端感測器貢獻指數衰減。
-            # Why: 等效於 softmax 前乘以 exp(-α * r)，保留梯度可微性與 log-space 線性疊加。
-            decay_rate = torch.exp(self.log_locality_decay)  # shape (1,)，α > 0
-            scores = scores - decay_rate * rel_r.squeeze(-1)
-        attn = torch.softmax(scores, dim=1)
-        branch_ctx = torch.einsum("nk,nkd->nd", attn, v)
+        if self.disable_cross_attention:
+            # B1 ablation: mean-pool over K sensor tokens (per query)。
+            # v [N_q, K, hidden] → mean dim=1 → [N_q, hidden]。
+            branch_ctx = v.mean(dim=1)
+        else:
+            # Multi-head cross-attention（與 forward_uvp 同邏輯）：H=1 退化為原 single-head。
+            # k/v 是 [N_q, K, hidden] 而非 [K, hidden]：每個 query 對應自己的 sensor time-snapshot
+            # （見 line 280-281 idx-based gather of h_states）。
+            N_q = q.shape[0]
+            H = self.decoder_attention_heads
+            D = self.attn_head_dim
+            K = k.shape[1]
+            q_h = q.view(N_q, H, D)
+            k_h = k.view(N_q, K, H, D)
+            v_h = v.view(N_q, K, H, D)
+            scores = torch.einsum("nhd,nkhd->nhk", q_h, k_h) / math.sqrt(D)            # [N_q, H, K]
+            scores = scores + rel_bias.unsqueeze(1)                                     # [N_q, 1, K]→broadcast H
+            if self.use_locality_decay:
+                # log-space 距離懲罰：score += -α * r，使遠端感測器貢獻指數衰減。
+                # Why: 等效於 softmax 前乘以 exp(-α * r)，保留梯度可微性與 log-space 線性疊加。
+                decay_rate = torch.exp(self.log_locality_decay)  # shape (1,)，α > 0
+                scores = scores - decay_rate * rel_r.squeeze(-1).unsqueeze(1)
+            attn = torch.softmax(scores, dim=-1)                                        # softmax over K
+            branch_ctx_h = torch.einsum("nhk,nkhd->nhd", attn, v_h)                     # [N_q, H, D]
+            branch_ctx = branch_ctx_h.reshape(N_q, H * D)
         branch_ctx = branch_ctx + self.branch_context(branch_ctx)
         branch_basis = self.branch_proj(branch_ctx).view(-1, 3, self.rank)
         comp_idx = c.unsqueeze(1).unsqueeze(2).expand(-1, 1, self.rank)

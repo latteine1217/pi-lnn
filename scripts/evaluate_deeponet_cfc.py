@@ -452,17 +452,20 @@ def forcing_mode_coeff_u(
 
 
 def _style_field_axes(ax) -> None:
-    """What: 場域 imshow 圖的 axes 樣式：4 邊框、無刻度、無 grid、無 axis label。
+    """What: 場域 imshow 圖的 axes 樣式：4 邊框、極簡 ticks、SI 單位 axis label。
 
     Why: 全域 rcParams 移除了 top/right spines（NeurIPS 時序圖風格），但 imshow
-         場圖必須有完整 4 邊框才能清楚標示空間域邊界。空間軸本身已隱含意義，
-         不需 x/y axis label。
+         場圖必須有完整 4 邊框才能清楚標示空間域邊界；依教授指示，所有 axis
+         必須附 SI 單位（域長 L*=1 m，x/y 範圍即 [0, 1] m）。
     """
     for side in ("top", "right", "bottom", "left"):
         ax.spines[side].set_visible(True)
         ax.spines[side].set_linewidth(0.6)
-    ax.set_xticks([])
-    ax.set_yticks([])
+    ax.set_xticks([0.0, 0.5, 1.0])
+    ax.set_yticks([0.0, 0.5, 1.0])
+    ax.tick_params(labelsize=7)
+    ax.set_xlabel(r"$x$ [m]", fontsize=8, labelpad=2)
+    ax.set_ylabel(r"$y$ [m]", fontsize=8, labelpad=2)
     ax.grid(False)
 
 
@@ -484,19 +487,24 @@ def plot_field_comparison(
     ue_lim = float(max(np.abs(u_err).max(), 1e-8))
     ve_lim = float(max(np.abs(v_err).max(), 1e-8))
 
+    # cbar label 用 SI 單位（u, v: m/s；無因次 NS 假設 U*=1 m/s, L*=1 m）
     panels = [
-        (axes[0, 0], u_ref,  "$u$ DNS",   "RdBu_r", -u_lim,  u_lim),
-        (axes[0, 1], u_pred, "$u$ LNN",   "RdBu_r", -u_lim,  u_lim),
-        (axes[0, 2], u_err,  "$u$ Error", "RdBu_r", -ue_lim, ue_lim),
-        (axes[1, 0], v_ref,  "$v$ DNS",   "RdBu_r", -v_lim,  v_lim),
-        (axes[1, 1], v_pred, "$v$ LNN",   "RdBu_r", -v_lim,  v_lim),
-        (axes[1, 2], v_err,  "$v$ Error", "RdBu_r", -ve_lim, ve_lim),
+        (axes[0, 0], u_ref,  "$u$ DNS",   "RdBu_r", -u_lim,  u_lim,  r"$u$ [m/s]"),
+        (axes[0, 1], u_pred, "$u$ LNN",   "RdBu_r", -u_lim,  u_lim,  r"$u$ [m/s]"),
+        (axes[0, 2], u_err,  "$u$ Error", "RdBu_r", -ue_lim, ue_lim, r"$\Delta u$ [m/s]"),
+        (axes[1, 0], v_ref,  "$v$ DNS",   "RdBu_r", -v_lim,  v_lim,  r"$v$ [m/s]"),
+        (axes[1, 1], v_pred, "$v$ LNN",   "RdBu_r", -v_lim,  v_lim,  r"$v$ [m/s]"),
+        (axes[1, 2], v_err,  "$v$ Error", "RdBu_r", -ve_lim, ve_lim, r"$\Delta v$ [m/s]"),
     ]
-    for ax, field, title, cmap, vmin, vmax in panels:
-        im = ax.imshow(field.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, aspect="equal")
+    for ax, field, title, cmap, vmin, vmax, cb_label in panels:
+        im = ax.imshow(
+            field.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax,
+            aspect="equal", extent=(0.0, 1.0, 0.0, 1.0),
+        )
         ax.set_title(title)
         _style_field_axes(ax)
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label(cb_label, fontsize=8)
         cb.ax.tick_params(labelsize=8)
         cb.outline.set_linewidth(0.6)
     # t 值放在最左上 panel 一次（不在每個 title 重複）
@@ -523,15 +531,19 @@ def plot_vorticity_comparison(
 
     fig, axes = plt.subplots(1, 3, figsize=(8.5, 3.0), constrained_layout=True)
     panels = [
-        (axes[0], omega_ref,  "$\\omega$ DNS",   -om_lim,  om_lim),
-        (axes[1], omega_pred, "$\\omega$ LNN",   -om_lim,  om_lim),
-        (axes[2], omega_err,  "$\\omega$ Error", -err_lim, err_lim),
+        (axes[0], omega_ref,  r"$\omega$ DNS",   -om_lim,  om_lim,  r"$\omega$ [1/s]"),
+        (axes[1], omega_pred, r"$\omega$ LNN",   -om_lim,  om_lim,  r"$\omega$ [1/s]"),
+        (axes[2], omega_err,  r"$\omega$ Error", -err_lim, err_lim, r"$\Delta\omega$ [1/s]"),
     ]
-    for ax, field, title, vmin, vmax in panels:
-        im = ax.imshow(field.T, origin="lower", cmap="RdBu_r", vmin=vmin, vmax=vmax, aspect="equal")
+    for ax, field, title, vmin, vmax, cb_label in panels:
+        im = ax.imshow(
+            field.T, origin="lower", cmap="RdBu_r", vmin=vmin, vmax=vmax,
+            aspect="equal", extent=(0.0, 1.0, 0.0, 1.0),
+        )
         ax.set_title(title)
         _style_field_axes(ax)
         cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cb.set_label(cb_label, fontsize=8)
         cb.ax.tick_params(labelsize=8)
         cb.outline.set_linewidth(0.6)
     axes[0].text(
@@ -557,10 +569,10 @@ def plot_energy_spectrum(
     mask_pred = e_pred > 0.0
     fig, ax = plt.subplots(figsize=(3.6, 2.8), constrained_layout=True)
     ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#1f77b4", linestyle="-", label="DNS")
-    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#d62728", linestyle="--", label="LNN")
+    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#d62728", linestyle="--", label="PI-CON")
     ax.axvline(k_forcing, color="black", linestyle=":", linewidth=0.8, label=f"$k_f={k_forcing:.0f}$")
-    ax.set_xlabel("Wavenumber $k$")
-    ax.set_ylabel("Energy $E(k)$")
+    ax.set_xlabel(r"Wavenumber $k$ [1/m]")
+    ax.set_ylabel(r"Energy $E(k)$ [m$^3$/s$^2$]")
     ax.grid(True, which="both", alpha=0.25)
     ax.legend(loc="best")
     fig.savefig(output_path)
@@ -581,9 +593,9 @@ def plot_metric_vs_time(
     ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
             markevery=me, label="DNS")
     ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
-            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="LNN")
+            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="PI-CON")
     ax.set_title(title)
-    ax.set_xlabel("Time $t$")
+    ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
     ax.legend(loc="best")
     fig.savefig(output_path)
@@ -609,7 +621,7 @@ def plot_series_collection(
         ax.plot(time_vals, values, color=color, linestyle=ls, marker="o",
                 markevery=me, label=label)
     ax.set_title(title)
-    ax.set_xlabel("Time $t$")
+    ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
     if yscale != "linear":
         ax.set_yscale(yscale)
@@ -633,8 +645,8 @@ def plot_uv_error_vs_time(
             markevery=me, markerfacecolor="white", markeredgecolor="#d62728",
             label="$v$ RMSE")
     ax.set_title("Velocity RMSE")
-    ax.set_xlabel("Time $t$")
-    ax.set_ylabel("RMSE")
+    ax.set_xlabel(r"Time $t$ [s]")
+    ax.set_ylabel(r"RMSE [m/s]")
     ax.legend(loc="best")
     fig.savefig(output_path)
     plt.close(fig)
@@ -654,9 +666,9 @@ def plot_mode_vs_time(
     ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
             markevery=me, label="DNS")
     ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
-            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="LNN")
+            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="PI-CON")
     ax.set_title(title)
-    ax.set_xlabel("Time $t$")
+    ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
     ax.legend(loc="best")
     fig.savefig(output_path)
@@ -908,6 +920,39 @@ def main() -> None:
     div_l2_ref = np.sqrt(np.mean(div_ref_arr**2, axis=(1, 2)))
     div_linf_ref = np.max(np.abs(div_ref_arr), axis=(1, 2))
 
+    # Q7 pressure-gradient metric:
+    #   incompressible NS 中只有 ∇p 進入 momentum equation；p 本身有 gauge freedom (p→p+C)。
+    #   model 訓練只間接看到 ∇p (透過 momentum residual)，故唯一物理上有意義的比較是 ∇p。
+    #   gauge-removed p 值差別本身對動力學無影響；改報 ∇p 相對 L2 誤差。
+    dpdx_pred, dpdy_pred = np.gradient(p_pred_arr, dx, axis=(1, 2))
+    dpdx_ref, dpdy_ref = np.gradient(p_ref_arr, dx, axis=(1, 2))
+    grad_p_pred_norm_sq = dpdx_pred ** 2 + dpdy_pred ** 2
+    grad_p_ref_norm_sq = dpdx_ref ** 2 + dpdy_ref ** 2
+    grad_p_diff_sq = (dpdx_pred - dpdx_ref) ** 2 + (dpdy_pred - dpdy_ref) ** 2
+    grad_p_rel_l2 = np.sqrt(np.sum(grad_p_diff_sq, axis=(1, 2))) / np.maximum(
+        np.sqrt(np.sum(grad_p_ref_norm_sq, axis=(1, 2))), 1.0e-12
+    )
+    grad_p_rms_dns_per_t = np.sqrt(np.mean(grad_p_ref_norm_sq, axis=(1, 2)))
+    grad_p_rms_pred_per_t = np.sqrt(np.mean(grad_p_pred_norm_sq, axis=(1, 2)))
+    # 保留 gauge-removed p 值對照（次要 diagnostic，供 reviewer 看）
+    p_pred_gr = p_pred_arr - p_pred_arr.mean(axis=(1, 2), keepdims=True)
+    p_ref_gr = p_ref_arr - p_ref_arr.mean(axis=(1, 2), keepdims=True)
+    p_rel_l2_gauge_removed = np.sqrt(np.sum((p_pred_gr - p_ref_gr) ** 2, axis=(1, 2))) / np.maximum(
+        np.sqrt(np.sum(p_ref_gr ** 2, axis=(1, 2))), 1.0e-12
+    )
+    p_rms_dns_per_t = np.sqrt(np.mean(p_ref_gr ** 2, axis=(1, 2)))
+    p_rms_pred_per_t = np.sqrt(np.mean(p_pred_gr ** 2, axis=(1, 2)))
+    # ‖∇u‖_F strain-rate Frobenius norm（per-t）+ div ratio = ‖∇·u‖_2 / ‖∇u‖_F^DNS
+    # 為 §subsec:dns_verification 的 div_ratio 提供 evaluator 端數值。
+    dudx_ref, dudy_ref = np.gradient(u_ref_arr, dx, axis=(1, 2))
+    dvdx_ref, dvdy_ref = np.gradient(v_ref_arr, dx, axis=(1, 2))
+    grad_u_frob_ref = np.sqrt(np.mean(
+        dudx_ref ** 2 + dudy_ref ** 2 + dvdx_ref ** 2 + dvdy_ref ** 2, axis=(1, 2)
+    ))
+    grad_u_frob_ref_meant = float(grad_u_frob_ref.mean())
+    div_ratio_pred = div_l2_pred / max(grad_u_frob_ref_meant, 1.0e-12)
+    div_ratio_ref = div_l2_ref / max(grad_u_frob_ref_meant, 1.0e-12)
+
     mom_u_pred, mom_v_pred, cont_pred = ns_residual_fields(
         u_series=u_pred_arr,
         v_series=v_pred_arr,
@@ -1045,7 +1090,7 @@ def main() -> None:
         np.asarray(ke_ref_series),
         np.asarray(ke_pred_series),
         title="Kinetic Energy",
-        y_label="Kinetic Energy",
+        y_label=r"Kinetic Energy [m$^2$/s$^2$]",
     )
     plot_metric_vs_time(
         output_dir / "enstrophy_vs_time.png",
@@ -1053,7 +1098,7 @@ def main() -> None:
         np.asarray(ens_ref_series),
         np.asarray(ens_pred_series),
         title="Enstrophy",
-        y_label="Enstrophy",
+        y_label=r"Enstrophy [1/s$^2$]",
     )
     plot_uv_error_vs_time(
         output_dir / "uv_error_vs_time.png",
@@ -1067,7 +1112,7 @@ def main() -> None:
         kf_amp_ref_series,
         kf_amp_pred_series,
         title=f"Forcing Mode Amplitude ($k_f={float(cfg['kolmogorov_k_f']):.0f}$)",
-        y_label="Amplitude",
+        y_label=r"$|\hat{u}_{k_f}|$ [m/s]",
     )
     plot_mode_vs_time(
         output_dir / "kf_mode_phase_vs_time.png",
@@ -1075,21 +1120,21 @@ def main() -> None:
         np.unwrap(kf_phase_ref_series),
         np.unwrap(kf_phase_pred_series),
         title=f"Forcing Mode Phase ($k_f={float(cfg['kolmogorov_k_f']):.0f}$)",
-        y_label="Phase [rad]",
+        y_label=r"$\arg(\hat{u}_{k_f})$ [rad]",
     )
     plot_series_collection(
         output_dir / "vorticity_error_vs_time.png",
         sensor_time,
         {"Omega RMSE": omega_rmse},
         title="Vorticity Error",
-        y_label="RMSE",
+        y_label=r"$\omega$ RMSE [1/s]",
     )
     plot_series_collection(
         output_dir / "divergence_vs_time.png",
         sensor_time,
         {"DNS L2": div_l2_ref, "LNN L2": div_l2_pred},
         title="Divergence Residual",
-        y_label="L2",
+        y_label=r"$\Vert\nabla\cdot\mathbf{u}\Vert_2$ [1/s]",
         yscale="log",
     )
     plot_series_collection(
@@ -1104,7 +1149,7 @@ def main() -> None:
             "LNN Cont": ns_cont_rms_pred,
         },
         title="NS Residual",
-        y_label="RMS",
+        y_label=r"NS residual r.m.s. [m/s$^2$]",
         yscale="log",
     )
     plot_series_collection(
@@ -1116,7 +1161,7 @@ def main() -> None:
             "High-k": band_rel_err_series["high"],
         },
         title="Band Energy Relative Error",
-        y_label="Relative Error",
+        y_label=r"Band relative error [-]",
     )
 
     time_local = {
@@ -1181,6 +1226,19 @@ def main() -> None:
         "v_std_mean":      float(np.mean(pred_std_v)),
         "div_linf_mean":     float(np.mean(div_linf_pred)),
         "div_ref_linf_mean": float(np.mean(div_linf_ref)),
+        # Q7 pressure gradient (primary, physically meaningful) and gauge-removed p (diagnostic)
+        "grad_p_rel_l2_mean":   float(np.mean(grad_p_rel_l2)),
+        "grad_p_rel_l2_last":   float(grad_p_rel_l2[-1]),
+        "grad_p_rms_dns_mean":  float(np.mean(grad_p_rms_dns_per_t)),
+        "grad_p_rms_pred_mean": float(np.mean(grad_p_rms_pred_per_t)),
+        "p_rel_l2_gauge_removed_mean": float(np.mean(p_rel_l2_gauge_removed)),
+        "p_rel_l2_gauge_removed_last": float(p_rel_l2_gauge_removed[-1]),
+        "p_rms_dns_mean":  float(np.mean(p_rms_dns_per_t)),
+        "p_rms_pred_mean": float(np.mean(p_rms_pred_per_t)),
+        # div ratio = ‖∇·u‖_2 / ‖∇u‖_F^DNS (time-mean of DNS strain rate)
+        "grad_u_frob_dns_mean": grad_u_frob_ref_meant,
+        "div_ratio_pred_mean":  float(np.mean(div_ratio_pred)),
+        "div_ratio_ref_mean":   float(np.mean(div_ratio_ref)),
         "ek_ratio_kf_last": float(ek_ratio),
         "band_energy_rel_err_mean": {
             band: float(np.mean(values)) for band, values in band_rel_err_series.items()
@@ -1240,6 +1298,21 @@ def main() -> None:
     print(f"KE rel-err  : {_fmt('ke_rel_err_mean')}")
     print(f"Ens rel-err : {_fmt('ens_rel_err_mean')}")
     print(f"div L2 mean = {summary['div_l2_mean']:.4e}  (DNS {summary['div_ref_l2_mean']:.4e})")
+    print(
+        f"div ratio   = {summary['div_ratio_pred_mean']*100:.2f}%  "
+        f"(DNS floor {summary['div_ratio_ref_mean']*100:.2f}%, "
+        f"|grad u|_F DNS = {summary['grad_u_frob_dns_mean']:.3f})"
+    )
+    print(
+        f"grad p rel-L2 (primary)  = {summary['grad_p_rel_l2_mean']*100:.2f}%  "
+        f"(last {summary['grad_p_rel_l2_last']*100:.2f}%, "
+        f"DNS |grad p|_rms {summary['grad_p_rms_dns_mean']:.3f}, "
+        f"pred {summary['grad_p_rms_pred_mean']:.3f})"
+    )
+    print(
+        f"p rel-L2 (gauge-rm, diag)= {summary['p_rel_l2_gauge_removed_mean']*100:.2f}%  "
+        f"(DNS p_rms {summary['p_rms_dns_mean']:.3f}, pred {summary['p_rms_pred_mean']:.3f})"
+    )
     print(
         "NS residual RMS mean = "
         f"u {summary['ns_u_rms_mean']:.4e} / "
