@@ -1143,16 +1143,18 @@ footer a { color: var(--ink-mid); }
       <div>
         <div class="hero-tag">
           <span class="badge">●</span>
-          EXP-064 · Final · K=100 ceiling reached
+          EXP-080 · Pareto sweet spot · 5-seed verified (2026-05-15)
         </div>
         <h1 class="hero-title">
-          Flow reconstruction from <em>sparse sensors.</em>
+          Engineering-deployable flow reconstruction<br>
+          from <em>sparse sensors.</em>
         </h1>
         <p class="hero-sub">
-          Pi-LNN combines DeepONet operator learning with CfC (closed-form continuous-time) memory
-          to reconstruct a Re&nbsp;=&nbsp;10,000 two-dimensional Kolmogorov flow from only K&nbsp;=&nbsp;100
-          velocity sensors. The model never sees a full DNS field — its supervision is pointwise sensor
-          MSE plus the residual of the Navier–Stokes equations.
+          Pi-LNN combines DeepONet operator learning with CfC (closed-form continuous-time) memory and
+          Augmented-Lagrangian continuity to reconstruct a Re&nbsp;=&nbsp;10,000 two-dimensional Kolmogorov
+          flow from only K&nbsp;=&nbsp;100 velocity sensors — <strong>without full-field
+          supervision</strong>. Training signal is pointwise sensor MSE plus the Navier–Stokes residual.
+          Inference is real-time-compatible (encoder 71 ms + 1.5 ms / snapshot query on Apple M-series MPS).
         </p>
         <div class="hero-cta">
           <a class="btn primary" href="lnn_architecture.html">
@@ -1173,7 +1175,7 @@ footer a { color: var(--ink-mid); }
       <aside class="hero-meta" aria-label="Configuration">
         <div class="hero-meta-title">
           <span>Configuration</span>
-          <span class="pill">Apple M3 · MPS</span>
+          <span class="pill">Apple M-series · MPS</span>
         </div>
         <dl>
           <div class="meta-row"><dt>Reynolds</dt><dd>Re = 10,000</dd></div>
@@ -1182,8 +1184,9 @@ footer a { color: var(--ink-mid); }
           <div class="meta-row"><dt>Forcing</dt><dd>f<sub>x</sub> = 0.1·sin(4πy)</dd></div>
           <div class="meta-row"><dt>Architecture</dt><dd>d = 256 / rank = 256</dd></div>
           <div class="meta-row"><dt>Parameters</dt><dd>3.14 M</dd></div>
-          <div class="meta-row"><dt>Optimizer</dt><dd>SOAP · Schedule-Free</dd></div>
-          <div class="meta-row"><dt>Wall-clock</dt><dd>≈ 7 h 17 m / 10k steps</dd></div>
+          <div class="meta-row"><dt>Optimizer</dt><dd>SOAP · Schedule-Free + GradNorm + AL</dd></div>
+          <div class="meta-row"><dt>Train wall-clock</dt><dd>≈ 2 h 24 m / 10k steps (serial)</dd></div>
+          <div class="meta-row"><dt>Inference</dt><dd>71 ms encode + 1.5 ms / snapshot</dd></div>
         </dl>
       </aside>
     </div>
@@ -1195,24 +1198,24 @@ footer a { color: var(--ink-mid); }
   <section class="stats" aria-label="Headline metrics">
     <div class="stats-grid">
       <div class="stat">
-        <div class="stat-value good">7.80<span class="unit">%</span></div>
-        <div class="stat-label">KE Relative Error</div>
-        <div class="stat-note">Kinetic energy error across the full T = [0, 5] window.</div>
+        <div class="stat-value good">10.77<span class="unit">± 0.52 %</span></div>
+        <div class="stat-label">KE Relative Error (B3, 5-seed)</div>
+        <div class="stat-note">EXP-080 Pareto sweet spot; 73 % of the K=100 spectral truncation lower bound (7.77 %).</div>
       </div>
       <div class="stat">
-        <div class="stat-value">17.0<span class="unit">/ 20.2 %</span></div>
-        <div class="stat-label">u / v Relative L²</div>
-        <div class="stat-note">‖pred − ref‖₂ / ‖ref‖₂; standard PINN field metric.</div>
+        <div class="stat-value">20.69<span class="unit">/ 24.79 %</span></div>
+        <div class="stat-label">u / v Relative L² (5-seed)</div>
+        <div class="stat-note">+4.81 / +6.69 pp better than Vanilla DeepONet (B0); Cohen's d &gt; 10, p &lt; 0.001 Bonferroni.</div>
       </div>
       <div class="stat">
-        <div class="stat-value">0.184</div>
-        <div class="stat-label">Divergence L²</div>
-        <div class="stat-note">Global incompressibility residual, ∇·u → 0.</div>
+        <div class="stat-value good">0.067</div>
+        <div class="stat-label">Divergence L² (EXP-080)</div>
+        <div class="stat-note">div / ‖∇u‖_F = 0.88 % → ~3× DNS finite-diff floor; near-incompressible.</div>
       </div>
       <div class="stat">
-        <div class="stat-value">0.962</div>
-        <div class="stat-label">k<sub>f</sub> Amplitude Ratio</div>
-        <div class="stat-note">Forcing-mode amplitude vs DNS; phase error −0.023 rad.</div>
+        <div class="stat-value">71.7<span class="unit"> ms</span></div>
+        <div class="stat-label">Inference encode</div>
+        <div class="stat-note">+ 1.5 ms / snapshot query · 31 K queries / s · 6× wall-time vs DNS fp64 ETDRK4.</div>
       </div>
     </div>
   </section>
@@ -1350,50 +1353,95 @@ footer a { color: var(--ink-mid); }
         <h2>Re&nbsp;=&nbsp;10,000 reconstruction quality from K&nbsp;=&nbsp;100.</h2>
       </div>
       <p class="lede">
-        Field structure, spectral content, and physics constraints are evaluated on the full
-        <code>T = [0, 5]</code> window. Numbers are versus DNS; the model has not seen any of these
-        full fields during training.
+        We report two operating points on the KE / divergence Pareto frontier — both engineering-transferable
+        (sensor-only training, no DNS supervision). Numbers below are evaluated on the full
+        <code>T = [0, 5]</code> window vs DNS; the model has not seen any full fields during training.
+        <strong>EXP-080</strong> is the headline architecture; <strong>EXP-064</strong> is kept as the
+        KE-optimal reference.
       </p>
     </div>
 
     <div class="metric-row">
       <div class="metric">
-        <div class="metric-label">KE rel. err</div>
-        <div class="metric-value good">7.80%</div>
-        <div class="metric-note">Energy across full window.</div>
+        <div class="metric-label">KE rel. err (B3, 5-seed)</div>
+        <div class="metric-value good">10.77 ± 0.52 %</div>
+        <div class="metric-note">vs B0 (Vanilla) 18.52 ± 0.66 %; +7.75 pp gap, Cohen's d = 13.1.</div>
       </div>
       <div class="metric">
-        <div class="metric-label">u rel. L²</div>
-        <div class="metric-value good">17.0%</div>
-        <div class="metric-note">‖uₚ − u_ref‖₂ / ‖u_ref‖₂.</div>
+        <div class="metric-label">u rel. L² (5-seed)</div>
+        <div class="metric-value good">20.69 ± 0.46 %</div>
+        <div class="metric-note">+4.81 pp better than B0 (Welch, p &lt; 0.001 Bonf., d = 10.5).</div>
       </div>
       <div class="metric">
-        <div class="metric-label">v rel. L²</div>
-        <div class="metric-value good">20.2%</div>
-        <div class="metric-note">RMSE = 6.21 × 10⁻².</div>
+        <div class="metric-label">v rel. L² (5-seed)</div>
+        <div class="metric-value good">24.79 ± 0.51 %</div>
+        <div class="metric-note">+6.69 pp better than B0 (p &lt; 0.001 Bonf., d = 10.9).</div>
       </div>
       <div class="metric">
-        <div class="metric-label">ω rel. L²</div>
-        <div class="metric-value warn">45.4%</div>
-        <div class="metric-note">k² amplifies high freq.</div>
+        <div class="metric-label">ω rel. L² (5-seed)</div>
+        <div class="metric-value warn">52.65 ± 0.56 %</div>
+        <div class="metric-note">k² amplifies high freq; +5.73 pp better than B0 (d = 10.2).</div>
       </div>
       <div class="metric">
-        <div class="metric-label">div L²</div>
-        <div class="metric-value good">0.184</div>
-        <div class="metric-note">Incompressibility residual.</div>
+        <div class="metric-label">div L² (EXP-080)</div>
+        <div class="metric-value good">0.067</div>
+        <div class="metric-note">div / ‖∇u‖_F = 0.88 %; ~3× DNS finite-diff floor.</div>
       </div>
       <div class="metric">
-        <div class="metric-label">k<sub>f</sub> phase</div>
-        <div class="metric-value good">−0.023 rad</div>
-        <div class="metric-note">Forcing-mode phase error.</div>
+        <div class="metric-label">Inference</div>
+        <div class="metric-value good">71 + 1.5 ms</div>
+        <div class="metric-note">Encoder + per-snapshot query (MPS, fp32, batch 8192).</div>
       </div>
+    </div>
+
+    <div class="table-wrap" style="margin-top: 32px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Operating point</th>
+            <th>KE rel-err</th>
+            <th>div L²</th>
+            <th>ek_ratio_kf</th>
+            <th>k<sub>f</sub> amp ratio</th>
+            <th>Role</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="label"><strong>EXP-080</strong> · AL ρ = 0.1 + 4-task GN</td>
+            <td class="good">10.68 %</td>
+            <td class="good">0.067</td>
+            <td>0.911</td>
+            <td>0.937</td>
+            <td><strong>Pareto sweet spot</strong> (headline)</td>
+          </tr>
+          <tr>
+            <td class="label"><strong>EXP-064</strong> · 4-task GN, no AL</td>
+            <td class="good">7.80 %</td>
+            <td>0.184</td>
+            <td class="good">0.938</td>
+            <td class="good">0.962</td>
+            <td>KE-optimal reference</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout accent" style="margin-top: 32px;">
+      <h3>Statistical significance — B3 (Ours) vs B0 (Vanilla DeepONet), 5 random seeds</h3>
+      <p>
+        Welch's two-sample t-test with Bonferroni correction (k = 4 primary metrics). All four pointwise
+        metrics show Cohen's d &gt; 10 — an order of magnitude beyond the "large effect" threshold of 0.8.
+        The architectural advantage is decisively <strong>not</strong> a single-seed artifact. Raw stats
+        at <a href="../artifacts/seed_statistics.json"><code>artifacts/seed_statistics.json</code></a>.
+      </p>
     </div>
 
     <div class="figure-row">
       <figure>
         <img src="assets/exp064/field_comparison_t5.png" alt="Velocity field comparison at t=5">
         <figcaption>
-          <span class="label">Field · Velocity at t = 5</span>
+          <span class="label">Field · Velocity at t = 5 (EXP-064 reference)</span>
           Reconstruction tracks the large-scale shape and the dominant Kolmogorov streaks; residual
           error concentrates on vortex sheets and high-gradient interfaces.
         </figcaption>
@@ -1402,12 +1450,19 @@ footer a { color: var(--ink-mid); }
       <figure>
         <img src="assets/exp064/energy_spectrum.png" alt="Energy spectrum comparison">
         <figcaption>
-          <span class="label">Spectrum · Energy E(k)</span>
+          <span class="label">Spectrum · Energy E(k) (EXP-064 reference)</span>
           Low-wavenumber energy band is recovered; the model rolls off above the K = 100
           information barrier — a structural ceiling, not an optimisation gap (see §04).
         </figcaption>
       </figure>
     </div>
+
+    <p style="margin-top: 24px; color: var(--ink-mid); font-size: 0.92em;">
+      EXP-080 evaluation figures live at <code>artifacts/eval-rerun-2026-05-09/exp080-al-4task-rho01/</code>.
+      Full per-baseline comparison (RBF, IDW, trig LSQ, Standard PINN, Gappy POD) and the 6-lever pivot
+      ablation in <a href="experiment_archive_kolmogorov_post_k100.md">the post-K100 archive</a> and
+      <a href="squeeze_report_2026-05-11.md">the squeeze report</a>.
+    </p>
   </section>
 
   <!-- =========================================================
@@ -1416,13 +1471,16 @@ footer a { color: var(--ink-mid); }
   <section id="limit">
     <div class="section-head">
       <div>
-        <div class="section-num">§ 04 — Information-theoretic limit</div>
-        <h2>K&nbsp;=&nbsp;100 is a mathematical ceiling, not an optimisation gap.</h2>
+        <div class="section-num">§ 04 — Sensor information bound</div>
+        <h2>Mid-high frequency error is bounded by sensor count, not by architecture.</h2>
       </div>
       <p class="lede">
-        The Re = 10,000 velocity field is highly sparse in a db4 wavelet basis (Gini ≈ 0.983).
-        Compressed-sensing theory requires <em>M ≥ O(s · log N) ≈ 5,000</em> sensors for exact
-        recovery. K = 100 is short by a factor of ~50.
+        K = 100 sensors give a Nyquist-Shannon effective bandwidth of
+        <code>k<sub>max</sub> ≈ √(K/π) = 5.64</code>. The spectral truncation lower bound at
+        <code>k<sub>cut</sub> = 4</code> is <strong>KE rel-err ≥ 7.77 %</strong>; our EXP-080 attains
+        10.68 %, reaching <strong>73 % of the bound</strong>. The Re = 10,000 velocity field is highly
+        sparse in a db4 wavelet basis (Gini ≈ 0.983); compressed-sensing theory needs
+        <code>M ≥ O(s · log N) ≈ 5,000</code> sensors for exact recovery — K = 100 is short by ~50×.
       </p>
     </div>
 
@@ -1463,15 +1521,44 @@ footer a { color: var(--ink-mid); }
       </table>
     </div>
 
+    <div class="table-wrap" style="margin-top: 24px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Null-space quantity (Fourier basis, k ≤ 16)</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="label">Total div-free Fourier DoF</td><td>1,592</td></tr>
+          <tr><td class="label">Sensor rank constraint (div-free param)</td><td>2K = 200</td></tr>
+          <tr><td class="label"><strong>Null-space dim (unobservable)</strong></td><td class="warn"><strong>1,392 / 1,592 = 87.4 %</strong></td></tr>
+          <tr><td class="label">Explicit div-free invisible ε at K=100 sensors</td><td>KE(ε) = 0.13 (DNS scale); max|ε(x_k)| ≈ 1e-16</td></tr>
+          <tr><td class="label">Nyquist sensor bandwidth k<sub>max</sub>(K)</td><td>≈ √(K/π) = 5.64</td></tr>
+          <tr><td class="label">Spectral truncation lower bound at k<sub>cut</sub> = 4</td><td class="warn">KE rel-err ≥ 7.77 %</td></tr>
+          <tr><td class="label"><strong>EXP-080 attainment</strong></td><td class="good"><strong>10.68 % = 73 % of the bound</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="callout">
-      <h3>Convergent evidence — the wall is real</h3>
+      <h3>Six-lever ablation — all falsified at K = 100</h3>
       <p>
-        Three independent turbulence-aware variants (multi-scale CfC time-constants, frequency-tiered
-        Fourier, PINN causal weighting; EXP-067 / 068 / 069) all <em>fail to break</em> the mid- and
-        high-band errors. KE regresses by +1.9 to +12.3 percentage points; the band-mid error stays
-        ≈ 100 %. EXP-064 (K = 100, KE 7.80 %) is the global optimum under the current architecture
-        configuration. Further progress requires either more sensors (K ≥ 5,000) or a physical prior
-        that is, by construction, engineering-non-transferable.
+        After EXP-080, we systematically tested six orthogonal levers (regularisation ρ, multi-head
+        cross-attention, Fourier bandwidth, K-scaling at fixed recipe, trunk depth, modified-MLP
+        gating; EXP-079 / 083 / 084 / 085 / 086 / 087). All fall within ±1.5 pp KE of EXP-080. The
+        architecture operates at the sensor-bounded regime. <strong>Higher fidelity requires more
+        sensors with recipe re-tuning</strong>, not architectural redesign.
+      </p>
+    </div>
+
+    <div class="callout accent">
+      <h3>Convergent evidence — three turbulence-aware variants also falsified</h3>
+      <p>
+        Multi-scale CfC time-constants, frequency-tiered Fourier embeddings, and PINN causal weighting
+        (EXP-067 / 068 / 069) all <em>fail to break</em> the mid- and high-band errors. KE regresses
+        by +1.9 to +12.3 percentage points; band-mid stays at ≈ 100 %. <strong>Six independent
+        falsifiability tests converge on the same wall.</strong>
       </p>
     </div>
   </section>
@@ -1506,13 +1593,43 @@ footer a { color: var(--ink-mid); }
           every figure on this page.
         </p>
       </a>
+      <a class="resource" href="paper_framing_draft.md">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">/docs/paper_framing_draft.md</div>
+        <h3>Paper draft (v2)</h3>
+        <p>
+          Engineering-pivot framing — abstract, 4 contributions, sensor-information-bound analysis,
+          5-seed Welch's t-test methodology, 6-lever ablation table.
+        </p>
+      </a>
       <a class="resource" href="experiment_log.md">
         <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
         <div class="label">/docs/experiment_log.md</div>
-        <h3>Experiment log</h3>
+        <h3>Experiment state</h3>
         <p>
-          Linear chronicle of every run from EXP-001 through the K = 100 ceiling, including
-          hypothesis, falsifying evidence, and post-mortems.
+          Master entry — STATE / INDEX conclusion layer. Detailed RECORD split by topic into
+          <code>experiment_archive_*.md</code>, <code>cylinder_log.md</code>,
+          <code>diagnostics_log.md</code> (2026-05-15 split).
+        </p>
+      </a>
+      <a class="resource" href="experiment_archive_kolmogorov_post_k100.md">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">/docs/experiment_archive_kolmogorov_post_k100.md</div>
+        <h3>Post-K=100 archive</h3>
+        <p>
+          EXP-064 ~ EXP-101 detailed RECORD — K=100 closure, 9-point AL Pareto frontier,
+          6-lever pivot ablation, B0/B1/B2 architectural ablation, 5-seed multi-seed,
+          inference benchmark.
+        </p>
+      </a>
+      <a class="resource" href="diagnostics_log.md">
+        <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        <div class="label">/docs/diagnostics_log.md</div>
+        <h3>Diagnostics &amp; CFD-rigour</h3>
+        <p>
+          Physics-denorm silent regression bug + reversal (Round-7 evaluator rerun, 6/6 aligned),
+          Pope-criterion DNS validation, ∇p / div_ratio metrics, Forward-CFD POD baseline
+          (same-attractor but phase-drift analysis).
         </p>
       </a>
     </div>
@@ -1524,11 +1641,12 @@ footer a { color: var(--ink-mid); }
   <div class="left">
     <span class="mark">Pi-LNN</span>
     <span>·</span>
-    <span>Sparse-sensor flow reconstruction · Re = 10,000 · K = 100 · KE 7.80 %</span>
+    <span>Engineering-deployable sparse-sensor reconstruction · Re = 10,000 · K = 100 · B3 KE 10.77 ± 0.52 % (5-seed) · EXP-080 Pareto sweet spot</span>
   </div>
   <div class="right">
     <a href="lnn_architecture.html">Architecture</a>
-    <a href="experiment_log.md">Log</a>
+    <a href="paper_framing_draft.md">Paper</a>
+    <a href="experiment_log.md">State</a>
     <a href="https://github.com/latteine1217/pi-lnn">GitHub</a>
   </div>
 </footer>
