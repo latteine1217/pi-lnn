@@ -1,24 +1,24 @@
-# configs/exp_071_re10000_al_gradnorm.toml
-# What: EXP-071 — AL on continuity + 3-task GradNorm（data/ns_u/ns_v）。
+# configs/exp_075_re10000_al_gradnorm_capped.toml
+# What: EXP-077 — EXP-071 + gradnorm_max_weight cap (0.057, =init weight) — GradNorm immediate freeze; phase transition probe on ns_u/ns_v。
 #
-# Why: 對照 EXP-070（pure AL），驗證 GradNorm 動態平衡 data/ns 三 task 的同時，
-#      AL term 以 weight=1 加進 loss 是否與 EXP-070 結果一致。
+# Why: EXP-071 達成 ADR-001 §7 條件 #1（div L2 0.044 < 0.05），但 KE 退步到 14.57%
+#      (vs baseline 7.80%)。診斷：GradNorm 把 ns_u/ns_v 收斂在 0.281/0.306（init 0.057
+#      的 5×），data 權重相對被壓 → KE 退步。
+#      Cap 限制 ns physics weight ≤ 0.20，期望守住 div breakthrough 的同時改善 KE。
 #
-# 設計關鍵（spec v4 §5 / §7）：
-#   - AL term 完全在 GradNorm losses 之外（v4 修補 v3 mean_G 污染）
-#   - gradnorm_tasks = ["data","ns_u","ns_v"]（3 元素，無 cont、無 al）
-#   - GradNorm 看不到 G_al → λ jump 不會擾動 w_ns_u/w_ns_v
+# Hypothesis: KE rel-err < 12% (改善 EXP-071 14.57% 至少 2pp)；
+#             div L2 < 0.10 (仍遠優於 baseline 0.184)；
+#             GradNorm w_ns 收斂在 cap 0.20 附近（不再爬到 0.30+）
 #
-# 唯一改動（vs EXP-070）：
-#   - use_gradnorm = true
-#   - gradnorm_tasks = ["data","ns_u","ns_v"]
-#   - gradnorm_init_weights = [1.0, 0.01, 0.01]（3 元素）
+# Falsifiability:
+#   - 若 KE > 13% → cap 太高，ns 權重仍主導
+#   - 若 div L2 > 0.20 → cap 太低，AL 不夠強
+#   - 若 ek_ratio_kf < 0.7 → 高頻 reconstruction 災難
 #
-# Hypothesis: div_L2 ≈ EXP-070 ± 10%；KE 改善（data/ns 平衡更好）
-# Falsifiability: 若 EXP-071 result 顯著差於 EXP-070 → GradNorm 與 AL 仍有耦合
-#                 → 需檢視是否真的把 AL 排除在 _gradnorm_step 之外
+# 唯一改動（vs EXP-071）：
+#   - gradnorm_max_weight = 0.057  （新加的 code support）
 #
-# Spec ref: docs/superpowers/specs/2026-05-04-al-continuity-design.md §7 EXP-071
+# Spec ref: ADR-002 Decision-B (修正版) — `docs/adr/002-al-continuity-post-bugfix-reopen.md`
 
 [train]
 sensor_jsons = [
@@ -33,7 +33,7 @@ dns_paths = [
 re_values = [10000.0]
 observed_sensor_channels = ["u", "v"]
 
-# 架構與 EXP-064 完全一致
+# 架構與 EXP-064 / EXP-071 完全一致
 fourier_harmonics = 16
 fourier_embed_dim = 128
 use_temporal_anchor = true
@@ -52,7 +52,7 @@ operator_rank = 256
 
 # Loss weights
 data_loss_weight = 1.0
-physics_loss_weight = 0.057   # GradNorm 接管後不作為乘數；保留為 fallback（與 EXP-070 對齊）
+physics_loss_weight = 0.057
 physics_loss_warmup_steps = 0
 physics_loss_ramp_steps = 0
 continuity_weight = 0.0       # AL 接管 cont
@@ -85,16 +85,15 @@ lr_decay_gamma = 0.9
 min_learning_rate = 1e-6
 max_grad_norm = 1.0
 
-# 3-task GradNorm（cont 移出，AL 接管；spec v4 §5）
+# 3-task GradNorm（cont 移出，AL 接管）— 同 EXP-071
 use_gradnorm = true
 gradnorm_update_freq = 1000
 gradnorm_ema_momentum = 0.9
 gradnorm_tasks = ["data", "ns_u", "ns_v"]
-gradnorm_init_weights = [1.0, 0.057, 0.057]   # warm start at EXP-064 step-10k convergence
-                                              # 避免 GradNorm 在前 ~5k 步重新爬升的 transient
-                                              # 干擾 EXP-070 vs EXP-071 對照
+gradnorm_init_weights = [1.0, 0.057, 0.057]
+gradnorm_max_weight = 0.057    # NEW: cap ns_u, ns_v ≤ 0.20（EXP-077 唯一改動）
 
-# AL-continuity 設定（spec v4 §3）
+# AL-continuity 設定（同 EXP-071）
 use_augmented_lagrangian = true
 al_init_lambda = 0.0
 al_rho = 1.0
@@ -107,4 +106,4 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp071-al-gradnorm"
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp077-al-gradnorm-cap-init"
