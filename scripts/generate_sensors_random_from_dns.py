@@ -74,15 +74,18 @@ def main() -> None:
     if args.avoid_duplicates:
         assert len(set(indices.tolist())) == args.K, "duplicates leaked"
     indices.sort()  # 排序好讀
+    # DNS u shape = (T, axis_1=x, axis_2=y); row-major flatten → row=x_idx, col=y_idx
     row_idx, col_idx = np.unravel_index(indices, (N, N))
-    coords = np.stack([x_arr[col_idx], y_arr[row_idx]], axis=1)  # [K, 2] (x, y)
+    x_idx, y_idx = row_idx, col_idx  # 名稱與物理 axis 對齊
+    coords = np.stack([x_arr[x_idx], y_arr[y_idx]], axis=1)  # [K, 2] (x, y)
     print(f"[sample] placement_seed={args.seed}, K={args.K}, distinct={args.avoid_duplicates}")
     print(f"  coord range: x ∈ [{coords[:,0].min():.3f}, {coords[:,0].max():.3f}], "
           f"y ∈ [{coords[:,1].min():.3f}, {coords[:,1].max():.3f}]")
 
     # ── 3. 提取 sensor 時序 ────────────────────────────────────
-    sensor_u = u_full[:, row_idx, col_idx].T.astype(np.float32)  # [K, T]
-    sensor_v = v_full[:, row_idx, col_idx].T.astype(np.float32)
+    # u_full[t, x_idx, y_idx]：axis=1=x, axis=2=y
+    sensor_u = u_full[:, x_idx, y_idx].T.astype(np.float32)  # [K, T]
+    sensor_v = v_full[:, x_idx, y_idx].T.astype(np.float32)
     print(f"[extract] sensor_u shape={sensor_u.shape}, sensor_v shape={sensor_v.shape}")
 
     # 最近鄰距離診斷（與 QR-pivot script 對齊）

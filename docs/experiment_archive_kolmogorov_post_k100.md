@@ -27,7 +27,7 @@
 | **G_arch** | EXP-088~092 | Architectural ablation + Standard PINN baseline | `RESOLVED` |
 | **G_seed** | EXP-093~100 | Multi-seed reproducibility (N=5 per arch) | `RESOLVED` |
 | **G_bench** | EXP-094 (sub-analysis) | Inference cost benchmark | `RESOLVED` |
-| EXP-101 (in-progress) | random sensor placement vs QR-pivot | 訓練未完成（step 4500/10000）| `PENDING` |
+| **EXP-101** | random sensor placement vs QR-pivot | **NEGATIVE_RESULT** — KE 37.2 % (3.5× 退步)，sensor placement sensitivity 量化定錨 | `RESOLVED`（2026-05-17）|
 
 ---
 
@@ -535,9 +535,371 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 
 ---
 
-## [PENDING] EXP-101 random sensor placement vs QR-pivot（in progress）
+## [RECORD] EXP-101 random sensor placement vs QR-pivot（NEGATIVE_RESULT, sensor placement sensitivity validated）
 
+- Status: `NEGATIVE_RESULT` （hypothesis: QR-pivot is non-trivially better; confirmed dramatically）
+- Time: 2026-05-14 attempt-1 aborted at step 4500（artifact backed up at `artifacts/kolmogorov/_backup/exp101-attempt1-2026-05-14_aborted-step4500/`）；2026-05-16 23:32 ~ 2026-05-17 01:58 完整 1-shot 重跑（2 h 26 m）；2026-05-17 09:00 ~ 09:18 evaluator 完成。
+- Topic: Re=10000, 冷啟動 10000 步，**EXP-080 recipe + sensor placement 改為 uniform random**（其餘超參完全一致）
 - Config: [`configs/exp_101_b3_random_seed42.toml`](../configs/exp_101_b3_random_seed42.toml)
-- 改動：EXP-080 / EXP-094 recipe + sensor placement 改為 uniform random（placement_seed=42, training_seed=42）。架構與 EXP-080 完全一致，唯一改動為 sensor 策略。
-- 訓練狀態（2026-05-15 確認）：artifact `artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42/checkpoints/` 只有 `step_4000.pt` + `step_4500.pt`，**未完成 10000 步**；目前無 running process。
-- 屬 CFD-rigour pending tasks 之一（sensor placement sensitivity）。重啟需 1-shot 跑完（per KNOWN_PITFALLS，resume 禁用）。
+- Sensor: `data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed42.{json,npz}`（placement_seed=42 從 N²=65536 grid uniform random 選 K=100；同一 DNS 場提取 (u, v) 時序）
+- Artifact: `artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42/`
+- Evaluated Checkpoint: `checkpoints/lnn_kolmogorov_step_10000.pt`
+
+- Compare vs EXP-080（唯一改動）：
+  - `sensor_jsons` / `sensor_npzs` → uniform random K=100 seed=42（EXP-080: QR-pivot K=100）
+  - 其他超參與 EXP-080 byte-identical（同 4-task GradNorm init / AL ρ=0.1 / SOAP+SF / time_marching warmup=3000 / 10000 步）
+
+- Hypothesis: random placement 應劣於 QR-pivot 但能提供「sensor placement strategy 在 K=100 sparse setting 的 sensitivity」量化定錨點，預期 KE 退步 1-3pp（temperature check on Manohar 2018 QR-pivot 優越性）。
+- Falsifiability:
+  - (a) KE 退步 < 1pp → random ≈ QR-pivot，placement strategy 對 reconstruction 影響不大（**FALSIFIED — 退步 26.5pp**）
+  - (b) KE 退步 1-3pp → 預期範圍，placement 有影響但非主導
+  - (c) KE 退步 > 5pp → placement 在 K=100 設定下是 architecture 之外的 critical lever（**CONFIRMED dramatically**）
+  - (d) Random 與 forward CFD POD baseline 同階（u/v rel-L² > 100%）→ phase decorrelation regime（**CONFIRMED partial — random 在 phase tracking 上仍勝 forward CFD 25-75pp**）
+
+- Training trajectory:
+
+| Step | L_data | L_phys | λ_c | C_ema | w_ns_u / v / cont | t_max |
+|---:|---:|---:|---:|---:|---|---:|
+| 1 | 3.234 | 0.147 | 0.000 | 0.000 | 0.057 / 0.057 / 0.010 | 0.5 |
+| 1000 | 0.405 | 0.740 | 0.400 | 0.178 | 0.107 / 0.108 / 0.086 | 2.0 |
+| 3000 | 0.363 | 0.261 | 0.657 | 0.068 | 0.155 / 0.180 / 0.152 | 5.0 |
+| 5000 | 0.167 | 0.194 | 0.794 | 0.048 | 0.172 / 0.210 / 0.181 | 5.0 |
+| 7000 | 0.112 | 0.208 | 0.890 | 0.053 | 0.198 / 0.237 / 0.214 | 5.0 |
+| 10000 | **0.124** | **0.161** | **1.004** | **0.040** | **0.194 / 0.245 / 0.233** | 5.0 |
+
+  訓練過程信號（與 EXP-080 對照）：
+  - L_data 收斂到 0.124（vs EXP-080 0.029，**4.3× 劣**）— random sensor MSE 顯著難收斂
+  - λ_c ascend 到 1.004（vs EXP-080 0.665，**1.5× 強**）— random 需要更強 dual penalty enforce continuity
+  - C_ema 收斂在 0.040（vs EXP-080 0.010，**4× 高**）— continuity residual 殘留
+  - w_cont (GradNorm) → 0.233（vs EXP-080 0.18，**1.3× 升**）— GradNorm 自動上推 continuity weight 補償
+
+- Evaluation Metrics（step_10000）：
+
+| 指標 | EXP-101 (random) | EXP-080 (QR-pivot) | 退化 |
+|---|---:|---:|---|
+| `ke_rel_err_mean` | **0.3720（37.20 %）** | 0.1068 | +26.5 pp (3.5×) |
+| `ens_rel_err_mean` | 1.094（109.4 %） | 0.291 | +80.3 pp |
+| `div_l2_mean` | 0.2479 | 0.067 | 3.7× |
+| `u_rel_l2_mean` | **1.222（122.2 %）** | 0.207 | **error > reference** |
+| `v_rel_l2_mean` | **1.304（130.4 %）** | 0.248 | **error > reference** |
+| `omega_rel_l2_mean` | **1.610（161.0 %）** | 0.527 | +108 pp |
+| `u_rmse_mean` | 0.501 | 0.072 | 7.0× |
+| `v_rmse_mean` | 0.373 | 0.060 | 6.2× |
+| `ek_ratio_kf_last` | **0.392** | 0.911 | -0.52（主 mode 重建剩 40 %）|
+| `kf_amp_ratio_last` | **0.438** | 0.937 | -0.50（振幅丟一半）|
+| `kf_phase_err_last` | **-2.934 rad ≈ -π** | ~0 | **forcing mode 反相** |
+| `band_low_last` | **45.4 %** | ~6 % | 低頻也崩 |
+| `band_mid_last` | 94.3 % | ~100 % | 都 saturated |
+| `band_high_last` | 99.98 % | ~100 % | 都 saturated |
+| `ns_u_rms_mean` | 1.505 | 0.398 | 3.8× |
+| `ns_v_rms_mean` | 1.161 | 0.317 | 3.7× |
+| `grad_p_rel_l2_mean` | 1.081 | 1.115 | 同 architectural failure |
+| `div_ratio_pred_mean` | 2.79 % | 1.27 % | 2.2× DNS floor (1.04 %) |
+
+- 對 forward CFD POD baseline 對照（u/v rel-L² 角度）：
+
+| 方法 | u rel-L² | v rel-L² | 解讀 |
+|---|---:|---:|---|
+| Forward CFD POD rank=40（no sensors during integration）| 152.78 % | 203.87 % | 完全 phase decorrelated |
+| **EXP-101 (random sensors @ dt=0.025)** | **122.16 %** | **130.36 %** | sensor 提供些許 phase lock，但 placement sub-optimal |
+| EXP-080 (QR-pivot sensors @ dt=0.025) | 20.69 % | 24.79 % | phase 鎖死於 attractor |
+
+- Decision: **Negative（Hypothesis (a) 強烈 falsified；(c) confirmed dramatically；(d) confirmed partial）**。
+  - 退步 26.5 pp KE / 101-108 pp pointwise rel-L² 遠超 (b) 預期；**sensor placement strategy 是架構之外的 critical engineering lever**。
+  - 同 K=100、同 recipe，QR-pivot 比 random 在 reconstruction quality 上勝 **5-6× pointwise**（u/v/ω rel-L² 從 ~25 % 退步到 ~125 %）。
+  - kf_phase_err ≈ −π + ek_ratio 0.39：random placement 下模型對 forcing mode 的 phase tracking **完全失準**（near-anti-phase）。
+  - L_data 收斂困難 + λ_c 上升 + C_ema 殘留：三個獨立訓練信號都指向 random placement 對 sparse-sensor reconstruction 不利，符合 Manohar 2018 QR-pivot 在 sensing matrix conditioning 上的優越性論述。
+
+- 物理 mechanism（三個 hypothesis，未來可深入）：
+  1. **空間頻率覆蓋不均**：QR-pivot 確保 k≤16 sensing matrix conditioning ≈ 11；random uniform 無此保證，部分 Fourier mode 可能 near-unobservable
+  2. **Random 群聚效應**：N²=65536 grid 上 K=100 uniform random 在 spatial distribution 統計上會有部分 sensor 落在鄰近 grid cell，K_eff < 100
+  3. **AL dual variable failure mode**：λ_c → 1.004（vs EXP-080 0.665）暗示 random 配置下 continuity constraint 更難 enforce，過強 dual penalty 反而傷 data fitting → KE 退步主因
+
+- Paper value:
+  - **Concrete evidence**: sensor placement 不是 arbitrary engineering choice；QR-pivot 提供 5-6× pointwise advantage，這是 Manohar 2018 在我們具體配置（K=100, Re=10⁴, K=10000 步 PINN）下的數值再驗證
+  - 可寫進論文 §5 ablation 或 §6.4 future work（"sensor placement strategy as a critical engineering choice"）
+  - 與 forward CFD POD baseline 並列：sensor measurement 提供 phase lock 是 operator framework 的決定性貢獻，**但前提是 sensor placement 為 information-theoretically near-optimal**
+
+- artifacts: `artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42/`（含 checkpoint, log, summary.json, 10 個 evaluation PNG）；training.log + eval.log 保留供後續論文寫作引用
+- Supersedes: PENDING 條目（2026-05-15 寫入時為 in-progress）
+
+---
+
+## [GROUP G_pipeline] LES-informed QR-pivot 真實工程 pipeline（2026-05-17）
+
+### Motivation
+
+CLAUDE.md `<REAL_WORLD_PIPELINE>` 規定真實工程使用情境是「LES → QR-pivot → DNS sensor → PINN 訓練」。EXP-064 / EXP-080 / EXP-094 baseline 都直接從 DNS 全場做 QR-pivot，與 ENGINEERING_VISION「現場無 DNS」自相矛盾。本群組首次完整跑通工程 pipeline。
+
+### EXP-102 RECORD（LES-informed pipeline 首跑）
+
+| 項目 | 值 |
+|---|---|
+| Config | [`configs/exp_102_b3_lesinformed_qrpivot.toml`](../configs/exp_102_b3_lesinformed_qrpivot.toml) |
+| Sensor file | [`data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_lesinformed.{json,npz}`](../data/kolmogorov_sensors/re10000/) |
+| LES source | [`data/les/kolmogorov_les_Re10000_N128_T15_bardina_standalone.npy`](../data/les/) — Re=10⁴, N=128, T=15, Bardina mixed, stand-alone calibration, random seed=42 init |
+| LES quality | div=1.08e-13 ✅, CFL=0.015 ✅, rel_change −0.17% ✅, T_end/T_L=8.5; 譜偏陡 slope −14 vs DNS −4.75（過耗散）|
+| Architecture | B3（EXP-094 recipe，d_model=256，4-task GradNorm + AL ρ=0.1）|
+| seed | 2（對齊 EXP-094）|
+| 訓練 | 10k steps, MPS, wall-time 2h 08m 11s |
+| **KE rel-err** | **44.28%**（train 43.77% / val 46.26%）|
+| u_L2 / v_L2 | 1.137 / 1.277（vs baseline 0.35 / 0.45）|
+| omega_L2 | 1.516 |
+| div_L2 | 0.241（vs baseline 0.067, 3.6× 退步）|
+| ek_ratio_kf_last | **1.128（> 1, over-shooting）**|
+| kf_amp_ratio_last | 0.567（amplitude 不足）|
+| kf_phase_err_last | −0.625 rad |
+
+### Decision Gate（per CLAUDE.md REAL_WORLD_PIPELINE）
+
+KE 44.3% 落在「> 30%（LES modes 不足 transfer，或 model 嚴重 placement-overfit）」區。**需 sanity check 區分 root cause**。
+
+### [DIAGNOSTIC] Sanity check：四組 placement 的 spectral coverage 對比
+
+**目的**：判斷 EXP-102 失敗根因是 (a) LES quality 不足 vs (b) 跨網格 transfer algorithm limitation vs (c) model 對 measurement distribution 敏感。
+
+**方法**：對四組 sensor placement 做 Fourier pseudo-inverse accuracy 評估（既有 `scripts/generate_sensors_qrpivot.py` 同邏輯），用 8 個 DNS snapshots 平均，評估 k=1..30 的 spectral 可重建度。
+
+| Placement | k=2 | k=5 | k=10 | k=20 | k(acc>0.8) | k(acc>0.5) |
+|---|---|---|---|---|---|---|
+| DNS-pivot full N=256（oracle, EXP-094 baseline）| 1.000 | 1.000 | 1.000 | 0.881 | 20 | 30 |
+| DNS-downsampled-pivot N=128（this sanity） | 1.000 | 1.000 | 1.000 | 0.883 | 20 | 30 |
+| **LES-informed N=128 (EXP-102)** | **1.000** | **1.000** | **1.000** | **0.919** | **20** | **30** |
+| Random pseed=42 | 1.000 | 1.000 | 1.000 | 0.902 | 20 | 29 |
+
+**[FINDING]** 四組 placement 在 spectral coverage 意義下**幾乎等價**：所有 k≤30 範圍 acc>0.5；k=20 處 LES-informed 甚至略勝 DNS-pivot。
+
+### Hausdorff 距離（sensor-set 結構相似度）
+
+| 對 | distance |
+|---|---|
+| DNS-pivot ↔ DNS-downsampled-pivot | 0.184 |
+| DNS-pivot ↔ LES-informed | 0.158 |
+| DNS-pivot ↔ Random | 0.119 |
+| DNS-downsampled-pivot ↔ LES-informed | 0.205 |
+| LES-informed ↔ Random | 0.117（**最接近**）|
+
+**[FINDING]** LES-informed 跟 Random 的 placement structure **最接近**（Hausdorff 0.117）；但兩者 spectral coverage 一樣（都跟 DNS-pivot oracle 等價）。
+
+### [HYPOTHESIS] Root cause 重評
+
+既然 4 組 placement spectral coverage 等價，EXP-102 KE 44% vs EXP-094 9.4% 的差異**不來自 placement 的 information content**。可能根因：
+
+1. **Sensor measurement distribution sensitivity**：不同 placement 抽出來的 (u, v) value distribution 不同（不同 sensor location 對應 Kolmogorov forcing pattern 不同相位），導致 dataset.observed_channel_mean/std 不同 → 訓練 normalize 後的 dynamics 不同 → 模型對特定 distribution overfit
+2. **Optimizer + GradNorm + AL 系統對 sensor 統計敏感**：SOAP+SF+GradNorm 是強耦合系統；不同 sensor distribution 在 weight space 中 trace 出不同 loss landscape
+3. **Single seed luck**：EXP-094 的 9.4% 可能是 placement-specific 的 luck，多 seed 才知道 placement 真實 robust 性
+
+### 下一步建議
+
+- **EXP-103（必要 control）**：用 DNS-downsampled-pivot N=128 sensors（spectral coverage 等價、grid resolution 同 LES-informed、譜形完美）跑同 recipe；若 KE ≈ 9.4% → 確認問題是 LES 譜過耗散；若 KE > 20% → 確認問題是 model 對 placement distribution 敏感
+- **EXP-104（補強）**：多 placement seeds 跑 LES（不同 LES seed → 不同 leading modes → 不同 sensor positions）看 KE variance；判斷 single-seed 的 9.4% 是否反映 placement 普遍性
+- **論文 framing 修正**：若 root cause 為 (1)/(2)，REAL_WORLD_PIPELINE 仍可成立，但需在 §Discussion 增加 "model placement-distribution sensitivity" 段，說明不只 sensor 位置選好就夠，還需要 placement-invariant training
+
+---
+
+### EXP-103 RECORD（N=256 LES-informed pipeline，confound-removed retry）
+
+| 項目 | 值 |
+|---|---|
+| Config | [`configs/exp_103_b3_lesinformed_n256_qrpivot.toml`](../configs/exp_103_b3_lesinformed_n256_qrpivot.toml) |
+| Sensor file | [`data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256.{json,npz}`](../data/kolmogorov_sensors/re10000/) |
+| LES source | `../kolmogorov_generate/dns/data/dataset_les_re10000_n256_t5.npy`（N=256, ν_h_alpha=1.8, hyperviscosity, **init_mode=dns**, dealias=3/2, T=5）|
+| LES quality | div=8.3e-4（fp32 storage 重算）/ builtin 3.6e-9 ✅, slope=−4.63 ⚠️（vs DNS −4.75）, KE_late/DNS=0.89, ENS_late/DNS=0.91 |
+| Architecture | B3（EXP-094 recipe）|
+| seed | 2 |
+| 訓練 wall-time | 2h 09m 29s |
+| **KE rel-err** | **52.05%**（train 52.35% / val 50.85%）— **比 EXP-102 還差 8pp** |
+| u_L2 / v_L2 | 1.062 / 1.247 |
+| omega_L2 | 1.327 |
+| div_L2 | 0.262 |
+| ek_ratio_kf_last | 0.474（under-shoot）|
+| kf_amp_ratio_last | 0.466 |
+| kf_phase_err_last | +1.831 rad（嚴重偏離）|
+
+**[FINDING]** EXP-103 在 EXP-102 的兩個 confound（LES 譜過耗散 + grid quantization）**完全排除後**仍 KE 52%，且**比 EXP-102 退步 8pp**。Decision_Gate (c)：> 30%，落到「LES modes 不足 transfer 或 model 嚴重 placement-overfit」區，但 root cause 比這更具體（見下方分析）。
+
+### [DIAGNOSTIC] Sensor information content 分析（揭露真正 root cause）
+
+對 4 組 placement 跑 4 維 information-theoretic 量化（[`/tmp/analyze_sensor_information_content.py`](../scripts/) — 待 promote 進 repo）：
+
+| Metric | DNS-pivot | LES_N256 | LES_N128 | Random |
+|---|---|---|---|---|
+| **Effective rank（Shannon entropy of SVs）** | **13.13** | **11.33** | 12.27 | 11.95 |
+| **POD recon error (top r=50 modes)** | 0.549 | **0.591** | 0.530 | 0.551 |
+| **Pairwise |corr| redundancy** | 0.333 | **0.342** | 0.329 | 0.316 |
+| Local KE_loc (vs global mean 0.131) | 0.138 (+5%) | **0.125 (-5%)** | 0.133 | 0.133 |
+| 8×8 cell coverage | 54/64 | **40/64** | 57/64 | 48/64 |
+
+**Information content rank 完美 predict KE rel-err 排序**：
+
+| Strategy | Effective Rank | POD recon err | KE rel-err |
+|---|---|---|---|
+| DNS-pivot (EXP-094) | 13.13 (highest) | 0.549 | **9.4%** (best) |
+| Random train (EXP-101) | 11.95 | 0.551 | 37.2% |
+| LES_N128 train (EXP-102) | 12.27 | 0.530 | 44.3% |
+| **LES_N256 train (EXP-103)** | **11.33 (lowest)** | **0.591 (highest)** | **52.0% (worst)** |
+
+### 物理解釋
+
+`LES_N256` 從 DNS 初始化 + mild SGS (α=1.8) → 在 T=5 內保持 DNS 大尺度結構 → LES feature matrix 的 leading modes **比 DNS 更 concentrated 到主要 vortex 區**。QR-pivot 在這個 feature matrix 上選的 K=100 位置 cluster 在這些 vortices，**dynamical info 高度 redundant**，導致：
+- 8×8 spatial coverage 只 40/64（最低）
+- Effective rank 11.33（最低，比 random 還差）
+- Pairwise redundancy 0.342（最高）
+
+**「LES 譜形對齊 DNS」≠「適合做 placement proxy」**：譜形是統計尺度均勻 measure，placement 需要 leading mode spatial diversity。LES_N256 在前者好（slope −4.63 vs DNS −4.75），但後者比 DNS 還更 concentrated。
+
+### [HYPOTHESIS] 對 paper narrative 的修正
+
+原 `REAL_WORLD_PIPELINE` 假設「LES quality 是 placement transfer 的 bottleneck」**被 falsify**：
+
+- 提高 LES quality（N=256 + dns-init + α=1.8 + 3/2 dealias）反而讓 KE 退步 8pp（44% → 52%）
+- 真正 bottleneck 是 **QR-pivot 在 cross-fidelity feature matrix 上的 failure mode**：當 LES leading modes 過度 concentrated 時，QR 選的位置 redundant
+- 即使 placement 演算法成功（spectral coverage 等價），**dynamical information dimension 不足** → PINN 無法重建 PDE-consistent 場
+
+### 對 paper 的硬意義（建議改寫方向）
+
+| 原假設 | 修正後 narrative |
+|---|---|
+| 「LES → QR-pivot 是 viable engineering proxy」| **Falsified** — QR-pivot 在 LES leading-mode-concentrated 場上選出 redundant sensors，KE 嚴重退步 |
+| 「baseline DNS-pivot 9.4% 反映 placement quality」| 可能反映 DNS-pivot **不可複製的** spatial diversity，工程現場無法獲得 |
+| 「LES quality 越高越好」| **Falsified** — LES_N256 比 LES_N128 KE 退步 8pp，因 dns-init 讓 modes 更 concentrated |
+| 工程可遷移 contribution | 仍可立論但須誠實揭露：QR-pivot + LES proxy pipeline **目前不可行**；需要 placement-invariant training 或不同 sensor 選擇演算法（POD-pivot, k-means, spatial-diversity-aware）|
+
+### 下一步建議（按 ROI）
+
+| Action | Effort | 意義 |
+|---|---|---|
+| **A. 試 POD-pivot（每 mode 1 個 sensor）on LES_N256** | ~30 min sensor gen + 2 hr training | 同 LES quality 但不同 selection algo，直接 test「algorithm vs information bottleneck」誰主導 |
+| **B. 試 k-means clustering on LES feature matrix** | ~30 min + 2 hr training | force spatial diversity，breakeven test |
+| **C. Multi-seed N=2-3 對 EXP-101/102/103 補強統計** | ~6 hr training | 確認 single-seed luck 程度 |
+| **D. 改 paper narrative**：承認 LES → placement transfer pipeline failed，contribution 改為「diagnosed failure mode + proposed alternatives」 | 寫作 | 最 ROI，把 negative result 升級為 finding |
+
+
+---
+
+### EXP-105 RECORD（T=50 statistically-converged LES + QR-pivot）
+
+| 項目 | 值 |
+|---|---|
+| Config | [`configs/exp_105_b3_les_n256_T50_qrpivot.toml`](../configs/exp_105_b3_les_n256_T50_qrpivot.toml) |
+| Sensor file | `data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone.{json,npz}` |
+| LES source | `data/les/kolmogorov_les_Re10000_N256_T50_standalone.npy`（N=256, T_end=50, **random IC**, α=1.8 hyperviscosity, T_end/T_L=**26.5 ✅ ergodic attractor**, KE_late=0.054, ENS_late=4.89, slope=−6.46）|
+| t_spinup | 20.0（用 t∈[20, 50]，30 turnovers 後 stationary stats）|
+| 訓練 wall-time | 2h 49m 39s（比 EXP-103 慢 ~40 min）|
+| **KE rel-err** | **53.69%**（train 54.03% / val 52.34%）— **比 EXP-103 還差 1.7pp，全部 placement 中第二差** |
+| u_L2 / v_L2 | 1.156 / 1.191 |
+| omega_L2 | 1.566 |
+| div_L2 | 0.257 |
+| ek_ratio_kf_last | 0.348（嚴重 under-shoot）|
+| kf_amp_ratio_last | 0.513 |
+| kf_phase_err_last | +1.818 rad |
+
+### [CRITICAL FINDING] Information content metrics **不 predict** training KE
+
+T=50 LES sensors 在所有 4 個 information metrics **全勝 DNS-pivot oracle**：
+
+| Placement | eff_rank | redundancy | POD recon | 8×8 cov | **KE rel-err** |
+|---|---|---|---|---|---|
+| **LES_N256 T=50 (EXP-105)** | **13.49** 🏆 | **0.326** 🏆 | **0.514** 🏆 | **61/64** 🏆 | **53.7%** ❌❌ |
+| DNS-pivot oracle (EXP-094) | 13.13 | 0.333 | 0.560 | 54/64 | **9.4%** ✅ |
+| LES_N128 (EXP-102) | 12.27 | 0.329 | 0.530 | 57/64 | 44.3% |
+| Random (EXP-101) | 11.95 | 0.316 | 0.562 | 48/64 | 37.2% |
+| LES_N256 T=5 (EXP-103) | 11.33 | 0.342 | 0.602 | 40/64 | 52.0% |
+
+**Information content rank 完全 anti-correlate with KE rank**。之前 EXP-094/101/102/103 看似的 information→KE correlation 是 **coincidence**，被 EXP-105 反駁。
+
+### [REVISED HYPOTHESIS] Placement-Data Distribution Alignment
+
+真正 governing variable 是 「**placement 演算法用的 feature distribution** 跟 **training data distribution** 的 alignment 程度」：
+
+| Placement | Feature 來源（QR-pivot input）| Sensor value 來源（training data）| Alignment |
+|---|---|---|---|
+| **DNS-pivot** | DNS T=0..5 features | DNS T=0..5 | **完美 (self-aligned)** |
+| LES_N256 T=5 (dns-init) | LES from DNS-IC T=0..5 | DNS T=0..5 | partial（IC inherited）|
+| LES_N128 (stand-alone, T=15) | LES random-IC T=0..15 | DNS T=0..5 | misaligned (different distribution) |
+| **LES_N256 T=50** | LES self-attractor T=20..50 | DNS T=0..5 | **完全 misaligned**（不同 distribution）|
+| Random | uniform spatial sample | DNS T=0..5 | distribution-neutral |
+
+**Note**：Random placement performs better than all LES variants because uniform sampling doesn't optimize for any particular distribution，所以不會 amplify mismatch。LES placement 反而「optimized for wrong target」。
+
+### Implication for paper narrative
+
+1. **Baseline EXP-094 KE 9.4% 不是 "placement quality reward"**，是 **placement-data alignment artifact**——QR-pivot on DNS features = QR-pivot on training data
+2. **真實工程現場無此 alignment**（LES proxy ≠ DNS training data）→ **all cross-source placement degrades 35-55%**
+3. **Information content metrics 是 misleading proxy**——LES_N256 T=50 在所有 4 個 metrics 全勝 DNS-pivot 但 training KE 反而最差
+4. **EXP-094 baseline 不可工程複製**：dns-derived placement + dns-derived sensor data 完美匹配是 paper 中報告的 9.4% 之來源
+
+### Paper-grade contribution（建議改寫方向）
+
+原 contribution claim「placement-aware sparse reconstruction works at K=100」**被本系列實驗 falsify** for **cross-source placement**。可升級的 contribution：
+
+1. **Diagnosis**: «cross-source placement fails universally (KE 35-55%) regardless of LES quality / selection algorithm; information-theoretic metrics do not predict transfer performance»
+2. **Mechanism**: «baseline reproducibility relies on placement-data self-alignment, not placement informativeness»
+3. **Future work**: «placement-invariant training (placement augmentation, distribution-matched dataset normalization) is required for true engineering pipeline»
+4. **降級**: K=100 baseline KE 9.4% **不應**在 paper claim 為「engineering-applicable」——需 explicit disclaimer 為「self-aligned upper bound」
+
+
+---
+
+## [CRITICAL] AXIS BUG DISCOVERY + v2 RETRAIN（2026-05-18）
+
+### Bug 摘要
+
+CFD code review subagent + empirical row/col verification 揭露：
+**`scripts/generate_sensors_qrpivot_from_les.py` line 124, 143-144 + `scripts/generate_sensors_random_from_dns.py` line 84-85** 在抽 sensor value 時用了 `u_full[:, y_idx, x_idx]` (swap axis convention)，但 DNS array convention 是 `u_full[t, axis_1=x, axis_2=y]`。
+
+結果：4 個 cross-source sensor file（random + LES_N128 + LES_N256_T5 + LES_N256_T50）的 NPZ value 跟 JSON coord **swap 位置**——model 訓練成 transposed Kolmogorov 場。
+
+### 受影響實驗 + KE 對比（buggy v1 vs fixed v2）
+
+| EXP | Strategy | v1 (buggy) KE | **v2 (fixed) KE** | Δ |
+|---|---|---|---|---|
+| EXP-094 | DNS-pivot oracle（**未受影響**）| **9.4%** | (same) | — |
+| EXP-101 | Random uniform | 37.2% | **13.25%** | -23.9pp |
+| EXP-102 | LES_N128 stand-alone (α=30 over-disp) | 44.3% | **12.40%** | -31.9pp |
+| EXP-103 | LES_N256 T=5 dns-init | 52.0% | **23.48%** | -28.5pp |
+| EXP-105 | LES_N256 T=50 stat-converged | 53.7% | **12.36%** | -41.3pp |
+| **EXP-106**（NEW）| LES_N256 T=30 dns-init | — | **13.08%** | — |
+
+### 為何 DNS-pivot baseline (EXP-094) 沒被汙染
+
+`sensors_qrpivot_K100_N256_t0-5_si100.json` 為 2026-04-06 pre-repo unversioned script 生成；那版 axis convention **一致正確** (JSON coord ↔ NPZ value 都用 axis_1=x, axis_2=y)。
+
+當前 repo 的 `scripts/generate_sensors_qrpivot.py` (2026-04-20 進 repo) 已 silently 改成 swap convention，但既有 baseline JSON 未被覆寫——所以 EXP-094 9.4% baseline **未受 bug 影響**。
+
+### Regression guard
+
+`tests/test_sensor_axis_convention.py`：對每個 sensor file assert `u_full[:, x_idx, y_idx] ≈ npz['u']`。fix 後 **5/5 PASS**。所有新 sensor generation script 必須通過此測試（per CLAUDE.md KNOWN_PITFALLS）。
+
+### 完整 v2 metrics
+
+| EXP | KE rel-err | u_L2 | v_L2 | ω_L2 | div_L2 | ek_ratio | kfA | kfϕ |
+|---|---|---|---|---|---|---|---|---|
+| EXP-094 (oracle, baseline)| 9.4% | ~0.35 | ~0.45 | ~1.5 | 0.067 | 0.91 | 0.94 | ~0 |
+| **EXP-105 v2 (T=50 stat-conv)** | **12.36%** | **0.193** | **0.251** | **0.526** | 0.068 | 0.889 | 0.935 | -0.011 |
+| **EXP-102 v2 (LES_N128 over-disp)** | **12.40%** | 0.206 | 0.262 | 0.539 | 0.066 | 0.927 | 0.958 | -0.011 |
+| EXP-106 (T=30 dns-init) | 13.08% | 0.213 | 0.264 | 0.541 | 0.067 | 0.874 | 0.900 | +0.006 |
+| EXP-101 v2 (random) | 13.25% | 0.211 | 0.274 | 0.542 | 0.071 | 0.908 | 0.943 | -0.006 |
+| EXP-103 v2 (T=5 dns-init) | 23.48% | 0.316 | 0.377 | 0.620 | 0.063 | 0.591 | 0.667 | -0.231 |
+
+**Note**: EXP-105/102/106/101 v2 在 `omega_L2 / u_L2 / v_L2` 全部**比 baseline 還好** — placement-quality 在 spectral structure 上甚至優於 DNS-pivot。
+
+### 結論：narrative full reset
+
+| 原 hypothesis（buggy results 推導）| 修正後 finding |
+|---|---|
+| 「Information content ≠ KE」（EXP-105 v1 best info / worst KE）| **Falsified** — 修完 bug 後 information content 大致 predict KE（T=50 best, T=5 worst）|
+| 「Placement-data distribution alignment 是真正 governing variable」| **Falsified** — bug fix 才是 governing；4/5 placements 修完都 ~12-13% KE |
+| 「LES proxy pipeline universally fails」| **Falsified** — LES + bug-free training 普遍 viable，~3pp gap to oracle |
+| 「Single-source placement quality 不可複製」| **Falsified** — 多種 LES + random 都 reproduce baseline-quality KE |
+| 真正 governing variable | **Sensor data axis convention 正確性** + 一定程度的 statistical convergence (T_end > 30 turnovers 即足夠) |
+
+### 新 paper-grade findings
+
+1. **LES proxy pipeline viable**：4 個 well-formed cross-source placements 達 KE 12-13% (baseline 9.4%, gap ~3pp)
+2. **Statistical convergence > spectrum-shape alignment**：LES_N128 over-dissipated (slope −14) + spin-up 充足 → KE 12.40%；LES_N256 T=5 dns-init (slope −4.63 接近 DNS) 但 short window → KE 23.48%
+3. **T=30 ≈ T=50**：30 turnovers 已足以 statistical convergence；T=50 不必要
+4. **Random ≈ well-formed LES**：K=100 sparse regime 下 placement 演算法影響 limited，bug-free training pipeline 是主要 contributor
+5. **唯一 outlier 是 T=5 dns-init**：短窗 IC inheritance + chaos sample variance → placement sub-optimal
+6. **omega/u/v L2 EXP-102/105/106 比 baseline 還好**：cross-source LES placement 在 spectral structure 重建上 **可能優於 DNS-pivot oracle**（baseline 略 over-fits 到 training sensor positions）
+

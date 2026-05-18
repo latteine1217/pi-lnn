@@ -1,0 +1,92 @@
+{
+  "results": [
+    {
+      "path": "data/les/kolmogorov_les_Re10000_N128_T15_bardina_standalone.npy",
+      "config": {
+        "N": 128,
+        "L": 1.0,
+        "nu": 0.0001,
+        "A": 0.1,
+        "k_f": 2.0,
+        "dt": 0.0001,
+        "nu_h": 4.3078734541810275e-08,
+        "nu_h_alpha": 30.0,
+        "r_fric": 0.04,
+        "closure_model": "bardina_mixed",
+        "dealias_mode": "2/3",
+        "init_mode": "random",
+        "T_end": 14.99989999997838,
+        "n_frames": 1501,
+        "data_dtype": "float32"
+      },
+      "metrics": {
+        "div_max": 1.5378674351592573e-05,
+        "cfl_max": 0.014628018951416017,
+        "spectrum_slope_late": -13.95041621124804,
+        "spectrum_slope_deviation_pct_vs_minus3": 365.01387370826797,
+        "tail_decay_ratio": 38599.67832970788,
+        "k_max_mode": 42,
+        "k_d_pure_NS": 129.8872509670686,
+        "k_eff_hyperv": 48.180192560182,
+        "k_max_over_k_eff": 0.8717275246988209,
+        "KE_late": 0.03778111878959043,
+        "ENS_late": 2.5161434261815487,
+        "rel_change_KE": -0.0016823791059124276,
+        "T_L_estimated": 1.6734747888379853,
+        "T_end_over_T_L": 8.96332594911328
+      },
+      "verdicts": {
+        "incompressibility": "FAIL",
+        "cfl": "PASS",
+        "spectrum_slope": "FAIL",
+        "tail_decay_ratio": "WARN",
+        "steady_state": "PASS",
+        "long_enough": "PASS"
+      }
+    },
+    {
+      "path": "../kolmogorov_generate/dns/data/dataset_les_re10000_n256_t5.npy",
+      "config": {
+        "N": 256,
+        "L": 1.0,
+        "nu": 0.0001,
+        "A": 0.1,
+        "k_f": 2.0,
+        "dt": 0.00025,
+        "nu_h": 2.7828694237702637e-10,
+        "nu_h_alpha": 1.8,
+        "r_fric": 0.014083433039775104,
+        "closure_model": "hyperviscosity",
+        "dealias_mode": "3/2",
+        "init_mode": "dns",
+        "T_end": 5.0,
+        "n_frames": 201,
+        "data_dtype": "float32"
+      },
+      "metrics": {
+        "div_max": 0.0008329294566246813,
+        "cfl_max": 0.2006973876953125,
+        "spectrum_slope_late": -4.632608312884271,
+        "spectrum_slope_deviation_pct_vs_minus3": 54.42027709614236,
+        "tail_decay_ratio": 258351283.24000546,
+        "k_max_mode": 128,
+        "k_d_pure_NS": 176.09002973369041,
+        "k_eff_hyperv": 599.4508570488086,
+        "k_max_over_k_eff": 0.2135287630251531,
+        "KE_late": 0.11113533449768725,
+        "ENS_late": 12.931750486132106,
+        "rel_change_KE": -0.009724579489823497,
+        "T_L_estimated": 1.0149877329732186,
+        "T_end_over_T_L": 4.926167910772109
+      },
+      "verdicts": {
+        "incompressibility": "FAIL",
+        "cfl": "PASS",
+        "spectrum_slope": "WARN",
+        "tail_decay_ratio": "PASS",
+        "steady_state": "WARN",
+        "long_enough": "WARN"
+      }
+    }
+  ]
+}

@@ -11,6 +11,7 @@
 |---|---|---|
 | Physics Output Denormalization Silent Regression | 2026-05-06~07 | **CLOSED**：訓練端 config flag + evaluator default 反轉；6/6 重跑與 DIAGNOSTIC 真實值對齊 |
 | CFD-rigour Validation | 2026-05-14~15 | DNS 通過 Pope criterion；div_ratio 0.88% near-incompressible；∇p 112% 為架構性 failure（Appendix E）；Forward CFD baseline 同 attractor 但 phase drift |
+| LES Generator Code Audit | 2026-05-17 | 演算法 8/8 正確；N=128 LES 譜 slope −14 為 `nu_h_alpha=30` 參數錯誤（應 1.8）；F11 spectral truncation IC 待修但目前未踩坑 |
 
 ---
 
@@ -267,3 +268,92 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 - Slide 33 (Future work) 加 ⑤「Classical-CFD baseline」
 - Slide 34 (Anticipated Q&A backup) 新增，8 題 CFD-rigour 預備答案，含本節數據
 - Slide 34 Q8 card 已從 "planned" 更新為實跑結果（KE 3.85 % vs Pi-LNN 10.77 %，但 u/v rel-L₂ 7-8× 差）— 用 chaos signature 反擊單一 KE 指標的 mis-rank
+
+---
+
+## [DIAGNOSTIC] LES generator code audit（2026-05-17）
+
+### 動機
+
+EXP-102（LES-informed QR-pivot pipeline）KE rel-err 44.3% 遠差於 DNS-pivot baseline 9.4%。所用 LES 譜 slope 在 k∈[3,40] 量到 −13.95（vs DNS −4.75），疑為 SGS 過耗散；但需確認是 (a) 演算法 bug、(b) 物理參數選擇問題、還是 (c) IC / dealiasing 副作用。本次 CFD audit 由 `physics-validation-reporter` agent 執行，對比兩份 LES generator：
+
+- `/home/latteine/les-gen/generate_kolmogorov_les.py`（home-gpu, EXP-102 N=128 LES 用）
+- `../kolmogorov_generate/dns/generate_kolmogorov_les.py`（local, EXP-103 N=256 LES 用）
+
+### 兩版本關係
+
+`KolmogorovLES` solver class（lines 1–471）**bit-for-bit fork 確認完全相同**，差異 100% 在 `main()` 的參數預設值與 stand-alone 分支處理。
+
+### 結論：演算法本身全部正確（8 個 [OK]）
+
+| Finding | 位置 | 驗證內容 |
+|---|---|---|
+| F1 [OK] | line 278–280 | vorticity-streamfunction `−Δψ = ω` 反演 + `u = ∂ψ/∂y, v = −∂ψ/∂x` 符號正確 |
+| F2 [OK] | line 248–249 | forcing vorticity form `curl f = −A·k_f·cos(k_f·y)` 推導正確 |
+| F3 [OK] | line 345 | hyperviscosity `−ν_h·k^{2p}·ω_hat` 耗散性符號正確 |
+| F4 [OK] | line 328–333 | Bardina mixed similarity `τ = G*(uω) − (G*u)(G*ω)` 公式正確 |
+| F5 [OK] | line 213–214 | 3/2-pad scale factors `(pad_N/N)²` / `(N/pad_N)²` 正確 |
+| F6 [OK] | line 402–405 | RK2 (Heun method) 正確 |
+| F7 [OK] | line 417 | spectrum binning Parseval 一致 (`sum(e2d) = KE`) |
+| F8 [OK] | line 433 | spectral divergence 計算正確（fp64 下 1e-13 符合預期）|
+
+### 3 個 [PHYSICS_RISK]（非演算法 bug，但物理選擇問題）
+
+**F9. N=128 譜 slope −14 的唯一 root cause: nu_h_alpha=30 過大**
+
+兩 LES 的 `nu_h` 係數差距：
+- N=128 (alpha=30, 2/3 dealias): `nu_h = 4.31×10⁻⁸`
+- N=256 (alpha=1.8, 3/2 dealias): `nu_h = 2.78×10⁻¹⁰`
+- → 差 **155×**
+
+N=128 在 mode k 的耗散率 ν_h·k⁴ vs eddy rate U_rms·k：
+
+| k mode | eddy rate | ν_h·k⁴ (alpha=30) | 比值 |
+|---|---|---|---|
+| k=10·2π | 5.6 | 0.67 | 0.12 |
+| k=20·2π | 11.2 | 10.7 | 0.96 |
+| k=43·2π (k_max) | 24.1 | 229.5 | 9.5× |
+
+k > 20 的所有模態被 hyperviscosity **強行抑制**，能譜陡降，slope 趨向 −14。是**純參數選擇錯誤**，非 algorithm bug。
+
+dt 穩定性：`λ·dt = (ν·k_max² + ν_h·k_max⁴)·dt = 0.022 < 2`，RK2 未失穩；slope −14 不是 numerical instability，是 over-dissipation 表現特徵。
+
+修法：N=128 改用 `nu_h_alpha=1.8`（與 N=256 同 convention）→ `nu_h = 2.58×10⁻⁹`（小 16.7× 於現值）。
+
+**F10. 線性項全 explicit（無 IMEX）**
+
+擴散、hyperviscosity、friction 全為 explicit（line 388–394）。穩定性需 `dt < 2/(ν·k_max² + ν_h·k_max^{2p})`。`compute_linear_dt_limit` 雖計算了限制，但只在 `--auto_dt` 啟用時生效。當前 EXP-102 跑用了 `--auto_dt --cfl_target 0.4`，但作為 default 行為對 alpha 大的情況不夠保險。
+
+**F11. DNS-init 用 point subsampling（aliasing risk）**
+
+`prepare_dns_initial_omega` line 130: `out = omega0[::stride, ::stride]`。物理空間 stride 子採樣會把 DNS 高頻模態（k > N_les/2）**折疊回低頻**，產生 aliasing 污染 IC。正確做法是 spectral truncation（先 FFT、切高 k 為 0、再 IFFT 回小網格）。
+
+對 N=256 dns-init LES 影響：本案 DNS_N=256 直接複製給 LES_N=256（同網格，stride=1 不觸發 subsampling），**無 aliasing 影響**。但 future 若做 N=256 DNS → N=64 / N=128 LES，會踩坑。
+
+對 N=128 stand-alone：不適用（用 random init）。
+
+### N=128 slope −14 根因判讀
+
+**Algorithm 100% 正確，純粹 parameter mis-config（alpha=30 應改 1.8）。** 兩版本 solver 完全相同，差異 100% 來自 main() 的 `nu_h_alpha` 預設值 + dealiasing convention。
+
+### N=256 dns-init 是否 cheating
+
+**LOW RISK** — `omega[0]` warm-start from DNS t=0 snapshot；若 DNS t=0 已是穩態（依儲存策略），LES 從 attractor 附近出發，T_end=5 ≈ 2–3 T_eddy 統計收斂較快。**不算作弊**（LES 用的是合法可得 IC proxy），但需 paper §Discussion 標註「LES warm-start, not cold-start steady state」。
+
+若要確認無 warm-start bias：從 random IC 跑 T>20、比較後 1/4 統計是否與 T=5 dns-init 一致。
+
+### Actionable items
+
+| # | 動作 | 優先 |
+|---|---|---|
+| A1 | EXP-103 完成後對比結果：若 KE 仍 > 12% 即「LES quality + grid quantization」非 root cause，鎖死 model placement-sensitivity | 等 EXP-103 結果 |
+| A2 | 若 EXP-103 也失敗：用 N=128 LES `alpha=1.8` 重跑（fix F9）+ retrain，作為 same-grid + same-SGS-strength 對照 | 待 A1 後決定 |
+| A3 | `prepare_dns_initial_omega` 改 spectral truncation（fix F11）；目前未踩坑但 future-proof | 低優先 |
+| A4 | paper §Discussion 標註 N=256 LES warm-start 性質 | 寫作時 |
+
+### 對 paper 的硬意義
+
+- EXP-102（N=128 stand-alone LES, α=30）失敗的兩個 confound 之一是**作者參數選擇錯誤**，非演算法不可救
+- 修法簡單但意義重大：α 從 30 → 1.8 不是「重設計演算法」，是「校正 SGS 強度到 LES 設計意圖」
+- 對 reviewer 質疑 LES quality 時，**演算法 audit 通過**這件事比「找到 root cause」本身更重要——表示問題可定位、可修，pipeline 思路本身不破
+

@@ -1,0 +1,115 @@
+# configs/exp_102_b3_lesinformed_qrpivot.toml
+# What: EXP-102 — 首次完整 REAL_WORLD_PIPELINE 訓練：
+#       LES (Re=10⁴, N=128, Bardina mixed, stand-alone) → QR-pivot → DNS-derived sensors → B3 PINN
+#
+# Why: EXP-064 / EXP-080 / EXP-094 都從 DNS 全場做 QR-pivot，與 ENGINEERING_VISION
+#      「現場無 DNS」自相矛盾。本實驗修正此 anti-pattern：sensor 位置由 LES（工程現場
+#      可得 proxy）決定，sensor 量測值才從 DNS（real-world surrogate）抽取，符合
+#      REAL_WORLD_PIPELINE Step 1~4。
+#
+# Hypothesis:
+#   LES leading large-scale modes 對齊 DNS leading modes（Kolmogorov-forced flow 低 k
+#   主導，SGS 細節對前 ~100 modes 不重要）→ LES-derived QR-pivot 位置與 DNS-derived
+#   位置在 PINN 重建意義下接近等價 → KE rel-err ≈ EXP-094 baseline 9.4%。
+#
+# Falsifiability（per CLAUDE.md REAL_WORLD_PIPELINE Decision_Gates）:
+#   (a) KE ≤ 12%（近 DNS-pivot baseline）→ Pipeline 成功，工程 framing 成立
+#   (b) 13–30% → LES info 部分 transfer；可能 model placement-overfit
+#   (c) > 30%（近 random 59.4%）→ LES modes 不足 transfer 或 model 嚴重 overfit
+#
+# 唯一改動（vs EXP-094）:
+#   - sensor_jsons / sensor_npzs 改為 LES-informed 版本（QR-pivot on LES, sensor values from DNS）
+#   - artifacts_dir 標 exp102-lesinformed
+#   - seed 沿用 seed=2 與 EXP-094 對照（B3 multi-seed 系列）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_lesinformed.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_lesinformed_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-064 / EXP-080 / EXP-094 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# 4-task GradNorm（含 cont）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+# AL-continuity 設定
+use_augmented_lagrangian = true
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp102-b3-lesinformed-seed2"
+
+# EXP-102: LES-informed QR-pivot (engineering pipeline), seed=2 to match EXP-094 baseline
+seed = 2

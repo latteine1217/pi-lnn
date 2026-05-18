@@ -157,8 +157,9 @@ K=100 已達資訊論硬上限：Wavelet 分析顯示 mid (k~8..16) 需 ~588 自
 | 高頻重建可行路徑 | CS 理論：K=100/200 均遠低於 ~5000 門檻 | **CLOSED**：高頻不可達為數學必然 |
 | EXP-070 KE=84% 是否 AL 設計失敗 | **重訪（2026-05-07）**：evaluator double-scale 假象；真實 KE=6.30% 優於 baseline；div_l2 退步 3.7× trade-off 真實但非「失敗」 | **REOPENED**（2026-05-07）— ADR-001 §7.2 結論待重評；詳見 [`docs/diagnostics_log.md`](diagnostics_log.md) |
 | `physics_output_denormalization` silent regression | 訓練端升格 config flag；evaluator default 反轉 + opt-in flag | **CLOSED**（2026-05-07）— Step 2 修補 + Round 7 evaluator 雙向驗證 |
-| EXP-101 random sensor placement vs QR-pivot | 訓練中斷在 step 4500/10000，無 running process | 待重啟（需 1-shot 跑完）|
+| EXP-101 random sensor placement vs QR-pivot | **完成（2026-05-17, 1-shot 10k 步 2 h 26 m）**：KE **37.20 %**（vs EXP-080 10.68 %，+26.5 pp 3.5×）、u/v rel-L² **122/130 %**（error > reference, phase decorrelated）、kf phase ≈ −π（forcing mode 反相）、ek_ratio 0.39。Random sensor 在 sensor MSE 收斂、AL dual variable、continuity residual 三個獨立信號全劣於 QR-pivot；sensor placement 為架構之外 critical engineering lever。詳見 [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md) EXP-101 RECORD。 | **CLOSED**（2026-05-17）— Manohar 2018 QR-pivot 優越性在 K=100 / Re=10⁴ / PINN 設定下 5-6× pointwise 數值再驗證 |
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour pending task）|
+| EXP-102 LES-informed QR-pivot pipeline | KE 44.3% — placement spectral coverage 與 DNS-pivot 等價（fourier pseudo-inverse k=1..30 acc 幾乎相同），失敗根因疑為 model 對 sensor measurement distribution overfit | 待 sanity training（EXP-103 DNS-downsampled-pivot N=128 對照）|
 
 ---
 
@@ -198,6 +199,14 @@ K=100 已達資訊論硬上限：Wavelet 分析顯示 mid (k~8..16) 需 ~588 自
 | Multi-seed reproducibility | EXP-093~100 | n=5 per arch；B3 vs B0 KE +7.75pp Cohen d=13 | [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) G_seed |
 | Inference benchmark | EXP-094 sub | encoder 71 ms + query 1.5 ms（B3 seed=2）| [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) G_bench |
 | EXP-101 (pending) | random sensor vs QR-pivot | 訓練中斷 step 4500/10000 | [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) PENDING |
+| **EXP-102** | LES-informed QR-pivot pipeline（N=128, stand-alone）| KE **44.3%** — 不過 sanity check 顯示問題非 placement informativeness（4 組 placement spectral coverage 等價）| [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) G_pipeline |
+| **EXP-103** | LES-informed QR-pivot pipeline（N=256, dns-init，confound-removed retry）| KE **52.0%** — **反而比 EXP-102 退步 8pp**；information-content 分析揭露 LES_N256 effective rank 最低、redundancy 最高，falsify「LES quality 是 bottleneck」假設 | [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) G_pipeline |
+| **EXP-105** | T=50 statistically-converged LES + QR-pivot（v1 buggy 53.7%）| **v2 fixed KE 12.36%** — 修完 axis-swap bug 後接近 baseline | [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) G_pipeline |
+| **EXP-101 v2** | Random uniform placement | v1 37.2% → **v2 13.25%** | 同上 |
+| **EXP-102 v2** | LES_N128 stand-alone (α=30) | v1 44.3% → **v2 12.40%** | 同上 |
+| **EXP-103 v2** | LES_N256 T=5 dns-init (short) | v1 52.0% → **v2 23.48%** (短窗 outlier) | 同上 |
+| **EXP-106** | LES_N256 T=30 dns-init (NEW) | **v1=13.08%** | 同上 |
+| **AXIS BUG** | sensors_qrpivot_from_les / sensors_random_from_dns 使用 swap row/col convention | **修完後 KE 平均改善 ~32pp**；5/5 unit test PASS guard 已加 | [`post_k100 archive`](experiment_archive_kolmogorov_post_k100.md) `[CRITICAL] AXIS BUG DISCOVERY` |
 
 ### 歷史群組（archive 內含完整 RECORD）
 

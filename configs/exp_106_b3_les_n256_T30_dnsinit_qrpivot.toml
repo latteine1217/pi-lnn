@@ -1,0 +1,117 @@
+# configs/exp_106_b3_les_n256_T30_dnsinit_qrpivot.toml
+# What: EXP-106 — REAL_WORLD_PIPELINE 第二跑：sensor 由 N=256 高品質 LES 決定。
+#
+# Why: EXP-102（N=128 LES, stand-alone, Bardina mixed, 過耗散）KE 44.3% 失敗，留下兩個 confound:
+#      (1) LES 譜過耗散（KE late / DNS = 30%、ENS = 18%）
+#      (2) Grid quantization（LES_N=128 投到 DNS_N=256 強制偶-偶 grid，候選池 25%）
+#      改用 ../kolmogorov_generate/dns/data/dataset_les_re10000_n256_t5.npy（N=256，
+#      init_mode='dns'，KE/ENS ratio 至 t=5 達 0.89/0.91 vs DNS）消除兩個 confound:
+#      - (1) N=256 LES 統計與 DNS 接近（差 10% 以內）
+#      - (2) LES_N=256 = DNS_N=256 ⇒ no grid quantization
+#
+# Hypothesis:
+#   若 N=256 LES-informed sensors + retrain 仍 KE > 12% → 失敗根因不在 LES quality / grid，
+#   而在「same feature matrix family but 不同採樣源」造成的 placement-distribution sensitivity
+#   （亦即既有 EXP-094 baseline 9.4% 可能就是 placement-specific 的 single-seed luck）。
+#
+# Falsifiability (per CLAUDE.md REAL_WORLD_PIPELINE Decision_Gates):
+#   (a) KE ≤ 12%（近 baseline 9.4%）→ Pipeline 工程可行，EXP-102 失敗純粹是 N=128 LES 的兩個 confound
+#   (b) 13–30% → LES quality 改善有效但未完全；可能 placement-distribution sensitivity 仍佔一部分
+#   (c) > 30% → LES quality 不是 root cause；確認 model placement-sensitivity 為主因
+#
+# 唯一改動（vs EXP-102）:
+#   - sensor_jsons / sensor_npzs 改為 LES_N256-informed
+#   - artifacts_dir 標 exp103-lesinformed-n256
+#   - 其餘 recipe 完全不變（B3, seed=2, 10k steps, EXP-094 hyperparam）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T30dnsinit.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T30dnsinit_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-064 / EXP-080 / EXP-094 / EXP-102 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# 4-task GradNorm（含 cont）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+# AL-continuity
+use_augmented_lagrangian = true
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp106-b3-les-n256-T30-dnsinit-seed2"
+
+# EXP-106: N=256 LES-informed QR-pivot (proper engineering pipeline), seed=2 to match
+seed = 2
