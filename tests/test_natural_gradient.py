@@ -16,7 +16,7 @@ import torch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pi_lnn.optimizers import (  # noqa: E402
+from pi_con.optimizers import (  # noqa: E402
     NaturalGradientOptimizer,
     compute_residual_jacobian,
     solve_ng_step,
@@ -222,7 +222,7 @@ def test_line_search_with_autograd_dependent_closure() -> None:
          torch.autograd.grad（create_graph=True）算 NS / continuity 殘差。
          若 line search 將 closure 包在 torch.no_grad() 裡：
            - uvp_fn(xyt) 沒 grad_fn
-           - _grad(u, xyt) 早返回 zeros（pi_lnn/runtime.py:47）
+           - _grad(u, xyt) 早返回 zeros（pi_con/runtime.py:47）
            - NS / cont 殘差 silently 變 0 → loss_try 只剩 data 部分
            - line_try < line_val 永遠成立 → 第 1 個 trial 永遠接受
                  → backtracking 退化為固定步

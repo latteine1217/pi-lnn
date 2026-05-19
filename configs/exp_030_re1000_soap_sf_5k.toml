@@ -59,5 +59,5 @@ max_grad_norm = 1.0
 checkpoint_period = 100
 seed = 42
 device = "mps"
-resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-3000/checkpoints/lnn_kolmogorov_step_3000.pt"
+resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-3000/checkpoints/picon_kolmogorov_step_3000.pt"
 artifacts_dir = "artifacts/deeponet-cfc-re1000-soap-sf-5000"

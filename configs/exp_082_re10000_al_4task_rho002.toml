@@ -112,4 +112,4 @@ use_sensor_physics = false
 
 artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp082-al-4task-rho002"
 # Resume：之前訓練到 step 4500 被中斷，從最新 ckpt 接續 (剩 5500 步)
-resume_checkpoint = "artifacts/kolmogorov/deeponet-cfc-re10000-exp082-al-4task-rho002/checkpoints/lnn_kolmogorov_step_4500.pt"
+resume_checkpoint = "artifacts/kolmogorov/deeponet-cfc-re10000-exp082-al-4task-rho002/checkpoints/picon_kolmogorov_step_4500.pt"

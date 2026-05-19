@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import torch
 
-from pi_lnn.physics import pressure_poisson_residual, unsteady_ns_residuals
+from pi_con.physics import pressure_poisson_residual, unsteady_ns_residuals
 
 
 def _linear_uvp_fn(slope_u_x: float = 1.0, slope_v_y: float = 0.0):

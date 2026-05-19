@@ -83,7 +83,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 - Time: `2026-04-24` 設計，`2026-04-25` 完成訓練與評估
 - Topic: Re=10000, 冷啟動 10000 步，**EXP-063 + 感測器位置 continuity physics 點**
 - Config: `configs/exp_064_re10000_xlarge_sensor_physics.toml`
-- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp064-sensor-physics/checkpoints/lnn_kolmogorov_step_10000.pt`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp064-sensor-physics/checkpoints/picon_kolmogorov_step_10000.pt`
 - Compare vs EXP-063（唯一改動）：
   - `use_sensor_physics = true`（EXP-063: false）
   - `num_sensor_physics_time_samples = 1`（每步 K=100 感測器 × 1 時間步 = 100 額外 continuity 點）
@@ -139,7 +139,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 - Topic: Re=10000, 冷啟動 10000 步，**EXP-064 recipe + K=200 sensor set**
 - Config: `configs/exp_066_re10000_xlarge_k200.toml`
 - Artifact: `artifacts/deeponet-cfc-re10000-exp066-k200`
-- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp066-k200/checkpoints/lnn_kolmogorov_step_10000.pt`
+- Evaluated Checkpoint: `artifacts/deeponet-cfc-re10000-exp066-k200/checkpoints/picon_kolmogorov_step_10000.pt`
 
 - Compare vs EXP-064（唯一改動）：
   - `sensor_jsons/npzs` → K=200 QR-pivot（`sensors_qrpivot_K200_N256_t0-5_si100`）
@@ -430,7 +430,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 ## [GROUP G_arch] Architectural ablation（B0/B1/B2 + Standard PINN baselines, EXP-088~092）
 
 - **EXP-088**（B0 architectural ablation, vanilla DeepONet, 2026-05-11, 10k 步, 1-shot）：
-  - 改動：完全替換 model — MLP branch (sensor at t_q, no CfC) + MLP trunk + inner-product readout，無 cross-attention。新 module `src/pi_lnn/vanilla_deeponet.py`。Params 1.28M (vs full 3.14M, 41%)。
+  - 改動：完全替換 model — MLP branch (sensor at t_q, no CfC) + MLP trunk + inner-product readout，無 cross-attention。新 module `src/pi_con/vanilla_deeponet.py`。Params 1.28M (vs full 3.14M, 41%)。
   - 結果：KE **18.17%** (+7.49pp), u rel-L2 **25.14%** (+8.14pp), v rel-L2 **30.90%** (+10.70pp), ω rel-L2 **57.89%** (+10.29pp), ek_ratio 0.883 (-3.1%), div 0.065 (持平)。
   - **架構 component 貢獻**：CfC + token attention + cross-attention 整體提供 ~7-11pp pointwise improvement vs vanilla baseline。
   - **新 insight**: Vanilla DeepONet (B0) 在 pointwise 上仍比所有 classical baselines (RBF, IDW, trig LSQ) **好 ~8pp** — DeepONet inner-product structure 已比 linear basis 強。但在 KE 上 vanilla 比 RBF Multiquadric **差 14pp** (vanilla 18% vs RBF 4%) — 全 DeepONet 設計都 share「KE-not-as-low-as-over-smoothing」這個性質。
@@ -448,7 +448,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
   - **B1 div anomaly (0.090 worst)**: 沒 query-conditional attention, 無法 enforce continuity at query points
 
 - **EXP-091 Standard PINN baseline** (B-reference, 2026-05-11, 10k 步, 1-shot)：
-  - 改動：新 module `src/pi_lnn/standard_pinn.py` — Wang 2021 style single-instance PINN (`(x,y,t) → MLP 6×512 → (u,v,p)`)，無 operator framework, sensor 只 enter L_data loss。Params 3.24M (matched to EXP-080 3.14M within 3%).
+  - 改動：新 module `src/pi_con/standard_pinn.py` — Wang 2021 style single-instance PINN (`(x,y,t) → MLP 6×512 → (u,v,p)`)，無 operator framework, sensor 只 enter L_data loss。Params 3.24M (matched to EXP-080 3.14M within 3%).
   - 結果：KE **31.35%** (+20.67pp), u rel-L2 **32.33%** (+15.33pp), v rel-L2 **44.72%** (+24.52pp), ω rel-L2 **67.53%** (+19.93pp), ek_ratio 0.715, div L2 **0.023** (better, AL over-enforced).
   - **Critical finding**: PINN **比 B0 Vanilla DeepONet (1.28M params, u_L2 25.14%) 更差**, despite 2.5× more params. DeepONet structure (sensor→branch input) 比 raw MLP capacity 更 essential.
   - **Training pathology**: L_data plateau at 0.124 from step 6000; λ saturated near 4.2 (clip=10); w_cont exploded 30× to 4.82. GradNorm + AL 過度 enforce cont 在 sensor-不可見 model 上失衡.
@@ -543,7 +543,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 - Config: [`configs/exp_101_b3_random_seed42.toml`](../configs/exp_101_b3_random_seed42.toml)
 - Sensor: `data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed42.{json,npz}`（placement_seed=42 從 N²=65536 grid uniform random 選 K=100；同一 DNS 場提取 (u, v) 時序）
 - Artifact: `artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42/`
-- Evaluated Checkpoint: `checkpoints/lnn_kolmogorov_step_10000.pt`
+- Evaluated Checkpoint: `checkpoints/picon_kolmogorov_step_10000.pt`
 
 - Compare vs EXP-080（唯一改動）：
   - `sensor_jsons` / `sensor_npzs` → uniform random K=100 seed=42（EXP-080: QR-pivot K=100）

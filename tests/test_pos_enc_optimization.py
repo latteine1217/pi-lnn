@@ -17,7 +17,7 @@ TDD for sensor_pos encoding pre-computation optimization.
 
 import torch
 import pytest
-from src.lnn_kolmogorov import (
+from src.picon_kolmogorov import (
     SpatialSetEncoder,
     LiquidOperator,
     periodic_fourier_encode,

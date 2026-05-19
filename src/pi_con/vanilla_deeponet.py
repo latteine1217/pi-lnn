@@ -35,8 +35,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pi_lnn.blocks import ResidualMLPBlock
-from pi_lnn.encodings import (
+from pi_con.blocks import ResidualMLPBlock
+from pi_con.encodings import (
     FourierEmbs,
     LearnableFourierEmb,
     periodic_fourier_encode,

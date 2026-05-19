@@ -53,12 +53,12 @@
 
 - **目的**：驗證 Approximate Inertial Manifold（zeroth-order）後處理能否從低頻重建結果恢復高頻分量。
 - **方法**：公式 `û_k = P(N̂_k(û_{≤8})) / (νk²)`（Leray 投影），k_max_low=8，Re=10000
-- **資料**：EXP-064 lnn_kolmogorov_step_10000.pt，10 frame，t=0..5
+- **資料**：EXP-064 picon_kolmogorov_step_10000.pt，10 frame，t=0..5
 - **輸出圖**：`artifacts/aim_diagnostic/aim_diagnostic_klow8.png`
 
 **診斷結果（k_max_low=8）：**
 
-| Band | Pi-LNN 原始 | AIM 修正後 | 改善 |
+| Band | PI-CON 原始 | AIM 修正後 | 改善 |
 |------|------------|-----------|------|
 | low（k≤8） | 6.4% | 6.4% | +0.0pp |
 | mid（k~8..16） | 50.7% | 2985.9% | **-2935pp（嚴重惡化）** |
@@ -82,7 +82,7 @@
 ### 摘要
 
 `d62e698 feat(cylinder+physics): mainline overhaul` 為 cylinder 加入的
-`physics_output_denormalization` 在 [`src/pi_lnn/training.py:178`](src/pi_lnn/training.py#L178)
+`physics_output_denormalization` 在 [`src/pi_con/training.py:178`](src/pi_con/training.py#L178)
 **沒有 opt-out flag**，只要 `observed_sensor_channels=("u","v") and num_re==1`
 就自動觸發。**Kolmogorov 主線完全滿足這個條件**，導致 EXP-070 之後所有
 Re=10000 主線實驗都跑在「denorm 啟用」路徑下，物理 NS residual 量級被改變。
@@ -127,15 +127,15 @@ denorm 把 `u_norm` 反算成 `u_phys = u_norm × 0.44 - 0.04`，套進 NS：
 
 |  | 跑時 codebase | denorm path | baseline 是否被影響 |
 |---|---|---|---|
-| EXP-001 ~ EXP-064（2026-04-25 前） | monolith `lnn_kolmogorov.py`，無 buffer | OFF（路徑不存在） | 否 |
+| EXP-001 ~ EXP-064（2026-04-25 前） | monolith `picon_kolmogorov.py`，無 buffer | OFF（路徑不存在） | 否 |
 | EXP-065 / EXP-066（2026-04-25, 04-26） | monolith | OFF | 否 |
-| EXP-067 / EXP-068 / EXP-069（2026-04-29） | pi_lnn 重構後 + vectorize | OFF（buffer 還沒加） | 否 |
+| EXP-067 / EXP-068 / EXP-069（2026-04-29） | pi_con 重構後 + vectorize | OFF（buffer 還沒加） | 否 |
 | **EXP-070 / 070b / 072 / 073 / 074**（2026-05-04~06，worktree `claude/vigilant-easley-516efb`） | d62e698 後 | **ON**（自動注入） | **是** |
 | **EXP-070+ 的 ADR-001 §7.2 結論** | — | — | **基於 denorm 路徑下的 baseline 對照** |
 
 ### 已修補（diagnostic toggle）
 
-- [`src/pi_lnn/training.py`](src/pi_lnn/training.py)：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數
+- [`src/pi_con/training.py`](src/pi_con/training.py)：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數
   toggle，預設不變（denorm 仍 ON），設此 env var 才跳過 `set_physics_normalization()`，
   buffer 留在 (mean=0, std=1) ≡ identity，等價於 EXP-064 路徑。
 - [`SOAP/soap.py`](SOAP/soap.py)：修 `_linalg_eigh_mps` 的 dtype/device 順序 bug

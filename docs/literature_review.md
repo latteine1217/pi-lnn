@@ -2,7 +2,7 @@
 
 > **Date**: 2026-05-06
 > **Scope**: ICLR / NeurIPS / ICML / JFM / Science / Nature MI / Phys. Rev. Fluids / arXiv (2020–2026)。排除 MDPI 期刊。
-> **Target**: 對照 Pi-LNN（DeepONet + CfC + sparse sensors at K=100 over 2D Kolmogorov flow）找出立基點、創新點、瓶頸的文獻支援與反證。
+> **Target**: 對照 PI-CON（DeepONet + CfC + sparse sensors at K=100 over 2D Kolmogorov flow）找出立基點、創新點、瓶頸的文獻支援與反證。
 > **Method**: WebSearch keyword sweep（4 大方向 × 多輪查詢），輔以 abstract / methods 段精讀。
 
 ---
@@ -28,7 +28,7 @@
 
 | Regime | 定義 | 工程可遷移性 | 代表方法 |
 |---|---|---|---|
-| **A. Sensor-only + Physics** | 僅以 sensor MSE + PDE residual 訓練；無 full-field 真值 | ✅ 完全可遷移 | **Pi-LNN (本研究)**, Mons et al. PRF 2025, Wang Sifan Causal PINN |
+| **A. Sensor-only + Physics** | 僅以 sensor MSE + PDE residual 訓練；無 full-field 真值 | ✅ 完全可遷移 | **PI-CON (本研究)**, Mons et al. PRF 2025, Wang Sifan Causal PINN |
 | **B. DNS-supervised + Physics** | 訓練時讀取 full-field DNS 作為 perceptual / spectral / VAE supervision；推論時可只用 sensor | ❌ 工程不可遷移 | FLRNet (perceptual VAE), CoNFiLD (latent diffusion) |
 | **C. DNS pretrained operator** | 預訓練於 DNS pairs（input field → output field），fine-tune 或 zero-shot 用 sensor 推論 | △ 部份可遷移 | FLRONet, Energy Transformer, Senseiver |
 | **D. Adjoint / Variational DA** | 4D-Var weak/strong constraint；不需 NN training pair | ✅ 完全可遷移（但每個 case 都要重跑優化） | He et al. JFM 2024 (turbulent jet), Mons et al. (RANS-DA) |
@@ -226,7 +226,7 @@
 
 ---
 
-## [SECTION 3] Pi-LNN 立基點 / 創新點總結
+## [SECTION 3] PI-CON 立基點 / 創新點總結
 
 ### 3.1 立基點（已驗證可行）
 
@@ -337,7 +337,7 @@
 
 依據文獻定位，我們的 paper 應該投這個 framing：
 
-> **"Engineering-Compatible Sparse Reconstruction of 2D Forced Turbulence at High Reynolds: A Pi-LNN Study"**
+> **"Engineering-Compatible Sparse Reconstruction of 2D Forced Turbulence at High Reynolds: A PI-CON Study"**
 >
 > 主軸：
 > 1. 在 K=100 / Re=10000 / sensor-only + physics 設定下，建立**目前已知最佳結果**（KE 7.80%）。

@@ -12,8 +12,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from lnn_kolmogorov import DEFAULT_LNN_ARGS, load_lnn_config, train_lnn_kolmogorov
-from pi_lnn.config import _validate_al_config
+from picon_kolmogorov import DEFAULT_PICON_ARGS, load_picon_config, train_picon_kolmogorov
+from pi_con.config import _validate_al_config
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,8 +55,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    config = dict(DEFAULT_LNN_ARGS)
-    config.update(load_lnn_config(args.config))
+    config = dict(DEFAULT_PICON_ARGS)
+    config.update(load_picon_config(args.config))
     if args.device is not None:
         config["device"] = args.device
     if args.iterations is not None:
@@ -66,7 +66,7 @@ def main() -> None:
     if args.resume_from is not None:
         config["resume_checkpoint"] = str(args.resume_from.resolve())
 
-    # AL semantic validation：必須在 DEFAULT_LNN_ARGS + TOML 合併後執行（不在 load_lnn_config 內）
+    # AL semantic validation：必須在 DEFAULT_PICON_ARGS + TOML 合併後執行（不在 load_picon_config 內）
     _validate_al_config(config)
 
     print("=== DeepONet+CfC Train Entry ===")
@@ -74,7 +74,7 @@ def main() -> None:
     print(f"iterations: {config['iterations']}")
     print(f"device: {config['device']}")
     print(f"artifacts_dir: {config['artifacts_dir']}")
-    train_lnn_kolmogorov(config)
+    train_picon_kolmogorov(config)
 
 
 if __name__ == "__main__":

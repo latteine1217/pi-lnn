@@ -13,7 +13,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import evaluate_deeponet_cfc as eval_mod
-from lnn_kolmogorov import create_lnn_model, load_lnn_config
+from picon_kolmogorov import create_picon_model, load_picon_config
 
 
 def test_energy_spectrum_matches_kinetic_energy() -> None:
@@ -68,7 +68,7 @@ artifacts_dir = "../artifacts/run"
         import os
 
         os.chdir(os_dir)
-        cfg = load_lnn_config(config_path)
+        cfg = load_picon_config(config_path)
     finally:
         os.chdir(old_cwd)
 
@@ -84,8 +84,8 @@ def test_extract_model_state_rejects_unknown_checkpoint_dict() -> None:
 
 
 def test_load_model_weights_strict_rejects_missing_keys() -> None:
-    cfg = load_lnn_config(REPO_ROOT / "configs/exp_048_re10000_xlarge_10k.toml")
-    model = create_lnn_model(cfg)
+    cfg = load_picon_config(REPO_ROOT / "configs/exp_048_re10000_xlarge_10k.toml")
+    model = create_picon_model(cfg)
     state = copy.deepcopy(model.state_dict())
     state.pop(next(iter(state)))
 

@@ -147,7 +147,7 @@ Status: **Draft**（待 latteine accept）
 - spectrum bin cap `n_bins = n//2`（避免超 Nyquist）
 - forcing_mode_coeff_u 加 `domain_length`
 - `_add_split` schema 維持 plain mean key + `_train`/`_val` suffix（compare_experiments.py 不破壞）
-- `find_dns_time_idx` 抽到 `src/pi_lnn/dns_align.py` + cross-import drift safety test
+- `find_dns_time_idx` 抽到 `src/pi_con/dns_align.py` + cross-import drift safety test
 - production-style f32 sensor_time test 3 個
 - T<2 / grid mismatch / `--eval-stride < 1` 等 fail-fast
 - monotonic axis assert（cylinder 非均勻格保護）

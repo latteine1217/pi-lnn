@@ -22,7 +22,7 @@ Kolmogorov（週期域）主線見 [`docs/experiment_log.md`](experiment_log.md)
 完成 Kolmogorov 稀疏重建研究後，轉向 RealPDEBench Cylinder Wake 案例：
 - 非週期非均勻格（domain: [0, 0.325] × [0, 0.178]，含 cylinder body）
 - K=100 QR-pivot sensor（Re=10031，T=3990 frames，dt=0.005s）
-- 目標：驗證 Pi-LNN 能否在非週期域建立 baseline，為與 FLRNet / Energy Transformer 比較做準備
+- 目標：驗證 PI-CON 能否在非週期域建立 baseline，為與 FLRNet / Energy Transformer 比較做準備
 
 ### 資料設定
 
@@ -48,7 +48,7 @@ Kolmogorov（週期域）主線見 [`docs/experiment_log.md`](experiment_log.md)
 |---|---|
 | Config | `configs/exp_cylinder_001_k100.toml` |
 | Artifact | `artifacts/deeponet-cfc-cylinder-exp001-k100-warmup` |
-| Checkpoint | `checkpoints/lnn_kolmogorov_step_10000.pt` |
+| Checkpoint | `checkpoints/picon_kolmogorov_step_10000.pt` |
 | KE rel-err mean | **51.0%** |
 | u RMSE mean | 2.47e-1 |
 | v RMSE mean | 9.99e-2 |
@@ -61,7 +61,7 @@ Kolmogorov（週期域）主線見 [`docs/experiment_log.md`](experiment_log.md)
 |---|---|
 | Config | `configs/exp_cylinder_002_k100_bc.toml` |
 | Artifact | `artifacts/deeponet-cfc-cylinder-exp002-k100-bc` |
-| Checkpoint | `checkpoints/lnn_kolmogorov_step_10000.pt` |
+| Checkpoint | `checkpoints/picon_kolmogorov_step_10000.pt` |
 | KE rel-err mean | **3.5%** |
 | KE rel-err late | 3.9% |
 | u RMSE mean | 1.03e-1 |
@@ -94,7 +94,7 @@ Kolmogorov（週期域）主線見 [`docs/experiment_log.md`](experiment_log.md)
 
 **根本原因**：`torch.linalg.norm(rel, dim=-1)` 在 `rel=0`（query = sensor）時，second-order autograd 計算 `∂²|r|/∂r² = (|r|²I - rr^T)/|r|³`，在 r=0 為 0/0 = NaN。
 
-**修法**（[`src/pi_lnn/decoder.py`](../src/pi_lnn/decoder.py) `DeepONetCfCDecoder.forward`）：
+**修法**（[`src/pi_con/decoder.py`](../src/pi_con/decoder.py) `DeepONetCfCDecoder.forward`）：
 
 ```python
 # 舊：rel_r = torch.linalg.norm(rel, dim=-1, keepdim=True)

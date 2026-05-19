@@ -1,10 +1,10 @@
 # configs/exp_cylinder_001_k100.toml
 # EXP-CYLINDER-001: Cylinder wake sparse sensor reconstruction
 #
-# What:  Pi-LNN 首次在 cylinder wake 上的基線實驗。
+# What:  PI-CON 首次在 cylinder wake 上的基線實驗。
 #        K=100 QR-pivot sensor，Re=10031，非週期非均勻格，無 body forcing。
 #
-# NaN root cause（已修復，記錄於 lnn_kolmogorov.py + CLAUDE.md KNOWN_PITFALLS）：
+# NaN root cause（已修復，記錄於 picon_kolmogorov.py + CLAUDE.md KNOWN_PITFALLS）：
 #   physics second-order autograd 在 collocation point = sensor position 時，
 #   torch.linalg.norm(r=0) 的二階導數 0/0 → NaN。
 #   修法：改用 sqrt(r²+1e-8) smooth norm（不影響 Kolmogorov，因為 Kolmogorov 機率更低）。

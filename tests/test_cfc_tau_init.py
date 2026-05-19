@@ -15,9 +15,9 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn.blocks import CfCCell
-from pi_lnn.encoders import TemporalCfCEncoder
-from pi_lnn.operator import create_lnn_model
+from pi_con.blocks import CfCCell
+from pi_con.encoders import TemporalCfCEncoder
+from pi_con.operator import create_picon_model
 
 
 def test_cfc_cell_default_tau_backward_compat():
@@ -61,7 +61,7 @@ def test_temporal_encoder_propagates_tau_to_all_cells():
 
 
 def test_create_lnn_model_propagates_tau_from_config():
-    """create_lnn_model 應從 config 讀取 tau 範圍並套用。"""
+    """create_picon_model 應從 config 讀取 tau 範圍並套用。"""
     cfg = {
         "fourier_harmonics": 4,
         "d_model": 16,
@@ -72,7 +72,7 @@ def test_create_lnn_model_propagates_tau_from_config():
         "cfc_log_tau_min": -2.5,
         "cfc_log_tau_max": 1.2,
     }
-    model = create_lnn_model(cfg)
+    model = create_picon_model(cfg)
     for cell in model.temporal_encoder.cells:
         assert cell.log_tau_a[0].item() == pytest.approx(-2.5, abs=1e-6)
         assert cell.log_tau_a[-1].item() == pytest.approx(1.2, abs=1e-6)
@@ -88,7 +88,7 @@ def test_create_lnn_model_default_tau_unchanged():
         "num_temporal_cfc_layers": 1,
         "operator_rank": 8,
     }
-    model = create_lnn_model(cfg)
+    model = create_picon_model(cfg)
     cell = model.temporal_encoder.cells[0]
     assert cell.log_tau_a[0].item() == pytest.approx(-1.0, abs=1e-6)
     assert cell.log_tau_a[-1].item() == pytest.approx(1.0, abs=1e-6)

@@ -84,7 +84,7 @@ def main() -> None:
     args = parse_args()
     config = args.config.resolve()
     artifacts_dir = load_artifacts_dir(config)
-    checkpoint = artifacts_dir / "lnn_kolmogorov_final.pt"
+    checkpoint = artifacts_dir / "picon_kolmogorov_final.pt"
     eval_dir = Path(str(artifacts_dir) + "-eval")
     compare_dir = Path(str(artifacts_dir) + "-compare")
 

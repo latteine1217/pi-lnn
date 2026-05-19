@@ -5,7 +5,7 @@ Why:  cylinder 非週期非均勻格，不能沿用 Kolmogorov evaluator 的 blo
 
 輸出（artifacts_dir/cylinder-eval/）：
   summary.json          — KE rel-err、u/v RMSE、divergence
-  field_comparison_tXX.png  — 4 個時刻的 DNS/LNN/Error 場比較
+  field_comparison_tXX.png  — 4 個時刻的 DNS/PI-CON/Error 場比較
   vorticity_tXX.png         — 渦度場比較
   ke_vs_time.png
   uv_error_vs_time.png
@@ -26,14 +26,14 @@ import pyarrow as pa
 import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from pi_lnn import create_lnn_model, find_dns_time_idx, load_lnn_config
+from pi_con import create_picon_model, find_dns_time_idx, load_picon_config
 # Why: evaluator 必須跟訓練端用 *完全相同* 的 stats / body mask / SDF / bc_scale。
 #      重複實作（hardcode RE_MEAN/STD、自寫 detect_body、重算 SDF）會 silent drift。
 #      改成 import dataset class，evaluator 內部重建一次拿 stats。
-#      find_dns_time_idx 也從 pi_lnn 共用 module import（避免兩 evaluator 字面重複 → drift）。
+#      find_dns_time_idx 也從 pi_con 共用 module import（避免兩 evaluator 字面重複 → drift）。
 from cylinder_dataset import CylinderDataset
 
-# 訓練端 hardcoded train_ratio=0.8（pi_lnn/training.py:74）。evaluator 必須對齊。
+# 訓練端 hardcoded train_ratio=0.8（pi_con/training.py:74）。evaluator 必須對齊。
 TRAIN_RATIO_FALLBACK = 0.8
 QUERY_BATCH = 8192
 
@@ -174,7 +174,7 @@ def plot_field(output_path: Path,
     vr, vp, ve = _mask(v_ref), _mask(v_pred), _mask(v_pred - v_ref)
 
     fig, axes = plt.subplots(2, 3, figsize=(16, 7), constrained_layout=True)
-    fig.suptitle(f"DNS vs LNN at t={t_val:.2f} s")
+    fig.suptitle(f"DNS vs PI-CON at t={t_val:.2f} s")
 
     def _show(ax, field, title):
         vmax = np.nanpercentile(np.abs(field), 99)
@@ -185,8 +185,8 @@ def plot_field(output_path: Path,
                       shading="auto", rasterized=True)
         ax.set_aspect("equal"); ax.set_title(title); ax.set_xlabel("x"); ax.set_ylabel("y")
 
-    _show(axes[0, 0], ur, "u DNS"); _show(axes[0, 1], up, "u LNN"); _show(axes[0, 2], ue, "u Error")
-    _show(axes[1, 0], vr, "v DNS"); _show(axes[1, 1], vp, "v LNN"); _show(axes[1, 2], ve, "v Error")
+    _show(axes[0, 0], ur, "u DNS"); _show(axes[0, 1], up, "u PI-CON"); _show(axes[0, 2], ue, "u Error")
+    _show(axes[1, 0], vr, "v DNS"); _show(axes[1, 1], vp, "v PI-CON"); _show(axes[1, 2], ve, "v Error")
     fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
@@ -206,7 +206,7 @@ def plot_vorticity(output_path: Path,
     fig, axes = plt.subplots(1, 3, figsize=(16, 4), constrained_layout=True)
     fig.suptitle(f"Vorticity at t={t_val:.2f} s")
     for ax, f, title, vm in zip(axes, [or_, op, oe],
-                                 ["DNS", "LNN", "Error"],
+                                 ["DNS", "PI-CON", "Error"],
                                  [vmax, vmax, emax]):
         norm = TwoSlopeNorm(vmin=-vm, vcenter=0, vmax=vm)
         ax.pcolormesh(x2d, y2d, f, cmap="RdBu_r", norm=norm,
@@ -258,7 +258,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    cfg = load_lnn_config(args.config)
+    cfg = load_picon_config(args.config)
     validate_single_dataset_eval(cfg)   # R4: fail-fast 對 multi-Re cfg
 
     out_dir = args.output_dir or (Path(cfg["artifacts_dir"]) / "cylinder-eval")
@@ -268,7 +268,7 @@ def main() -> None:
     print(f"device: {device}")
 
     # ── 模型載入 ────────────────────────────────────────────────────────────
-    model = create_lnn_model(cfg).to(device)
+    model = create_picon_model(cfg).to(device)
     payload = torch.load(args.checkpoint, map_location=device, weights_only=False)
     # 偵測 schedulefree mode：mid-step ckpt 存 train mode (x_t) 不是 inference-ready。
     # Why: x_t 是 training iterate，比 y_t (Polyak averaged) noise 大，inference quality
@@ -279,7 +279,7 @@ def main() -> None:
             print(
                 f"  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
                 f"\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
-                f"\n         若要 best inference 結果，請改用 .../lnn_kolmogorov_final.pt"
+                f"\n         若要 best inference 結果，請改用 .../picon_kolmogorov_final.pt"
             )
     state = extract_model_state(payload)
     lft_key = "query_decoder.log_fusion_temperature"
@@ -336,7 +336,7 @@ def main() -> None:
         arrow_shard=cfg["arrow_shards"][0],
         re_value=float(cfg["re_values"][0]),
         observed_channel_names=tuple(cfg.get("observed_sensor_channels", ["u", "v"])),
-        train_ratio=TRAIN_RATIO_FALLBACK,   # 跟 pi_lnn/training.py:74 hardcode 一致
+        train_ratio=TRAIN_RATIO_FALLBACK,   # 跟 pi_con/training.py:74 hardcode 一致
         seed=ds_seed,
         sensor_subsample=int(cfg.get("sensor_subsample", 1)),
     )
@@ -563,7 +563,7 @@ def main() -> None:
 
     # ── 時序圖 ────────────────────────────────────────────────────────────────
     plot_series(out_dir / "ke_vs_time.png", eval_times,
-                {"DNS": ke_ref, "LNN": ke_pred},
+                {"DNS": ke_ref, "PI-CON": ke_pred},
                 "Kinetic Energy vs Time", "KE (m²/s²)")
 
     plot_series(out_dir / "uv_error_vs_time.png", eval_times,
@@ -575,13 +575,13 @@ def main() -> None:
                 "Vorticity RMSE vs Time", "RMSE (1/s)")
 
     plot_series(out_dir / "divergence_vs_time.png", eval_times,
-                {"LNN L2": div_l2, "DNS L2": div_l2_ref},
+                {"PI-CON L2": div_l2, "DNS L2": div_l2_ref},
                 "Divergence L2 vs Time", "L2")
 
     # ── Summary JSON ─────────────────────────────────────────────────────────
     # C3: train/val 切分 — 重要 caveat：訓練端 sample_sensor_batch 目前**沒有**
     #     按 dataset.train_t_idx 過濾 supervision pool（src/cylinder_dataset.py:338,
-    #     src/pi_lnn/training.py:612 與 ds.sample_sensor_batch caller 群均如此），
+    #     src/pi_con/training.py:612 與 ds.sample_sensor_batch caller 群均如此），
     #     所以 evaluator 報的 `*_val` 是 dataset 內部 random partition (transductive)，
     #     不是嚴格意義上的 unseen-by-training metric。修真正 generalization 需動訓練端。
     def _add_split(out: dict, key: str, arr: np.ndarray) -> None:
@@ -670,7 +670,7 @@ def main() -> None:
     print(f"ω  RMSE       : {_fmt('omega_rmse_mean')}")
     print(f"KE rel-err    : {_fmt('ke_rel_err_mean')}")
     print(f"KE rel-err late: {summary['ke_rel_err_late']:.4e}")
-    print(f"div L2 (LNN)  : {_fmt('div_l2_mean')}")
+    print(f"div L2 (PI-CON)  : {_fmt('div_l2_mean')}")
     print(f"div L2 (DNS)  : {_fmt('div_ref_l2_mean')}   ← baseline")
     print(f"output: {out_dir}")
 

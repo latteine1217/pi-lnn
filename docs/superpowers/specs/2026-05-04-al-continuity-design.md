@@ -98,7 +98,7 @@ $$
 
 ## 3. Class Design
 
-新增至 `src/pi_lnn/losses.py`：
+新增至 `src/pi_con/losses.py`：
 
 ```python
 class AugmentedLagrangianMultiplier(nn.Module):
@@ -349,7 +349,7 @@ EXP-070（AL on, GradNorm off）的 layout 同上但無 `w_ns_u/w_ns_v` 欄位�
 
 ## 6. Config Schema 新增
 
-### TOML 欄位（必須同步加進 `src/pi_lnn/config.py:DEFAULT_LNN_ARGS`）
+### TOML 欄位（必須同步加進 `src/pi_con/config.py:DEFAULT_PICON_ARGS`）
 
 ```toml
 # AL 主控制
@@ -366,13 +366,13 @@ gradnorm_tasks = []               # 例：["data","ns_u","ns_v"] 或 ["data","ns
 
 **移除 `al_constraints = [...]`**（spec v1 設計，reviewer 標 YAGNI）：v1 只有 continuity 一個 constraint，list 是過度設計，未來真要支援第二個 constraint 再 promote 為 list。
 
-### `DEFAULT_LNN_ARGS` 必更新清單
+### `DEFAULT_PICON_ARGS` 必更新清單
 
-`config.py:DEFAULT_LNN_ARGS`（line 9）採嚴格白名單（`config.py:204` raise on unknown keys）。新加的 7 個欄位若漏掉，**EXP-070..072 toml 連載入都會 ValueError**。
+`config.py:DEFAULT_PICON_ARGS`（line 9）採嚴格白名單（`config.py:204` raise on unknown keys）。新加的 7 個欄位若漏掉，**EXP-070..072 toml 連載入都會 ValueError**。
 
 實作時必加：
 ```python
-DEFAULT_LNN_ARGS = {
+DEFAULT_PICON_ARGS = {
     # ... existing entries ...
     "use_augmented_lagrangian": False,
     "al_init_lambda": 0.0,
@@ -384,15 +384,15 @@ DEFAULT_LNN_ARGS = {
 }
 ```
 
-### Semantic validation（new in `config.py:load_lnn_config`）
+### Semantic validation（new in `config.py:load_picon_config`）
 
-現有 `load_lnn_config` 只驗白名單，無 cross-field 語義檢查。為 AL 新增：
+現有 `load_picon_config` 只驗白名單，無 cross-field 語義檢查。為 AL 新增：
 
 ```python
 def _validate_al_config(cfg: dict) -> None:
     """AL semantic validation — fail fast on the FULLY MERGED config.
 
-    必須在 `DEFAULT_LNN_ARGS` 與 TOML 合併後呼叫（不能在 `load_lnn_config` 內），
+    必須在 `DEFAULT_PICON_ARGS` 與 TOML 合併後呼叫（不能在 `load_picon_config` 內），
     否則 `cfg["continuity_weight"]` 等欄位會拿到錯誤的 fallback。
     """
     if not cfg.get("use_augmented_lagrangian", False):
@@ -434,7 +434,7 @@ def _validate_al_config(cfg: dict) -> None:
         )
 ```
 
-**Call site**：`_validate_al_config` 必須在「`DEFAULT_LNN_ARGS` 與 TOML 合併之後」執行，不是在 `load_lnn_config` 內（後者只回傳 TOML keys，看不到 default fallback 值）。實作位置：`scripts/train_deeponet_cfc.py` 等入口處呼叫 `merged = {**DEFAULT_LNN_ARGS, **load_lnn_config(path)}; _validate_al_config(merged)`。
+**Call site**：`_validate_al_config` 必須在「`DEFAULT_PICON_ARGS` 與 TOML 合併之後」執行，不是在 `load_picon_config` 內（後者只回傳 TOML keys，看不到 default fallback 值）。實作位置：`scripts/train_deeponet_cfc.py` 等入口處呼叫 `merged = {**DEFAULT_PICON_ARGS, **load_picon_config(path)}; _validate_al_config(merged)`。
 
 向後相容：`use_augmented_lagrangian = false`（預設）時所有 AL 邏輯短路，行為與目前完全一致 — `test_al_disabled_equivalence.py` 必驗。
 
@@ -557,9 +557,9 @@ v2 改用 **C_ema** 作為主要收斂指標：
    - 加 `AugmentedLagrangianMultiplier` class（§3 修正版）
    - 改 `GradNormWeights` 加 `task_names: list[str]` 參數 + `index_of()` + `__contains__()`（向後相容預設 None → 由長度推斷）
 2. **`config.py`** + **`scripts/train_deeponet_cfc.py`**（或對應 entry script）：
-   - `config.py:DEFAULT_LNN_ARGS` 加 7 個新 key（§6 清單）
+   - `config.py:DEFAULT_PICON_ARGS` 加 7 個新 key（§6 清單）
    - `config.py` 新增 `_validate_al_config(cfg)` 函式定義
-   - **entry script** 在 `merged = {**DEFAULT_LNN_ARGS, **load_lnn_config(path)}` 之後呼叫 `_validate_al_config(merged)`（**不**在 `load_lnn_config` 內，後者只回 TOML keys 看不到 default fallback）
+   - **entry script** 在 `merged = {**DEFAULT_PICON_ARGS, **load_picon_config(path)}` 之後呼叫 `_validate_al_config(merged)`（**不**在 `load_picon_config` 內，後者只回 TOML keys 看不到 default fallback）
 3. **`training.py`**：
    - `setup` 段：依 `use_augmented_lagrangian` 建立 `al_cont`；驗 pre-condition assert（§4）
    - first-order path：AL term 注入 + step > 0 guard + 嚴格 post-step dual update
@@ -600,7 +600,7 @@ v2 改用 **C_ema** 作為主要收斂指標：
   - §2 framing：「primal-dual」→「accumulated-multiplier penalty schedule」（誠實標示與 textbook AL 的差異）
   - §4 pre-condition runtime asserts + step=0 guard + 統一 update 在 optimizer.step() 之後 + l_cont_total 來源澄清（強制 use_sensor_physics=false）
   - §5 GradNorm 互動：AL term 升格為第 4 task（解 reviewer BLOCKER B2）+ 既有 4/5-task 自動偵測 backward-compat shim
-  - §6 移除 YAGNI 的 `al_constraints` list；明列 `DEFAULT_LNN_ARGS` 必更新項；加 `_validate_al_config` semantic 檢查
+  - §6 移除 YAGNI 的 `al_constraints` list；明列 `DEFAULT_PICON_ARGS` 必更新項；加 `_validate_al_config` semantic 檢查
   - §7 EXP configs 對齊 v2 規則 + Pressure Poisson approx 限制註記
   - §8 收斂 primary indicator：λ 穩定度 → C_ema sustained
   - §9 風險表加 LBFGS 契約 / clip 飽和 / resume cold-start 共 3 項
@@ -615,12 +615,12 @@ v2 改用 **C_ema** 作為主要收斂指標：
     - 加 `lr_schedule="lbfgs" + use_gradnorm=true + AL` 三者衝突檢查
     - 加 `"al" in gradnorm_tasks` 禁止規則（v4 不允許）
     - 加「AL off + 3-task gradnorm + cont 缺席 + continuity_weight>0」無效設定守門（解 reviewer Mn-V3-2）
-  - **§10 step 2**：明確標示 `_validate_al_config` 在 entry script merge 後呼叫，不在 `load_lnn_config` 內（修 §10 vs §6 矛盾，解 reviewer Mn-V3-3）
+  - **§10 step 2**：明確標示 `_validate_al_config` 在 entry script merge 後呼叫，不在 `load_picon_config` 內（修 §10 vs §6 矛盾，解 reviewer Mn-V3-3）
   - **§10 tests**：rename `test_gradnorm_al_4task_integration.py` → `test_al_gradnorm_integration.py`；`test_al_ng_raise.py` 加 LBFGS+GradNorm 案例；`test_gradnorm_task_names.py` 加 `"al" in tasks` raise 驗證；移除 `pin_()` 相關測試
 
 - **v3 (2026-05-04)**：再經 3 個 subagent reviewer 對 v2 的二次審查，修補 v2 引入的新問題：
   - **§6 BLOCKER 修正**：`_validate_al_config` 中 `cfg.get("optimizer")` → `cfg.get("lr_schedule")`（v2 用了不存在的 key 名，validation 形同虛設）
-  - **§6 call site 澄清**：明確標示 validator 必須在 `DEFAULT_LNN_ARGS` 與 TOML 合併**之後**呼叫，不能在 `load_lnn_config` 內（後者只回 TOML keys）
+  - **§6 call site 澄清**：明確標示 validator 必須在 `DEFAULT_PICON_ARGS` 與 TOML 合併**之後**呼叫，不能在 `load_picon_config` 內（後者只回 TOML keys）
   - **§7 EXP-070 修正**：`optimizer = "adamw"` → `lr_schedule = "soap"`（同上 key 名問題）
   - **§5 / §7 EXP-071 重大設計變更**：v2 把 AL term 升為 GradNorm 第 4 task 引發 NM1（時間尺度錯配）+ NM2（dual update 失校）→ v3 採物理 reviewer 建議 (b)：**`w_al` 永久 pin = 1.0**，GradNorm 只動 `data/ns_u/ns_v` 三權重，AL 與 GradNorm 完全解耦
   - §5 新增 `GradNormWeights.pin_(name, value)` API

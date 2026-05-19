@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pi-LNN · Details · Model card, training, and ablations</title>
-<meta name="description" content="Detailed Pi-LNN documentation: dataset specification, parameter breakdown, training protocol, decoder internals, full results gallery, ablation chain (EXP-064 → 069), reproducibility.">
+<title>PI-CON · Details · Model card, training, and ablations</title>
+<meta name="description" content="Detailed PI-CON documentation: dataset specification, parameter breakdown, training protocol, decoder internals, full results gallery, ablation chain (EXP-064 → 069), reproducibility.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT@9..144,300..700,0..100&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -865,17 +865,17 @@ footer a { color: var(--ink-mid); }
 </head>
 <body>
 
-<nav class="nav" role="navigation" aria-label="Pi-LNN page navigation">
+<nav class="nav" role="navigation" aria-label="PI-CON page navigation">
   <a href="index.html" class="nav-brand">
     <span class="dot"></span>
-    Pi-LNN
+    PI-CON
     <span class="sub">Re=10000</span>
   </a>
 
   <div class="nav-center">
     <div class="page-tabs" role="tablist" aria-label="Page selector">
       <a href="index.html" class="tab">Overview</a>
-      <a href="lnn_architecture.html" class="tab active" aria-current="page">
+      <a href="picon_architecture.html" class="tab active" aria-current="page">
         <span class="dot-mini"></span>
         Details
       </a>
@@ -917,7 +917,7 @@ footer a { color: var(--ink-mid); }
           <em>data, parameters, and the full experiment chain.</em>
         </h1>
         <p class="hero-sub">
-          The <a href="index.html">Overview page</a> answers <em>what</em> Pi-LNN does and the
+          The <a href="index.html">Overview page</a> answers <em>what</em> PI-CON does and the
           headline numbers (5-seed B3 KE 10.77 ± 0.52 %, EXP-080 Pareto sweet spot, 73 % of the
           K = 100 spectral truncation lower bound). This page answers <em>how</em> — the dataset,
           the parameter budget, the training protocol (sensor MSE + NS residual + GradNorm + AL),
@@ -1013,7 +1013,7 @@ footer a { color: var(--ink-mid); }
         <h2>3.14 M parameters at <code>d = 256</code>, operator rank 256.</h2>
       </div>
       <p class="lede">
-        Pi-LNN is intentionally small enough to train on a consumer Apple Silicon laptop. The full
+        PI-CON is intentionally small enough to train on a consumer Apple Silicon laptop. The full
         config below is a verbatim snapshot of <code>configs/exp_064_re10000_xlarge_sensor_physics.toml</code>.
       </p>
     </div>
@@ -1134,7 +1134,7 @@ footer a { color: var(--ink-mid); }
       <h3>What 3.14 M parameters buys you in 2D turbulence</h3>
       <p>
         Most NS / PINN papers run on H100/A100-class GPUs with hundred-million-parameter operators.
-        Pi-LNN is two orders of magnitude smaller and trains in ~2.5 hours on an Apple-Silicon laptop
+        PI-CON is two orders of magnitude smaller and trains in ~2.5 hours on an Apple-Silicon laptop
         (serial mode, MPS, 10 k iter), yet reaches
         <strong>5-seed verified KE = 10.77 ± 0.52 %</strong> (EXP-080 Pareto sweet spot)
         and <strong>KE = 7.80 %</strong> (EXP-064 KE-optimal reference) at Re = 10,000 from K = 100
@@ -2017,19 +2017,19 @@ footer a { color: var(--ink-mid); }
         <h3 style="margin-bottom: 14px;">Operational pitfalls (observed)</h3>
         <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7;"><strong>1. stdout buffering.</strong> Long runs redirected to a log file appear to hang for hours when in fact <code>print()</code> is block-buffered. All key prints in this project use <code>flush=True</code>. <em>Cost when missed: 75 minutes lost in EXP-059.</em></p>
         <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7; margin-top: 10px;"><strong>2. SOAP eigh on MPS.</strong> <code>torch.linalg.eigh</code> is unsupported on MPS; the env var above forces a CPU fallback. Without it, training crashes at the first preconditioner step.</p>
-        <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7; margin-top: 10px;"><strong>3. Config–code drift.</strong> Any new TOML key must be added to <code>DEFAULT_LNN_ARGS</code> in <code>src/lnn_kolmogorov.py</code>, otherwise validation fails immediately at startup.</p>
+        <p style="font-size: 13px; color: var(--ink-mid); line-height: 1.7; margin-top: 10px;"><strong>3. Config–code drift.</strong> Any new TOML key must be added to <code>DEFAULT_PICON_ARGS</code> in <code>src/picon_kolmogorov.py</code>, otherwise validation fails immediately at startup.</p>
       </div>
     </div>
 
     <div class="callout muted">
       <h3>Run the EXP-064 baseline</h3>
       <pre style="font-family: 'JetBrains Mono', monospace; font-size: 12px; background: transparent; color: var(--ink); margin-top: 8px; line-height: 1.7;">$ export PYTORCH_ENABLE_MPS_FALLBACK=1
-$ uv run python -m src.lnn_kolmogorov \
+$ uv run python -m src.picon_kolmogorov \
     --config configs/exp_064_re10000_xlarge_sensor_physics.toml</pre>
       <p style="margin-top: 12px;">
         Artifacts (checkpoints, evaluation summaries, logs) land under
         <code>artifacts/deeponet-cfc-re10000-exp064-sensor-physics/</code>. The single evaluation
-        target is <code>checkpoints/lnn_kolmogorov_step_10000.pt</code> — earlier checkpoints are
+        target is <code>checkpoints/picon_kolmogorov_step_10000.pt</code> — earlier checkpoints are
         intermediate.
       </p>
     </div>
@@ -2052,7 +2052,7 @@ $ uv run python -m src.lnn_kolmogorov \
 
     <article class="code-block">
       <div class="code-head">
-        <span class="file">src/lnn_kolmogorov.py · CfCCell.forward</span>
+        <span class="file">src/picon_kolmogorov.py · CfCCell.forward</span>
         <span class="role">closed-form update</span>
       </div>
       <pre><code>xh = torch.cat([x, h], dim=-1)
@@ -2066,7 +2066,7 @@ return gate * f1 + (1.0 - gate) * f2</code></pre>
 
     <article class="code-block" style="margin-top: 16px;">
       <div class="code-head">
-        <span class="file">src/lnn_kolmogorov.py · TemporalCfCEncoder.forward</span>
+        <span class="file">src/picon_kolmogorov.py · TemporalCfCEncoder.forward</span>
         <span class="role">optional bidirectional scan</span>
       </div>
       <pre><code># re_bias added to seq up-front, removing the inner view() call
@@ -2096,7 +2096,7 @@ seq = new_seq + seq if layer_idx &gt; 0 else new_seq</code></pre>
 
 <footer>
   <div class="left">
-    <span class="mark">Pi-LNN</span>
+    <span class="mark">PI-CON</span>
     <span>·</span>
     <span>Details · Re = 10,000 · K = 100 · B3 KE 10.77 ± 0.52 % (5-seed) · 6 levers + 4 turbulence-aware variants all falsified</span>
   </div>
@@ -2112,7 +2112,7 @@ seq = new_seq + seq if layer_idx &gt; 0 else new_seq</code></pre>
   /* ---------- Theme toggle (shared key with Overview) ---------- */
   const html = document.documentElement;
   const toggle = document.getElementById("themeToggle");
-  const KEY = "pi-lnn-index-theme";
+  const KEY = "pi-con-index-theme";
   const saved = localStorage.getItem(KEY);
   if (saved === "dark" || saved === "light") {
     html.setAttribute("data-theme", saved);

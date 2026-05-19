@@ -1,6 +1,6 @@
 # configs/exp_008_re1000_small_baseline.toml
 # What: uv-only sparse-data 主線的 Small 尺寸版本。
-# Why: 驗證 LNN/CfC 在較小 hidden width / layer depth 下，是否仍能維持足夠表徵能力。
+# Why: 驗證 PI-CON 在較小 hidden width / layer depth 下，是否仍能維持足夠表徵能力。
 
 [train]
 sensor_jsons = [

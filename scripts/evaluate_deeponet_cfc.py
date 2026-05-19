@@ -20,15 +20,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from lnn_kolmogorov import create_lnn_model, load_lnn_config
+from picon_kolmogorov import create_picon_model, load_picon_config
 # Why: evaluator 必須跟訓練端用 *完全相同* 的 stats / train-val split / RE_MEAN/STD。
 #      重複 hardcode RE_MEAN/STD（line 671 之前）會 silent drift；改 import dataset class，
 #      所有常數從 dataset 內部抽（dataset 自己用 RE_MEAN/RE_STD 算 re_norm，
 #      evaluator 直接用 ds.re_norm）。
 from kolmogorov_dataset import KolmogorovDataset
-from pi_lnn import find_dns_time_idx   # 共用 module（避免兩 evaluator 重複實作 → drift）
+from pi_con import find_dns_time_idx   # 共用 module（避免兩 evaluator 重複實作 → drift）
 
-# 訓練端 hardcoded train_ratio=0.8（pi_lnn/training.py:88）。evaluator 對齊。
+# 訓練端 hardcoded train_ratio=0.8（pi_con/training.py:88）。evaluator 對齊。
 TRAIN_RATIO_FALLBACK = 0.8
 
 
@@ -100,7 +100,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--checkpoint",
         type=Path,
-        default=Path("artifacts/deeponet-cfc-smoke/lnn_kolmogorov_final.pt"),
+        default=Path("artifacts/deeponet-cfc-smoke/picon_kolmogorov_final.pt"),
         help="Checkpoint to evaluate.",
     )
     parser.add_argument(
@@ -477,7 +477,7 @@ def plot_field_comparison(
     v_pred: np.ndarray,
     t_val: float,
 ) -> None:
-    """What: DNS / LNN / Error 場比較（期刊雙欄寬度）。"""
+    """What: DNS / PI-CON / Error 場比較（期刊雙欄寬度）。"""
     u_err = u_pred - u_ref
     v_err = v_pred - v_ref
     fig, axes = plt.subplots(2, 3, figsize=(8.5, 5.0), constrained_layout=True)
@@ -490,10 +490,10 @@ def plot_field_comparison(
     # cbar label 用 SI 單位（u, v: m/s；無因次 NS 假設 U*=1 m/s, L*=1 m）
     panels = [
         (axes[0, 0], u_ref,  "$u$ DNS",   "RdBu_r", -u_lim,  u_lim,  r"$u$ [m/s]"),
-        (axes[0, 1], u_pred, "$u$ LNN",   "RdBu_r", -u_lim,  u_lim,  r"$u$ [m/s]"),
+        (axes[0, 1], u_pred, "$u$ PI-CON",   "RdBu_r", -u_lim,  u_lim,  r"$u$ [m/s]"),
         (axes[0, 2], u_err,  "$u$ Error", "RdBu_r", -ue_lim, ue_lim, r"$\Delta u$ [m/s]"),
         (axes[1, 0], v_ref,  "$v$ DNS",   "RdBu_r", -v_lim,  v_lim,  r"$v$ [m/s]"),
-        (axes[1, 1], v_pred, "$v$ LNN",   "RdBu_r", -v_lim,  v_lim,  r"$v$ [m/s]"),
+        (axes[1, 1], v_pred, "$v$ PI-CON",   "RdBu_r", -v_lim,  v_lim,  r"$v$ [m/s]"),
         (axes[1, 2], v_err,  "$v$ Error", "RdBu_r", -ve_lim, ve_lim, r"$\Delta v$ [m/s]"),
     ]
     for ax, field, title, cmap, vmin, vmax, cb_label in panels:
@@ -524,7 +524,7 @@ def plot_vorticity_comparison(
     omega_pred: np.ndarray,
     t_val: float,
 ) -> None:
-    """What: 渦度 DNS / LNN / Error 比較（期刊單列）。"""
+    """What: 渦度 DNS / PI-CON / Error 比較（期刊單列）。"""
     omega_err = omega_pred - omega_ref
     om_lim = float(max(np.abs(omega_ref).max(), np.abs(omega_pred).max(), 1e-8))
     err_lim = float(max(np.abs(omega_err).max(), 1e-8))
@@ -532,7 +532,7 @@ def plot_vorticity_comparison(
     fig, axes = plt.subplots(1, 3, figsize=(8.5, 3.0), constrained_layout=True)
     panels = [
         (axes[0], omega_ref,  r"$\omega$ DNS",   -om_lim,  om_lim,  r"$\omega$ [1/s]"),
-        (axes[1], omega_pred, r"$\omega$ LNN",   -om_lim,  om_lim,  r"$\omega$ [1/s]"),
+        (axes[1], omega_pred, r"$\omega$ PI-CON",   -om_lim,  om_lim,  r"$\omega$ [1/s]"),
         (axes[2], omega_err,  r"$\omega$ Error", -err_lim, err_lim, r"$\Delta\omega$ [1/s]"),
     ]
     for ax, field, title, vmin, vmax, cb_label in panels:
@@ -587,7 +587,7 @@ def plot_metric_vs_time(
     title: str,
     y_label: str,
 ) -> None:
-    """What: DNS vs LNN 時序比較（期刊單欄寬度）。"""
+    """What: DNS vs PI-CON 時序比較（期刊單欄寬度）。"""
     me = _markevery_for(len(time_vals))
     fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
     ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
@@ -680,10 +680,10 @@ def main() -> None:
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    cfg = load_lnn_config(args.config)
+    cfg = load_picon_config(args.config)
     validate_single_dataset_eval(cfg)
     device = choose_device(args.device)
-    model = create_lnn_model(cfg).to(device)
+    model = create_picon_model(cfg).to(device)
     checkpoint_payload = torch.load(args.checkpoint, map_location=device, weights_only=False)
     if isinstance(checkpoint_payload, dict):
         _sf_mode = checkpoint_payload.get("schedulefree_mode", None)
@@ -691,7 +691,7 @@ def main() -> None:
             print(
                 f"  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
                 f"\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
-                f"\n         若要 best inference 結果，請改用 .../lnn_kolmogorov_final.pt"
+                f"\n         若要 best inference 結果，請改用 .../picon_kolmogorov_final.pt"
             )
     state = extract_model_state(checkpoint_payload)
     load_model_weights_strict(model, state)
@@ -716,7 +716,7 @@ def main() -> None:
         dns_path=cfg["dns_paths"][0],
         re_value=float(cfg.get("re_values", [1000.0])[0]),
         observed_channel_names=tuple(cfg.get("observed_sensor_channels", ["u", "v"])),
-        train_ratio=TRAIN_RATIO_FALLBACK,   # 跟 pi_lnn/training.py:88 hardcode 一致
+        train_ratio=TRAIN_RATIO_FALLBACK,   # 跟 pi_con/training.py:88 hardcode 一致
         seed=ds_seed,
     )
     sensor_pos  = ds.sensor_pos.astype(np.float32)            # [K, 2]
@@ -1132,7 +1132,7 @@ def main() -> None:
     plot_series_collection(
         output_dir / "divergence_vs_time.png",
         sensor_time,
-        {"DNS L2": div_l2_ref, "LNN L2": div_l2_pred},
+        {"DNS L2": div_l2_ref, "PI-CON L2": div_l2_pred},
         title="Divergence Residual",
         y_label=r"$\Vert\nabla\cdot\mathbf{u}\Vert_2$ [1/s]",
         yscale="log",
@@ -1142,11 +1142,11 @@ def main() -> None:
         sensor_time,
         {
             "DNS NS-u": ns_u_rms_ref,
-            "LNN NS-u": ns_u_rms_pred,
+            "PI-CON NS-u": ns_u_rms_pred,
             "DNS NS-v": ns_v_rms_ref,
-            "LNN NS-v": ns_v_rms_pred,
+            "PI-CON NS-v": ns_v_rms_pred,
             "DNS Cont": ns_cont_rms_ref,
-            "LNN Cont": ns_cont_rms_pred,
+            "PI-CON Cont": ns_cont_rms_pred,
         },
         title="NS Residual",
         y_label=r"NS residual r.m.s. [m/s$^2$]",
@@ -1183,7 +1183,7 @@ def main() -> None:
 
     # C3: train/val split — 重要 caveat：訓練端 sample_sensor_batch 目前**沒有**
     #     按 dataset.train_t_idx 過濾 supervision pool（src/kolmogorov_dataset.py:140,
-    #     src/pi_lnn/training.py 用 ds.sample_sensor_batch caller 群均如此），所以
+    #     src/pi_con/training.py 用 ds.sample_sensor_batch caller 群均如此），所以
     #     evaluator 報的 `*_val` 是 dataset 內部 random partition (transductive)，
     #     不是嚴格意義上的 unseen-by-training metric。
     def _add_split(out: dict, key: str, arr: np.ndarray) -> None:

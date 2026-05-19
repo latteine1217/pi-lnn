@@ -17,10 +17,10 @@
 
 ```bash
 # 用 stable ID 跑訓練
-uv run python lnn_kolmogorov.py --config configs/stable/exp_200_a.toml
+uv run python picon_kolmogorov.py --config configs/stable/exp_200_a.toml
 
 # 等價於跑 legacy ID
-uv run python lnn_kolmogorov.py --config configs/exp_080_re10000_al_4task_rho01.toml
+uv run python picon_kolmogorov.py --config configs/exp_080_re10000_al_4task_rho01.toml
 ```
 
 ## 編號規則

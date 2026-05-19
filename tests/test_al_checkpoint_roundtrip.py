@@ -12,7 +12,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn import AugmentedLagrangianMultiplier
+from pi_con import AugmentedLagrangianMultiplier
 
 
 def test_state_dict_contains_all_buffers() -> None:

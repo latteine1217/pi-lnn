@@ -1,4 +1,6 @@
-# Pi-LNN 設計規格：Physics-informed Liquid Neural Network for Kolmogorov Flow
+# PI-CON 設計規格：Physics-informed Liquid Neural Network for Kolmogorov Flow
+
+> **命名註記（2026-05-19 補）**：本檔完成於改名前；舊版方法縮寫為 Pi-LNN，現對齊論文重命名為 **PI-CON**。文中其餘獨立 `LNN` 字樣指 Hasani et al. 提出的 Liquid Neural Network 學術技術背景（PI-CON 採用的 backbone family），不指方法名稱本身。
 
 **日期**：2026-03-23
 **問題**：2D Kolmogorov flow 全場重建——給定 K 個感測器的時序讀數 `[K, T]`，預測任意 `(x, y, t)` 的 u/v/p
@@ -35,7 +37,7 @@ h(t+Δt) = sigmoid(-t_a · Δt + t_b) · f1(x,h) + (1 - sigmoid(...)) · f2(x,h)
 
 ---
 
-## 3. 架構：Pi-LNN
+## 3. 架構：PI-CON
 
 ### 3.1 整體流程
 
@@ -152,8 +154,8 @@ Cont: ∂u/∂x + ∂v/∂y = 0
 | `TemporalCfCEncoder` | T 個 s_t → h_enc（使用物理 Δt） |
 | `QueryCfCDecoder` | (x,y,t,c) + h_enc → u/v/p |
 | `LiquidOperator` | 組合以上三者的主模型 |
-| `create_lnn_model` | 工廠函式 |
-| `make_lnn_model_fn` | closure，供物理損失使用 |
+| `create_picon_model` | 工廠函式 |
+| `make_picon_model_fn` | closure，供物理損失使用 |
 
 ---
 
@@ -192,11 +194,11 @@ weight_decay = 1e-4
 | 動作 | 檔案 |
 |------|------|
 | 新建 | `src/pi_onet/kolmogorov_dataset.py` |
-| 新建 | `src/pi_onet/lnn_kolmogorov.py`（主模型 + 訓練） |
+| 新建 | `src/pi_onet/picon_kolmogorov.py`（主模型 + 訓練） |
 | 保留 | `src/pi_onet/pit_ldc.py`（LDC 版本不動） |
-| 更新 | `pyproject.toml`（新增 `lnn-kolmogorov-train` entry point） |
-| 新建 | `tests/test_lnn_kolmogorov.py` |
-| 新建 | `configs/lnn_kolmogorov.toml` |
+| 更新 | `pyproject.toml`（新增 `picon-kolmogorov-train` entry point） |
+| 新建 | `tests/test_picon_kolmogorov.py` |
+| 新建 | `configs/picon_kolmogorov.toml` |
 
 ---
 
@@ -204,7 +206,7 @@ weight_decay = 1e-4
 
 1. `pytest` 全數通過（CfCCell shape/grad、SpatialCfCEncoder、TemporalCfCEncoder、QueryCfCDecoder）
 2. 模型不含任何 `nn.MultiheadAttention` 或 `nn.TransformerEncoder`
-3. `lnn-kolmogorov-train --config configs/lnn_kolmogorov.toml` 可執行 3 steps 無 NaN
+3. `picon-kolmogorov-train --config configs/picon_kolmogorov.toml` 可執行 3 steps 無 NaN
 4. 物理損失對 `(x,y,t)` autograd 可流回 CfC 參數
 5. 推論時支援任意 `(x, y, t)` 輸入（不限訓練解析度）
 

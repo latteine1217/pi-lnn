@@ -1,7 +1,7 @@
-"""Pi-LNN training loop and CLI entry point.
+"""PI-CON training loop and CLI entry point.
 
-A1 boundary: train_lnn_kolmogorov is moved verbatim. Decomposing it is the
-deferred A2 phase (see docs/superpowers/specs/2026-04-26-pi-lnn-package-refactor-design.md).
+A1 boundary: train_picon_kolmogorov is moved verbatim. Decomposing it is the
+deferred A2 phase (see docs/superpowers/specs/2026-04-26-pi-con-package-refactor-design.md).
 """
 from __future__ import annotations
 
@@ -14,38 +14,38 @@ from typing import Any, Callable
 import numpy as np
 import torch
 
-from pi_lnn.causal import causal_weighted_residual_loss
-from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
-from pi_lnn.losses import (
+from pi_con.causal import causal_weighted_residual_loss
+from pi_con.config import DEFAULT_PICON_ARGS, load_picon_config
+from pi_con.losses import (
     AugmentedLagrangianMultiplier,
     GradNormWeights,
     _gradnorm_step,
     observed_channel_prediction,
 )
-from pi_lnn.operator import (
+from pi_con.operator import (
     LiquidOperator,
-    create_lnn_model,
-    make_lnn_model_fn,
-    make_lnn_model_fn_uvp,
+    create_picon_model,
+    make_picon_model_fn,
+    make_picon_model_fn_uvp,
 )
-from pi_lnn.physics import (
+from pi_con.physics import (
     _rar_update_pool,
     physics_points_at_step,
     physics_weight_at_step,
     pressure_poisson_residual,
     unsteady_ns_residuals,
 )
-from pi_lnn.runtime import _grad, configure_torch_runtime, count_parameters, write_json
+from pi_con.runtime import _grad, configure_torch_runtime, count_parameters, write_json
 
 
-def train_lnn_kolmogorov(
+def train_picon_kolmogorov(
     args: dict[str, Any],
     log_fn: Callable[[int, dict[str, float]], None] | None = None,
 ) -> None:
-    """What: 核心 Pi-LNN 訓練迴圈。
+    """What: 核心 PI-CON 訓練迴圈。
 
     Args:
-        args: 訓練設定字典（見 DEFAULT_LNN_ARGS）。
+        args: 訓練設定字典（見 DEFAULT_PICON_ARGS）。
         log_fn: 可選回呼，每個訓練 step 結束後以 (step, metrics_dict) 呼叫。
                 metrics_dict 包含 l_data / l_physics / l_ns / l_cont / w_phys / t_max。
                 Why: 保持 core module 不依賴外部日誌框架（W&B、TensorBoard 等），
@@ -126,7 +126,7 @@ def train_lnn_kolmogorov(
                 f"建議將 T_total 改為 {_T_data:.3f} 或調整 sensor_subsample。"
             )
 
-    net = create_lnn_model(args).to(device)
+    net = create_picon_model(args).to(device)
 
     # ── Body-distance feature（cylinder boundary layer 學習）──────────
     # use_hard_body_bc=True 時，model output 會套 (φ/scale).clamp(0,1) gate 強制 body 內 u=v=0。
@@ -245,7 +245,7 @@ def train_lnn_kolmogorov(
 
     if args["lr_schedule"] == "soap":
         import sys
-        # SOAP/ 在 project root，training.py 在 src/pi_lnn/，故需要三層 .parent
+        # SOAP/ 在 project root，training.py 在 src/pi_con/，故需要三層 .parent
         # 之前 .parent.parent 是 src/SOAP（不存在），靠 cwd 在 project root 才能 import 到
         _soap_dir = str(Path(__file__).parent.parent.parent / "SOAP")
         if _soap_dir not in sys.path:
@@ -305,8 +305,8 @@ def train_lnn_kolmogorov(
 
     elif is_ng:
         # Natural Gradient (Gauss-Newton) — kernel trick path。
-        # Why: pi-lnn P~10⁵, N~200 → 必走 J^T (JJ^T + λI)^{-1} r。
-        from pi_lnn.optimizers import NaturalGradientOptimizer
+        # Why: pi-con P~10⁵, N~200 → 必走 J^T (JJ^T + λI)^{-1} r。
+        from pi_con.optimizers import NaturalGradientOptimizer
         optimizer = NaturalGradientOptimizer(
             net.parameters(),
             lr=float(args.get("learning_rate", 1.0)),
@@ -665,7 +665,7 @@ def train_lnn_kolmogorov(
                     for _i, _ds in enumerate(datasets):
                         _xyt = _fixed_phys[_i]
                         _h_p, _st_p = _h_cache_lbfgs[_i]
-                        _uvpfn = make_lnn_model_fn_uvp(
+                        _uvpfn = make_picon_model_fn_uvp(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
                             h_states=_h_p, s_time=_st_p,
@@ -806,7 +806,7 @@ def train_lnn_kolmogorov(
                 """組裝 r ∈ R^N，使 0.5 ||r||² ≈ data_w·l_data + phys_w·(l_ns + cont_w·l_cont)。
 
                 Why scaling 寫法：
-                    pi-lnn 原始 loss 用 mean((·)²) → r_i = sqrt(w / (N_i · num_re)) · raw_i
+                    pi-con 原始 loss 用 mean((·)²) → r_i = sqrt(w / (N_i · num_re)) · raw_i
                     使 0.5 ||r||² 與 mean-loss 在尺度上對齊（相差固定 0.5 倍可由 lr 吸收）。
                 """
                 net.train()
@@ -843,7 +843,7 @@ def train_lnn_kolmogorov(
                     for _i, _ds in enumerate(datasets):
                         _xyt = _fixed_phys[_i]
                         _h_p, _st_p = _h_cache_ng[_i]
-                        _uvpfn = make_lnn_model_fn_uvp(
+                        _uvpfn = make_picon_model_fn_uvp(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
                             h_states=_h_p, s_time=_st_p,
@@ -996,7 +996,7 @@ def train_lnn_kolmogorov(
                     t_max=t_max, k_f=k_f, A=A, domain_length=domain_length, device=device,
                     exploration_ratio=_rar_expl_ratio,
                     # Hard body BC 相容：傳 body_distance_fn 給 RAR pool 內部
-                    # make_lnn_model_fn_uvp，否則 use_hard_body_bc=True 時 raise。
+                    # make_picon_model_fn_uvp，否則 use_hard_body_bc=True 時 raise。
                     body_distance_fns=body_distance_fns if _use_hard_body_bc else None,
                 )
 
@@ -1045,7 +1045,7 @@ def train_lnn_kolmogorov(
                             )
                     _sv_phys, _st_phys = _trim_cache[i] if _trim_cache else (sensor_vals_list[i], sensor_time_list[i])
                     _h_phys, _st_phys_cached = _h_cache[i] if _h_cache else (None, None)
-                    uvp_fn = make_lnn_model_fn_uvp(
+                    uvp_fn = make_picon_model_fn_uvp(
                         net,
                         _sv_phys,
                         sensor_pos_list[i],
@@ -1137,7 +1137,7 @@ def train_lnn_kolmogorov(
                         _t_lo, _t_hi = float(ds.sensor_time[0]), _t_max_bc
 
                         _sv_bc, _st_bc = _trim_cache[i]
-                        _bc_fn = make_lnn_model_fn(
+                        _bc_fn = make_picon_model_fn(
                             net, _sv_bc, sensor_pos_list[i],
                             re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
                             body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
@@ -1212,7 +1212,7 @@ def train_lnn_kolmogorov(
                                 device=device, requires_grad=True,
                             )
                             # 用 forward_uvp 取 [u, v, p]，對 x 求 gradient
-                            _uvp_out = make_lnn_model_fn_uvp(
+                            _uvp_out = make_picon_model_fn_uvp(
                                 net, _sv_bc, sensor_pos_list[i],
                                 re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
                                 body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
@@ -1423,7 +1423,7 @@ def train_lnn_kolmogorov(
                     #   "n/a"   = 不是 schedulefree（一般 optimizer，無此區分）
                     "schedulefree_mode": "train" if use_schedulefree else "n/a",
                 },
-                str(checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"),
+                str(checkpoints_dir / f"picon_kolmogorov_step_{step}.pt"),
             )
 
             # 只保留最後 N 個 step ckpt（節省磁碟空間；N=0 = 全保留，向後相容）。
@@ -1432,7 +1432,7 @@ def train_lnn_kolmogorov(
             _keep_n = int(args.get("keep_last_n_checkpoints", 2))
             if _keep_n > 0:
                 _existing = sorted(
-                    checkpoints_dir.glob("lnn_kolmogorov_step_*.pt"),
+                    checkpoints_dir.glob("picon_kolmogorov_step_*.pt"),
                     key=lambda p: int(p.stem.rsplit("_", 1)[1]),
                 )
                 for _old in _existing[:-_keep_n]:
@@ -1443,7 +1443,7 @@ def train_lnn_kolmogorov(
 
     if use_schedulefree:
         optimizer.eval()  # final.pt 儲存 Polyak 平均推理權重
-    final = artifacts_dir / "lnn_kolmogorov_final.pt"
+    final = artifacts_dir / "picon_kolmogorov_final.pt"
     torch.save(net.state_dict(), str(final))
 
     # Manifest: 包含 AL 最終狀態 + log columns（spec §5 logging / §8 pathology hook）
@@ -1467,24 +1467,24 @@ def train_lnn_kolmogorov(
 
 
 def main() -> None:
-    """What: CLI entry point for core LNN training."""
+    """What: CLI entry point for core PI-CON training."""
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Train core Pi-LNN on Kolmogorov flow."
+        description="Train core PI-CON on Kolmogorov flow."
     )
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None)
     cli_args = parser.parse_args()
 
-    config = dict(DEFAULT_LNN_ARGS)
-    config.update(load_lnn_config(cli_args.config))
+    config = dict(DEFAULT_PICON_ARGS)
+    config.update(load_picon_config(cli_args.config))
     if cli_args.device is not None:
         config["device"] = cli_args.device
     # AL semantic validation：必須在 merge 後（spec v4 §6）
-    from pi_lnn.config import _validate_al_config
+    from pi_con.config import _validate_al_config
     _validate_al_config(config)
-    train_lnn_kolmogorov(config)
+    train_picon_kolmogorov(config)
 
 if __name__ == "__main__":
     main()

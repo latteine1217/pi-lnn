@@ -143,7 +143,7 @@ EXP-007 為診斷 checkpoint（step_600，未走完），參數量 182,226（EXP
 
 | ID | Config | Artifact |
 |---|---|---|
-| EXP-007 | — | `[CONTEXT_MISSING]` `deeponet-cfc-midlong-uvomega-lowload-rff4-gain1-1000/checkpoints/lnn_kolmogorov_step_600.pt` |
+| EXP-007 | — | `[CONTEXT_MISSING]` `deeponet-cfc-midlong-uvomega-lowload-rff4-gain1-1000/checkpoints/picon_kolmogorov_step_600.pt` |
 | EXP-008 | [`configs/exp_008_re1000_small_baseline.toml`](../configs/exp_008_re1000_small_baseline.toml) | `[CONTEXT_MISSING]` `deeponet-cfc-midlong-uvomega-small-1000` |
 | EXP-010 | — | [`artifacts/deeponet-cfc-midlong-uvomega-small-kf2-1000`](../artifacts/deeponet-cfc-midlong-uvomega-small-kf2-1000) |
 | EXP-011 | — | [`artifacts/deeponet-cfc-midlong-uvomega-small-notm-1000`](../artifacts/deeponet-cfc-midlong-uvomega-small-notm-1000) |
@@ -419,7 +419,7 @@ EXP-030 為 Re=1000 全實驗中：
 | EXP-029 | `[CONTEXT_MISSING]`（2-layer TemporalCfC） | `[CONTEXT_MISSING]` |
 | EXP-030 | [`configs/exp_030_re1000_soap_sf_5k.toml`](../configs/exp_030_re1000_soap_sf_5k.toml) | [`artifacts/deeponet-cfc-re1000-soap-sf-5000`](../artifacts/deeponet-cfc-re1000-soap-sf-5000) |
 
-EXP-030 evaluated checkpoint: `artifacts/deeponet-cfc-re1000-soap-sf-5000/checkpoints/lnn_kolmogorov_step_5000.pt`
+EXP-030 evaluated checkpoint: `artifacts/deeponet-cfc-re1000-soap-sf-5000/checkpoints/picon_kolmogorov_step_5000.pt`
 
 ### Supersedes / Superseded_By
 
@@ -574,9 +574,9 @@ EXP-033 額外指標：ens 0.489, amp 0.875；參數量 3.09M。
 
 EXP-048 視覺診斷：
 - 大尺度流場（低 k）重建良好，誤差場呈隨機高頻分佈
-- 渦量峰值系統性低估 50%（DNS ±30 vs LNN ±15），spectral bias，sensors 僅覆蓋 k≤5
+- 渦量峰值系統性低估 50%（DNS ±30 vs PI-CON ±15），spectral bias，sensors 僅覆蓋 k≤5
 - 能譜 k<10 端與 DNS 高度吻合；k>20 端略低估
-- KE 曲線：t=0 LNN=0.068 vs DNS=0.161（-58%），t>1 穩定在 DNS 的 85%
+- KE 曲線：t=0 PI-CON=0.068 vs DNS=0.161（-58%），t>1 穩定在 DNS 的 85%
 
 ### Discussion
 

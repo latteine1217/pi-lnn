@@ -1,4 +1,6 @@
-# Pi-LNN Kolmogorov Flow Implementation Plan
+# PI-CON Kolmogorov Flow Implementation Plan
+
+> **命名註記（2026-05-19 補）**：本檔完成於改名前；舊版方法縮寫為 Pi-LNN，現對齊論文重命名為 **PI-CON**。文中其餘獨立 `LNN` 字樣指 Hasani et al. 提出的 Liquid Neural Network 學術技術背景（PI-CON 採用的 backbone family），不指方法名稱本身。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -30,15 +32,15 @@
 src/pi_onet/
   pit_ldc.py              ← 不動（LDC 版本保留）
   kolmogorov_dataset.py   ← 新建：資料載入 + 訓練/驗證採樣
-  lnn_kolmogorov.py       ← 新建：CfCCell + 三個 encoder/decoder + 訓練迴圈 + CLI
+  picon_kolmogorov.py       ← 新建：CfCCell + 三個 encoder/decoder + 訓練迴圈 + CLI
 
 tests/
-  test_lnn_kolmogorov.py  ← 新建：所有 TDD 測試
+  test_picon_kolmogorov.py  ← 新建：所有 TDD 測試
 
 configs/
-  lnn_kolmogorov.toml     ← 新建：訓練設定
+  picon_kolmogorov.toml     ← 新建：訓練設定
 
-pyproject.toml            ← 更新：新增 lnn-kolmogorov-train entry point
+pyproject.toml            ← 更新：新增 picon-kolmogorov-train entry point
 ```
 
 ---
@@ -46,16 +48,16 @@ pyproject.toml            ← 更新：新增 lnn-kolmogorov-train entry point
 ## Task 1：CfCCell（核心遞迴單元）
 
 **Files:**
-- Create: `src/pi_onet/lnn_kolmogorov.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Create: `src/pi_onet/picon_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# tests/test_lnn_kolmogorov.py
+# tests/test_picon_kolmogorov.py
 import pytest
 import torch
-from pi_onet.lnn_kolmogorov import CfCCell
+from pi_onet.picon_kolmogorov import CfCCell
 
 D = 32
 
@@ -91,17 +93,17 @@ def test_cfccell_backward():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_cfccell_output_shape -v
+uv run pytest tests/test_picon_kolmogorov.py::test_cfccell_output_shape -v
 ```
 Expected: `ImportError: cannot import name 'CfCCell'`
 
 - [ ] **Step 3：實作 CfCCell**
 
-建立 `src/pi_onet/lnn_kolmogorov.py`：
+建立 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
-# src/pi_onet/lnn_kolmogorov.py
-"""Pi-LNN: Physics-informed Liquid Neural Network for Kolmogorov flow.
+# src/pi_onet/picon_kolmogorov.py
+"""PI-CON: Physics-informed Liquid Neural Network for Kolmogorov flow.
 
 What: 以 CfC (Closed-form Continuous-time) 取代 LTC ODE 的數值求解器，
       實現 Spatial CfC Encoder + Temporal CfC Encoder + Query CfC Decoder。
@@ -172,14 +174,14 @@ class CfCCell(nn.Module):
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -k "cfccell" -v
+uv run pytest tests/test_picon_kolmogorov.py -k "cfccell" -v
 ```
 Expected: 3 PASSED
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add CfCCell (no-gate CfC recurrent unit)"
 ```
 
@@ -188,14 +190,14 @@ git commit -m "feat: add CfCCell (no-gate CfC recurrent unit)"
 ## Task 2：SpatialCfCEncoder（K sensors → s_t）
 
 **Files:**
-- Modify: `src/pi_onet/lnn_kolmogorov.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Modify: `src/pi_onet/picon_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
-from pi_onet.lnn_kolmogorov import SpatialCfCEncoder
+# 加入 tests/test_picon_kolmogorov.py
+from pi_onet.picon_kolmogorov import SpatialCfCEncoder
 
 RFF_F = 16
 D = 32
@@ -224,13 +226,13 @@ def test_spatial_encoder_backward():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_spatial_encoder_output_shape -v
+uv run pytest tests/test_picon_kolmogorov.py::test_spatial_encoder_output_shape -v
 ```
 Expected: `ImportError: cannot import name 'SpatialCfCEncoder'`
 
 - [ ] **Step 3：實作 SpatialCfCEncoder**
 
-加入 `src/pi_onet/lnn_kolmogorov.py`：
+加入 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
 class SpatialCfCEncoder(nn.Module):
@@ -277,14 +279,14 @@ class SpatialCfCEncoder(nn.Module):
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -k "spatial" -v
+uv run pytest tests/test_picon_kolmogorov.py -k "spatial" -v
 ```
 Expected: 2 PASSED
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add SpatialCfCEncoder (K sensors -> spatial summary)"
 ```
 
@@ -293,14 +295,14 @@ git commit -m "feat: add SpatialCfCEncoder (K sensors -> spatial summary)"
 ## Task 3：TemporalCfCEncoder（T steps → h_enc，物理 Δt）
 
 **Files:**
-- Modify: `src/pi_onet/lnn_kolmogorov.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Modify: `src/pi_onet/picon_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
-from pi_onet.lnn_kolmogorov import TemporalCfCEncoder
+# 加入 tests/test_picon_kolmogorov.py
+from pi_onet.picon_kolmogorov import TemporalCfCEncoder
 
 T = 21   # 感測器時間步數
 
@@ -333,13 +335,13 @@ def test_temporal_encoder_re_effect():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_temporal_encoder_output_shape -v
+uv run pytest tests/test_picon_kolmogorov.py::test_temporal_encoder_output_shape -v
 ```
 Expected: `ImportError: cannot import name 'TemporalCfCEncoder'`
 
 - [ ] **Step 3：實作 TemporalCfCEncoder**
 
-加入 `src/pi_onet/lnn_kolmogorov.py`：
+加入 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
 class TemporalCfCEncoder(nn.Module):
@@ -394,14 +396,14 @@ class TemporalCfCEncoder(nn.Module):
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -k "temporal" -v
+uv run pytest tests/test_picon_kolmogorov.py -k "temporal" -v
 ```
 Expected: 3 PASSED
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add TemporalCfCEncoder (T steps -> h_enc with physical dt)"
 ```
 
@@ -410,14 +412,14 @@ git commit -m "feat: add TemporalCfCEncoder (T steps -> h_enc with physical dt)"
 ## Task 4：QueryCfCDecoder + LiquidOperator
 
 **Files:**
-- Modify: `src/pi_onet/lnn_kolmogorov.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Modify: `src/pi_onet/picon_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
-from pi_onet.lnn_kolmogorov import QueryCfCDecoder, LiquidOperator, create_lnn_model
+# 加入 tests/test_picon_kolmogorov.py
+from pi_onet.picon_kolmogorov import QueryCfCDecoder, LiquidOperator, create_picon_model
 
 N_Q = 16
 
@@ -449,7 +451,7 @@ def test_liquid_operator_forward_shape():
         "rff_features": RFF_F, "rff_sigma": 1.0, "d_model": D, "d_time": 8,
         "num_spatial_cfc_layers": 1, "num_temporal_cfc_layers": 1,
     }
-    net = create_lnn_model(cfg)
+    net = create_picon_model(cfg)
     # 確認無 Attention
     for mod in net.modules():
         assert not isinstance(mod, nn.MultiheadAttention), "發現 MultiheadAttention"
@@ -468,7 +470,7 @@ def test_liquid_operator_backward():
         "rff_features": RFF_F, "rff_sigma": 1.0, "d_model": D, "d_time": 8,
         "num_spatial_cfc_layers": 1, "num_temporal_cfc_layers": 1,
     }
-    net = create_lnn_model(cfg)
+    net = create_picon_model(cfg)
     sensor_vals = torch.randn(T, K, 3)
     sensor_pos = torch.rand(K, 2) * 6.28
     xy = torch.rand(N_Q, 2) * 6.28
@@ -482,13 +484,13 @@ def test_liquid_operator_backward():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_query_decoder_output_shape -v
+uv run pytest tests/test_picon_kolmogorov.py::test_query_decoder_output_shape -v
 ```
 Expected: `ImportError`
 
 - [ ] **Step 3：實作 QueryCfCDecoder + LiquidOperator**
 
-加入 `src/pi_onet/lnn_kolmogorov.py`：
+加入 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
 class QueryCfCDecoder(nn.Module):
@@ -542,7 +544,7 @@ class QueryCfCDecoder(nn.Module):
 
 
 class LiquidOperator(nn.Module):
-    """What: Pi-LNN 主模型——組合 SpatialCfCEncoder + TemporalCfCEncoder + QueryCfCDecoder。
+    """What: PI-CON 主模型——組合 SpatialCfCEncoder + TemporalCfCEncoder + QueryCfCDecoder。
 
     Why: 完整的 LNN 架構，無任何 MultiheadAttention 或 TransformerEncoder。
          CfC 在 Temporal Encoder 中使用物理 Δt 加速 LTC ODE 計算。
@@ -603,7 +605,7 @@ class LiquidOperator(nn.Module):
         return self.query_decoder(xy, t_q, c, h_enc, self.B)
 
 
-def create_lnn_model(cfg: dict) -> LiquidOperator:
+def create_picon_model(cfg: dict) -> LiquidOperator:
     """What: 從 config dict 建立 LiquidOperator。"""
     return LiquidOperator(
         rff_features=int(cfg["rff_features"]),
@@ -618,14 +620,14 @@ def create_lnn_model(cfg: dict) -> LiquidOperator:
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -k "decoder or operator" -v
+uv run pytest tests/test_picon_kolmogorov.py -k "decoder or operator" -v
 ```
 Expected: 4 PASSED
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add QueryCfCDecoder and LiquidOperator (full LNN model)"
 ```
 
@@ -635,12 +637,12 @@ git commit -m "feat: add QueryCfCDecoder and LiquidOperator (full LNN model)"
 
 **Files:**
 - Create: `src/pi_onet/kolmogorov_dataset.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
+# 加入 tests/test_picon_kolmogorov.py
 import pytest
 
 RE1000_JSON = "data/kolmogorov_sensors/re1000/sensors_temporal_K50_N256_t0-20.json"
@@ -689,7 +691,7 @@ def test_dataset_sample_train():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_dataset_shapes -v
+uv run pytest tests/test_picon_kolmogorov.py::test_dataset_shapes -v
 ```
 Expected: `ImportError: cannot import name 'KolmogorovDataset'`
 
@@ -703,7 +705,7 @@ Expected: `ImportError: cannot import name 'KolmogorovDataset'`
 
 What: 從 JSON（感測器位置）、NPZ（感測器時序）、LES NPY（全場 ground truth）
       建立訓練資料結構，支援隨機採樣 (x, y, t, c) → ref 值。
-Why:  將資料邏輯與模型解耦；lnn_kolmogorov.py 不直接接觸檔案格式。
+Why:  將資料邏輯與模型解耦；picon_kolmogorov.py 不直接接觸檔案格式。
 """
 from __future__ import annotations
 
@@ -860,14 +862,14 @@ class KolmogorovDataset:
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -k "dataset" -v
+uv run pytest tests/test_picon_kolmogorov.py -k "dataset" -v
 ```
 Expected: 2 PASSED（若資料存在）或 2 SKIPPED（若無資料）
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/kolmogorov_dataset.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/kolmogorov_dataset.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add KolmogorovDataset (sensor + LES data loader)"
 ```
 
@@ -876,13 +878,13 @@ git commit -m "feat: add KolmogorovDataset (sensor + LES data loader)"
 ## Task 6：物理損失（非定常 NS + Kolmogorov forcing）
 
 **Files:**
-- Modify: `src/pi_onet/lnn_kolmogorov.py`
-- Test: `tests/test_lnn_kolmogorov.py`
+- Modify: `src/pi_onet/picon_kolmogorov.py`
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫失敗測試**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
+# 加入 tests/test_picon_kolmogorov.py
 def test_physics_loss_exact_solution():
     """u=sin(y), v=0, p=0 是 Kolmogorov NS 的精確解（忽略 forcing）。
 
@@ -893,7 +895,7 @@ def test_physics_loss_exact_solution():
       f_x = A·sin(k_f·y) = A·sin(4y)
       若 k_f=1, A=ν: NS_x = -ν·sin(y) - (-ν·sin(y)) = 0 ✓
     """
-    from pi_onet.lnn_kolmogorov import unsteady_ns_residuals
+    from pi_onet.picon_kolmogorov import unsteady_ns_residuals
 
     def u_fn(xyt): return torch.sin(xyt[:, 1:2])          # u = sin(y)
     def v_fn(xyt): return torch.zeros_like(xyt[:, 0:1])   # v = 0
@@ -914,13 +916,13 @@ def test_physics_loss_exact_solution():
 - [ ] **Step 2：確認測試失敗**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_physics_loss_exact_solution -v
+uv run pytest tests/test_picon_kolmogorov.py::test_physics_loss_exact_solution -v
 ```
 Expected: `ImportError: cannot import name 'unsteady_ns_residuals'`
 
 - [ ] **Step 3：實作 unsteady_ns_residuals**
 
-加入 `src/pi_onet/lnn_kolmogorov.py`：
+加入 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
 def unsteady_ns_residuals(
@@ -958,7 +960,7 @@ def unsteady_ns_residuals(
     return ns_x, ns_y, cont
 
 
-def make_lnn_model_fn(
+def make_picon_model_fn(
     net: LiquidOperator,
     sensor_vals: torch.Tensor,
     sensor_pos: torch.Tensor,
@@ -988,14 +990,14 @@ def make_lnn_model_fn(
 - [ ] **Step 4：確認測試通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_physics_loss_exact_solution -v
+uv run pytest tests/test_picon_kolmogorov.py::test_physics_loss_exact_solution -v
 ```
 Expected: PASSED
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
 git commit -m "feat: add unsteady_ns_residuals with Kolmogorov forcing"
 ```
 
@@ -1004,14 +1006,14 @@ git commit -m "feat: add unsteady_ns_residuals with Kolmogorov forcing"
 ## Task 7：Config + Entry Point
 
 **Files:**
-- Create: `configs/lnn_kolmogorov.toml`
+- Create: `configs/picon_kolmogorov.toml`
 - Modify: `pyproject.toml`
-- Modify: `src/pi_onet/lnn_kolmogorov.py`（DEFAULT_LNN_ARGS + load_lnn_config + main）
+- Modify: `src/pi_onet/picon_kolmogorov.py`（DEFAULT_PICON_ARGS + load_picon_config + main）
 
 - [ ] **Step 1：建立 config 檔案**
 
 ```toml
-# configs/lnn_kolmogorov.toml
+# configs/picon_kolmogorov.toml
 [train]
 # 資料檔案（每個 Re 一組 JSON + NPZ + LES）
 sensor_jsons = [
@@ -1052,15 +1054,15 @@ max_grad_norm = 1.0
 checkpoint_period = 2000
 seed = 42
 device = "auto"
-artifacts_dir = "artifacts/lnn-kolmogorov"
+artifacts_dir = "artifacts/picon-kolmogorov"
 ```
 
-- [ ] **Step 2：加入 DEFAULT_LNN_ARGS + load_lnn_config + main 至 lnn_kolmogorov.py**
+- [ ] **Step 2：加入 DEFAULT_PICON_ARGS + load_picon_config + main 至 picon_kolmogorov.py**
 
-加入 `src/pi_onet/lnn_kolmogorov.py` 末尾：
+加入 `src/pi_onet/picon_kolmogorov.py` 末尾：
 
 ```python
-DEFAULT_LNN_ARGS: dict[str, Any] = {
+DEFAULT_PICON_ARGS: dict[str, Any] = {
     "sensor_jsons": None,
     "sensor_npzs": None,
     "les_paths": None,
@@ -1087,13 +1089,13 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "checkpoint_period": 2000,
     "seed": 42,
     "device": "auto",
-    "artifacts_dir": "artifacts/lnn-kolmogorov",
+    "artifacts_dir": "artifacts/picon-kolmogorov",
 }
 
 _REMOVED_KEYS = {"nhead", "dim_feedforward", "attn_dropout", "num_encoder_layers"}
 
 
-def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
+def load_picon_config(config_path: Path | None) -> dict[str, Any]:
     """What: 載入並驗證 TOML config。舊 PiT 欄位（nhead 等）會觸發明確錯誤。"""
     if config_path is None:
         return {}
@@ -1106,7 +1108,7 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
         raise ValueError(
             f"Config 含有已移除的 PiT 欄位（請改用 num_spatial/temporal_cfc_layers）: {obsolete}"
         )
-    unknown = sorted(set(normalized) - set(DEFAULT_LNN_ARGS))
+    unknown = sorted(set(normalized) - set(DEFAULT_PICON_ARGS))
     if unknown:
         raise ValueError(f"LNN config 含有不支援的欄位: {unknown}")
     # 解析相對路徑
@@ -1130,21 +1132,21 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
 ```toml
 [project.scripts]
 pit-ldc-train = "pi_onet.pit_ldc:main"
-lnn-kolmogorov-train = "pi_onet.lnn_kolmogorov:main"
+picon-kolmogorov-train = "pi_onet.picon_kolmogorov:main"
 ```
 
 - [ ] **Step 4：確認 entry point 可載入**
 
 ```bash
-uv run lnn-kolmogorov-train --help
+uv run picon-kolmogorov-train --help
 ```
 Expected: 顯示 usage，不報錯
 
 - [ ] **Step 5：Commit**
 
 ```bash
-git add configs/lnn_kolmogorov.toml pyproject.toml src/pi_onet/lnn_kolmogorov.py
-git commit -m "feat: add lnn-kolmogorov-train entry point and config"
+git add configs/picon_kolmogorov.toml pyproject.toml src/pi_onet/picon_kolmogorov.py
+git commit -m "feat: add picon-kolmogorov-train entry point and config"
 ```
 
 ---
@@ -1152,13 +1154,13 @@ git commit -m "feat: add lnn-kolmogorov-train entry point and config"
 ## Task 8：訓練迴圈 + Smoke Test
 
 **Files:**
-- Modify: `src/pi_onet/lnn_kolmogorov.py`（train_lnn_kolmogorov + main）
-- Test: `tests/test_lnn_kolmogorov.py`
+- Modify: `src/pi_onet/picon_kolmogorov.py`（train_picon_kolmogorov + main）
+- Test: `tests/test_picon_kolmogorov.py`
 
 - [ ] **Step 1：寫 smoke test**
 
 ```python
-# 加入 tests/test_lnn_kolmogorov.py
+# 加入 tests/test_picon_kolmogorov.py
 @pytest.mark.skipif(
     not __import__("pathlib").Path(RE1000_JSON).exists(),
     reason="資料檔案不存在"
@@ -1189,7 +1191,7 @@ artifacts_dir        = "{tmp_path}/artifacts"
     cfg_path = tmp_path / "smoke.toml"
     cfg_path.write_text(cfg)
     result = subprocess.run(
-        [sys.executable, "-m", "pi_onet.lnn_kolmogorov", "--config", str(cfg_path)],
+        [sys.executable, "-m", "pi_onet.picon_kolmogorov", "--config", str(cfg_path)],
         capture_output=True, text=True, timeout=300,
     )
     assert result.returncode == 0, f"stderr:\n{result.stderr}"
@@ -1201,17 +1203,17 @@ artifacts_dir        = "{tmp_path}/artifacts"
 - [ ] **Step 2：確認測試失敗（train 函式不存在）**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_smoke_train -v
+uv run pytest tests/test_picon_kolmogorov.py::test_smoke_train -v
 ```
 Expected: 失敗或 SKIP（資料不存在時）
 
 - [ ] **Step 3：實作訓練迴圈**
 
-加入 `src/pi_onet/lnn_kolmogorov.py`：
+加入 `src/pi_onet/picon_kolmogorov.py`：
 
 ```python
-def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
-    """What: Pi-LNN Kolmogorov flow 訓練迴圈。
+def train_picon_kolmogorov(args: dict[str, Any]) -> None:
+    """What: PI-CON Kolmogorov flow 訓練迴圈。
 
     Why: 對每個 Re case encode 感測器時序 → h_enc，
          計算 data loss（LES 全場）+ physics loss（NS 殘差）並 backward。
@@ -1256,7 +1258,7 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
     ]
 
     # ── 模型 ────────────────────────────────────────────────────────
-    net = create_lnn_model(args).to(device)
+    net = create_picon_model(args).to(device)
     print("=== Configuration ===")
     print(f"trainable_parameters: {count_parameters(net)}")
 
@@ -1307,7 +1309,7 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
                 np.concatenate([xy_np, t_np[:, None]], axis=1),
                 device=device, requires_grad=True,
             )
-            model_fn = make_lnn_model_fn(
+            model_fn = make_picon_model_fn(
                 net, sensor_vals_list[i], sensor_pos_list[i],
                 re_norm=ds.re_norm, dt_phys=ds.dt_phys, device=device,
             )
@@ -1342,10 +1344,10 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
 
         # ── Checkpoint ───────────────────────────────────────────────
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
-            ckpt = checkpoints_dir / f"lnn_kolmogorov_step_{step}.pt"
+            ckpt = checkpoints_dir / f"picon_kolmogorov_step_{step}.pt"
             torch.save(net.state_dict(), str(ckpt))
 
-    final = artifacts_dir / "lnn_kolmogorov_final.pt"
+    final = artifacts_dir / "picon_kolmogorov_final.pt"
     torch.save(net.state_dict(), str(final))
     write_json(artifacts_dir / "experiment_manifest.json", {
         "configuration": {k: v for k, v in args.items()
@@ -1356,21 +1358,21 @@ def train_lnn_kolmogorov(args: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    """What: Entry point for lnn-kolmogorov-train CLI。"""
+    """What: Entry point for picon-kolmogorov-train CLI。"""
     import argparse
     parser = argparse.ArgumentParser(
-        description="Train Pi-LNN on Kolmogorov flow (full-field reconstruction)."
+        description="Train PI-CON on Kolmogorov flow (full-field reconstruction)."
     )
     parser.add_argument("--config", type=Path, default=None)
     parser.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None)
     cli_args = parser.parse_args()
 
-    config = dict(DEFAULT_LNN_ARGS)
-    config.update(load_lnn_config(cli_args.config))
+    config = dict(DEFAULT_PICON_ARGS)
+    config.update(load_picon_config(cli_args.config))
     if cli_args.device is not None:
         config["device"] = cli_args.device
 
-    train_lnn_kolmogorov(config)
+    train_picon_kolmogorov(config)
 
 
 if __name__ == "__main__":
@@ -1380,22 +1382,22 @@ if __name__ == "__main__":
 - [ ] **Step 4：確認 smoke test 通過**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py::test_smoke_train -v -s
+uv run pytest tests/test_picon_kolmogorov.py::test_smoke_train -v -s
 ```
 Expected: PASSED（需資料存在）；若資料不存在則 SKIPPED
 
 - [ ] **Step 5：執行完整測試**
 
 ```bash
-uv run pytest tests/test_lnn_kolmogorov.py -v
+uv run pytest tests/test_picon_kolmogorov.py -v
 ```
 Expected: 所有測試 PASSED 或 SKIPPED（資料不存在的測試）
 
 - [ ] **Step 6：Commit**
 
 ```bash
-git add src/pi_onet/lnn_kolmogorov.py tests/test_lnn_kolmogorov.py
-git commit -m "feat: add training loop and CLI for Pi-LNN Kolmogorov flow"
+git add src/pi_onet/picon_kolmogorov.py tests/test_picon_kolmogorov.py
+git commit -m "feat: add training loop and CLI for PI-CON Kolmogorov flow"
 ```
 
 ---
@@ -1403,5 +1405,5 @@ git commit -m "feat: add training loop and CLI for Pi-LNN Kolmogorov flow"
 ## 最終驗收
 
 - [ ] `uv run pytest tests/ -v` — 全部 PASSED（或 SKIPPED）
-- [ ] `grep -r "MultiheadAttention\|TransformerEncoder" src/pi_onet/lnn_kolmogorov.py` — 無輸出
-- [ ] `uv run lnn-kolmogorov-train --config configs/lnn_kolmogorov.toml --device cpu` — 開始訓練，loss 無 NaN
+- [ ] `grep -r "MultiheadAttention\|TransformerEncoder" src/pi_onet/picon_kolmogorov.py` — 無輸出
+- [ ] `uv run picon-kolmogorov-train --config configs/picon_kolmogorov.toml --device cpu` — 開始訓練，loss 無 NaN

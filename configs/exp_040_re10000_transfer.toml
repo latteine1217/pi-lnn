@@ -4,7 +4,7 @@
 # Why: EXP-031（隨機初始化，d=128）KE=39.4%。
 #      EXP-030 已學會稀疏感測器聚合、低頻流場重建、time-marching 等技能，
 #      這些技能與 Re 無關，有機會加速 Re=10000 的收斂並改善低頻基礎。
-#      使用 lnn_kolmogorov_final.pt（只有 model weights）確保 optimizer 從頭開始，
+#      使用 picon_kolmogorov_final.pt（只有 model weights）確保 optimizer 從頭開始，
 #      避免 Re=1000 的 optimizer 狀態干擾 Re=10000 訓練。
 #
 # 架構與 EXP-031 完全相同（d=128），保證對照乾淨。
@@ -72,4 +72,4 @@ checkpoint_period = 100
 seed = 42
 device = "mps"
 artifacts_dir = "artifacts/deeponet-cfc-re10000-transfer-3000"
-resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-5000/lnn_kolmogorov_final.pt"
+resume_checkpoint = "artifacts/deeponet-cfc-re1000-soap-sf-5000/picon_kolmogorov_final.pt"

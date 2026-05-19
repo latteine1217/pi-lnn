@@ -22,7 +22,7 @@ dev = [
 ]
 
 [project.scripts]
-lnn-kolmogorov-train = "lnn_kolmogorov:main"
+picon-kolmogorov-train = "picon_kolmogorov:main"
 
 [build-system]
 requires = ["hatchling"]

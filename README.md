@@ -1,4 +1,4 @@
-# Pi-LNN
+# PI-CON
 
 **Engineering-deployable sparse-sensor flow reconstruction with bounded spectral recovery at Re=10000.**
 
@@ -36,7 +36,7 @@ branch basis ⊙ trunk basis  →  u / v / p   [N_q, 1]
 - `ω`, KE, Enstrophy, E(k), ∇p are evaluation diagnostics — never enter training.
 - **Training signal:** sensor MSE on `u, v` + NS-momentum residual + continuity, GradNorm-balanced; continuity hardened by Augmented Lagrangian (EXP-080 only).
 
-A full annotated walkthrough — time grid, decoder zoom-in, parameter spec, full results gallery, ablation chain — lives on the [Details page](https://latteine1217.github.io/pi-lnn/lnn_architecture.html).
+A full annotated walkthrough — time grid, decoder zoom-in, parameter spec, full results gallery, ablation chain — lives on the [Details page](https://latteine1217.github.io/pi-lnn/picon_architecture.html).
 
 ---
 
@@ -101,15 +101,15 @@ Encoder amortized cost is **0.06 % of total inference** (70.7 ms / 581.2 s) — 
 
 Pipeline: DNS snapshots (n=200) → SVD rank-40 modes (div-free) → K=100 sensor LSQ → ETDRK4 forward 20 000 steps to t = 5.
 
-| Metric @ t = 5 | Forward CFD (rank=40, "cheating") | Pi-LNN B3 5-seed | Verdict |
+| Metric @ t = 5 | Forward CFD (rank=40, "cheating") | PI-CON B3 5-seed | Verdict |
 |---|---:|---:|---|
 | KE rel-err | **3.85 %** | 10.77 ± 0.52 % | Forward CFD better (KE attractor preservation is trivial under stationary forcing) |
-| u rel-L² | **152.78 %** | **20.0 ± 1.7 %** (time-avg) | **Pi-LNN ≥ 7× better** |
-| v rel-L² | **203.87 %** | **23.9 ± 2.1 %** (time-avg) | **Pi-LNN ≥ 8× better** |
+| u rel-L² | **152.78 %** | **20.0 ± 1.7 %** (time-avg) | **PI-CON ≥ 7× better** |
+| v rel-L² | **203.87 %** | **23.9 ± 2.1 %** (time-avg) | **PI-CON ≥ 8× better** |
 
-T = 5 corresponds to ~2.5 eddy-turnover times; this is the chaotic regime. Forward CFD preserves bounded statistics (KE) but loses **all phase information** (pointwise u/v decorrelated, rel-L² > 1). Pi-LNN's sensor re-measurement every dt = 0.025 locks the phase realization — the decisive advantage of operator learning over autonomous forward integration for ill-posed inverse problems.
+T = 5 corresponds to ~2.5 eddy-turnover times; this is the chaotic regime. Forward CFD preserves bounded statistics (KE) but loses **all phase information** (pointwise u/v decorrelated, rel-L² > 1). PI-CON's sensor re-measurement every dt = 0.025 locks the phase realization — the decisive advantage of operator learning over autonomous forward integration for ill-posed inverse problems.
 
-**Single KE rel-err under-represents chaotic systems**: u/v rel-L² is the phase-tracking metric where Pi-LNN dominates by an order of magnitude.
+**Single KE rel-err under-represents chaotic systems**: u/v rel-L² is the phase-tracking metric where PI-CON dominates by an order of magnitude.
 
 ---
 
@@ -245,7 +245,7 @@ git submodule update --init --recursive
 **Train EXP-080 (Re=10000, Pareto sweet spot — headline result):**
 ```bash
 export PYTORCH_ENABLE_MPS_FALLBACK=1   # safety net for any MPS-unsupported ops
-uv run python src/lnn_kolmogorov.py \
+uv run python src/picon_kolmogorov.py \
   --config configs/exp_079_re10000_al_4task_gradnorm.toml \
   --device mps
 # Note: EXP-080 reuses exp_079 config with al_rho = 0.1 (sweet spot value)
@@ -254,7 +254,7 @@ uv run python src/lnn_kolmogorov.py \
 **Train EXP-064 (Re=10000, KE-optimal — historical baseline):**
 ```bash
 export PYTORCH_ENABLE_MPS_FALLBACK=1
-uv run python src/lnn_kolmogorov.py \
+uv run python src/picon_kolmogorov.py \
   --config configs/exp_064_re10000_xlarge_sensor_physics.toml \
   --device mps
 ```
@@ -286,10 +286,10 @@ uv run python scripts/benchmark_inference.py \
 
 ```
 src/
-  lnn_kolmogorov.py         # entry point: model, training loop, physics residuals
-  pi_lnn/                   # encoders, decoder, operator, losses, training utilities
-  pi_lnn/standard_pinn.py   # Wang 2021 single-instance PINN baseline (EXP-091/092)
-  pi_lnn/vanilla_deeponet.py# Vanilla DeepONet ablation (B0, EXP-088)
+  picon_kolmogorov.py         # entry point: model, training loop, physics residuals
+  pi_con/                   # encoders, decoder, operator, losses, training utilities
+  pi_con/standard_pinn.py   # Wang 2021 single-instance PINN baseline (EXP-091/092)
+  pi_con/vanilla_deeponet.py# Vanilla DeepONet ablation (B0, EXP-088)
   kolmogorov_dataset.py     # sensor + DNS metadata loader
 
 configs/
@@ -316,7 +316,7 @@ scripts/
 
 docs/
   index.html                # presentation landing (Overview)
-  lnn_architecture.html     # detailed model card, training, gallery, ablations (Details)
+  picon_architecture.html     # detailed model card, training, gallery, ablations (Details)
   experiment_log.md         # entry — STATE/INDEX
   experiment_archive_kolmogorov.md           # EXP-001~063 RECORD
   experiment_archive_kolmogorov_post_k100.md # EXP-064~101 RECORD + AL/pivot/multiseed

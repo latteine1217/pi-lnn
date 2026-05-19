@@ -1,7 +1,7 @@
 """
 aim_diagnostic.py — Approximate Inertial Manifold 後處理診斷
 
-What: 對 Pi-LNN 輸出場做 AIM 修正，量化高頻重建的理論上限。
+What: 對 PI-CON 輸出場做 AIM 修正，量化高頻重建的理論上限。
 
 Why: 從資訊論觀點，K=100 sensor + NS 物理在準靜態 AIM 近似下，
      高頻模態可從低頻場解析計算，不需要額外感測器或 DNS supervision。
@@ -24,7 +24,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from lnn_kolmogorov import create_lnn_model, load_lnn_config
+from picon_kolmogorov import create_picon_model, load_picon_config
 
 
 # ── AIM 核心計算 ──────────────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ def aim_correct(u_pred: np.ndarray, v_pred: np.ndarray,
     """Zeroth-order AIM 修正：以低頻場（k≤k_max_low）填補高頻（k>k_max_low）。
 
     Args:
-        u_pred, v_pred: Pi-LNN 完整輸出場，shape (N, N)
+        u_pred, v_pred: PI-CON 完整輸出場，shape (N, N)
         Re: Reynolds number
         k_max_low: 低頻邊界，AIM 修正 k > k_max_low 的模態
 
@@ -44,7 +44,7 @@ def aim_correct(u_pred: np.ndarray, v_pred: np.ndarray,
     N = u_pred.shape[0]
     nu = 1.0 / Re
 
-    # ── Step 1：從 Pi-LNN 輸出提取低頻部分 ──
+    # ── Step 1：從 PI-CON 輸出提取低頻部分 ──
     kx_1d = np.fft.fftfreq(N) * N  # wavenumber in [0..N/2-1, -N/2..-1]
     KX, KY = np.meshgrid(kx_1d, kx_1d, indexing='ij')
     k2 = KX**2 + KY**2
@@ -155,12 +155,12 @@ def main():
     args = ap.parse_args()
 
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    cfg = load_lnn_config(args.config)
+    cfg = load_picon_config(args.config)
     Re  = float(cfg.get("re_values", [10000.0])[0])
     nu  = 1.0 / Re
 
     # ── 載入模型 ──
-    model = create_lnn_model(cfg).to(device)
+    model = create_picon_model(cfg).to(device)
     ckpt  = torch.load(args.checkpoint, map_location=device, weights_only=False)
     state = ckpt.get("model_state_dict", ckpt.get("model", ckpt))
     model.load_state_dict(state); model.eval()
@@ -249,7 +249,7 @@ def main():
     # ── 彙整結果 ──
     args.output_dir.mkdir(parents=True, exist_ok=True)
     print(f"\n=== AIM 後處理診斷結果（k_max_low={args.k_max_low}）===")
-    print(f"{'Band':>6}  {'Raw (Pi-LNN)':>14}  {'AIM 修正後':>12}  {'改善':>10}")
+    print(f"{'Band':>6}  {'Raw (PI-CON)':>14}  {'AIM 修正後':>12}  {'改善':>10}")
     print("-" * 50)
     for band in ("low", "mid", "high"):
         r = np.mean(results_raw[band]) * 100
@@ -266,7 +266,7 @@ def main():
     x = np.arange(3)
     r_vals = [np.mean(results_raw[b])*100 for b in bands_label]
     a_vals = [np.mean(results_aim[b])*100 for b in bands_label]
-    axes[0].bar(x - 0.2, r_vals, 0.35, label="Pi-LNN raw", alpha=0.8)
+    axes[0].bar(x - 0.2, r_vals, 0.35, label="PI-CON raw", alpha=0.8)
     axes[0].bar(x + 0.2, a_vals, 0.35, label="AIM corrected", alpha=0.8)
     axes[0].set_xticks(x); axes[0].set_xticklabels(["low (k≤5)", "mid (k5-16)", "high (k>16)"])
     axes[0].set_ylabel("Band energy relative error %")
@@ -285,7 +285,7 @@ def main():
     k_v, e_ref2 = energy_spectrum_1d(u_ref_last,  v_ref_last)
 
     axes[1].loglog(k_v, e_ref2, 'k-',  lw=2, label="DNS ref")
-    axes[1].loglog(k_v, e_raw,  'b--', lw=1.5, label="Pi-LNN raw")
+    axes[1].loglog(k_v, e_raw,  'b--', lw=1.5, label="PI-CON raw")
     axes[1].loglog(k_v, e_aim,  'r-',  lw=1.5, label="AIM corrected")
     k53 = k_v[2:40]
     axes[1].loglog(k53, 2e-3 * k53**(-5/3), 'g:', lw=1, label="k⁻⁵/³")

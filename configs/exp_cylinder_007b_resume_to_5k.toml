@@ -98,4 +98,4 @@ device = "mps"
 
 artifacts_dir = "artifacts/deeponet-cfc-cylinder-exp007-distance"   # 同 dir 續寫
 
-resume_checkpoint = "artifacts/deeponet-cfc-cylinder-exp007-distance/checkpoints/lnn_kolmogorov_step_3000.pt"
+resume_checkpoint = "artifacts/deeponet-cfc-cylinder-exp007-distance/checkpoints/picon_kolmogorov_step_3000.pt"

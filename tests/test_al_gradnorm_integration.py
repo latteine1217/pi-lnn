@@ -21,8 +21,8 @@ import torch.nn as nn
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn import AugmentedLagrangianMultiplier, GradNormWeights
-from pi_lnn.losses import _gradnorm_step
+from pi_con import AugmentedLagrangianMultiplier, GradNormWeights
+from pi_con.losses import _gradnorm_step
 
 
 def _make_toy_model_and_losses():

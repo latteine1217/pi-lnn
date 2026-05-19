@@ -16,7 +16,7 @@ import torch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pi_lnn.losses import GradNormWeights, _gradnorm_step  # noqa: E402
+from pi_con.losses import GradNormWeights, _gradnorm_step  # noqa: E402
 
 
 def _make_dummy_setup(n_tasks: int, seed: int = 0):

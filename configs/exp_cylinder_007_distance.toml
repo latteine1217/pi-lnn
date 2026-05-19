@@ -1,6 +1,6 @@
 # configs/exp_cylinder_007_distance.toml
 # STATUS: BLOCKED on main — `use_body_distance_feature` key 沒落到 main 的
-#         DEFAULT_LNN_ARGS / decoder。要實際跑此 config 須先在 src 端落地
+#         DEFAULT_PICON_ARGS / decoder。要實際跑此 config 須先在 src 端落地
 #         distance feature；distance feature 主線已被 hard body BC（010+）取代。
 #         保留此檔作為 hypothesis 紀錄；下方 D 區塊已 comment-out 以避免啟動 ValueError。
 #
@@ -74,7 +74,7 @@ t_early_threshold = 0.05
 physics_collocation_strategy = "body_aware"
 
 # === D: Body-distance feature in query_decoder ===
-# BLOCKED — key 不在 main 的 DEFAULT_LNN_ARGS。詳見檔頭 STATUS。
+# BLOCKED — key 不在 main 的 DEFAULT_PICON_ARGS。詳見檔頭 STATUS。
 # use_body_distance_feature = true   # ← 新增 SDF 進 query input
 #                                     # query_in: 28 → 29 (cylinder K=100 setup)
 #                                     # ckpt 不相容 exp_002~006

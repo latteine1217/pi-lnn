@@ -19,7 +19,7 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn.causal import causal_weighted_residual_loss
+from pi_con.causal import causal_weighted_residual_loss
 
 
 def _make_residuals(n: int, t_max: float = 1.0, seed: int = 0):

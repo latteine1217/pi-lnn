@@ -4,8 +4,8 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.encodings import FourierEmbs, LearnableFourierEmb, periodic_fourier_encode
+from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_con.encodings import FourierEmbs, LearnableFourierEmb, periodic_fourier_encode
 
 
 class SpatialSetEncoder(nn.Module):

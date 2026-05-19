@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 
 if TYPE_CHECKING:
-    from pi_lnn.operator import LiquidOperator  # noqa: F401  (used in annotation only)
+    from pi_con.operator import LiquidOperator  # noqa: F401  (used in annotation only)
 
 
 _DEFAULT_TASK_LAYOUTS: dict[int, list[str]] = {

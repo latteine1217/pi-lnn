@@ -71,4 +71,4 @@ device = "cpu"
 artifacts_dir = "artifacts/exp_ng_004b_ng_continue"
 
 # 從 Phase A 的最後 checkpoint resume
-resume_checkpoint = "artifacts/exp_ng_004a_adam_warmup/checkpoints/lnn_kolmogorov_step_1000.pt"
+resume_checkpoint = "artifacts/exp_ng_004a_adam_warmup/checkpoints/picon_kolmogorov_step_1000.pt"

@@ -21,8 +21,8 @@
 
 問題分**兩個獨立的 silent regression**，皆由 `d62e698 feat(cylinder+physics)`（2026-05-03）引入：
 
-1. **Training-side regression** — `set_physics_normalization` 在 [`src/pi_lnn/training.py`](../src/pi_lnn/training.py) 沒有 opt-out flag，自動套到 Kolmogorov 主線。
-2. **Evaluator-side regression** — `scripts/evaluate_deeponet_cfc.py` 預設套 `raw * std + mean`，但 model raw output 本來就是 physical 量級（[`src/pi_lnn/losses.py`](../src/pi_lnn/losses.py) 的 `(raw - mean)/std` 強制），結果是 **double-scaled**，KE 被誤報成 ~84%。
+1. **Training-side regression** — `set_physics_normalization` 在 [`src/pi_con/training.py`](../src/pi_con/training.py) 沒有 opt-out flag，自動套到 Kolmogorov 主線。
+2. **Evaluator-side regression** — `scripts/evaluate_deeponet_cfc.py` 預設套 `raw * std + mean`，但 model raw output 本來就是 physical 量級（[`src/pi_con/losses.py`](../src/pi_con/losses.py) 的 `(raw - mean)/std` 強制），結果是 **double-scaled**，KE 被誤報成 ~84%。
 
 ### Part 1: Training-side regression
 
@@ -36,7 +36,7 @@
 
 ### Part 2: Evaluator-side regression（2026-05-07 才發現的真凶）
 
-evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + mean`。但 `src/pi_lnn/losses.py` 的 data loss `(raw - mean)/std vs normalized_target` 強制 model raw output 收斂到 physical 量級。所以 evaluator 預設的 denorm 是 **double-scale**：
+evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + mean`。但 `src/pi_con/losses.py` 的 data loss `(raw - mean)/std vs normalized_target` 強制 model raw output 收斂到 physical 量級。所以 evaluator 預設的 denorm 是 **double-scale**：
 
 - `pred_default = raw_phys * std + mean = physical_target * std + (mean + 0)` → 量級錯約 5×
 - `pred_correct (--legacy-checkpoint)` = `raw_phys` → 等於 physical_target
@@ -77,7 +77,7 @@ evaluate_deeponet_cfc.py 與 evaluate_cylinder.py 預設套 `phys = raw * std + 
 
 ### Round 7 修補後 evaluator 重跑驗證（2026-05-07）
 
-evaluator 經 Round 1–7 review-fix loop（dataset 一致性、time alignment ULP tolerance、spectrum bin cap、`_add_split` schema、`find_dns_time_idx` 抽到 [`src/pi_lnn/dns_align.py`](../src/pi_lnn/dns_align.py) 等共 31 項修補）後，重跑 EXP-064 + EXP-070~074 的 6 個 ckpt，再次與 DIAGNOSTIC 真實值對齊驗證：
+evaluator 經 Round 1–7 review-fix loop（dataset 一致性、time alignment ULP tolerance、spectrum bin cap、`_add_split` schema、`find_dns_time_idx` 抽到 [`src/pi_con/dns_align.py`](../src/pi_con/dns_align.py) 等共 31 項修補）後，重跑 EXP-064 + EXP-070~074 的 6 個 ckpt，再次與 DIAGNOSTIC 真實值對齊驗證：
 
 | EXP | Round-7 重跑 KE | DIAG 真實值 | 原紀錄 (bug) | div L2 重跑 | div L2 DIAG | 對齊度 |
 |---|---|---|---|---|---|---|
@@ -94,7 +94,7 @@ evaluator 經 Round 1–7 review-fix loop（dataset 一致性、time alignment U
 
 新指標（前所未報）：
 - **train/val split metric**：每組均 train < val 微小 transductive overfit，符合 PINN sparse-data inversion 預期
-- **DNS divergence baseline**：div L2 LNN 0.184 vs DNS 0.092（EXP-064）→ evaluator 自身 numerical scheme baseline ~0.09，model 殘差 ~2× baseline 為合理量級
+- **DNS divergence baseline**：div L2 PI-CON 0.184 vs DNS 0.092（EXP-064）→ evaluator 自身 numerical scheme baseline ~0.09，model 殘差 ~2× baseline 為合理量級
 - **reproducibility metadata**：`sensor_subsample`、`train_ratio`、`ds_seed`、`eval_stride` 完整寫入 summary.json
 
 artifacts: `artifacts/eval-rerun-2026-05-07/exp{064,070,070b,072,073,074}-*/`
@@ -107,12 +107,12 @@ artifacts: `artifacts/eval-rerun-2026-05-07/exp{064,070,070b,072,073,074}-*/`
 ### 修補總覽
 
 **Step 1, 2026-05-06**（diagnostic toggle）：
-- [`src/pi_lnn/training.py`](../src/pi_lnn/training.py)：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數 toggle
+- [`src/pi_con/training.py`](../src/pi_con/training.py)：加 `PINN_DISABLE_PHYS_DENORM=1` 環境變數 toggle
 - `SOAP/soap.py`：修 `_linalg_eigh_mps` dtype/device 順序 bug
 
 **Step 2, 2026-05-07**（升格為 config flag）：
-- [`src/pi_lnn/config.py`](../src/pi_lnn/config.py)：`DEFAULT_LNN_ARGS` 新增 `"use_physics_denormalization": False`
-- [`src/pi_lnn/training.py`](../src/pi_lnn/training.py)：env var toggle 改為 config flag（env var 仍保留為 emergency override）
+- [`src/pi_con/config.py`](../src/pi_con/config.py)：`DEFAULT_PICON_ARGS` 新增 `"use_physics_denormalization": False`
+- [`src/pi_con/training.py`](../src/pi_con/training.py)：env var toggle 改為 config flag（env var 仍保留為 emergency override）
 - `configs/exp_cylinder_*.toml`：17 個 cylinder configs 全部主動加 `use_physics_denormalization = true`（在 `use_periodic_domain` 旁邊）
 - 行為對齊：
   - **Kolmogorov 主線**（包括 EXP-064 ~ EXP-072 + 後續新實驗）→ 預設 OFF，與 EXP-064 baseline 路徑 byte-aligned
@@ -220,11 +220,11 @@ Pipeline：DNS snapshots (n=200) → 中心化 + SVD 取 leading 40 modes（div-
 
 執行環境：home-gpu (WSL2, Python 3.14.4, numpy 2.3.5, 12 cores)；27.5 min wall time（POD SVD 24 s + ETDRK4 1651 s）。
 
-| 指標 | t = 0 (IC) | t = 5 (final) | Pi-LNN B3 5-seed | 倍率 (T = 5) |
+| 指標 | t = 0 (IC) | t = 5 (final) | PI-CON B3 5-seed | 倍率 (T = 5) |
 |---|---|---|---|---|
 | KE rel-err | 0.08 % | **3.85 %** | 10.77 ± 0.52 % | forward CFD 較佳 ≈ 2.8× |
-| u rel-L₂ | 5.21 % | **152.78 %** | 20.0 ± 1.7 % (time-avg) | Pi-LNN 較佳 **≥ 7×** |
-| v rel-L₂ | 6.07 % | **203.87 %** | 23.9 ± 2.1 % (time-avg) | Pi-LNN 較佳 **≥ 8×** |
+| u rel-L₂ | 5.21 % | **152.78 %** | 20.0 ± 1.7 % (time-avg) | PI-CON 較佳 **≥ 7×** |
+| v rel-L₂ | 6.07 % | **203.87 %** | 23.9 ± 2.1 % (time-avg) | PI-CON 較佳 **≥ 8×** |
 | KE_pred | 0.1616 | 0.1200 | — | — |
 | KE_ref (DNS) | 0.1615 | 0.1248 | — | — |
 
@@ -235,8 +235,8 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 - T = 5 對應 ~2.5 t_eddy（見 §Pope criterion）；2-D Kolmogorov 在此尺度上是 chaotic regime。
 - Forward CFD 在 **bounded statistics**（KE）上接近 DNS（3.85 % rel-err），因為 stationary forcing 把 KE 鎖在 attractor 上，這是 trivial preservation。
 - 但 **phase information**（pointwise u, v）幾乎完全 decorrelated（rel-L₂ > 1，意指 ‖error‖ 比 ‖ref‖ 還大），這是 chaos divergence 的直接後果（λ_L ≈ 1/t_eddy ⇒ 2.5 e-foldings）。
-- Pi-LNN 用 continuous-time conditioning + sensor 重複量測，把 pointwise correlation 保在 ~20 %（time-avg），是 **operator framework 處理 ill-posed inverse problem** 的直接證據；同一 K = 100 sensor input 與同一 PDE，pointwise 誤差差 7–8×。
-- **單一 KE rel-err 指標 對 chaotic system 會 mis-rank**：委員若以 KE 攻擊「forward CFD 已經更好」，回擊 = u/v rel-L₂ 才是 phase tracking 指標，Pi-LNN 在這層比 forward CFD 強 ~ order of magnitude。
+- PI-CON 用 continuous-time conditioning + sensor 重複量測，把 pointwise correlation 保在 ~20 %（time-avg），是 **operator framework 處理 ill-posed inverse problem** 的直接證據；同一 K = 100 sensor input 與同一 PDE，pointwise 誤差差 7–8×。
+- **單一 KE rel-err 指標 對 chaotic system 會 mis-rank**：委員若以 KE 攻擊「forward CFD 已經更好」，回擊 = u/v rel-L₂ 才是 phase tracking 指標，PI-CON 在這層比 forward CFD 強 ~ order of magnitude。
 
 **Same-attractor vs different-solution 判定（2026-05-15，從 .npz 快速 stats + spectrum 對比）**：
 
@@ -252,7 +252,7 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 | **v_std** | 0.197 | 0.364 | — | **anisotropy drift** |
 | **u_std / v_std** | **2.32** | **0.90** | — | DNS 保留 forcing anisotropy；forward 漂到 equipartition |
 
-結論：forward CFD **沒有跑到另一個解**（不是 laminar Kolmogorov fixed point、不是 phase-locked periodic orbit），KE / enstrophy / spectrum shape 都在同一 attractor 上；但 chaos divergence 把 IC 推到 attractor 上「另一個典型 sample」，並且把 DNS 在 T=5 仍保留的 forcing-induced anisotropy（u_std/v_std = 2.32）抹掉變成接近 equipartition（0.90）。換句話說，forward CFD 抓到了 attractor 的長時間平均特徵，但完全失去了 DNS t=5 這個特定 phase realization。Pi-LNN 因有 sensor 每 0.025 t 重新量測，把 phase realization 鎖住，這是 operator framework 的決定性貢獻。
+結論：forward CFD **沒有跑到另一個解**（不是 laminar Kolmogorov fixed point、不是 phase-locked periodic orbit），KE / enstrophy / spectrum shape 都在同一 attractor 上；但 chaos divergence 把 IC 推到 attractor 上「另一個典型 sample」，並且把 DNS 在 T=5 仍保留的 forcing-induced anisotropy（u_std/v_std = 2.32）抹掉變成接近 equipartition（0.90）。換句話說，forward CFD 抓到了 attractor 的長時間平均特徵，但完全失去了 DNS t=5 這個特定 phase realization。PI-CON 因有 sensor 每 0.025 t 重新量測，把 phase realization 鎖住，這是 operator framework 的決定性貢獻。
 
 ### Still-pending CFD-rigour tasks（Q7、Q8 已完成）
 
@@ -267,7 +267,7 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 - Slide 32 (Limitations) 加 ⑥「CFD-rigour gaps」
 - Slide 33 (Future work) 加 ⑤「Classical-CFD baseline」
 - Slide 34 (Anticipated Q&A backup) 新增，8 題 CFD-rigour 預備答案，含本節數據
-- Slide 34 Q8 card 已從 "planned" 更新為實跑結果（KE 3.85 % vs Pi-LNN 10.77 %，但 u/v rel-L₂ 7-8× 差）— 用 chaos signature 反擊單一 KE 指標的 mis-rank
+- Slide 34 Q8 card 已從 "planned" 更新為實跑結果（KE 3.85 % vs PI-CON 10.77 %，但 u/v rel-L₂ 7-8× 差）— 用 chaos signature 反擊單一 KE 指標的 mis-rank
 
 ---
 

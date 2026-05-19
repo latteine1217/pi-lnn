@@ -1,14 +1,14 @@
 """tests/test_make_lnn_model_fn_cache.py
 
-TDD for make_lnn_model_fn h_states caching (A4).
+TDD for make_picon_model_fn h_states caching (A4).
 
 問題：LBFGS closure 中 data loss 路徑已呼叫 net.encode() 得到 _h/_st，
-      但 physics 路徑的 make_lnn_model_fn 未傳入 h_states=_h，
-      導致 make_lnn_model_fn 內部再呼叫一次 encode()。
+      但 physics 路徑的 make_picon_model_fn 未傳入 h_states=_h，
+      導致 make_picon_model_fn 內部再呼叫一次 encode()。
 
 驗收條件：
-  1. 傳入 h_states 時，make_lnn_model_fn 不呼叫 net.encode()
-  2. 不傳 h_states 時，make_lnn_model_fn 恰好呼叫一次 net.encode()
+  1. 傳入 h_states 時，make_picon_model_fn 不呼叫 net.encode()
+  2. 不傳 h_states 時，make_picon_model_fn 恰好呼叫一次 net.encode()
   3. 兩種路徑的模型輸出數值相同（h_states 正確被重用）
 """
 
@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from lnn_kolmogorov import LiquidOperator, make_lnn_model_fn
+from picon_kolmogorov import LiquidOperator, make_picon_model_fn
 
 torch.manual_seed(0)
 
@@ -56,7 +56,7 @@ class TestMakeLnnModelFnCachesHStates:
         h_states, s_time = model.encode(sv, sp, re_norm=0.0, sensor_time=st)
 
         with patch.object(model, "encode", wraps=model.encode) as spy:
-            make_lnn_model_fn(
+            make_picon_model_fn(
                 model, sv, sp, re_norm=0.0, sensor_time=st,
                 device=torch.device("cpu"),
                 h_states=h_states, s_time=s_time,
@@ -69,7 +69,7 @@ class TestMakeLnnModelFnCachesHStates:
         sv, sp, st = _standard_inputs()
 
         with patch.object(model, "encode", wraps=model.encode) as spy:
-            make_lnn_model_fn(
+            make_picon_model_fn(
                 model, sv, sp, re_norm=0.0, sensor_time=st,
                 device=torch.device("cpu"),
             )
@@ -87,12 +87,12 @@ class TestMakeLnnModelFnOutputConsistency:
 
         h_states, s_time = model.encode(sv, sp, re_norm=0.0, sensor_time=st)
 
-        fn_cached = make_lnn_model_fn(
+        fn_cached = make_picon_model_fn(
             model, sv, sp, re_norm=0.0, sensor_time=st,
             device=torch.device("cpu"),
             h_states=h_states, s_time=s_time,
         )
-        fn_fresh = make_lnn_model_fn(
+        fn_fresh = make_picon_model_fn(
             model, sv, sp, re_norm=0.0, sensor_time=st,
             device=torch.device("cpu"),
         )

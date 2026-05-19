@@ -13,13 +13,13 @@ import torch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pi_lnn import (  # noqa: E402
+from pi_con import (  # noqa: E402
     DeepONetCfCDecoder,
     LiquidOperator,
     SpatialSetEncoder,
     TemporalCfCEncoder,
 )
-from pi_lnn.encodings import periodic_fourier_encode  # noqa: E402
+from pi_con.encodings import periodic_fourier_encode  # noqa: E402
 
 
 def _build_decoder(rank: int = 32, hidden: int = 64) -> DeepONetCfCDecoder:

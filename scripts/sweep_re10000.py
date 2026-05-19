@@ -41,11 +41,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 import optuna
 import wandb
 
-from lnn_kolmogorov import DEFAULT_LNN_ARGS, load_lnn_config, train_lnn_kolmogorov
+from picon_kolmogorov import DEFAULT_PICON_ARGS, load_picon_config, train_picon_kolmogorov
 
 # ── 常數 ──────────────────────────────────────────────────────────────────────
 BASE_CONFIG = Path(__file__).parent.parent / "configs" / "sweep_re10000_base.toml"
-WANDB_PROJECT = "pi-lnn-re10000-sweep"
+WANDB_PROJECT = "pi-con-re10000-sweep"
 OPTUNA_DB_DIR = Path("artifacts/sweep")
 # 用這幾步的 l_data 平均作為 trial 最終指標（降低尾段雜訊）
 METRIC_TAIL_STEPS = 200
@@ -126,7 +126,7 @@ def make_objective(base_cfg: dict, device: str):
 
         # ── 執行訓練 ────────────────────────────────────────────────────────
         try:
-            train_lnn_kolmogorov(cfg, log_fn=log_fn)
+            train_picon_kolmogorov(cfg, log_fn=log_fn)
         except optuna.TrialPruned:
             wandb.log({"pruned": True})
             run.finish(exit_code=1)
@@ -189,8 +189,8 @@ def main() -> None:
     args = parse_args()
 
     # ── 載入 base config ─────────────────────────────────────────────────────
-    base_cfg = dict(DEFAULT_LNN_ARGS)
-    base_cfg.update(load_lnn_config(BASE_CONFIG))
+    base_cfg = dict(DEFAULT_PICON_ARGS)
+    base_cfg.update(load_picon_config(BASE_CONFIG))
     device = args.device or base_cfg.get("device", "mps")
 
     # ── Optuna study ─────────────────────────────────────────────────────────

@@ -17,7 +17,7 @@ Jacobi scaling (van der Sluis, 1969；論文 §2.3)：
     K̃ = D^{-1/2} K D^{-1/2}  → diag(K̃) = 1
     對 SPD 矩陣接近最小化 condition number。
 
-設計取捨（pi-lnn 場景）
+設計取捨（pi-con 場景）
     - P ~ 10⁵, N ~ 100~500 → 強制走 kernel trick；
     - LinAlg 切到 fp64 + CPU：避開 MPS / fp32 ill-conditioning；
     - Jacobian 以 N 次 backward 逐 row 構造（torch.func.jacrev 對 CfC
@@ -44,7 +44,7 @@ def compute_residual_jacobian(
 ) -> Tensor:
     """逐 row 計算 J = ∂r/∂θ ∈ R^{N × P}。
 
-    成本：N 次 backward。建議 N < 500（pi-lnn 典型 N~200 OK）。
+    成本：N 次 backward。建議 N < 500（pi-con 典型 N~200 OK）。
     Why 不用 torch.func.jacrev：
         CfC 內含時間迴圈與 in-place state 更新，functional_call + vmap
         在多 dataset / 多 Re 情境下穩定性差，逐 row autograd.grad 雖慢但通用。
@@ -94,7 +94,7 @@ def solve_ng_step(
     自動切換兩種等價解法：
         kernel trick (N ≤ P)：解 N×N 系統 (J J^T + ...)。
         normal eq    (N >  P)：解 P×P 系統 (J^T J + ...)。
-    pi-lnn 場景 P~10⁵ >> N~200 → 永遠走 kernel trick。
+    pi-con 場景 P~10⁵ >> N~200 → 永遠走 kernel trick。
 
     Args:
         J: Jacobian, shape (N, P)。

@@ -1,14 +1,14 @@
-# Pi-LNN Package Refactor Implementation Plan
+# PI-CON Package Refactor Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split the 1,913-line `src/lnn_kolmogorov.py` monolith into a flat 10-module `src/pi_lnn/` package, replacing the original file with a backward-compat shim. Behavior must be byte-identical to the pre-refactor monolith.
+**Goal:** Split the 1,913-line `src/picon_kolmogorov.py` monolith into a flat 10-module `src/pi_con/` package, replacing the original file with a backward-compat shim. Behavior must be byte-identical to the pre-refactor monolith.
 
-**Architecture:** Incremental extraction (M1). Each task moves one logical group of definitions into a new file under `src/pi_lnn/`, then immediately re-imports those names back into `src/lnn_kolmogorov.py` so all 7 existing callers (scripts/tests) keep working between tasks. The original `lnn_kolmogorov.py` shrinks task by task; the final task replaces what remains with a pure shim.
+**Architecture:** Incremental extraction (M1). Each task moves one logical group of definitions into a new file under `src/pi_con/`, then immediately re-imports those names back into `src/picon_kolmogorov.py` so all 7 existing callers (scripts/tests) keep working between tasks. The original `picon_kolmogorov.py` shrinks task by task; the final task replaces what remains with a pure shim.
 
 **Tech Stack:** Python 3.11+, PyTorch 2.6+, uv, pytest, hatchling.
 
-**Spec:** [docs/superpowers/specs/2026-04-26-pi-lnn-package-refactor-design.md](../specs/2026-04-26-pi-lnn-package-refactor-design.md)
+**Spec:** [docs/superpowers/specs/2026-04-26-pi-con-package-refactor-design.md](../specs/2026-04-26-pi-con-package-refactor-design.md)
 
 **User-policy note (from project CLAUDE.md):** Git commands are not auto-executed. Each task ends with a "Commit" step that lists the exact suggested `git add` + `git commit` commands; the executing agent must surface these to the user rather than running them silently. The user may also defer commits and squash at the end — that is acceptable as long as the working tree is clean before declaring the plan complete.
 
@@ -18,19 +18,19 @@
 
 ```
 src/
-  pi_lnn/
+  pi_con/
     __init__.py        # public API re-export (Task 12)
     runtime.py         # Task 2  — device/grad/json/count_parameters
     encodings.py       # Task 3  — LearnableFourierEmb + 2 helpers
     blocks.py          # Task 4  — CfCCell + ResidualMLP + TokenSelfAttention
-    config.py          # Task 5  — DEFAULT_LNN_ARGS + load_lnn_config
+    config.py          # Task 5  — DEFAULT_PICON_ARGS + load_picon_config
     losses.py          # Task 6  — GradNormWeights + observed_channel_prediction
     encoders.py        # Task 7  — SpatialSetEncoder + TemporalCfCEncoder
     decoder.py         # Task 8  — DeepONetCfCDecoder
-    operator.py        # Task 9  — LiquidOperator + create_lnn_model + make_lnn_model_fn
+    operator.py        # Task 9  — LiquidOperator + create_picon_model + make_picon_model_fn
     physics.py         # Task 10 — NS/Poisson + RAR + scheduling
-    training.py        # Task 11 — train_lnn_kolmogorov + main (NOT decomposed)
-  lnn_kolmogorov.py    # Becomes a compat shim in Task 12
+    training.py        # Task 11 — train_picon_kolmogorov + main (NOT decomposed)
+  picon_kolmogorov.py    # Becomes a compat shim in Task 12
   kolmogorov_dataset.py  # UNCHANGED
 ```
 
@@ -40,10 +40,10 @@ Order rationale: leaves first (no internal deps), then layers up to `training.py
 
 ## Conventions Used Throughout This Plan
 
-- **"Move" means:** (1) create a new `pi_lnn/X.py` containing the verbatim code chunk, (2) delete the same definitions from `src/lnn_kolmogorov.py`, (3) add `from pi_lnn.X import (...)` near the top of the monolith so the remaining unmoved code keeps resolving those names.
+- **"Move" means:** (1) create a new `pi_con/X.py` containing the verbatim code chunk, (2) delete the same definitions from `src/picon_kolmogorov.py`, (3) add `from pi_con.X import (...)` near the top of the monolith so the remaining unmoved code keeps resolving those names.
 - **Line numbers in this plan refer to the ORIGINAL monolith** (the file as it exists at the start of Task 0). After each task, line numbers in subsequent tasks remain valid against the original file — use the listed symbol names as the source of truth, not absolute positions.
 - **`uv run`** is the project's Python invocation — never use bare `python`.
-- **No file outside `src/pi_lnn/` and `src/lnn_kolmogorov.py` should be modified by Tasks 0–13** except where explicitly noted (only Task 0 writes a baseline JSON).
+- **No file outside `src/pi_con/` and `src/picon_kolmogorov.py` should be modified by Tasks 0–13** except where explicitly noted (only Task 0 writes a baseline JSON).
 - **Pre-existing broken test:** `tests/test_evaluator_dns_idx.py` fails to collect (TDD-RED for an unimplemented `find_dns_time_idx`; out of scope here). Every `pytest` invocation in this plan uses `--ignore=tests/test_evaluator_dns_idx.py`. The expected pass count is **38 tests across 5 test files** (not "6 test files"); this is the pre-refactor baseline state.
 
 ---
@@ -56,9 +56,9 @@ The following one-time setup has been performed in this worktree before Task 0 i
 - `.python-version` is set to `3.12` (copied from main repo). uv now resolves to Python 3.12.6.
 - `uv sync --extra dev` has been run; `pytest`, `torch==2.10.0`, all project deps are installed.
 - `uv run pytest tests/ --ignore=tests/test_evaluator_dns_idx.py -v` reports `38 passed`.
-- `configs/smoke_re1000_uvomega.toml` had 3 stale fields (`rff_features`, `rff_sigma`, `rff_sigma_bands`) that the current `load_lnn_config` validator rejects as "unsupported". They have been removed (lines 18-20 in the original). This is a 3-line cleanup, NOT part of the refactor itself — the fields were dead and made the config un-runnable. After this cleanup, the config is loadable as-is via `load_lnn_config`.
+- `configs/smoke_re1000_uvomega.toml` had 3 stale fields (`rff_features`, `rff_sigma`, `rff_sigma_bands`) that the current `load_picon_config` validator rejects as "unsupported". They have been removed (lines 18-20 in the original). This is a 3-line cleanup, NOT part of the refactor itself — the fields were dead and made the config un-runnable. After this cleanup, the config is loadable as-is via `load_picon_config`.
 
-**Pre-existing layout quirk:** The editable install `_editable_impl_pi_o_net.pth` adds the worktree ROOT (not `src/`) to `sys.path`. Naked `python -c "import lnn_kolmogorov"` therefore fails ModuleNotFoundError, and the `lnn-kolmogorov-train` console script is also broken (`from lnn_kolmogorov import main` cannot resolve). Pytest works because tests do `sys.path.insert(0, "src")`. **This breakage is pre-existing and out of scope for this refactor.** All verification commands in this plan use `PYTHONPATH=src` to compensate, and the console script test in Task 11/13 is replaced with `PYTHONPATH=src uv run python src/lnn_kolmogorov.py --help` which validates the same code path. A proper `pyproject.toml` fix (e.g., switching to a real src-layout) is left to a separate cleanup.
+**Pre-existing layout quirk:** The editable install `_editable_impl_pi_o_net.pth` adds the worktree ROOT (not `src/`) to `sys.path`. Naked `python -c "import picon_kolmogorov"` therefore fails ModuleNotFoundError, and the `picon-kolmogorov-train` console script is also broken (`from picon_kolmogorov import main` cannot resolve). Pytest works because tests do `sys.path.insert(0, "src")`. **This breakage is pre-existing and out of scope for this refactor.** All verification commands in this plan use `PYTHONPATH=src` to compensate, and the console script test in Task 11/13 is replaced with `PYTHONPATH=src uv run python src/picon_kolmogorov.py --help` which validates the same code path. A proper `pyproject.toml` fix (e.g., switching to a real src-layout) is left to a separate cleanup.
 
 If the implementer hits any "data file not found" or "pytest not installed" error, it indicates the worktree state has been disturbed — surface to controller, do not attempt to recreate the prerequisites.
 
@@ -98,7 +98,7 @@ All three edits will be reverted in Step 5.
 Run (CPU device for byte-determinism — MPS may be non-deterministic across runs):
 ```bash
 mkdir -p artifacts/refactor-baseline
-uv run python src/lnn_kolmogorov.py --config configs/smoke_re1000_uvomega.toml --device cpu \
+uv run python src/picon_kolmogorov.py --config configs/smoke_re1000_uvomega.toml --device cpu \
   2>&1 | tee artifacts/refactor-baseline/pre-refactor-smoke.stdout
 ```
 
@@ -141,27 +141,27 @@ Expected: `38 passed in <N>s` across the 5 test files (`test_cfc_pass_refactor.p
 Suggested commit (surface to user, do not auto-run):
 ```bash
 git add artifacts/refactor-baseline/
-git commit -m "chore: capture pre-refactor baseline metrics for pi_lnn package split"
+git commit -m "chore: capture pre-refactor baseline metrics for pi_con package split"
 ```
 
 ---
 
-## Task 1: Create Empty `pi_lnn/` Package Skeleton
+## Task 1: Create Empty `pi_con/` Package Skeleton
 
 **Why:** Establish the package directory and an importable (but empty) `__init__.py` so subsequent tasks can extract into a real package.
 
 **Files:**
-- Create: `src/pi_lnn/__init__.py`
+- Create: `src/pi_con/__init__.py`
 
 - [ ] **Step 1: Create the package directory and stub `__init__.py`**
 
-Create `src/pi_lnn/__init__.py` with content:
+Create `src/pi_con/__init__.py` with content:
 ```python
-"""Pi-LNN: Sparse-sensor physics-constrained operator learning for turbulent flow.
+"""PI-CON: Sparse-sensor physics-constrained operator learning for turbulent flow.
 
 This package is currently being populated by an incremental refactor of
-src/lnn_kolmogorov.py. Final public API will be re-exported here once the
-refactor is complete (see docs/superpowers/specs/2026-04-26-pi-lnn-package-refactor-design.md).
+src/picon_kolmogorov.py. Final public API will be re-exported here once the
+refactor is complete (see docs/superpowers/specs/2026-04-26-pi-con-package-refactor-design.md).
 """
 ```
 
@@ -169,10 +169,10 @@ refactor is complete (see docs/superpowers/specs/2026-04-26-pi-lnn-package-refac
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "import pi_lnn; print(pi_lnn.__doc__.splitlines()[0])"
+PYTHONPATH=src uv run python -c "import pi_con; print(pi_con.__doc__.splitlines()[0])"
 ```
 
-Expected output: `Pi-LNN: Sparse-sensor physics-constrained operator learning for turbulent flow.`
+Expected output: `PI-CON: Sparse-sensor physics-constrained operator learning for turbulent flow.`
 
 - [ ] **Step 3: Run pytest to confirm no regressions**
 
@@ -187,8 +187,8 @@ Expected: `38 passed` (same baseline as Task 0 step 6).
 
 Suggested:
 ```bash
-git add src/pi_lnn/__init__.py
-git commit -m "refactor(pi_lnn): create empty package skeleton"
+git add src/pi_con/__init__.py
+git commit -m "refactor(pi_con): create empty package skeleton"
 ```
 
 ---
@@ -198,13 +198,13 @@ git commit -m "refactor(pi_lnn): create empty package skeleton"
 **Why:** No internal dependencies — safest first leaf to move.
 
 **Files:**
-- Create: `src/pi_lnn/runtime.py`
-- Modify: `src/lnn_kolmogorov.py` (delete original `_resolve_torch_device`, `configure_torch_runtime`, `_grad`, `count_parameters`, `write_json` definitions; add re-import line)
+- Create: `src/pi_con/runtime.py`
+- Modify: `src/picon_kolmogorov.py` (delete original `_resolve_torch_device`, `configure_torch_runtime`, `_grad`, `count_parameters`, `write_json` definitions; add re-import line)
 
 **Symbols moved:** `_resolve_torch_device`, `configure_torch_runtime`, `_grad`, `count_parameters`, `write_json`
 **Source line range in original monolith:** 26–80
 
-- [ ] **Step 1: Create `src/pi_lnn/runtime.py`**
+- [ ] **Step 1: Create `src/pi_con/runtime.py`**
 
 Content (copied verbatim from monolith lines 1–80, dropping definitions outside this group):
 ```python
@@ -248,18 +248,18 @@ def write_json(path: Path, data: dict) -> None:
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.runtime import configure_torch_runtime, _grad, count_parameters, write_json, _resolve_torch_device; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.runtime import configure_torch_runtime, _grad, count_parameters, write_json, _resolve_torch_device; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** lines 26–80 (the 5 function definitions).
 
 (b) **Add** this import after the existing `import` block (around line 24):
 ```python
-from pi_lnn.runtime import (
+from pi_con.runtime import (
     _grad,
     _resolve_torch_device,
     configure_torch_runtime,
@@ -281,7 +281,7 @@ Expected: `38 passed` (same baseline as Task 0 step 6).
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from lnn_kolmogorov import configure_torch_runtime; from pi_lnn.runtime import configure_torch_runtime as r2; assert configure_torch_runtime is r2; print('identity ok')"
+PYTHONPATH=src uv run python -c "from picon_kolmogorov import configure_torch_runtime; from pi_con.runtime import configure_torch_runtime as r2; assert configure_torch_runtime is r2; print('identity ok')"
 ```
 
 Expected: `identity ok` (proves the re-import preserved object identity).
@@ -290,8 +290,8 @@ Expected: `identity ok` (proves the re-import preserved object identity).
 
 Suggested:
 ```bash
-git add src/pi_lnn/runtime.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract runtime utilities into pi_lnn.runtime"
+git add src/pi_con/runtime.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract runtime utilities into pi_con.runtime"
 ```
 
 ---
@@ -301,13 +301,13 @@ git commit -m "refactor(pi_lnn): extract runtime utilities into pi_lnn.runtime"
 **Why:** No internal dependencies — second leaf.
 
 **Files:**
-- Create: `src/pi_lnn/encodings.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/encodings.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `periodic_fourier_encode`, `LearnableFourierEmb`, `temporal_phase_anchor`
 **Source line range in original monolith:** 81–154
 
-- [ ] **Step 1: Create `src/pi_lnn/encodings.py`**
+- [ ] **Step 1: Create `src/pi_con/encodings.py`**
 
 Content:
 ```python
@@ -339,18 +339,18 @@ def temporal_phase_anchor(t: torch.Tensor, T_total: float, n_harmonics: int = 2)
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.encodings import LearnableFourierEmb, periodic_fourier_encode, temporal_phase_anchor; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.encodings import LearnableFourierEmb, periodic_fourier_encode, temporal_phase_anchor; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** the 3 definitions (originally lines 81–154).
 
 (b) **Add** to the import block:
 ```python
-from pi_lnn.encodings import (
+from pi_con.encodings import (
     LearnableFourierEmb,
     periodic_fourier_encode,
     temporal_phase_anchor,
@@ -364,14 +364,14 @@ Run:
 uv run pytest tests/ --ignore=tests/test_evaluator_dns_idx.py -v
 ```
 
-Expected: `38 passed`. Note: `tests/test_pos_enc_optimization.py` directly imports `LearnableFourierEmb` and `periodic_fourier_encode` from `src.lnn_kolmogorov` — this validates the re-import path works.
+Expected: `38 passed`. Note: `tests/test_pos_enc_optimization.py` directly imports `LearnableFourierEmb` and `periodic_fourier_encode` from `src.picon_kolmogorov` — this validates the re-import path works.
 
 - [ ] **Step 5: Commit**
 
 Suggested:
 ```bash
-git add src/pi_lnn/encodings.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract positional encodings into pi_lnn.encodings"
+git add src/pi_con/encodings.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract positional encodings into pi_con.encodings"
 ```
 
 ---
@@ -381,13 +381,13 @@ git commit -m "refactor(pi_lnn): extract positional encodings into pi_lnn.encodi
 **Why:** No internal dependencies (only torch). Note: source spans two non-contiguous regions in the monolith.
 
 **Files:**
-- Create: `src/pi_lnn/blocks.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/blocks.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `CfCCell`, `ResidualMLPBlock`, `TokenSelfAttentionBlock`
 **Source line ranges in original monolith:** 155–187 (CfCCell), 266–318 (ResidualMLPBlock + TokenSelfAttentionBlock)
 
-- [ ] **Step 1: Create `src/pi_lnn/blocks.py`**
+- [ ] **Step 1: Create `src/pi_con/blocks.py`**
 
 Content (combine the two source regions in this order):
 ```python
@@ -417,18 +417,18 @@ class TokenSelfAttentionBlock(nn.Module):
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** `CfCCell` (orig lines 155–186).
 (b) **Delete** `ResidualMLPBlock` and `TokenSelfAttentionBlock` (orig lines 266–318).
 (c) **Add** to the import block:
 ```python
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
 ```
 
 **Important:** Do NOT delete `GradNormWeights` (orig lines 188–215) or `_gradnorm_step` (orig lines 216–264) — they belong to Task 6.
@@ -446,24 +446,24 @@ Expected: `38 passed`. `tests/test_cfc_pass_refactor.py` exercises `TemporalCfCE
 
 Suggested:
 ```bash
-git add src/pi_lnn/blocks.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract nn building blocks into pi_lnn.blocks"
+git add src/pi_con/blocks.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract nn building blocks into pi_con.blocks"
 ```
 
 ---
 
 ## Task 5: Extract `config.py`
 
-**Why:** No internal dependencies. `DEFAULT_LNN_ARGS` is referenced by `train_lnn_kolmogorov` and `main` but those still resolve via the shim's re-import.
+**Why:** No internal dependencies. `DEFAULT_PICON_ARGS` is referenced by `train_picon_kolmogorov` and `main` but those still resolve via the shim's re-import.
 
 **Files:**
-- Create: `src/pi_lnn/config.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/config.py`
+- Modify: `src/picon_kolmogorov.py`
 
-**Symbols moved:** `DEFAULT_LNN_ARGS`, `_find_project_root`, `_resolve_config_path_value`, `load_lnn_config`
+**Symbols moved:** `DEFAULT_PICON_ARGS`, `_find_project_root`, `_resolve_config_path_value`, `load_picon_config`
 **Source line range in original monolith:** 1059–1210
 
-- [ ] **Step 1: Create `src/pi_lnn/config.py`**
+- [ ] **Step 1: Create `src/pi_con/config.py`**
 
 Content:
 ```python
@@ -475,7 +475,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_LNN_ARGS: dict[str, Any] = {
+DEFAULT_PICON_ARGS: dict[str, Any] = {
     # Copy verbatim from monolith lines 1059-1150 (the entire dict literal)
 }
 
@@ -490,7 +490,7 @@ def _resolve_config_path_value(raw_path: str | Path, config_path: Path) -> str:
     pass
 
 
-def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
+def load_picon_config(config_path: Path | None) -> dict[str, Any]:
     # Copy verbatim from monolith lines 1187-1210
     pass
 ```
@@ -501,21 +501,21 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config; assert isinstance(DEFAULT_LNN_ARGS, dict) and len(DEFAULT_LNN_ARGS) > 10; print('ok', len(DEFAULT_LNN_ARGS), 'keys')"
+PYTHONPATH=src uv run python -c "from pi_con.config import DEFAULT_PICON_ARGS, load_picon_config; assert isinstance(DEFAULT_PICON_ARGS, dict) and len(DEFAULT_PICON_ARGS) > 10; print('ok', len(DEFAULT_PICON_ARGS), 'keys')"
 ```
 
-Expected: `ok N keys` where N matches the number of entries in the original `DEFAULT_LNN_ARGS`.
+Expected: `ok N keys` where N matches the number of entries in the original `DEFAULT_PICON_ARGS`.
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** orig lines 1059–1210.
 (b) **Add** to the import block:
 ```python
-from pi_lnn.config import (
-    DEFAULT_LNN_ARGS,
+from pi_con.config import (
+    DEFAULT_PICON_ARGS,
     _find_project_root,
     _resolve_config_path_value,
-    load_lnn_config,
+    load_picon_config,
 )
 ```
 
@@ -532,7 +532,7 @@ Expected: `38 passed`.
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from lnn_kolmogorov import load_lnn_config; cfg = load_lnn_config(None); print('keys:', sorted(cfg.keys())[:5])"
+PYTHONPATH=src uv run python -c "from picon_kolmogorov import load_picon_config; cfg = load_picon_config(None); print('keys:', sorted(cfg.keys())[:5])"
 ```
 
 Expected: a list of config keys, no exception.
@@ -541,8 +541,8 @@ Expected: a list of config keys, no exception.
 
 Suggested:
 ```bash
-git add src/pi_lnn/config.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract config loader into pi_lnn.config"
+git add src/pi_con/config.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract config loader into pi_con.config"
 ```
 
 ---
@@ -552,13 +552,13 @@ git commit -m "refactor(pi_lnn): extract config loader into pi_lnn.config"
 **Why:** Loss machinery (GradNorm + observed-channel prediction) belongs together. `observed_channel_prediction` has a `LiquidOperator` type annotation — but `from __future__ import annotations` (already in monolith and mandatory in every new file) makes annotations strings at runtime, so no real import cycle.
 
 **Files:**
-- Create: `src/pi_lnn/losses.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/losses.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `GradNormWeights`, `_gradnorm_step`, `observed_channel_prediction`
 **Source line ranges in original monolith:** 188–264 (GradNorm + helper), 980–1003 (observed_channel_prediction)
 
-- [ ] **Step 1: Create `src/pi_lnn/losses.py`**
+- [ ] **Step 1: Create `src/pi_con/losses.py`**
 
 Content:
 ```python
@@ -571,7 +571,7 @@ import torch
 import torch.nn as nn
 
 if TYPE_CHECKING:
-    from pi_lnn.operator import LiquidOperator  # noqa: F401  (used in annotation only)
+    from pi_con.operator import LiquidOperator  # noqa: F401  (used in annotation only)
 
 
 class GradNormWeights(nn.Module):
@@ -606,18 +606,18 @@ def observed_channel_prediction(
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.losses import GradNormWeights, observed_channel_prediction, _gradnorm_step; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.losses import GradNormWeights, observed_channel_prediction, _gradnorm_step; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** `GradNormWeights` + `_gradnorm_step` (orig lines 188–264).
 (b) **Delete** `observed_channel_prediction` (orig lines 980–1003).
 (c) **Add** to the import block:
 ```python
-from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
+from pi_con.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
 ```
 
 - [ ] **Step 4: Run pytest**
@@ -627,30 +627,30 @@ Run:
 uv run pytest tests/ --ignore=tests/test_evaluator_dns_idx.py -v
 ```
 
-Expected: `38 passed`. Note: `tests/test_observed_channel_prediction_opt.py` directly imports `observed_channel_prediction` from `src.lnn_kolmogorov` — validates re-import.
+Expected: `38 passed`. Note: `tests/test_observed_channel_prediction_opt.py` directly imports `observed_channel_prediction` from `src.picon_kolmogorov` — validates re-import.
 
 - [ ] **Step 5: Commit**
 
 Suggested:
 ```bash
-git add src/pi_lnn/losses.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract loss machinery into pi_lnn.losses"
+git add src/pi_con/losses.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract loss machinery into pi_con.losses"
 ```
 
 ---
 
 ## Task 7: Extract `encoders.py`
 
-**Why:** First file with internal `pi_lnn` dependencies (blocks + encodings). Both must already exist (Tasks 3 + 4 done).
+**Why:** First file with internal `pi_con` dependencies (blocks + encodings). Both must already exist (Tasks 3 + 4 done).
 
 **Files:**
-- Create: `src/pi_lnn/encoders.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/encoders.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `SpatialSetEncoder`, `TemporalCfCEncoder`
 **Source line range in original monolith:** 319–496
 
-- [ ] **Step 1: Create `src/pi_lnn/encoders.py`**
+- [ ] **Step 1: Create `src/pi_con/encoders.py`**
 
 Content:
 ```python
@@ -661,8 +661,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.encodings import LearnableFourierEmb
+from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_con.encodings import LearnableFourierEmb
 
 
 class SpatialSetEncoder(nn.Module):
@@ -681,17 +681,17 @@ class TemporalCfCEncoder(nn.Module):
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** orig lines 319–496.
 (b) **Add** to the import block:
 ```python
-from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
+from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder
 ```
 
 - [ ] **Step 4: Run pytest**
@@ -707,8 +707,8 @@ Expected: `38 passed`. `tests/test_pos_enc_optimization.py` imports `SpatialSetE
 
 Suggested:
 ```bash
-git add src/pi_lnn/encoders.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract encoders into pi_lnn.encoders"
+git add src/pi_con/encoders.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract encoders into pi_con.encoders"
 ```
 
 ---
@@ -718,13 +718,13 @@ git commit -m "refactor(pi_lnn): extract encoders into pi_lnn.encoders"
 **Why:** Depends on blocks + encodings (both extracted).
 
 **Files:**
-- Create: `src/pi_lnn/decoder.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/decoder.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `DeepONetCfCDecoder`
 **Source line range in original monolith:** 497–650
 
-- [ ] **Step 1: Create `src/pi_lnn/decoder.py`**
+- [ ] **Step 1: Create `src/pi_con/decoder.py`**
 
 Content:
 ```python
@@ -735,8 +735,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.encodings import LearnableFourierEmb, temporal_phase_anchor
+from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_con.encodings import LearnableFourierEmb, temporal_phase_anchor
 
 
 class DeepONetCfCDecoder(nn.Module):
@@ -750,17 +750,17 @@ class DeepONetCfCDecoder(nn.Module):
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.decoder import DeepONetCfCDecoder; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.decoder import DeepONetCfCDecoder; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** orig lines 497–650.
 (b) **Add** to the import block:
 ```python
-from pi_lnn.decoder import DeepONetCfCDecoder
+from pi_con.decoder import DeepONetCfCDecoder
 ```
 
 - [ ] **Step 4: Run pytest**
@@ -776,28 +776,28 @@ Expected: `38 passed`.
 
 Suggested:
 ```bash
-git add src/pi_lnn/decoder.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract decoder into pi_lnn.decoder"
+git add src/pi_con/decoder.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract decoder into pi_con.decoder"
 ```
 
 ---
 
 ## Task 9: Extract `operator.py`
 
-**Why:** Depends on encoders + decoder (both extracted). This task also moves `make_lnn_model_fn` (a closure factory over `LiquidOperator`).
+**Why:** Depends on encoders + decoder (both extracted). This task also moves `make_picon_model_fn` (a closure factory over `LiquidOperator`).
 
 **Files:**
-- Create: `src/pi_lnn/operator.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/operator.py`
+- Modify: `src/picon_kolmogorov.py`
 
-**Symbols moved:** `LiquidOperator`, `create_lnn_model`, `make_lnn_model_fn`
-**Source line ranges in original monolith:** 651–802 (LiquidOperator + create_lnn_model), 872–898 (make_lnn_model_fn)
+**Symbols moved:** `LiquidOperator`, `create_picon_model`, `make_picon_model_fn`
+**Source line ranges in original monolith:** 651–802 (LiquidOperator + create_picon_model), 872–898 (make_picon_model_fn)
 
-- [ ] **Step 1: Create `src/pi_lnn/operator.py`**
+- [ ] **Step 1: Create `src/pi_con/operator.py`**
 
 Content:
 ```python
-"""Pi-LNN main operator: LiquidOperator model class + factory + closure helper."""
+"""PI-CON main operator: LiquidOperator model class + factory + closure helper."""
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -805,8 +805,8 @@ from typing import Any, Callable
 import torch
 import torch.nn as nn
 
-from pi_lnn.decoder import DeepONetCfCDecoder
-from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
+from pi_con.decoder import DeepONetCfCDecoder
+from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder
 
 
 class LiquidOperator(nn.Module):
@@ -814,12 +814,12 @@ class LiquidOperator(nn.Module):
     pass
 
 
-def create_lnn_model(cfg: dict[str, Any]) -> LiquidOperator:
+def create_picon_model(cfg: dict[str, Any]) -> LiquidOperator:
     # Copy verbatim from monolith lines 769-801
     pass
 
 
-def make_lnn_model_fn(
+def make_picon_model_fn(
     net: LiquidOperator,
     sensor_vals: torch.Tensor,
     sensor_pos: torch.Tensor,
@@ -837,18 +837,18 @@ def make_lnn_model_fn(
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.operator import LiquidOperator, create_picon_model, make_picon_model_fn; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
-(a) **Delete** `LiquidOperator` + `create_lnn_model` (orig lines 651–802).
-(b) **Delete** `make_lnn_model_fn` (orig lines 872–898).
+(a) **Delete** `LiquidOperator` + `create_picon_model` (orig lines 651–802).
+(b) **Delete** `make_picon_model_fn` (orig lines 872–898).
 (c) **Add** to the import block:
 ```python
-from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn
+from pi_con.operator import LiquidOperator, create_picon_model, make_picon_model_fn
 ```
 
 - [ ] **Step 4: Run pytest**
@@ -858,14 +858,14 @@ Run:
 uv run pytest tests/ --ignore=tests/test_evaluator_dns_idx.py -v
 ```
 
-Expected: `38 passed`. `tests/test_make_lnn_model_fn_cache.py` and `tests/test_pos_enc_optimization.py` import `LiquidOperator` and `make_lnn_model_fn` directly.
+Expected: `38 passed`. `tests/test_make_lnn_model_fn_cache.py` and `tests/test_pos_enc_optimization.py` import `LiquidOperator` and `make_picon_model_fn` directly.
 
 - [ ] **Step 5: Commit**
 
 Suggested:
 ```bash
-git add src/pi_lnn/operator.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract LiquidOperator and factories into pi_lnn.operator"
+git add src/pi_con/operator.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract LiquidOperator and factories into pi_con.operator"
 ```
 
 ---
@@ -875,13 +875,13 @@ git commit -m "refactor(pi_lnn): extract LiquidOperator and factories into pi_ln
 **Why:** Depends only on `runtime._grad`. Spans three regions in the monolith.
 
 **Files:**
-- Create: `src/pi_lnn/physics.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/physics.py`
+- Modify: `src/picon_kolmogorov.py`
 
 **Symbols moved:** `unsteady_ns_residuals`, `pressure_poisson_residual`, `_rar_update_pool`, `physics_points_at_step`, `physics_weight_at_step`
 **Source line ranges in original monolith:** 803–871 (NS + Poisson), 900–979 (RAR), 1005–1058 (scheduling)
 
-- [ ] **Step 1: Create `src/pi_lnn/physics.py`**
+- [ ] **Step 1: Create `src/pi_con/physics.py`**
 
 Content:
 ```python
@@ -893,7 +893,7 @@ from typing import Callable
 import numpy as np
 import torch
 
-from pi_lnn.runtime import _grad
+from pi_con.runtime import _grad
 
 
 def unsteady_ns_residuals(
@@ -939,19 +939,19 @@ def physics_weight_at_step(
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.physics import unsteady_ns_residuals, pressure_poisson_residual, physics_points_at_step, physics_weight_at_step, _rar_update_pool; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.physics import unsteady_ns_residuals, pressure_poisson_residual, physics_points_at_step, physics_weight_at_step, _rar_update_pool; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
 (a) **Delete** NS/Poisson (orig lines 803–871).
 (b) **Delete** RAR (orig lines 900–979).
 (c) **Delete** scheduling (orig lines 1005–1058).
 (d) **Add** to the import block:
 ```python
-from pi_lnn.physics import (
+from pi_con.physics import (
     _rar_update_pool,
     physics_points_at_step,
     physics_weight_at_step,
@@ -973,8 +973,8 @@ Expected: `38 passed`.
 
 Suggested:
 ```bash
-git add src/pi_lnn/physics.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract physics residuals and RAR into pi_lnn.physics"
+git add src/pi_con/physics.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract physics residuals and RAR into pi_con.physics"
 ```
 
 ---
@@ -984,20 +984,20 @@ git commit -m "refactor(pi_lnn): extract physics residuals and RAR into pi_lnn.p
 **Why:** Last big chunk. Depends on everything previously extracted. After this task, the monolith is essentially empty.
 
 **Files:**
-- Create: `src/pi_lnn/training.py`
-- Modify: `src/lnn_kolmogorov.py`
+- Create: `src/pi_con/training.py`
+- Modify: `src/picon_kolmogorov.py`
 
-**Symbols moved:** `train_lnn_kolmogorov`, `main`
+**Symbols moved:** `train_picon_kolmogorov`, `main`
 **Source line range in original monolith:** 1211–1913
 
-- [ ] **Step 1: Create `src/pi_lnn/training.py`**
+- [ ] **Step 1: Create `src/pi_con/training.py`**
 
 Content:
 ```python
-"""Pi-LNN training loop and CLI entry point.
+"""PI-CON training loop and CLI entry point.
 
-A1 boundary: train_lnn_kolmogorov is moved verbatim. Decomposing it is the
-deferred A2 phase — see docs/superpowers/specs/2026-04-26-pi-lnn-package-refactor-design.md §11.
+A1 boundary: train_picon_kolmogorov is moved verbatim. Decomposing it is the
+deferred A2 phase — see docs/superpowers/specs/2026-04-26-pi-con-package-refactor-design.md §11.
 """
 from __future__ import annotations
 
@@ -1012,20 +1012,20 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
-from pi_lnn.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
-from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn
-from pi_lnn.physics import (
+from pi_con.config import DEFAULT_PICON_ARGS, load_picon_config
+from pi_con.losses import GradNormWeights, _gradnorm_step, observed_channel_prediction
+from pi_con.operator import LiquidOperator, create_picon_model, make_picon_model_fn
+from pi_con.physics import (
     _rar_update_pool,
     physics_points_at_step,
     physics_weight_at_step,
     pressure_poisson_residual,
     unsteady_ns_residuals,
 )
-from pi_lnn.runtime import configure_torch_runtime, count_parameters, write_json
+from pi_con.runtime import configure_torch_runtime, count_parameters, write_json
 
 
-def train_lnn_kolmogorov(
+def train_picon_kolmogorov(
     args: dict[str, Any],
     log_fn: Callable[[int, dict[str, float]], None] | None = None,
 ) -> None:
@@ -1046,33 +1046,33 @@ if __name__ == "__main__":
 ```
 
 **Notes for executor:**
-- The 700-line `train_lnn_kolmogorov` body is copied verbatim. Do not attempt to refactor it — that is the deferred A2 phase.
-- Strip imports from the function-level import block above that turn out to be unused after the copy (e.g., if `os` or `math` is not actually referenced by `train_lnn_kolmogorov` or `main`). Keep imports honest.
-- The `from kolmogorov_dataset import KolmogorovDataset` line inside `train_lnn_kolmogorov` is intentional — leave it where it is. `kolmogorov_dataset.py` lives at `src/kolmogorov_dataset.py` and is reached via the same `sys.path` insertion that scripts and tests already use.
+- The 700-line `train_picon_kolmogorov` body is copied verbatim. Do not attempt to refactor it — that is the deferred A2 phase.
+- Strip imports from the function-level import block above that turn out to be unused after the copy (e.g., if `os` or `math` is not actually referenced by `train_picon_kolmogorov` or `main`). Keep imports honest.
+- The `from kolmogorov_dataset import KolmogorovDataset` line inside `train_picon_kolmogorov` is intentional — leave it where it is. `kolmogorov_dataset.py` lives at `src/kolmogorov_dataset.py` and is reached via the same `sys.path` insertion that scripts and tests already use.
 
 - [ ] **Step 2: Verify import**
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from pi_lnn.training import train_lnn_kolmogorov, main; print('ok')"
+PYTHONPATH=src uv run python -c "from pi_con.training import train_picon_kolmogorov, main; print('ok')"
 ```
 
 Expected: `ok`
 
-- [ ] **Step 3: Update `src/lnn_kolmogorov.py`**
+- [ ] **Step 3: Update `src/picon_kolmogorov.py`**
 
-(a) **Delete** `train_lnn_kolmogorov` + `main` + the `if __name__ == "__main__"` guard (orig lines 1211–1913).
+(a) **Delete** `train_picon_kolmogorov` + `main` + the `if __name__ == "__main__"` guard (orig lines 1211–1913).
 (b) **Add** to the import block:
 ```python
-from pi_lnn.training import main, train_lnn_kolmogorov
+from pi_con.training import main, train_picon_kolmogorov
 ```
-(c) **Add** at the very bottom of `src/lnn_kolmogorov.py`:
+(c) **Add** at the very bottom of `src/picon_kolmogorov.py`:
 ```python
 if __name__ == "__main__":
     main()
 ```
 
-After this task, `src/lnn_kolmogorov.py` should consist of: the original module docstring, original top-level imports, a long block of `from pi_lnn.X import (...)` re-imports, and the `if __name__` guard. No definitions.
+After this task, `src/picon_kolmogorov.py` should consist of: the original module docstring, original top-level imports, a long block of `from pi_con.X import (...)` re-imports, and the `if __name__` guard. No definitions.
 
 - [ ] **Step 4: Run pytest**
 
@@ -1087,7 +1087,7 @@ Expected: `38 passed`.
 
 Run:
 ```bash
-PYTHONPATH=src uv run python src/lnn_kolmogorov.py --help
+PYTHONPATH=src uv run python src/picon_kolmogorov.py --help
 ```
 
 Expected: argparse usage text printed; no traceback.
@@ -1096,50 +1096,50 @@ Expected: argparse usage text printed; no traceback.
 
 Suggested:
 ```bash
-git add src/pi_lnn/training.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): extract training loop into pi_lnn.training"
+git add src/pi_con/training.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): extract training loop into pi_con.training"
 ```
 
 ---
 
 ## Task 12: Replace Monolith With Compat Shim + Finalize `__init__.py`
 
-**Why:** Now that all definitions are in `pi_lnn/`, replace the verbose re-import file with a clean compat shim, and populate `pi_lnn/__init__.py` with the public API surface.
+**Why:** Now that all definitions are in `pi_con/`, replace the verbose re-import file with a clean compat shim, and populate `pi_con/__init__.py` with the public API surface.
 
 **Files:**
-- Modify: `src/pi_lnn/__init__.py` (replace stub with full re-export)
-- Modify: `src/lnn_kolmogorov.py` (replace verbose re-imports with shim form)
+- Modify: `src/pi_con/__init__.py` (replace stub with full re-export)
+- Modify: `src/picon_kolmogorov.py` (replace verbose re-imports with shim form)
 
-- [ ] **Step 1: Populate `src/pi_lnn/__init__.py`**
+- [ ] **Step 1: Populate `src/pi_con/__init__.py`**
 
 Replace the entire file contents with:
 ```python
-"""Pi-LNN: Sparse-sensor physics-constrained operator learning for turbulent flow."""
+"""PI-CON: Sparse-sensor physics-constrained operator learning for turbulent flow."""
 from __future__ import annotations
 
-from pi_lnn.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
-from pi_lnn.config import DEFAULT_LNN_ARGS, load_lnn_config
-from pi_lnn.decoder import DeepONetCfCDecoder
-from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
-from pi_lnn.encodings import (
+from pi_con.blocks import CfCCell, ResidualMLPBlock, TokenSelfAttentionBlock
+from pi_con.config import DEFAULT_PICON_ARGS, load_picon_config
+from pi_con.decoder import DeepONetCfCDecoder
+from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder
+from pi_con.encodings import (
     LearnableFourierEmb,
     periodic_fourier_encode,
     temporal_phase_anchor,
 )
-from pi_lnn.losses import GradNormWeights, observed_channel_prediction
-from pi_lnn.operator import LiquidOperator, create_lnn_model, make_lnn_model_fn
-from pi_lnn.physics import (
+from pi_con.losses import GradNormWeights, observed_channel_prediction
+from pi_con.operator import LiquidOperator, create_picon_model, make_picon_model_fn
+from pi_con.physics import (
     physics_points_at_step,
     physics_weight_at_step,
     pressure_poisson_residual,
     unsteady_ns_residuals,
 )
-from pi_lnn.runtime import configure_torch_runtime, count_parameters, write_json
-from pi_lnn.training import main, train_lnn_kolmogorov
+from pi_con.runtime import configure_torch_runtime, count_parameters, write_json
+from pi_con.training import main, train_picon_kolmogorov
 
 __all__ = [
     "CfCCell",
-    "DEFAULT_LNN_ARGS",
+    "DEFAULT_PICON_ARGS",
     "DeepONetCfCDecoder",
     "GradNormWeights",
     "LearnableFourierEmb",
@@ -1150,30 +1150,30 @@ __all__ = [
     "TokenSelfAttentionBlock",
     "configure_torch_runtime",
     "count_parameters",
-    "create_lnn_model",
-    "load_lnn_config",
+    "create_picon_model",
+    "load_picon_config",
     "main",
-    "make_lnn_model_fn",
+    "make_picon_model_fn",
     "observed_channel_prediction",
     "periodic_fourier_encode",
     "physics_points_at_step",
     "physics_weight_at_step",
     "pressure_poisson_residual",
     "temporal_phase_anchor",
-    "train_lnn_kolmogorov",
+    "train_picon_kolmogorov",
     "unsteady_ns_residuals",
     "write_json",
 ]
 ```
 
-- [ ] **Step 2: Replace `src/lnn_kolmogorov.py` with compat shim**
+- [ ] **Step 2: Replace `src/picon_kolmogorov.py` with compat shim**
 
 Overwrite the entire file contents with:
 ```python
-"""Backward-compatibility shim. Prefer `from pi_lnn import ...` for new code."""
-from pi_lnn import (  # noqa: F401  (re-exports for legacy callers)
+"""Backward-compatibility shim. Prefer `from pi_con import ...` for new code."""
+from pi_con import (  # noqa: F401  (re-exports for legacy callers)
     CfCCell,
-    DEFAULT_LNN_ARGS,
+    DEFAULT_PICON_ARGS,
     DeepONetCfCDecoder,
     GradNormWeights,
     LearnableFourierEmb,
@@ -1184,17 +1184,17 @@ from pi_lnn import (  # noqa: F401  (re-exports for legacy callers)
     TokenSelfAttentionBlock,
     configure_torch_runtime,
     count_parameters,
-    create_lnn_model,
-    load_lnn_config,
+    create_picon_model,
+    load_picon_config,
     main,
-    make_lnn_model_fn,
+    make_picon_model_fn,
     observed_channel_prediction,
     periodic_fourier_encode,
     physics_points_at_step,
     physics_weight_at_step,
     pressure_poisson_residual,
     temporal_phase_anchor,
-    train_lnn_kolmogorov,
+    train_picon_kolmogorov,
     unsteady_ns_residuals,
     write_json,
 )
@@ -1204,13 +1204,13 @@ if __name__ == "__main__":
     main()
 ```
 
-**Note:** The shim re-exports include private symbols only when callers depend on them. Audit confirmed no caller imports any underscore-prefixed name from `lnn_kolmogorov`, so `_grad`, `_gradnorm_step`, `_rar_update_pool`, `_resolve_torch_device`, `_find_project_root`, `_resolve_config_path_value` are intentionally excluded from the shim's public surface.
+**Note:** The shim re-exports include private symbols only when callers depend on them. Audit confirmed no caller imports any underscore-prefixed name from `picon_kolmogorov`, so `_grad`, `_gradnorm_step`, `_rar_update_pool`, `_resolve_torch_device`, `_find_project_root`, `_resolve_config_path_value` are intentionally excluded from the shim's public surface.
 
 - [ ] **Step 3: Verify shim imports cleanly**
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from lnn_kolmogorov import LiquidOperator, train_lnn_kolmogorov, DEFAULT_LNN_ARGS; print('ok')"
+PYTHONPATH=src uv run python -c "from picon_kolmogorov import LiquidOperator, train_picon_kolmogorov, DEFAULT_PICON_ARGS; print('ok')"
 ```
 
 Expected: `ok`
@@ -1228,8 +1228,8 @@ Expected: `38 passed`.
 
 Suggested:
 ```bash
-git add src/pi_lnn/__init__.py src/lnn_kolmogorov.py
-git commit -m "refactor(pi_lnn): finalize package __init__ and reduce lnn_kolmogorov to compat shim"
+git add src/pi_con/__init__.py src/picon_kolmogorov.py
+git commit -m "refactor(pi_con): finalize package __init__ and reduce picon_kolmogorov to compat shim"
 ```
 
 ---
@@ -1257,7 +1257,7 @@ Expected diff: only timing lines may differ; pass/fail counts must be identical.
 
 Run:
 ```bash
-PYTHONPATH=src uv run python -c "from lnn_kolmogorov import *; from pi_lnn import *; print('ok')"
+PYTHONPATH=src uv run python -c "from picon_kolmogorov import *; from pi_con import *; print('ok')"
 ```
 
 Expected: `ok`
@@ -1267,12 +1267,12 @@ Expected: `ok`
 Run:
 ```bash
 PYTHONPATH=src uv run python -c "
-import lnn_kolmogorov, pi_lnn
-assert lnn_kolmogorov.LiquidOperator is pi_lnn.LiquidOperator, 'LiquidOperator identity drift'
-assert lnn_kolmogorov.train_lnn_kolmogorov is pi_lnn.train_lnn_kolmogorov, 'train fn identity drift'
-assert lnn_kolmogorov.DEFAULT_LNN_ARGS is pi_lnn.DEFAULT_LNN_ARGS, 'DEFAULT_LNN_ARGS identity drift'
-assert lnn_kolmogorov.create_lnn_model is pi_lnn.create_lnn_model, 'create_lnn_model identity drift'
-assert lnn_kolmogorov.observed_channel_prediction is pi_lnn.observed_channel_prediction, 'observed_channel_prediction identity drift'
+import picon_kolmogorov, pi_con
+assert picon_kolmogorov.LiquidOperator is pi_con.LiquidOperator, 'LiquidOperator identity drift'
+assert picon_kolmogorov.train_picon_kolmogorov is pi_con.train_picon_kolmogorov, 'train fn identity drift'
+assert picon_kolmogorov.DEFAULT_PICON_ARGS is pi_con.DEFAULT_PICON_ARGS, 'DEFAULT_PICON_ARGS identity drift'
+assert picon_kolmogorov.create_picon_model is pi_con.create_picon_model, 'create_picon_model identity drift'
+assert picon_kolmogorov.observed_channel_prediction is pi_con.observed_channel_prediction, 'observed_channel_prediction identity drift'
 print('identity ok across 5 representative symbols')
 "
 ```
@@ -1288,7 +1288,7 @@ Expected: `identity ok across 5 representative symbols`
 
 (b) Run, capturing stdout the same way as the baseline:
 ```bash
-uv run python src/lnn_kolmogorov.py --config configs/smoke_re1000_uvomega.toml --device cpu \
+uv run python src/picon_kolmogorov.py --config configs/smoke_re1000_uvomega.toml --device cpu \
   2>&1 | tee artifacts/refactor-baseline/post-refactor-smoke.stdout
 ```
 
@@ -1324,7 +1324,7 @@ git checkout -- configs/smoke_re1000_uvomega.toml
 
 Run:
 ```bash
-PYTHONPATH=src uv run python src/lnn_kolmogorov.py --help
+PYTHONPATH=src uv run python src/picon_kolmogorov.py --help
 ```
 
 Expected: argparse usage text. No traceback.
@@ -1333,7 +1333,7 @@ Expected: argparse usage text. No traceback.
 
 Run:
 ```bash
-wc -l src/lnn_kolmogorov.py
+wc -l src/picon_kolmogorov.py
 ```
 
 Expected: under 50 lines (the shim plus its imports). If >100 lines, something was missed.
@@ -1352,7 +1352,7 @@ Expected: zero changes to `scripts/` and `tests/`. If any caller was modified du
 Suggested:
 ```bash
 git add artifacts/refactor-baseline/
-git commit -m "chore: validate pi_lnn refactor — pytest, identity, smoke metrics all match baseline"
+git commit -m "chore: validate pi_con refactor — pytest, identity, smoke metrics all match baseline"
 ```
 
 ---
@@ -1361,8 +1361,8 @@ git commit -m "chore: validate pi_lnn refactor — pytest, identity, smoke metri
 
 The refactor is complete when:
 - [x] All Task 13 sub-steps pass with no diffs.
-- [x] `src/lnn_kolmogorov.py` is a < 50-line shim.
-- [x] `src/pi_lnn/` contains 11 files (`__init__.py` + 10 modules).
+- [x] `src/picon_kolmogorov.py` is a < 50-line shim.
+- [x] `src/pi_con/` contains 11 files (`__init__.py` + 10 modules).
 - [x] No file under `scripts/` or `tests/` was modified.
 - [x] No `configs/*.toml` was modified (the smoke-config edits in Tasks 0 and 13 were reverted).
 - [x] `pyproject.toml` is unchanged.
@@ -1374,7 +1374,7 @@ If any of the above is not true, the refactor must be either fixed or reverted �
 
 ## Out of Scope (Explicit Reminder)
 
-- The 700-line `train_lnn_kolmogorov` function is **moved verbatim**, not decomposed.
+- The 700-line `train_picon_kolmogorov` function is **moved verbatim**, not decomposed.
 - `kolmogorov_dataset.py` is **untouched**.
 - `configs/`, `scripts/`, `tests/` are **untouched** (modulo the temporary smoke-config edits which are reverted).
 - No new features, no new tests beyond the validation script behavior, no documentation updates.

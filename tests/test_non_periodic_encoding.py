@@ -15,7 +15,7 @@ from __future__ import annotations
 import pytest
 import torch
 
-from pi_lnn import (
+from pi_con import (
     DeepONetCfCDecoder,
     FourierEmbs,
     LearnableFourierEmb,

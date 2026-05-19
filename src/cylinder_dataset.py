@@ -3,7 +3,7 @@
 
 What: 從 QR pivot JSON/NPZ（感測器）與 RealPDEBench Arrow shard（格點與全場）
       建立訓練資料結構。API 與 KolmogorovDataset 完全相容，
-      使 lnn_kolmogorov.py 的 training loop 無需修改即可支援 cylinder case。
+      使 picon_kolmogorov.py 的 training loop 無需修改即可支援 cylinder case。
 
 Why:  cylinder wake 為非週期非均勻格，座標 (x, y) 需正規化至 [0,1]²；
       物理 collocation 點須限制在流體域（排除 cylinder body）。

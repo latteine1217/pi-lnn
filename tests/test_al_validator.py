@@ -21,12 +21,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn import DEFAULT_LNN_ARGS, _validate_al_config
+from pi_con import DEFAULT_PICON_ARGS, _validate_al_config
 
 
 def _base_al_on(**overrides):
     cfg = {
-        **DEFAULT_LNN_ARGS,
+        **DEFAULT_PICON_ARGS,
         "use_augmented_lagrangian": True,
         "continuity_weight": 0.0,
         "use_sensor_physics": False,
@@ -37,7 +37,7 @@ def _base_al_on(**overrides):
 
 
 def test_al_off_default_passes() -> None:
-    _validate_al_config({**DEFAULT_LNN_ARGS, "use_augmented_lagrangian": False})
+    _validate_al_config({**DEFAULT_PICON_ARGS, "use_augmented_lagrangian": False})
 
 
 def test_al_on_minimal_valid_passes() -> None:
@@ -114,7 +114,7 @@ def test_al_off_invalid_3task_no_cont_raises() -> None:
     """AL off + use_gradnorm + 3-task 缺 cont + cont_w>0 → 無效設定守門。"""
     with pytest.raises(ValueError, match="無效設定"):
         _validate_al_config({
-            **DEFAULT_LNN_ARGS,
+            **DEFAULT_PICON_ARGS,
             "use_augmented_lagrangian": False,
             "use_gradnorm": True,
             "gradnorm_tasks": ["data", "ns_u", "ns_v"],
@@ -126,7 +126,7 @@ def test_al_off_invalid_3task_no_cont_raises() -> None:
 def test_al_off_legacy_4task_passes() -> None:
     """AL off + 既有 4-task layout（cont 在 tasks）：完全合法，向後相容。"""
     _validate_al_config({
-        **DEFAULT_LNN_ARGS,
+        **DEFAULT_PICON_ARGS,
         "use_augmented_lagrangian": False,
         "use_gradnorm": True,
         "gradnorm_tasks": ["data", "ns_u", "ns_v", "cont"],

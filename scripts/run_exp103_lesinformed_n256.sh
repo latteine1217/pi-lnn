@@ -37,7 +37,7 @@ export PYTHONUNBUFFERED=1
 
 CONFIG="configs/exp_103_b3_lesinformed_n256_qrpivot.toml"
 ARTIFACT_DIR="artifacts/kolmogorov/deeponet-cfc-re10000-exp103-b3-lesinformed-n256-seed2"
-FINAL_PT="${ARTIFACT_DIR}/lnn_kolmogorov_final.pt"
+FINAL_PT="${ARTIFACT_DIR}/picon_kolmogorov_final.pt"
 EVAL_DIR="${ARTIFACT_DIR}/deeponet-cfc-eval"
 SUMMARY="${EVAL_DIR}/summary.json"
 TRAIN_LOG="${LOGS_DIR}/exp_102_train.log"
@@ -63,7 +63,7 @@ main () {
 
   # ─── 2. Train ───────────────────────────────────────────
   local t0=$(date +%s)
-  uv run python -u src/lnn_kolmogorov.py \
+  uv run python -u src/picon_kolmogorov.py \
     --config "$CONFIG" \
     --device mps \
     2>&1 | tee "$TRAIN_LOG"

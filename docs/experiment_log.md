@@ -88,7 +88,7 @@ Cylinder 主線資料設定見 [`docs/cylinder_log.md`](cylinder_log.md)。
 | Baseline ID | `EXP-030` |
 | 主線 config | [`configs/exp_030_re1000_soap_sf_5k.toml`](../configs/exp_030_re1000_soap_sf_5k.toml) |
 | train artifact | `artifacts/deeponet-cfc-re1000-soap-sf-5000` |
-| eval checkpoint | `artifacts/deeponet-cfc-re1000-soap-sf-5000/checkpoints/lnn_kolmogorov_step_5000.pt` |
+| eval checkpoint | `artifacts/deeponet-cfc-re1000-soap-sf-5000/checkpoints/picon_kolmogorov_step_5000.pt` |
 | 目前判讀 | `SOAP + Schedule-Free` + `5000 steps`（EXP-028 resume）是目前最佳主線；首次突破 KE 10% 門檻 |
 | 主要優勢 | KE rel-err **9.61%**（vs EXP-025 SF AdamW: 12.06%，**-20%**）、u RMSE **5.68e-2**（最低）、amp ratio **1.027** |
 | 主要已解問題 | t=3.5∼4.5 的 phase 高峰為 Re=1000 chaotic divergence 物理本質，非表徵問題 |

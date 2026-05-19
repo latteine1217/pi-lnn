@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_LNN_ARGS: dict[str, Any] = {
+DEFAULT_PICON_ARGS: dict[str, Any] = {
     "sensor_jsons": None,
     "sensor_npzs": None,
     "dns_paths": None,
@@ -63,7 +63,7 @@ DEFAULT_LNN_ARGS: dict[str, Any] = {
     "lbfgs_history_size": 10,    # L-BFGS curvature history buffer 大小
     # --- Natural Gradient (Gauss-Newton) optimizer ---
     # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
-    # 適用範圍：N (residuals) << P (params) 才划算（pi-lnn 典型 N~200, P~10⁵）。
+    # 適用範圍：N (residuals) << P (params) 才划算（pi-con 典型 N~200, P~10⁵）。
     "ng_damping": 1.0e-6,          # LM 正則化強度旋鈕。注意 ng_jacobi_scaling=True
                                    # 時 effective regulariser 為 λD（row-magnitude
                                    # weighted），非 isotropic λI；λ 仍是調整旋鈕，
@@ -246,8 +246,8 @@ def _resolve_config_path_value(raw_path: str | Path, config_path: Path) -> str:
     return str(candidates[0].resolve())
 
 
-def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
-    """What: 載入並驗證核心 LNN config。"""
+def load_picon_config(config_path: Path | None) -> dict[str, Any]:
+    """What: 載入並驗證核心 PI-CON config。"""
     if config_path is None:
         return {}
     config_path = Path(config_path).resolve()
@@ -259,9 +259,9 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
         raise ValueError(
             f"Config 含有已移除的 PiT 欄位（請改用 num_spatial/temporal_cfc_layers）: {obsolete}"
         )
-    unknown = sorted(set(normalized) - set(DEFAULT_LNN_ARGS))
+    unknown = sorted(set(normalized) - set(DEFAULT_PICON_ARGS))
     if unknown:
-        raise ValueError(f"LNN config 含有不支援的欄位: {unknown}")
+        raise ValueError(f"PI-CON config 含有不支援的欄位: {unknown}")
     for list_key in ("sensor_jsons", "sensor_npzs", "dns_paths"):
         if list_key in normalized:
             normalized[list_key] = [_resolve_config_path_value(p, config_path) for p in normalized[list_key]]
@@ -273,7 +273,7 @@ def load_lnn_config(config_path: Path | None) -> dict[str, Any]:
 def _validate_al_config(cfg: dict[str, Any]) -> None:
     """What: AL semantic validation — fail fast on the FULLY MERGED config.
 
-    必須在 `DEFAULT_LNN_ARGS` 與 TOML 合併**後**呼叫（不能在 `load_lnn_config` 內），
+    必須在 `DEFAULT_PICON_ARGS` 與 TOML 合併**後**呼叫（不能在 `load_picon_config` 內），
     否則 cfg 會缺少 default fallback 值。
 
     參考 spec: docs/superpowers/specs/2026-05-04-al-continuity-design.md §6

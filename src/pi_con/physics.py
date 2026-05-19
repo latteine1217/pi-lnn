@@ -6,8 +6,8 @@ from typing import Callable
 import numpy as np
 import torch
 
-from pi_lnn.operator import make_lnn_model_fn_uvp
-from pi_lnn.runtime import _grad
+from pi_con.operator import make_picon_model_fn_uvp
+from pi_con.runtime import _grad
 
 
 def unsteady_ns_residuals(
@@ -141,7 +141,7 @@ def _rar_update_pool(
     使用 create_graph=False，僅計算一階導數，完全避免二階 autograd 建圖。
     此近似只影響 pool 中的點排序，不影響訓練 loss 本身的精確性。
 
-    Note: uvp_fn 透過 make_lnn_model_fn_uvp 取得，內部已套
+    Note: uvp_fn 透過 make_picon_model_fn_uvp 取得，內部已套
     physics_output_mean/std 反 normalization → mom_u, mom_v, cont 為物理單位，
     與訓練 path 的 unsteady_ns_residuals 一致。
 
@@ -162,7 +162,7 @@ def _rar_update_pool(
         # Hard body BC：必須傳 body_distance_fn（differentiable SDF callable）。
         # operator.py 在 use_hard_body_bc=True 但 fn=None 時會 raise ValueError。
         # RAR pool 評估只用 first-order grads，body_distance_fn 不需 create_graph。
-        uvp_fn = make_lnn_model_fn_uvp(
+        uvp_fn = make_picon_model_fn_uvp(
             net, sensor_vals_list[i], sensor_pos_list[i],
             re_norm=ds.re_norm, sensor_time=sensor_time_list[i], device=device,
             body_distance_fn=body_distance_fns[i] if body_distance_fns is not None else None,

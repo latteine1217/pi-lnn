@@ -18,8 +18,8 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn.encodings import LearnableFourierEmb
-from pi_lnn.operator import create_lnn_model
+from pi_con.encodings import LearnableFourierEmb
+from pi_con.operator import create_picon_model
 
 
 def _band_std(weight: torch.Tensor, start: int, end: int) -> float:
@@ -125,7 +125,7 @@ def test_rounding_corner_case_dimension_sum():
 
 
 def test_create_lnn_model_propagates_bands():
-    """create_lnn_model 應從 config 傳遞頻率分層參數至 spatial_emb。"""
+    """create_picon_model 應從 config 傳遞頻率分層參數至 spatial_emb。"""
     cfg = {
         "fourier_harmonics": 4,
         "d_model": 16,
@@ -137,7 +137,7 @@ def test_create_lnn_model_propagates_bands():
         "fourier_sigma_bands": [1.0, 4.0, 12.0],
         "fourier_band_dim_ratios": [0.5, 0.375, 0.125],
     }
-    model = create_lnn_model(cfg)
+    model = create_picon_model(cfg)
     spatial_emb = model.spatial_encoder.spatial_emb
     assert spatial_emb is not None
     assert spatial_emb._band_layout is not None
@@ -155,7 +155,7 @@ def test_create_lnn_model_default_fourier_unchanged():
         "operator_rank": 8,
         "fourier_embed_dim": 64,
     }
-    model = create_lnn_model(cfg)
+    model = create_picon_model(cfg)
     spatial_emb = model.spatial_encoder.spatial_emb
     assert spatial_emb is not None
     assert spatial_emb._band_layout is None

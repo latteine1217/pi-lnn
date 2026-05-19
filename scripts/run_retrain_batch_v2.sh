@@ -33,7 +33,7 @@ run_one() {
   local config="$3"     # config path
 
   local artifact_root="artifacts/kolmogorov/deeponet-cfc-re10000-exp${exp_id}-${tag}"
-  local final_pt="${artifact_root}/lnn_kolmogorov_final.pt"
+  local final_pt="${artifact_root}/picon_kolmogorov_final.pt"
   local eval_dir="${artifact_root}/deeponet-cfc-eval"
   local summary="${eval_dir}/summary.json"
   local logs_dir="${LOGS_ROOT}/exp_${exp_id}"
@@ -58,7 +58,7 @@ run_one() {
   fi
 
   local t0=$(date +%s)
-  uv run python -u src/lnn_kolmogorov.py \
+  uv run python -u src/picon_kolmogorov.py \
     --config "$config" \
     --device mps \
     2>&1 | tee "$train_log"

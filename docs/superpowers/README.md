@@ -13,8 +13,8 @@ specs/ 內多份文件**目前仍被 src 與 configs 引用**，移動或重命�
 
 | Spec | 被引用處 |
 |---|---|
-| `specs/2026-04-26-pi-lnn-package-refactor-design.md` | `src/pi_lnn/training.py` |
-| `specs/2026-05-04-al-continuity-design.md` | `src/pi_lnn/config.py`、`src/pi_lnn/losses.py`、`configs/exp_070~072` |
+| `specs/2026-04-26-pi-con-package-refactor-design.md` | `src/pi_con/training.py` |
+| `specs/2026-05-04-al-continuity-design.md` | `src/pi_con/config.py`、`src/pi_con/losses.py`、`configs/exp_070~072` |
 
 ADR-001 §123 亦明定「個別實驗的詳細 spec 放於本資料夾」。
 

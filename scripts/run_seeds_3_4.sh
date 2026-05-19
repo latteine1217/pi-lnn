@@ -44,7 +44,7 @@ run_one () {
   local variant="$2"     # e.g. b3-seed3
   local config="$3"      # e.g. configs/exp_097_b3_seed3.toml
   local artifact_dir="artifacts/kolmogorov/deeponet-cfc-re10000-exp${exp_id}-${variant}"
-  local final_pt="$artifact_dir/lnn_kolmogorov_final.pt"
+  local final_pt="$artifact_dir/picon_kolmogorov_final.pt"
   local eval_dir="$artifact_dir/deeponet-cfc-eval"
   local summary="$eval_dir/summary.json"
   local train_log="$LOGS_DIR/exp_${exp_id}_train.log"
@@ -59,7 +59,7 @@ run_one () {
 
   # ─── 1. Train ───────────────────────────────────────────
   local t0=$(date +%s)
-  uv run python -u src/lnn_kolmogorov.py \
+  uv run python -u src/picon_kolmogorov.py \
     --config "$config" \
     --device mps \
     2>&1 | tee "$train_log"

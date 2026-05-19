@@ -1,7 +1,7 @@
 """scripts/benchmark_inference.py
 
 What:
-    量測訓練完的 LiquidOperator 模型在純推論流程的耗時。
+    量測訓練完的 PI-CON 模型在純推論流程的耗時。
     將推論成本拆三層回報：
       (A) encode_once: sensor 時序 → hidden states 的一次性編碼成本。
       (B) query_field: 在 coarse grid (16384 points) 上 query 單一 (t, component) 場。
@@ -15,7 +15,7 @@ Why:
 Usage:
     PYTORCH_ENABLE_MPS_FALLBACK=1 uv run python scripts/benchmark_inference.py \
         --config configs/exp_094_b3_seed2.toml \
-        --checkpoint artifacts/kolmogorov/deeponet-cfc-re10000-exp094-b3-seed2/lnn_kolmogorov_final.pt \
+        --checkpoint artifacts/kolmogorov/deeponet-cfc-re10000-exp094-b3-seed2/picon_kolmogorov_final.pt \
         --device mps \
         --output-json artifacts/benchmark_inference_exp094.json
 """
@@ -44,7 +44,7 @@ from evaluate_deeponet_cfc import (  # noqa: E402
     load_model_weights_strict,
 )
 from kolmogorov_dataset import KolmogorovDataset  # noqa: E402
-from lnn_kolmogorov import create_lnn_model, load_lnn_config  # noqa: E402
+from picon_kolmogorov import create_picon_model, load_picon_config  # noqa: E402
 
 
 def _sync(device: torch.device) -> None:
@@ -90,12 +90,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    cfg = load_lnn_config(args.config)
+    cfg = load_picon_config(args.config)
     device = choose_device(args.device)
     print(f"[setup] device={device}")
 
     # ── 1. 建模 + load weights ──────────────────────────────────────
-    model = create_lnn_model(cfg).to(device)
+    model = create_picon_model(cfg).to(device)
     ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
     state = extract_model_state(ckpt)
     load_model_weights_strict(model, state)

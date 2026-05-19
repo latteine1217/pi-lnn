@@ -1,4 +1,4 @@
-"""Pi-LNN main operator: LiquidOperator model class + factory + closure helper."""
+"""PI-CON main operator: LiquidOperator model class + factory + closure helper."""
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -6,12 +6,12 @@ from typing import Any, Callable
 import torch
 import torch.nn as nn
 
-from pi_lnn.decoder import DeepONetCfCDecoder
-from pi_lnn.encoders import SpatialSetEncoder, TemporalCfCEncoder
+from pi_con.decoder import DeepONetCfCDecoder
+from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder
 
 
 class LiquidOperator(nn.Module):
-    """What: 核心 Pi-LNN 模型。
+    """What: 核心 PI-CON 模型。
 
     Why: 僅保留資料 -> Spatial encoder -> Temporal CfC branch -> DeepONet trunk 的最短主線。
     """
@@ -211,7 +211,7 @@ class LiquidOperator(nn.Module):
         return self.query_decoder(xy, t_q, c, h_states, s_time, sensor_pos)
 
 
-def create_lnn_model(cfg: dict[str, Any]):
+def create_picon_model(cfg: dict[str, Any]):
     """What: 從 config 建立核心模型。
 
     Default: LiquidOperator (CfC-DeepONet hybrid)。
@@ -219,10 +219,10 @@ def create_lnn_model(cfg: dict[str, Any]):
     (純 DeepONet MLP branch + MLP trunk + inner product，B0 ablation baseline)。
     """
     if bool(cfg.get("use_standard_pinn", False)):
-        from pi_lnn.standard_pinn import create_standard_pinn_model
+        from pi_con.standard_pinn import create_standard_pinn_model
         return create_standard_pinn_model(cfg)
     if bool(cfg.get("use_vanilla_deeponet", False)):
-        from pi_lnn.vanilla_deeponet import create_vanilla_deeponet_model
+        from pi_con.vanilla_deeponet import create_vanilla_deeponet_model
         return create_vanilla_deeponet_model(cfg)
     return LiquidOperator(
         fourier_harmonics=int(cfg.get("fourier_harmonics", 8)),
@@ -265,7 +265,7 @@ def create_lnn_model(cfg: dict[str, Any]):
     )
 
 
-def make_lnn_model_fn(
+def make_picon_model_fn(
     net: LiquidOperator,
     sensor_vals: torch.Tensor,
     sensor_pos: torch.Tensor,
@@ -289,7 +289,7 @@ def make_lnn_model_fn(
     use_bd = bool(getattr(net, "use_hard_body_bc", False))
     if use_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 但 make_lnn_model_fn() 沒收到 body_distance_fn"
+            "model use_hard_body_bc=True 但 make_picon_model_fn() 沒收到 body_distance_fn"
         )
 
     def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
@@ -305,7 +305,7 @@ def make_lnn_model_fn(
     return model_fn
 
 
-def make_lnn_model_fn_uvp(
+def make_picon_model_fn_uvp(
     net: LiquidOperator,
     sensor_vals: torch.Tensor,
     sensor_pos: torch.Tensor,
@@ -320,7 +320,7 @@ def make_lnn_model_fn_uvp(
 
     Why: 取代 (u_fn, v_fn, p_fn) 三個獨立 closure。共用 c-independent 路徑且只
          保留 1 份共享 autograd graph，二階 backward 記憶體峰值同步下降。
-    body_distance_fn: 同 make_lnn_model_fn；use_hard_body_bc=True 時必須 differentiable.
+    body_distance_fn: 同 make_picon_model_fn；use_hard_body_bc=True 時必須 differentiable.
     """
     net_device = next(iter(net.parameters())).device
     if h_states is None or s_time is None:
@@ -328,7 +328,7 @@ def make_lnn_model_fn_uvp(
     use_bd = bool(getattr(net, "use_hard_body_bc", False))
     if use_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 但 make_lnn_model_fn_uvp() 沒收到 body_distance_fn"
+            "model use_hard_body_bc=True 但 make_picon_model_fn_uvp() 沒收到 body_distance_fn"
         )
 
     def model_fn_uvp(xyt: torch.Tensor) -> torch.Tensor:

@@ -2,7 +2,7 @@
 # What: NG (Natural Gradient / Gauss-Newton) optimizer 首次驗證，Kolmogorov Re=1000 small.
 #
 # Why: 驗證論文 "Curvature-Aware Optimization for High-Accuracy PINNs" (Jnini 2026) 的 NG
-#      在 pi-lnn 架構（CfC + DeepONet 變形）下是否可行。重點觀察：
+#      在 pi-con 架構（CfC + DeepONet 變形）下是否可行。重點觀察：
 #        (a) loss 下降曲線是否如論文那樣前期極陡
 #        (b) 每步 wall-time（J 重建成本 ~ N 次 backward）
 #        (c) 與相同 wall-time 預算的 Adam 比較最終 loss

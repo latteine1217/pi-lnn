@@ -19,9 +19,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 
 def main() -> None:
-    from pi_lnn import DEFAULT_LNN_ARGS, train_lnn_kolmogorov
+    from pi_con import DEFAULT_PICON_ARGS, train_picon_kolmogorov
 
-    cfg = dict(DEFAULT_LNN_ARGS)
+    cfg = dict(DEFAULT_PICON_ARGS)
     cfg.update({
         "sensor_jsons": [str(ROOT / "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5.json")],
         "sensor_npzs":  [str(ROOT / "data/kolmogorov_sensors/re1000/sensors_qrpivot_K100_N128_t0-5_dns_values.npz")],
@@ -55,7 +55,7 @@ def main() -> None:
     def log_fn(step, m): metrics_log.append((step, m))
 
     t0 = time.perf_counter()
-    train_lnn_kolmogorov(cfg, log_fn=log_fn)
+    train_picon_kolmogorov(cfg, log_fn=log_fn)
     dt = time.perf_counter() - t0
 
     assert len(metrics_log) == 2, f"預期 2 個 step 的 log，實際 {len(metrics_log)}"

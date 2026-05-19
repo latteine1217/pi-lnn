@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-04
 **Status:** Accepted
-**Scope:** Pi-LNN 專案下一階段（Phase 2）的研究方向與「不做什麼」清單。
+**Scope:** PI-CON 專案下一階段（Phase 2）的研究方向與「不做什麼」清單。
 **Supersedes:** —
 **Reviewers:** latteine（Owner），GPT-5（external review），Claude-Opus-4.7（codebase review）
 

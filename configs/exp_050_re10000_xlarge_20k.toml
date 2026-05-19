@@ -72,4 +72,4 @@ checkpoint_period = 500
 seed = 42
 device = "mps"
 artifacts_dir = "artifacts/deeponet-cfc-re10000-xlarge-20000"
-resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/lnn_kolmogorov_final.pt"
+resume_checkpoint = "artifacts/deeponet-cfc-re10000-xlarge-20000/deeponet-cfc-re10000-xlarge-10000/picon_kolmogorov_final.pt"

@@ -9,7 +9,7 @@
 #   iterations:                 200        →  300
 #
 # Hypothesis: 修正後 NG 應在 ~300 步內顯著穩定下降，l_phys 收到接近 1e-3 ~ 1e-4。
-# Falsifiability: 若 300 步後 l_total 仍震盪在 [0.3, 1.5]，NG 在 pi-lnn 架構基本不適用。
+# Falsifiability: 若 300 步後 l_total 仍震盪在 [0.3, 1.5]，NG 在 pi-con 架構基本不適用。
 
 [train]
 sensor_jsons = [

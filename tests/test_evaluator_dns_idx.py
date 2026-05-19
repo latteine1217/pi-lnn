@@ -22,10 +22,10 @@ import pytest
 import sys
 from pathlib import Path
 
-# find_dns_time_idx 已抽到 src/pi_lnn/dns_align.py 共用 module（Round 4 B1 修補）。
+# find_dns_time_idx 已抽到 src/pi_con/dns_align.py 共用 module（Round 4 B1 修補）。
 # 兩 evaluator 都從這個 module import，避免 silent drift。
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from pi_lnn import find_dns_time_idx
+from pi_con import find_dns_time_idx
 
 
 # ── 共用 fixture ──────────────────────────────────────────────────────
@@ -146,23 +146,23 @@ class TestFindDnsTimeIdxF32SensorTime:
 
 
 # ── 6. Cross-evaluator drift safety ──────────────────────────────────
-# Why: 之前兩 evaluator 字面重複實作 find_dns_time_idx；現已抽到 pi_lnn.dns_align。
+# Why: 之前兩 evaluator 字面重複實作 find_dns_time_idx；現已抽到 pi_con.dns_align。
 #      此 test 確保兩 evaluator 都從共用 module import（不再 inline 實作），
 #      未來改一邊不改另一邊不會 silent drift。
 
 class TestSharedModuleNoDrift:
-    def test_evaluators_import_from_pi_lnn(self):
-        """兩 evaluator 必須 import find_dns_time_idx from pi_lnn（不能 inline 實作）。"""
+    def test_evaluators_import_from_pi_con(self):
+        """兩 evaluator 必須 import find_dns_time_idx from pi_con（不能 inline 實作）。"""
         scripts_dir = Path(__file__).parent.parent / "scripts"
         for fname in ("evaluate_cylinder.py", "evaluate_deeponet_cfc.py"):
             text = (scripts_dir / fname).read_text(encoding="utf-8")
-            # 檢查 import 存在（即從 pi_lnn 拿，符合 single source）
+            # 檢查 import 存在（即從 pi_con 拿，符合 single source）
             assert "find_dns_time_idx" in text, f"{fname}: 找不到 find_dns_time_idx 引用"
             assert (
-                "from pi_lnn import" in text and "find_dns_time_idx" in text
-            ), f"{fname}: 必須 from pi_lnn import find_dns_time_idx"
+                "from pi_con import" in text and "find_dns_time_idx" in text
+            ), f"{fname}: 必須 from pi_con import find_dns_time_idx"
             # 檢查沒有 inline 重新定義（會 silent drift）
             assert "def find_dns_time_idx" not in text, (
                 f"{fname}: 不能 inline 重新定義 find_dns_time_idx — drift 風險，"
-                f"應從 pi_lnn 共用 module import"
+                f"應從 pi_con 共用 module import"
             )

@@ -16,7 +16,7 @@ TDD for observed_channel_prediction single-pass optimization.
 import torch
 import pytest
 from unittest.mock import patch, call
-from src.lnn_kolmogorov import (
+from src.picon_kolmogorov import (
     LiquidOperator,
     observed_channel_prediction,
 )

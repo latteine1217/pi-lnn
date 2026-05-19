@@ -1,4 +1,4 @@
-# Pi-LNN Improvement Plan — Post Literature Review
+# PI-CON Improvement Plan — Post Literature Review
 
 > **Date**: 2026-05-06
 > **Source**: 配合 [`docs/literature_review.md`](./literature_review.md) 與 [`docs/experiment_log.md`](./experiment_log.md)
@@ -47,7 +47,7 @@
 
 #### 實作細節
 
-**現況 branch 架構**（`src/lnn_kolmogorov.py` `DeepONetBranch`）：
+**現況 branch 架構**（`src/picon_kolmogorov.py` `DeepONetBranch`）：
 - 輸入：`sensor_values[B, K, 2]`（u, v at K sensors, **單時刻或當前 query time**）
 - 處理：positional encoding(sensor_position) + sensor_value → linear → tokens
 - 輸出：`tokens[B, K, d_model]`
@@ -149,9 +149,9 @@ L_phys = (w_ns_u * ns_u_t + w_ns_v * ns_v_t + w_cont * cont_t).mean()
 
 > Mons et al. (PRF 2025) 證實 mean-enforced loss（強制 sensor 空間平均匹配 measurement 平均）
 > 比 snapshot-enforced loss 對 noise 更 robust。
-> Pi-LNN 目前用 snapshot-enforced（即 sensor MSE 在每個位置嚴格匹配），
+> PI-CON 目前用 snapshot-enforced（即 sensor MSE 在每個位置嚴格匹配），
 > **加入 mean-enforced 作為輔助項**，並在 noise={0, SNR=20, SNR=10} 三種設定下評測，
-> 可建立 Pi-LNN 對量測 noise 的健全度，補強 paper 的工程價值論述。
+> 可建立 PI-CON 對量測 noise 的健全度，補強 paper 的工程價值論述。
 
 #### Expected_Change
 
@@ -163,7 +163,7 @@ L_phys = (w_ns_u * ns_u_t + w_ns_v * ns_v_t + w_cont * cont_t).mean()
 
 #### Falsifiability
 
-- 若 mean-enforced 不改善 noise robustness：可能 Pi-LNN 的 GradNorm 已隱式做了 robust averaging，mean loss 是 redundant
+- 若 mean-enforced 不改善 noise robustness：可能 PI-CON 的 GradNorm 已隱式做了 robust averaging，mean loss 是 redundant
 - 若 clean case 因 mean loss 退步：代表兩種 loss 衝突，需要 task weight 調整
 
 #### 實作細節
@@ -179,7 +179,7 @@ L_data_mean = ((sensor_pred.mean(dim=1) - sensor_true.mean(dim=1)) ** 2).mean()
 L_data = L_data_snapshot + lambda_mean * L_data_mean
 ```
 
-**初始 `lambda_mean`**：0.1（在 `configs/` 加新欄位 `mean_enforced_weight`，**記得同步更新 `DEFAULT_LNN_ARGS`**——KNOWN_PITFALLS 已記錄此規則）。
+**初始 `lambda_mean`**：0.1（在 `configs/` 加新欄位 `mean_enforced_weight`，**記得同步更新 `DEFAULT_PICON_ARGS`**——KNOWN_PITFALLS 已記錄此規則）。
 
 **Noise 注入**：
 - 在 `dataset` 載入 sensor values 時，加上 `noise_snr` config 欄位
@@ -200,7 +200,7 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
 > QR-pivot on POD modes 是 1990s–2010s 的最佳作法，但只是「reconstruction-agnostic 的線性代數最優」。
 > NeurIPS 2025 兩篇 oral（Liu et al., Kim et al.）證明
 > **reconstruction-aware 的學習式 sensor placement** 在同樣 K 下可達 1–3 pp 改善。
-> Pi-LNN 應在 K=100 fixed 下，用 projected gradient descent 學一組更佳的 sensor 位置。
+> PI-CON 應在 K=100 fixed 下，用 projected gradient descent 學一組更佳的 sensor 位置。
 
 #### Expected_Change
 
@@ -218,9 +218,9 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
 #### 實作細節
 
 **兩階段 PhySense-style training**：
-1. **Stage 1**：固定 sensor 為 QR-pivot K=100，訓練 Pi-LNN 至收斂
-2. **Stage 2**：固定 Pi-LNN weights，**將 sensor positions 設為可訓練 parameters**，用 projected gradient descent 在 [0, 1]² domain 上優化 sensor positions（projection = 對 grid cell center 取最近）
-3. **Stage 3**：用 stage-2 學到的 placement 重新訓練 Pi-LNN（可從 stage-1 weights resume）
+1. **Stage 1**：固定 sensor 為 QR-pivot K=100，訓練 PI-CON 至收斂
+2. **Stage 2**：固定 PI-CON weights，**將 sensor positions 設為可訓練 parameters**，用 projected gradient descent 在 [0, 1]² domain 上優化 sensor positions（projection = 對 grid cell center 取最近）
+3. **Stage 3**：用 stage-2 學到的 placement 重新訓練 PI-CON（可從 stage-1 weights resume）
 
 **重要約束**：
 - Sensor positions 必須對應 DNS grid 上有量測值的 cell——這個約束來自我們的 sensor data 設定（從 DNS 取點）；學習式 placement 必須 project 回 grid cells
@@ -271,7 +271,7 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
 
 **option A：Latent VAE prior**
 1. Train VAE on DNS full field（research only），latent dim=64
-2. Pi-LNN trunk 接 VAE decoder：query → latent → field
+2. PI-CON trunk 接 VAE decoder：query → latent → field
 3. Inference 階段，VAE 凍結；sensor + physics 只訓練 query→latent 路徑
 
 **option B：Latent diffusion prior（CoNFiLD-style）**
@@ -323,7 +323,7 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
 
 ### Sprint 1（1 週）— 修 EXP-068
 
-1. 在 `src/lnn_kolmogorov.py` 改 `causal_weight` 為 per-task
+1. 在 `src/picon_kolmogorov.py` 改 `causal_weight` 為 per-task
 2. 寫 unit test 驗證 `w_t` 三條曲線量級可比較
 3. 跑 EXP-070（暫定）：Re=10000 / K=100 / 10000 步 / per-task causal eps=1.0
 4. 對照 EXP-064 與 EXP-068，更新 experiment_log 第 41 條
@@ -332,7 +332,7 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
 
 1. 在 `DeepONetBranch` 新增 `sensor_history_encoder`（CfC）
 2. 修改 dataset：對每個 query (t, x, y) 提供 sensor history `[K, T_hist, 2]`
-3. config 新增 `sensor_history_length`、`sensor_temporal_encoder` 兩欄位（同步 `DEFAULT_LNN_ARGS`）
+3. config 新增 `sensor_history_length`、`sensor_temporal_encoder` 兩欄位（同步 `DEFAULT_PICON_ARGS`）
 4. Smoke test 在 Re=1000 / K=100 / 5000 步
 5. 主實驗 EXP-071（暫定）：Re=10000 / K=100 / 10000 步 / T_hist=8
 
@@ -375,7 +375,7 @@ L_data = L_data_snapshot + lambda_mean * L_data_mean
    - 三軸分類：sensor-only+physics / DNS-supervised / DNS-pretrained operator
    - 強調我們屬於第一類，與 PRF 2025 直接可比
 3. **Method**
-   - Pi-LNN 架構細節
+   - PI-CON 架構細節
    - Sensor-temporal encoding（Sprint 2 成果）
    - Per-task causal weighting（Sprint 1 成果）
    - GradNorm + LearnableFourierEmb

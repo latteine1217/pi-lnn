@@ -18,7 +18,7 @@ import torch
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from pi_lnn.decoder import DeepONetCfCDecoder  # noqa: E402
+from pi_con.decoder import DeepONetCfCDecoder  # noqa: E402
 
 
 def _make_decoder(use_hard_body_bc: bool, dim: int = 32):

@@ -13,7 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from pi_lnn import GradNormWeights
+from pi_con import GradNormWeights
 
 
 def test_default_4_task_layout_inferred() -> None:
