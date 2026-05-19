@@ -1,0 +1,103 @@
+# configs/exp_242_a_cont_pure_al.toml
+# What: EXP-242_a — EXP-200_a 派生：把 cont 從 GradNorm 拿出（純 AL for cont）。
+#
+# Why: EXP-200_a 中 cont 在 GradNorm + AL 雙開（ADR-001 §4 escape hatch）。
+#      本實驗驗證雙開是否冗餘 — 若純 AL 結果 ≈ 雙開, ADR-001 §4 禁令仍合理；
+#      若純 AL 顯著更好/更差, 雙開設計需重訪。
+#
+# Hypothesis:
+#   ADR-001 §4 「不可同時控制同一 task」 — 若禁令真實，純 AL 應 ≈ 或 > EXP-200_a。
+#   預期 KE ∈ [9, 12]%（同量級於 baseline 10.77%）+ div 維持 ~0.05-0.07。
+#
+# Falsifiability:
+#   (a) KE < 9 % → 雙開冗餘，純 AL 為更乾淨配方（§4 修訂 NG）
+#   (b) 9-12 % → 雙開效果同純 AL（§4 修訂中性）
+#   (c) > 12 % → 雙開有實質貢獻（§4 禁令仍合理）
+#
+# 唯一改動（vs EXP-200_a）:
+#   - gradnorm_tasks 移除 cont → ["data","ns_u","ns_v"]
+#   - gradnorm_init_weights 對應 → [1.0, 0.057, 0.057]
+#   - al_constraints = ["cont"]（與舊 default 相同，但無 cont in GN）
+#   - al_allow_cont_in_gradnorm = false（cont 已不在 GN，無需 escape hatch）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v"]                  # CHANGED: 移除 cont
+gradnorm_init_weights = [1.0, 0.057, 0.057]                # CHANGED: 移除 cont init
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = false   # CHANGED: cont 已不在 GN，不需 escape hatch
+al_allow_ns_in_gradnorm = false
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp242a-cont-pure-al"

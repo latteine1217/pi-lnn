@@ -386,33 +386,46 @@ def train_picon_kolmogorov(
     use_gradnorm_bc = use_gradnorm and gn_weights is not None and "bc" in gn_weights
     use_gradnorm_cont = use_gradnorm and gn_weights is not None and "cont" in gn_weights
 
-    # AL-continuity setup（spec v4 §3 / §4）
+    # AL setup（spec v4 §3 / §4；EXP-242 系列：multi-constraint）
+    # `al_multipliers: dict[name, AL]` 支援多 constraint 共用 hyperparams (v1)。
+    # 預設 al_constraints=["cont"] 等價舊 single-AL 行為（backward compat）。
     use_al = bool(args.get("use_augmented_lagrangian", False))
-    al_cont: AugmentedLagrangianMultiplier | None = None
+    al_multipliers: dict[str, AugmentedLagrangianMultiplier] = {}
     al_update_freq = int(args.get("al_update_freq", 100))
     if use_al:
+        al_constraints: list[str] = list(args.get("al_constraints", ["cont"]) or ["cont"])
         # Pre-condition asserts（runtime fail-fast；config-load _validate_al_config 也會擋）
         assert args["lr_schedule"] != "ng", "AL incompatible with lr_schedule='ng'"
         assert not (args["lr_schedule"] == "lbfgs" and use_gradnorm), \
             "AL + LBFGS 不支援 use_gradnorm（closure race）"
-        assert float(args.get("continuity_weight", 0.0)) == 0.0, \
-            "AL active 時 continuity_weight 必須 = 0，否則 cont 被雙重 penalty"
+        if "cont" in al_constraints:
+            assert float(args.get("continuity_weight", 0.0)) == 0.0, \
+                "AL on cont 時 continuity_weight 必須 = 0，否則 cont 被雙重 penalty"
         assert not bool(args.get("use_sensor_physics", False)), \
             "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
         if use_gradnorm and gn_weights is not None:
-            # ADR-001 §4 escape hatch — EXP-079 (2026-05-08) opt-in 違反此禁令以驗證假設。
-            # 預設 false 維持原語意。同 _validate_al_config 的邏輯。
             _allow_cont = bool(args.get("al_allow_cont_in_gradnorm", False))
-            if not _allow_cont:
-                assert "cont" not in gn_weights, "AL active 時 'cont' 必須從 gradnorm_tasks 移出"
+            _allow_ns = bool(args.get("al_allow_ns_in_gradnorm", False))
+            if "cont" in al_constraints and not _allow_cont:
+                assert "cont" not in gn_weights, "AL on cont 時 'cont' 必須從 gradnorm_tasks 移出"
+            for _n in ("ns_u", "ns_v"):
+                if _n in al_constraints and not _allow_ns:
+                    assert _n not in gn_weights, f"AL on {_n} 時 '{_n}' 必須從 gradnorm_tasks 移出"
             assert "al" not in gn_weights, \
                 "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"
-        al_cont = AugmentedLagrangianMultiplier(
-            init_lambda=float(args.get("al_init_lambda", 0.0)),
-            rho=float(args.get("al_rho", 1.0)),
-            lambda_clip=float(args.get("al_lambda_clip", 10.0)),
-            ema_momentum=float(args.get("al_ema_momentum", 0.5)),
-        ).to(device)
+        # 動態建立 multipliers（共用 hyperparams v1）
+        for _c in al_constraints:
+            al_multipliers[_c] = AugmentedLagrangianMultiplier(
+                init_lambda=float(args.get("al_init_lambda", 0.0)),
+                rho=float(args.get("al_rho", 1.0)),
+                lambda_clip=float(args.get("al_lambda_clip", 10.0)),
+                ema_momentum=float(args.get("al_ema_momentum", 0.5)),
+            ).to(device)
+    # Backward-compat alias: 若只有 cont 一個 multiplier, al_cont 指向同一物件
+    # 讓現有 LBFGS path + log 程式碼最小改動。多 constraint 時 al_cont 為 None。
+    al_cont: AugmentedLagrangianMultiplier | None = (
+        al_multipliers["cont"] if list(al_multipliers.keys()) == ["cont"] else None
+    )
 
     # Resume：從 checkpoint 恢復完整訓練狀態
     start_step = 0
@@ -478,9 +491,28 @@ def train_picon_kolmogorov(
                     "  [WARN] checkpoint 不含 GradNorm state（legacy ckpt）→ 用 init weights；"
                     "若訓練 >1000 步可能 GradNorm 重新 calibrate 時 loss 短暫上升"
                 )
-            # AL state restore：保 lambda_ / ema_C / _initialized；缺則 cold-start
-            if al_cont is not None and ckpt.get("al_state_dict") is not None:
-                al_cont.load_state_dict(ckpt["al_state_dict"])
+            # AL state restore：支援 (a) 新 dict-form `al_states` 或 (b) 舊 single `al_state_dict`
+            _al_states = ckpt.get("al_states")
+            _al_legacy = ckpt.get("al_state_dict")
+            if al_multipliers and (_al_states is not None or _al_legacy is not None):
+                if _al_states is not None:
+                    for _c, _sd in _al_states.items():
+                        if _c in al_multipliers:
+                            al_multipliers[_c].load_state_dict(_sd)
+                elif _al_legacy is not None and "cont" in al_multipliers:
+                    # backward compat: 舊 single-AL checkpoint 對應 "cont"
+                    al_multipliers["cont"].load_state_dict(_al_legacy)
+                # 印出 restore 摘要（沿用 al_cont alias 路徑，多 constraint 時印每個）
+                if al_cont is not None:
+                    pass  # 沿用下方 al_cont 路徑
+                else:
+                    for _c, _m in al_multipliers.items():
+                        print(
+                            f"  resumed AL[{_c}] state: λ={_m.lambda_.item():.3e} "
+                            f"ema_C={_m.ema_C.item():.3e} initialized={bool(_m._initialized.item())}",
+                            flush=True,
+                        )
+            if al_cont is not None and (ckpt.get("al_states") is not None or ckpt.get("al_state_dict") is not None):
                 print(
                     f"  resumed AL state: λ={al_cont.lambda_.item():.3e} "
                     f"ema_C={al_cont.ema_C.item():.3e} initialized={bool(al_cont._initialized.item())}"
@@ -533,10 +565,13 @@ def train_picon_kolmogorov(
         _gn_layout = ", ".join(gn_weights.task_names)
         print(f"  GradNorm: momentum={args.get('gradnorm_ema_momentum', 0.5):.2f}  freq={gn_update_freq}  (direct formula + EMA)")
         print(f"  GradNorm init_weights: {_gn_init_w}  (tasks: [{_gn_layout}])")
-    if use_al and al_cont is not None:
+    if use_al and al_multipliers:
+        _names = ",".join(al_multipliers.keys())
+        _m0 = next(iter(al_multipliers.values()))   # 共用 hyperparams v1
         print(
-            f"  AL-continuity: λ_init={al_cont.lambda_.item():.3f} ρ={al_cont.rho:.3f} "
-            f"clip=(0,{al_cont.lambda_clip:.1f}) freq={al_update_freq} ema={al_cont.ema_momentum:.2f}"
+            f"  AL: constraints=[{_names}] (共用 hyperparams)"
+            f"  λ_init={_m0.lambda_.item():.3f} ρ={_m0.rho:.3f} "
+            f"clip=(0,{_m0.lambda_clip:.1f}) freq={al_update_freq} ema={_m0.ema_momentum:.2f}"
         )
     if not use_gradnorm and (phys_warmup_steps > 0 or phys_ramp_steps > 0):
         print(
@@ -1253,12 +1288,20 @@ def train_picon_kolmogorov(
                 l_bc_total   = torch.zeros(1, device=device)
                 l_physics = torch.zeros(1, device=device)
 
-            # AL term（spec v4 §4）：在組 l_total 之前一次計算，後面分支共用
+            # AL term（spec v4 §4 + EXP-242 multi-constraint）：sum over constraints
             # 注意：l_cont_total 在 AL 模式下強制為 random-collocation 單一 mean
             # （use_sensor_physics 已被 pre-condition assert 強制 false）
             al_term: torch.Tensor | None = None
-            if al_cont is not None:
-                al_term = al_cont.loss_term(l_cont_total)
+            if al_multipliers:
+                _loss_by_constraint: dict[str, torch.Tensor] = {
+                    "ns_u": l_ns_u_total,
+                    "ns_v": l_ns_v_total,
+                    "cont": l_cont_total,
+                }
+                al_term = sum(
+                    m.loss_term(_loss_by_constraint[c])
+                    for c, m in al_multipliers.items()
+                )
 
             # ── Loss 組合與 backward ────────────────────────────────────────────
             if use_gradnorm and gn_weights is not None:
@@ -1340,10 +1383,16 @@ def train_picon_kolmogorov(
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()
 
-            # AL dual update（spec v4 §4）— 嚴格在 optimizer.step() 之後，且 step > 0 才動
-            # 用的是 pre-step 計算的 l_cont_total（一步延遲，acceptable，spec 已說明）
-            if al_cont is not None and step > 0 and step % al_update_freq == 0:
-                al_cont.update(l_cont_total.detach())
+            # AL dual update（spec v4 §4 + EXP-242 multi-constraint）— 嚴格在 optimizer.step() 之後
+            # 每個 constraint 各自獨立 update（一步延遲與 single-AL 相同，acceptable per spec）
+            if al_multipliers and step > 0 and step % al_update_freq == 0:
+                _loss_by_constraint = {
+                    "ns_u": l_ns_u_total,
+                    "ns_v": l_ns_v_total,
+                    "cont": l_cont_total,
+                }
+                for _c, _m in al_multipliers.items():
+                    _m.update(_loss_by_constraint[_c].detach())
 
         if scheduler is not None:
             scheduler.step()
@@ -1360,9 +1409,10 @@ def train_picon_kolmogorov(
                 ws_vals = gn_weights.weights.detach().cpu().tolist()
                 for name, val in zip(gn_weights.task_names, ws_vals):
                     extra[f"gn_w_{name}"] = float(val)
-            if al_cont is not None:
-                extra["al_lambda_c"] = float(al_cont.lambda_.item())
-                extra["al_C_ema"] = float(al_cont.ema_C.item())
+            if al_multipliers:
+                for _c, _m in al_multipliers.items():
+                    extra[f"al_lambda_{_c}"] = float(_m.lambda_.item())
+                    extra[f"al_C_ema_{_c}"] = float(_m.ema_C.item())
             log_fn(step, {
                 "l_data": l_data.item(),
                 "l_physics": l_physics.item(),
@@ -1396,8 +1446,14 @@ def train_picon_kolmogorov(
                     f" {l_physics.item():>12.4e} {phys_weight:>10.4f}"
                     f" {l_total.item():>12.4e}"
                 )
-            if al_cont is not None:
-                main += f" {al_cont.lambda_.item():>10.3e} {al_cont.ema_C.item():>10.3e}"
+            if al_multipliers:
+                # Single-constraint: 仍印 λ + C_ema 兩欄（向後相容 header）
+                # Multi-constraint: 印每個 λ（C_ema 省略避免行過長）
+                if al_cont is not None and len(al_multipliers) == 1:
+                    main += f" {al_cont.lambda_.item():>10.3e} {al_cont.ema_C.item():>10.3e}"
+                else:
+                    for _c, _m in al_multipliers.items():
+                        main += f" λ{_c}={_m.lambda_.item():.3e}"
             print(main + tm_str, flush=True)
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:
@@ -1415,8 +1471,15 @@ def train_picon_kolmogorov(
                     "scheduler_state_dict": scheduler.state_dict() if scheduler is not None else None,
                     # GradNorm state：避免 resume 時重置成 init weights → loss 爆炸
                     "gradnorm_state_dict": gn_weights.state_dict() if gn_weights is not None else None,
-                    # AL state：保 lambda_ / ema_C / _initialized 三 buffer
-                    "al_state_dict": al_cont.state_dict() if al_cont is not None else None,
+                    # AL state (multi-constraint dict-form, EXP-242)；舊 load path 仍兼容 al_state_dict
+                    "al_states": (
+                        {c: m.state_dict() for c, m in al_multipliers.items()}
+                        if al_multipliers else None
+                    ),
+                    # Backward-compat single-form alias (僅當只有 cont 一個 multiplier 時填)
+                    "al_state_dict": (
+                        al_cont.state_dict() if al_cont is not None else None
+                    ),
                     # Mode metadata：evaluate 用此判斷 ckpt 是 inference-ready 還是 resume-only
                     #   "train" = x_t (training iterate, 給 resume，inference quality 差)
                     #   "eval"  = y_t (averaged, inference 用)
@@ -1451,11 +1514,14 @@ def train_picon_kolmogorov(
         "configuration": {k: v for k, v in args.items() if k not in ("sensor_jsons", "sensor_npzs", "dns_paths")},
         "final_checkpoint": str(final),
     }
-    if al_cont is not None:
+    if al_multipliers:
         manifest["al_final_state"] = {
-            "lambda_": float(al_cont.lambda_.item()),
-            "ema_C": float(al_cont.ema_C.item()),
-            "saturated_clip": bool(al_cont.lambda_.item() >= al_cont.lambda_clip - 1e-9),
+            c: {
+                "lambda_": float(m.lambda_.item()),
+                "ema_C": float(m.ema_C.item()),
+                "saturated_clip": bool(m.lambda_.item() >= m.lambda_clip - 1e-9),
+            }
+            for c, m in al_multipliers.items()
         }
     if use_gradnorm and gn_weights is not None:
         manifest["gradnorm_final_weights"] = dict(zip(

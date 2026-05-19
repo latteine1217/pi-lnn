@@ -192,6 +192,15 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                                             # EXP-079 (2026-05-08) 啟用驗證此禁令是否過於保守。
                                             # 預期: KE 7-9% + div < 0.10 → §4 需修訂；
                                             # KE > 12% 或 div > 0.30 → §4 合理。
+    # Multi-constraint AL (EXP-242 系列, 2026-05-19)
+    # 對哪些 physics constraint 套 AL dual penalty；預設 ["cont"] 等價舊 single-AL 行為。
+    # 可選: ["cont"], ["ns_u","ns_v"], ["ns_u","ns_v","cont"]
+    # 共用 al_init_lambda/al_rho/al_lambda_clip/al_ema_momentum hyperparams (v1)。
+    # Pre-condition: l_ns_u/v/cont 都已是 squared mean ≥ 0，符合 AL "C ≥ 0" 假設。
+    "al_constraints": ["cont"],
+    # 是否允許 ns_u/ns_v 同時 in GradNorm + AL (類似 al_allow_cont_in_gradnorm)
+    # 預設 false: AL active on ns → ns 必須從 gradnorm_tasks 拿出（強制純 AL）
+    "al_allow_ns_in_gradnorm": False,
     "keep_last_n_checkpoints": 2,           # 只保留最後 N 個 step_*.pt 中間 ckpt（節省磁碟）。
                                             # 預設 2 = 留最新 + 一個 fallback；resume 用最新；
                                             # 0 = 全保留（向後相容）。final.pt 不受影響。
@@ -307,15 +316,32 @@ def _validate_al_config(cfg: dict[str, Any]) -> None:
             "AL v1 不支援 use_sensor_physics（l_cont_total 會變成 sum-of-two-means）"
         )
     tasks = list(cfg.get("gradnorm_tasks", []) or [])
+    # Multi-constraint AL (EXP-242): al_constraints 指定要套 AL 的 physics constraints。
+    al_constraints = list(cfg.get("al_constraints", ["cont"]) or ["cont"])
+    _ALLOWED_AL = {"cont", "ns_u", "ns_v"}
+    _bad = [c for c in al_constraints if c not in _ALLOWED_AL]
+    if _bad:
+        raise ValueError(
+            f"al_constraints 含未知 constraint {_bad}; 允許值 {_ALLOWED_AL}"
+        )
+    if not al_constraints:
+        raise ValueError("use_augmented_lagrangian=True 但 al_constraints 為空")
+
     # ADR-001 §4 禁令：AL 與 GradNorm 不可同時控制同一 task。EXP-079 (2026-05-08) 開啟
     # escape hatch 驗證此禁令是否真有必要 — opt-in via `al_allow_cont_in_gradnorm`。
-    # 若 EXP-079 結果 KE 7-9% + div < 0.10，§4 禁令需修訂；若 KE > 12% 或 div > 0.30，§4 禁令合理。
     _allow_cont = bool(cfg.get("al_allow_cont_in_gradnorm", False))
-    if tasks and "cont" in tasks and not _allow_cont:
+    _allow_ns = bool(cfg.get("al_allow_ns_in_gradnorm", False))
+    if tasks and "cont" in al_constraints and "cont" in tasks and not _allow_cont:
         raise ValueError(
-            "AL active 時 'cont' 必須從 gradnorm_tasks 移出（即使 use_gradnorm=False）。"
+            "AL on 'cont' 時 'cont' 必須從 gradnorm_tasks 移出。"
             " 若要實驗性違反 ADR-001 §4 禁令，明示設 al_allow_cont_in_gradnorm = true。"
         )
+    for _n in ("ns_u", "ns_v"):
+        if tasks and _n in al_constraints and _n in tasks and not _allow_ns:
+            raise ValueError(
+                f"AL on '{_n}' 時 '{_n}' 必須從 gradnorm_tasks 移出。"
+                f" 若要保留 GradNorm+AL 雙開（同 cont 模式），明示設 al_allow_ns_in_gradnorm = true。"
+            )
     if tasks and "al" in tasks:
         raise ValueError(
             "v4 規定 AL term 不進 GradNorm losses 列表 — 'al' 不能出現在 gradnorm_tasks"
