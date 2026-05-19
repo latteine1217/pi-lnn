@@ -27,11 +27,15 @@ import torch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from pi_con import create_picon_model, find_dns_time_idx, load_picon_config
+from pi_con.plot_style import apply_journal_rcparams
 # Why: evaluator 必須跟訓練端用 *完全相同* 的 stats / body mask / SDF / bc_scale。
 #      重複實作（hardcode RE_MEAN/STD、自寫 detect_body、重算 SDF）會 silent drift。
 #      改成 import dataset class，evaluator 內部重建一次拿 stats。
 #      find_dns_time_idx 也從 pi_con 共用 module import（避免兩 evaluator 字面重複 → drift）。
 from cylinder_dataset import CylinderDataset
+
+# Journal style: NeurIPS/ICLR 標準（DPI≥300、Helvetica、4 邊 spines、inner ticks）
+apply_journal_rcparams()
 
 # 訓練端 hardcoded train_ratio=0.8（pi_con/training.py:74）。evaluator 必須對齊。
 TRAIN_RATIO_FALLBACK = 0.8
@@ -173,8 +177,8 @@ def plot_field(output_path: Path,
     ur, up, ue = _mask(u_ref), _mask(u_pred), _mask(u_pred - u_ref)
     vr, vp, ve = _mask(v_ref), _mask(v_pred), _mask(v_pred - v_ref)
 
-    fig, axes = plt.subplots(2, 3, figsize=(16, 7), constrained_layout=True)
-    fig.suptitle(f"DNS vs PI-CON at t={t_val:.2f} s")
+    fig, axes = plt.subplots(2, 3, figsize=(8.5, 4.5), constrained_layout=True)
+    fig.suptitle(rf"DNS vs PI-CON at $t={t_val:.2f}$ s", fontsize=10)
 
     def _show(ax, field, title):
         vmax = np.nanpercentile(np.abs(field), 99)
@@ -183,11 +187,16 @@ def plot_field(output_path: Path,
         norm = TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
         ax.pcolormesh(x2d, y2d, field, cmap="RdBu_r", norm=norm,
                       shading="auto", rasterized=True)
-        ax.set_aspect("equal"); ax.set_title(title); ax.set_xlabel("x"); ax.set_ylabel("y")
+        ax.set_aspect("equal"); ax.set_title(title)
+        ax.set_xlabel(r"$x$ [m]"); ax.set_ylabel(r"$y$ [m]")
 
-    _show(axes[0, 0], ur, "u DNS"); _show(axes[0, 1], up, "u PI-CON"); _show(axes[0, 2], ue, "u Error")
-    _show(axes[1, 0], vr, "v DNS"); _show(axes[1, 1], vp, "v PI-CON"); _show(axes[1, 2], ve, "v Error")
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
+    _show(axes[0, 0], ur, r"$u$ DNS")
+    _show(axes[0, 1], up, r"$u$ PI-CON")
+    _show(axes[0, 2], ue, r"$u$ Error")
+    _show(axes[1, 0], vr, r"$v$ DNS")
+    _show(axes[1, 1], vp, r"$v$ PI-CON")
+    _show(axes[1, 2], ve, r"$v$ Error")
+    fig.savefig(output_path, facecolor="white")  # dpi 由 rcParams (300) 接管
     plt.close(fig)
 
 
@@ -203,28 +212,34 @@ def plot_vorticity(output_path: Path,
     vmax = max(np.nanpercentile(np.abs(or_), 98), 1e-8)
     emax = max(np.nanpercentile(np.abs(oe), 98), 1e-8)
 
-    fig, axes = plt.subplots(1, 3, figsize=(16, 4), constrained_layout=True)
-    fig.suptitle(f"Vorticity at t={t_val:.2f} s")
-    for ax, f, title, vm in zip(axes, [or_, op, oe],
-                                 ["DNS", "PI-CON", "Error"],
-                                 [vmax, vmax, emax]):
+    fig, axes = plt.subplots(1, 3, figsize=(8.5, 3.0), constrained_layout=True)
+    fig.suptitle(rf"Vorticity at $t={t_val:.2f}$ s", fontsize=10)
+    for ax, f, title, vm in zip(
+        axes, [or_, op, oe],
+        [r"$\omega$ DNS", r"$\omega$ PI-CON", r"$\omega$ Error"],
+        [vmax, vmax, emax],
+    ):
         norm = TwoSlopeNorm(vmin=-vm, vcenter=0, vmax=vm)
         ax.pcolormesh(x2d, y2d, f, cmap="RdBu_r", norm=norm,
                       shading="auto", rasterized=True)
-        ax.set_aspect("equal"); ax.set_title(f"Vorticity {title}")
-        ax.set_xlabel("x"); ax.set_ylabel("y")
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
+        ax.set_aspect("equal"); ax.set_title(title)
+        ax.set_xlabel(r"$x$ [m]"); ax.set_ylabel(r"$y$ [m]")
+    fig.savefig(output_path, facecolor="white")
     plt.close(fig)
 
 
 def plot_series(output_path: Path, time_vals: np.ndarray,
                 series: dict[str, np.ndarray], title: str, ylabel: str) -> None:
-    fig, ax = plt.subplots(figsize=(8, 4), constrained_layout=True)
-    for label, vals in series.items():
-        ax.plot(time_vals, vals, label=label)
-    ax.set_title(title); ax.set_xlabel("t (s)"); ax.set_ylabel(ylabel)
-    ax.grid(alpha=0.3); ax.legend()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
+    fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
+    palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#8c564b"]
+    linestyles = ["-", "--", "-.", ":", "-", "--"]
+    for i, (label, vals) in enumerate(series.items()):
+        ax.plot(time_vals, vals, color=palette[i % len(palette)],
+                linestyle=linestyles[i % len(linestyles)], marker="o", markersize=3,
+                markevery=max(1, len(time_vals) // 25), label=label)
+    ax.set_title(title); ax.set_xlabel(r"Time $t$ [s]"); ax.set_ylabel(ylabel)
+    ax.legend(loc="best")
+    fig.savefig(output_path, facecolor="white")
     plt.close(fig)
 
 
@@ -564,19 +579,19 @@ def main() -> None:
     # ── 時序圖 ────────────────────────────────────────────────────────────────
     plot_series(out_dir / "ke_vs_time.png", eval_times,
                 {"DNS": ke_ref, "PI-CON": ke_pred},
-                "Kinetic Energy vs Time", "KE (m²/s²)")
+                "Kinetic Energy", r"KE [m$^2$/s$^2$]")
 
     plot_series(out_dir / "uv_error_vs_time.png", eval_times,
-                {"u RMSE": u_rmse, "v RMSE": v_rmse},
-                "Velocity RMSE vs Time", "RMSE (m/s)")
+                {r"$u$ RMSE": u_rmse, r"$v$ RMSE": v_rmse},
+                "Velocity RMSE", r"RMSE [m/s]")
 
     plot_series(out_dir / "omega_error_vs_time.png", eval_times,
-                {"ω RMSE": omega_rmse},
-                "Vorticity RMSE vs Time", "RMSE (1/s)")
+                {r"$\omega$ RMSE": omega_rmse},
+                "Vorticity RMSE", r"RMSE [1/s]")
 
     plot_series(out_dir / "divergence_vs_time.png", eval_times,
-                {"PI-CON L2": div_l2, "DNS L2": div_l2_ref},
-                "Divergence L2 vs Time", "L2")
+                {"PI-CON": div_l2, "DNS": div_l2_ref},
+                "Divergence L2", r"$\Vert\nabla\cdot\mathbf{u}\Vert_2$ [1/s]")
 
     # ── Summary JSON ─────────────────────────────────────────────────────────
     # C3: train/val 切分 — 重要 caveat：訓練端 sample_sensor_batch 目前**沒有**

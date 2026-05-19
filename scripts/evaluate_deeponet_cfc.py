@@ -32,53 +32,10 @@ from pi_con import find_dns_time_idx   # 共用 module（避免兩 evaluator 重
 TRAIN_RATIO_FALLBACK = 0.8
 
 
-# 期刊風格繪圖（NeurIPS/ICLR）— 全域 rcParams 設定。
-# Why: 預設 matplotlib 外觀過於業餘；論文圖需 DPI≥300、字型一致、4 邊框細線、
-#      inner tick、細灰 grid，與多數 PINN/CFD 期刊論文範例一致。
-_PREFERRED_FONTS = ["Helvetica", "Arial", "DejaVu Sans"]
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": _PREFERRED_FONTS,
-    "font.size": 10,
-    "axes.titlesize": 10,
-    "axes.labelsize": 10,
-    "axes.linewidth": 0.7,
-    # 保留 4 邊 spines（NeurIPS/ICLR 多數論文圖標準）；
-    # 場圖另以 _style_field_axes 套用更深的邊框。
-    "axes.spines.top": True,
-    "axes.spines.right": True,
-    "axes.spines.bottom": True,
-    "axes.spines.left": True,
-    "axes.grid": True,
-    "grid.linewidth": 0.4,
-    "grid.alpha": 0.3,
-    "grid.color": "#999999",
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "xtick.direction": "in",
-    "ytick.direction": "in",
-    "xtick.top": True,         # 4 邊 tick 才不會與 spines 不一致
-    "ytick.right": True,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "xtick.major.size": 3.0,
-    "ytick.major.size": 3.0,
-    "legend.fontsize": 7,
-    "legend.frameon": True,
-    "legend.framealpha": 0.9,
-    "legend.edgecolor": "#666666",
-    "legend.fancybox": False,         # 直角邊框（學術風格）
-    "legend.borderpad": 0.4,
-    "legend.borderaxespad": 0.4,
-    "legend.handlelength": 1.6,
-    "legend.handletextpad": 0.5,
-    "legend.columnspacing": 1.0,
-    "lines.linewidth": 1.4,
-    "lines.markersize": 3.5,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "figure.dpi": 100,
-})
+# 期刊風格繪圖（NeurIPS/ICLR）— 透過 shared helper 套用全域 rcParams。
+# Why: 三個 evaluator script 共用同一 style 避免 figure 在同一篇 paper 中 drift。
+from pi_con.plot_style import apply_journal_rcparams
+apply_journal_rcparams()
 
 
 def _markevery_for(n: int, target: int = 12) -> int:
@@ -321,40 +278,76 @@ def spectrum_value_at_k(k_vals: np.ndarray, e_vals: np.ndarray, k_target: float)
 
 
 def summarize_time_local_metric(time_vals: np.ndarray, values: np.ndarray) -> dict[str, float]:
-    """What: 將時序指標壓縮成 early/mid/late 與 worst-time 摘要。"""
+    """What: 將時序指標壓縮成 early/mid/late 與 worst-time 摘要。
+
+    Why: 用 nanmean / nanargmax 防止 MPS 偶發 NaN 整次 abort eval；early/mid/late 邊界
+         也寫進 return 供下游 aggregator 知道「late」對應哪段物理時間。
+    """
     if len(time_vals) != len(values):
         raise ValueError(
             f"time_vals 與 values 長度不一致：{len(time_vals)} vs {len(values)}"
         )
     idx_chunks = np.array_split(np.arange(len(values)), 3)
 
-    def _chunk_mean(indices: np.ndarray) -> float:
-        if len(indices) == 0:
+    def _chunk_nanmean(indices: np.ndarray) -> float:
+        if len(indices) == 0 or not np.isfinite(values[indices]).any():
             return float("nan")
-        return float(np.mean(values[indices]))
+        return float(np.nanmean(values[indices]))
 
-    worst_idx = int(np.nanargmax(values))
+    def _bucket_times(indices: np.ndarray) -> tuple[float, float]:
+        if len(indices) == 0:
+            return (float("nan"), float("nan"))
+        return (float(time_vals[indices[0]]), float(time_vals[indices[-1]]))
+
+    if np.isfinite(values).any():
+        worst_idx = int(np.nanargmax(values))
+        worst_time = float(time_vals[worst_idx])
+        worst_value = float(values[worst_idx])
+    else:
+        worst_time = float("nan")
+        worst_value = float("nan")
+    mean_val = float(np.nanmean(values)) if np.isfinite(values).any() else float("nan")
     return {
-        "mean": float(np.mean(values)),
-        "early_mean": _chunk_mean(idx_chunks[0]),
-        "mid_mean": _chunk_mean(idx_chunks[1]),
-        "late_mean": _chunk_mean(idx_chunks[2]),
-        "worst_time": float(time_vals[worst_idx]),
-        "worst_value": float(values[worst_idx]),
+        "mean": mean_val,
+        "early_mean": _chunk_nanmean(idx_chunks[0]),
+        "mid_mean": _chunk_nanmean(idx_chunks[1]),
+        "late_mean": _chunk_nanmean(idx_chunks[2]),
+        "worst_time": worst_time,
+        "worst_value": worst_value,
+        "early_time_range": list(_bucket_times(idx_chunks[0])),
+        "mid_time_range": list(_bucket_times(idx_chunks[1])),
+        "late_time_range": list(_bucket_times(idx_chunks[2])),
     }
 
 
+# Band edges 對應 K=100 sensor 的資訊論 Nyquist k_max ≈ √(K/π) ≈ 5.64：
+#   low: k ≤ 5   → sensor 可解析的低頻（paper 主 claim 的 band）
+#   mid: 5 < k ≤ 16 → 過渡帶，部分高頻仍可由 PDE residual 推回
+#   high: k > 16 → 純資訊論不可解析區（高頻誤差為 K 上限的證據）
+# 與 scripts/aim_diagnostic.py:134 的切法保持一致，避免兩支 script 對「low band」定義不同。
+BAND_EDGES_K_LOW = 5.0
+BAND_EDGES_K_HIGH = 16.0
+
+
 def compute_band_energies(k_vals: np.ndarray, e_vals: np.ndarray) -> dict[str, float]:
-    """What: 將 1D spectrum 壓縮為 low/mid/high 三段 band energy。"""
+    """What: 將 1D spectrum 壓縮為 low/mid/high 三段 band energy。
+
+    Why: band 邊界用 fixed wavenumber cuts 而非 equal-thirds 才能與 paper claim
+         「low band rel-err ≤ 10%」對齊；equal-thirds 會讓 low band 包含到 k≈22
+         而 paper claim 是針對 k ≤ 5 的 sensor 可解析範圍。
+    """
     positive = k_vals > 0.0
     k_pos = k_vals[positive]
     e_pos = e_vals[positive]
-    chunks = np.array_split(np.arange(len(k_pos)), 3)
-    labels = ("low", "mid", "high")
-    band_energies: dict[str, float] = {}
-    for label, indices in zip(labels, chunks):
-        band_energies[label] = float(np.sum(e_pos[indices])) if len(indices) > 0 else 0.0
-    return band_energies
+    masks = {
+        "low":  k_pos <= BAND_EDGES_K_LOW,
+        "mid":  (k_pos > BAND_EDGES_K_LOW) & (k_pos <= BAND_EDGES_K_HIGH),
+        "high": k_pos > BAND_EDGES_K_HIGH,
+    }
+    return {
+        label: float(np.sum(e_pos[mask])) if mask.any() else 0.0
+        for label, mask in masks.items()
+    }
 
 
 def validate_single_dataset_eval(cfg: dict[str, Any]) -> None:
@@ -420,10 +413,19 @@ def load_model_weights_strict(model: torch.nn.Module, state: dict[str, torch.Ten
         state = dict(state)
         state[lft_key] = state[lft_key].unsqueeze(0)
     load_result = model.load_state_dict(state, strict=False)
-    if load_result.missing_keys or load_result.unexpected_keys:
+    # forcing.* 是 ForcingPrior submodule，向後相容：舊 checkpoint 沒這些 keys 屬正常
+    # （model 端會保留 config 預設值）。用 model 端實際的 forcing key 集合做 exact match，
+    # 避免未來有其他 module 名也以 "forcing" 開頭時被 swallow。
+    if hasattr(model, "forcing"):
+        _forcing_keys = {f"forcing.{k}" for k in model.forcing.state_dict().keys()}
+    else:
+        _forcing_keys = set()
+    missing = [k for k in load_result.missing_keys if k not in _forcing_keys]
+    unexpected = [k for k in load_result.unexpected_keys if k not in _forcing_keys]
+    if missing or unexpected:
         raise RuntimeError(
             "checkpoint 與模型參數不一致："
-            f"missing={load_result.missing_keys}, unexpected={load_result.unexpected_keys}"
+            f"missing={missing}, unexpected={unexpected}"
         )
 
 
@@ -563,18 +565,38 @@ def plot_energy_spectrum(
     k_pred: np.ndarray,
     e_pred: np.ndarray,
     k_forcing: float,
+    k_sensor_nyquist: float | None = None,
 ) -> None:
-    """What: 一維能譜比較（期刊單欄寬度，loglog）。"""
+    """What: 一維能譜比較（期刊單欄寬度，loglog）+ k^-5/3 慣性區參考線 + sensor Nyquist。
+
+    Why: paper claim 「中高頻 bounded by sensor information k_max ≈ √(K/π)」需要視覺證據。
+         k_sensor_nyquist 不傳則跳過該線（向後相容）。
+    """
     mask_ref = e_ref > 0.0
     mask_pred = e_pred > 0.0
     fig, ax = plt.subplots(figsize=(3.6, 2.8), constrained_layout=True)
     ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#1f77b4", linestyle="-", label="DNS")
     ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#d62728", linestyle="--", label="PI-CON")
-    ax.axvline(k_forcing, color="black", linestyle=":", linewidth=0.8, label=f"$k_f={k_forcing:.0f}$")
+
+    # k^(-5/3) Kolmogorov 慣性區參考線（anchor 在 k_forcing 對應的 DNS 能量上）
+    k_grid_all = k_ref[mask_ref]
+    if k_grid_all.size:
+        anchor_idx = int(np.argmin(np.abs(k_grid_all - max(k_forcing, 1.0))))
+        anchor_k = float(k_grid_all[anchor_idx])
+        anchor_e = float(e_ref[mask_ref][anchor_idx])
+        k53 = k_grid_all[k_grid_all >= anchor_k]
+        ax.loglog(k53, anchor_e * (k53 / anchor_k) ** (-5.0 / 3.0),
+                  color="gray", linestyle=":", linewidth=0.9, label=r"$k^{-5/3}$")
+
+    ax.axvline(k_forcing, color="black", linestyle="-.", linewidth=0.8,
+               label=f"$k_f={k_forcing:.0f}$")
+    if k_sensor_nyquist is not None and k_sensor_nyquist > 0:
+        ax.axvline(k_sensor_nyquist, color="#2ca02c", linestyle="--", linewidth=0.9,
+                   label=fr"$k_{{\max}}\!\approx\!{k_sensor_nyquist:.2f}$")
     ax.set_xlabel(r"Wavenumber $k$ [1/m]")
     ax.set_ylabel(r"Energy $E(k)$ [m$^3$/s$^2$]")
     ax.grid(True, which="both", alpha=0.25)
-    ax.legend(loc="best")
+    ax.legend(loc="best", fontsize=7)
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -598,6 +620,68 @@ def plot_metric_vs_time(
     ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
     ax.legend(loc="best")
+    fig.savefig(output_path)
+    plt.close(fig)
+
+
+def plot_forcing_param_trajectory(
+    metrics_path: Path,
+    output_path: Path,
+    truth_A: float,
+    truth_kf: float,
+) -> None:
+    """What: 從 metrics.jsonl 讀 forcing_A / forcing_k_f 時序，畫雙 panel 軌跡 + 真值線。
+
+    Why: 只看 final A/k_f 看不出 identifiability —— 是直接收斂、震盪卡住、還是後期才穩定？
+         真值水平線是視覺基準，越靠近代表 PDE residual 越能反推 forcing。
+    """
+    import json
+
+    steps: list[int] = []
+    A_vals: list[float] = []
+    kf_vals: list[float] = []
+    with metrics_path.open() as fp:
+        for line in fp:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                # 容忍 training 中斷導致的最後一行半寫狀態
+                continue
+            if "forcing_A" in d or "forcing_k_f" in d:
+                steps.append(int(d["step"]))
+                A_vals.append(float(d.get("forcing_A", float("nan"))))
+                kf_vals.append(float(d.get("forcing_k_f", float("nan"))))
+    if not steps:
+        return  # 沒 learning record 就跳過（baseline / fixed forcing run）
+
+    steps_arr = np.asarray(steps)
+    A_arr = np.asarray(A_vals)
+    kf_arr = np.asarray(kf_vals)
+
+    fig, axes = plt.subplots(2, 1, figsize=(3.6, 4.4), constrained_layout=True, sharex=True)
+    # A panel
+    if np.isfinite(A_arr).any():
+        axes[0].plot(steps_arr, A_arr, color="#d62728", marker="o", markersize=2.5,
+                     markevery=max(1, len(steps_arr) // 30), linewidth=1.2, label="learned")
+    axes[0].axhline(truth_A, color="#1f77b4", linestyle="--", linewidth=1.0, label=f"truth = {truth_A}")
+    axes[0].set_ylabel(r"Forcing $A$")
+    axes[0].set_title("Forcing parameter trajectory")
+    axes[0].legend(loc="best", fontsize=7)
+    axes[0].grid(True, alpha=0.3)
+
+    # k_f panel
+    if np.isfinite(kf_arr).any():
+        axes[1].plot(steps_arr, kf_arr, color="#d62728", marker="o", markersize=2.5,
+                     markevery=max(1, len(steps_arr) // 30), linewidth=1.2, label="learned")
+    axes[1].axhline(truth_kf, color="#1f77b4", linestyle="--", linewidth=1.0, label=f"truth = {truth_kf}")
+    axes[1].set_xlabel("training step")
+    axes[1].set_ylabel(r"Forcing $k_f$")
+    axes[1].legend(loc="best", fontsize=7)
+    axes[1].grid(True, alpha=0.3)
+
     fig.savefig(output_path)
     plt.close(fig)
 
@@ -697,6 +781,28 @@ def main() -> None:
     load_model_weights_strict(model, state)
     model.eval()
 
+    # 印出 ForcingPrior 狀態（baseline/learn_A/learn_kf/learn_both 可一眼分辨）
+    if hasattr(model, "forcing"):
+        snap = model.forcing.snapshot()
+        truth_A = float(cfg.get("kolmogorov_A", 0.1))
+        truth_kf = float(cfg.get("kolmogorov_k_f", 2.0))
+        print(
+            f"  [forcing] learned A={snap['A']:.4f} (truth={truth_A}, err={abs(snap['A']-truth_A)/truth_A*100:.2f}%)"
+            f"  |  learned k_f={snap['k_f']:.4f} (truth={truth_kf}, err={abs(snap['k_f']-truth_kf)/truth_kf*100:.2f}%)"
+            f"  |  learn=(A:{snap['learn_A']}, k_f:{snap['learn_k_f']})"
+        )
+        # 軌跡圖：metrics.jsonl 通常在 checkpoint 同目錄（或父目錄，視 checkpoints/ 結構）
+        if snap["learn_A"] or snap["learn_k_f"]:
+            for cand in [args.checkpoint.parent / "metrics.jsonl",
+                         args.checkpoint.parent.parent / "metrics.jsonl"]:
+                if cand.exists():
+                    plot_forcing_param_trajectory(
+                        cand, output_dir / "forcing_param_vs_step.png",
+                        truth_A=truth_A, truth_kf=truth_kf,
+                    )
+                    print(f"  [forcing] trajectory plot saved (source: {cand})")
+                    break
+
     # Flag 互斥檢查
     if args.apply_denormalization and args.legacy_checkpoint:
         print(
@@ -740,6 +846,20 @@ def main() -> None:
             )
 
     dns = np.load(cfg["dns_paths"][0], allow_pickle=True).item()
+
+    # Axis convention assert：CLAUDE.md KNOWN_PITFALLS 記載過 sensor file axis swap 災難
+    # （EXP-101/102/103/105），這裡守住 evaluator 端：DNS array u/v 必須是 [T, N_x, N_y]
+    # 與 dns["x"], dns["y"] 形狀對齊。若未來 dataset 改 (y, x) 順序會 silently 評估到
+    # transposed reference，這個 assert 是最後一道防線。
+    _nx_dns, _ny_dns = len(dns["x"]), len(dns["y"])
+    for _ch in ("u", "v"):
+        if _ch in dns:
+            _shape = dns[_ch].shape
+            assert _shape[-2] == _nx_dns and _shape[-1] == _ny_dns, (
+                f"DNS axis convention 違反：dns['{_ch}'].shape={_shape}，"
+                f"預期最後兩維 (N_x={_nx_dns}, N_y={_ny_dns})。"
+                f"參考 CLAUDE.md KNOWN_PITFALLS 'Sensor file axis convention'。"
+            )
 
     x_g, y_g = coarse_reference_grid(
         dns["x"].astype(np.float32),
@@ -810,6 +930,25 @@ def main() -> None:
         raw = np.concatenate(parts).reshape(len(x_g), len(y_g))
         # Denormalize: phys = raw * std + mean，使預測場與 DNS 同物理單位。
         return raw * _denorm_std[comp_idx] + _denorm_mean[comp_idx]
+
+    def query_at_sensor_positions(comp_idx: int, t_arr: np.ndarray) -> np.ndarray:
+        """What: 在固定 sensor 位置、給定時刻陣列 query model。Returns [T_q, K] (physical units).
+
+        Why: 與 training objective 對齊的 sanity check — sensor MSE on K observation points
+             直接告訴你 data loss 收斂到哪個 level；field-level RMSE 受插值 + grid 平均
+             混淆，無法分離「sensor 對齊好」與「外推差」。
+        """
+        K_pts = sensor_pos.shape[0]
+        T_q = len(t_arr)
+        sp_q = torch.tensor(sensor_pos, dtype=torch.float32, device=device)  # [K, 2]
+        preds = np.empty((T_q, K_pts), dtype=np.float32)
+        with torch.no_grad():
+            for ti, t_val in enumerate(t_arr):
+                t_b = torch.full((K_pts,), float(t_val), dtype=torch.float32, device=device)
+                c_b = torch.full((K_pts,), comp_idx, dtype=torch.long, device=device)
+                out = model.query_decoder(sp_q, t_b, c_b, h_states, s_time, sp_t)
+                preds[ti] = out.squeeze(1).cpu().numpy()
+        return preds * _denorm_std[comp_idx] + _denorm_mean[comp_idx]
 
     # I8: dx/dy 分開，未來若支援非正方 grid 不會 silent 算錯。
     dx = float(x_g[1] - x_g[0]) if len(x_g) > 1 else 1.0
@@ -912,6 +1051,55 @@ def main() -> None:
     ens_ref_series = 0.5 * np.mean(omega_ref_arr**2, axis=(1, 2))
     ens_rel_err = np.abs(ens_pred_series - ens_ref_series) / np.maximum(ens_ref_series, 1.0e-12)
 
+    # Energy balance diagnostic（穩態 sanity check）：
+    #   dKE/dt = ⟨f·u⟩ − ε,  其中 2D incompressible periodic 域 ε = ν⟨ω²⟩ = 2νΩ
+    #   穩態 ⇒ ⟨f·u⟩ ≈ 2νΩ；residual = (P_in − ε) / max(ε, eps) 應趨近 0
+    #
+    # 關鍵分流：DNS 滿足 NS with TRUTH forcing；PI-CON 滿足 NS with LEARNED forcing。
+    #   pred-side balance：用 model.forcing (learned) — 量「PI-CON 自洽穩態」
+    #   ref-side  balance：用 truth (config)        — DNS 物理穩態
+    # 若兩 pattern 共用 learned，DNS residual 變成「u_DNS 對 learned mode 的投影量」，
+    # 不再代表物理。（Round 2 audit B1）
+    _A_truth_balance = float(cfg.get("kolmogorov_A", 0.1))
+    _kf_truth_balance = float(cfg.get("kolmogorov_k_f", 2.0))
+    if hasattr(model, "forcing"):
+        _f_snap = model.forcing.snapshot()
+        _A_pred = float(_f_snap["A"])
+        _kf_pred = float(_f_snap["k_f"])
+    else:
+        _A_pred = _A_truth_balance
+        _kf_pred = _kf_truth_balance
+    _y_phys = np.asarray(y_g, dtype=np.float64)
+    _L_for_forcing = float(cfg.get("domain_length", 1.0))
+    _forcing_pattern_pred = _A_pred * np.sin(
+        2.0 * np.pi * _kf_pred * _y_phys / _L_for_forcing
+    )
+    _forcing_pattern_truth = _A_truth_balance * np.sin(
+        2.0 * np.pi * _kf_truth_balance * _y_phys / _L_for_forcing
+    )
+    # forcing 只有 x 分量 (f = A·sin(k_f·y) e_x)，與 u 內積、對 (x,y) 平均
+    power_input_series = np.mean(
+        u_pred_arr * _forcing_pattern_pred[None, None, :], axis=(1, 2)
+    )  # [T]
+    dissipation_series = (1.0 / float(re_value)) * np.mean(
+        omega_pred_arr ** 2, axis=(1, 2)
+    )  # ε = ν⟨ω²⟩
+    power_balance_residual = (
+        (power_input_series - dissipation_series)
+        / np.maximum(np.abs(dissipation_series), 1.0e-12)
+    )
+    # DNS 穩態對照 — 用 truth forcing
+    power_input_ref = np.mean(
+        u_ref_arr * _forcing_pattern_truth[None, None, :], axis=(1, 2)
+    )
+    dissipation_ref = (1.0 / float(re_value)) * np.mean(
+        omega_ref_arr ** 2, axis=(1, 2)
+    )
+    power_balance_residual_ref = (
+        (power_input_ref - dissipation_ref)
+        / np.maximum(np.abs(dissipation_ref), 1.0e-12)
+    )
+
     # 向量化：divergence_fd 直接接受 [T, N, N]
     div_pred_arr = divergence_fd(u_pred_arr, v_pred_arr, dx)
     div_ref_arr = divergence_fd(u_ref_arr, v_ref_arr, dx)
@@ -992,13 +1180,20 @@ def main() -> None:
     summary_steps: list[dict[str, float]] = []
     k_ref = e_ref = k_pred = e_pred = None
     _domain_length = float(cfg.get("domain_length", 1.0))
-    _kf = float(cfg["kolmogorov_k_f"])
+    # k_f 來源分流：DNS reference 永遠用 truth (cfg["kolmogorov_k_f"])，預測場用 model
+    # 學到的 k_f（learn_forcing_k_f=True 才會偏離 truth；fixed mode 等於 truth）。
+    # 若 learn_k_f=True 收斂到別的 wavenumber，把預測場投到 truth k_f 上是錯的 diagnostic。
+    _kf_truth = float(cfg["kolmogorov_k_f"])
+    if hasattr(model, "forcing"):
+        _kf_pred_proj = float(model.forcing.snapshot()["k_f"])
+    else:
+        _kf_pred_proj = _kf_truth
     for idx, t_val in enumerate(sensor_time):
         amp_ref, phase_ref = forcing_mode_coeff_u(
-            u_ref_arr[idx], y_g, _kf, domain_length=_domain_length,
+            u_ref_arr[idx], y_g, _kf_truth, domain_length=_domain_length,
         )
         amp_pred, phase_pred = forcing_mode_coeff_u(
-            u_pred_arr[idx], y_g, _kf, domain_length=_domain_length,
+            u_pred_arr[idx], y_g, _kf_pred_proj, domain_length=_domain_length,
         )
         k_ref_i, e_ref_i = energy_spectrum_1d(u_ref_arr[idx], v_ref_arr[idx], dx)
         k_pred_i, e_pred_i = energy_spectrum_1d(u_pred_arr[idx], v_pred_arr[idx], dx)
@@ -1077,6 +1272,7 @@ def main() -> None:
         k_pred,
         e_pred,
         float(cfg["kolmogorov_k_f"]),
+        k_sensor_nyquist=float(np.sqrt(float(len(sensor_pos_xy)) / float(np.pi))),
     )
     plot_vorticity_comparison(
         output_dir / f"vorticity_comparison_t{int(round(t_last))}.png",
@@ -1162,6 +1358,20 @@ def main() -> None:
         },
         title="Band Energy Relative Error",
         y_label=r"Band relative error [-]",
+        yscale="log",
+    )
+    # Energy balance：⟨f·u⟩ vs 2νΩ — 穩態下兩線應重疊。差距代表 PI-CON 場非物理穩態。
+    plot_series_collection(
+        output_dir / "energy_balance_vs_time.png",
+        sensor_time,
+        {
+            r"$\langle f\!\cdot\!u\rangle$ DNS":   power_input_ref,
+            r"$\langle f\!\cdot\!u\rangle$ PI-CON": power_input_series,
+            r"$\varepsilon=\nu\langle\omega^2\rangle$ DNS":   dissipation_ref,
+            r"$\varepsilon=\nu\langle\omega^2\rangle$ PI-CON": dissipation_series,
+        },
+        title="Energy Balance (input vs dissipation)",
+        y_label=r"Power [m$^2$/s$^3$]",
     )
 
     time_local = {
@@ -1192,11 +1402,12 @@ def main() -> None:
         Why: 之前下游 (compare_experiments.py) 預期 plain float；新增 split 用 suffix
              避免 break。空集合的 split 不寫對應 key。
         """
-        out[key] = float(np.mean(arr))
-        if sensor_is_train.any():
-            out[f"{key}_train"] = float(np.mean(arr[sensor_is_train]))
-        if sensor_is_val.any():
-            out[f"{key}_val"] = float(np.mean(arr[sensor_is_val]))
+        # nanmean 防 MPS 偶發 NaN 污染整個 summary；空陣列直接給 NaN 不寫
+        out[key] = float(np.nanmean(arr)) if np.isfinite(arr).any() else float("nan")
+        if sensor_is_train.any() and np.isfinite(arr[sensor_is_train]).any():
+            out[f"{key}_train"] = float(np.nanmean(arr[sensor_is_train]))
+        if sensor_is_val.any() and np.isfinite(arr[sensor_is_val]).any():
+            out[f"{key}_val"] = float(np.nanmean(arr[sensor_is_val]))
 
     summary: dict = {
         "config": str(args.config.resolve()),
@@ -1205,7 +1416,7 @@ def main() -> None:
         "re_value":      float(re_value),
         "re_norm":       float(re_norm),
         "domain_length": float(_domain_length),
-        "k_forcing":     float(_kf),
+        "k_forcing":     float(_kf_truth),
         "n_eval_steps":  int(len(sensor_time)),
         "n_eval_train":  int(sensor_is_train.sum()),
         "n_eval_val":    int(sensor_is_val.sum()),
@@ -1272,6 +1483,60 @@ def main() -> None:
     _add_split(summary, "ns_u_rms_ref_mean", ns_u_rms_ref)
     _add_split(summary, "ns_v_rms_ref_mean", ns_v_rms_ref)
     _add_split(summary, "ns_cont_rms_ref_mean", ns_cont_rms_ref)
+
+    # Band edges 元資料：讓下游 aggregator 知道 "low/mid/high" 對應哪個 wavenumber 區間
+    # `high` 上限用 grid Nyquist 而非 float("inf")，後者非 strict JSON (RFC 8259)，
+    # JavaScript JSON.parse 會炸。grid_n // 2 是實際可解析的最大 wavenumber。
+    summary["band_edges"] = {
+        "low":  [0.0, BAND_EDGES_K_LOW],
+        "mid":  [BAND_EDGES_K_LOW, BAND_EDGES_K_HIGH],
+        "high": [BAND_EDGES_K_HIGH, float(len(x_g) // 2)],
+    }
+    summary["sensor_information_k_max"] = float(
+        np.sqrt(float(len(sensor_pos_xy)) / float(np.pi))
+    )
+
+    # Sensor-MSE on K observation points：與 training data loss 同義的 sanity check。
+    # 取得 model 在 sensor (x_k, y_k, t) 的 prediction，與 sensor_vals 物理值比對。
+    # sensor_vals shape [K, T_full, C] (normalized)；先 denormalize 再 subsample 到 eval_tidx。
+    _sensor_vals_phys = (
+        sensor_vals * sensor_std + sensor_mean   # broadcast [K, T_full, C]
+    )
+    _u_true_K = _sensor_vals_phys[:, eval_tidx, 0].T.astype(np.float32)   # [T_eval, K]
+    _v_true_K = _sensor_vals_phys[:, eval_tidx, 1].T.astype(np.float32)
+    _u_pred_K = query_at_sensor_positions(0, sensor_time)
+    _v_pred_K = query_at_sensor_positions(1, sensor_time)
+    _sensor_mse_u = np.mean((_u_pred_K - _u_true_K) ** 2, axis=1)  # [T_eval]
+    _sensor_mse_v = np.mean((_v_pred_K - _v_true_K) ** 2, axis=1)
+    _sensor_mse_avg = 0.5 * (_sensor_mse_u + _sensor_mse_v)
+    _add_split(summary, "sensor_mse_at_K_u_mean", _sensor_mse_u)
+    _add_split(summary, "sensor_mse_at_K_v_mean", _sensor_mse_v)
+    _add_split(summary, "sensor_mse_at_K_mean",   _sensor_mse_avg)
+
+    # Energy balance metric：穩態下 P_in ≈ ε。residual 對 dissipation 的相對量。
+    _add_split(summary, "power_input_mean",            power_input_series)
+    _add_split(summary, "dissipation_mean",            dissipation_series)
+    _add_split(summary, "power_balance_residual_mean", power_balance_residual)
+    _add_split(summary, "power_input_ref_mean",        power_input_ref)
+    _add_split(summary, "dissipation_ref_mean",        dissipation_ref)
+    _add_split(summary, "power_balance_residual_ref_mean", power_balance_residual_ref)
+
+    # Forcing learning 結果：讓 multi-seed aggregator 可以直接 jq 出來。
+    # baseline (fixed forcing) 也記錄（learn_*=false），下游可一致 schema 處理。
+    if hasattr(model, "forcing"):
+        _fsnap = model.forcing.snapshot()
+        _A_truth = float(cfg.get("kolmogorov_A", 0.1))
+        _kf_truth = float(cfg.get("kolmogorov_k_f", 2.0))
+        summary["forcing"] = {
+            "A_learned": _fsnap["A"],
+            "k_f_learned": _fsnap["k_f"],
+            "A_truth": _A_truth,
+            "k_f_truth": _kf_truth,
+            "A_err_pct": abs(_fsnap["A"] - _A_truth) / max(abs(_A_truth), 1e-12) * 100.0,
+            "k_f_err_pct": abs(_fsnap["k_f"] - _kf_truth) / max(abs(_kf_truth), 1e-12) * 100.0,
+            "learn_A": bool(_fsnap["learn_A"]),
+            "learn_k_f": bool(_fsnap["learn_k_f"]),
+        }
 
     (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 

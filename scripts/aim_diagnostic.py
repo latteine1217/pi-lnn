@@ -25,6 +25,10 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 from picon_kolmogorov import create_picon_model, load_picon_config
+from pi_con.plot_style import apply_journal_rcparams
+
+# Journal style: NeurIPS/ICLR 標準（DPI≥300、Helvetica、4 邊 spines、inner ticks）
+apply_journal_rcparams()
 
 
 # ── AIM 核心計算 ──────────────────────────────────────────────────────────────
@@ -132,10 +136,16 @@ def energy_spectrum_1d(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.nda
 
 
 def band_errors(k_vals, e_pred, e_ref,
-                bands=((1, 5, "low"), (5, 16, "mid"), (16, 128, "high"))):
+                bands=((0, 5, "low"), (5, 16, "mid"), (16, 999, "high"))):
+    """Band edges right-exclusive ≡ evaluate_deeponet_cfc.compute_band_energies。
+
+    Why: 舊版用 (k_lo <= k <= k_hi) 兩端 inclusive，k=5 與 k=16 被計入 low+mid / mid+high
+         double-counted；新版 right-exclusive (k_lo < k <= k_hi) — 與
+         evaluate_deeponet_cfc.py:347 BAND_EDGES 對齊。
+    """
     result = {}
     for k_lo, k_hi, label in bands:
-        idx = np.where((k_vals >= k_lo) & (k_vals <= k_hi))[0]
+        idx = np.where((k_vals > k_lo) & (k_vals <= k_hi))[0]
         ep = e_pred[idx].sum(); er = e_ref[idx].sum()
         result[label] = abs(ep - er) / max(er, 1e-12)
     return result
@@ -258,19 +268,28 @@ def main():
         print(f"  {band:>4}  {r:12.1f}%  {a:10.1f}%  {delta:+8.1f}pp")
 
     # ── 圖表 ──
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle(f"AIM Post-processing: k_max_low={args.k_max_low}, Re={int(Re)}", fontsize=12)
+    fig, axes = plt.subplots(1, 3, figsize=(10.5, 3.5), constrained_layout=True)
+    fig.suptitle(
+        rf"AIM Post-processing: $k_{{\max,\mathrm{{low}}}}={args.k_max_low}$, $Re={int(Re)}$",
+        fontsize=10,
+    )
 
     # 圖1：Band error 比較（bar chart）
     bands_label = ["low", "mid", "high"]
     x = np.arange(3)
     r_vals = [np.mean(results_raw[b])*100 for b in bands_label]
     a_vals = [np.mean(results_aim[b])*100 for b in bands_label]
-    axes[0].bar(x - 0.2, r_vals, 0.35, label="PI-CON raw", alpha=0.8)
-    axes[0].bar(x + 0.2, a_vals, 0.35, label="AIM corrected", alpha=0.8)
-    axes[0].set_xticks(x); axes[0].set_xticklabels(["low (k≤5)", "mid (k5-16)", "high (k>16)"])
-    axes[0].set_ylabel("Band energy relative error %")
-    axes[0].set_title("Band Error: Raw vs AIM"); axes[0].legend(); axes[0].grid(True, alpha=0.3)
+    axes[0].bar(x - 0.2, r_vals, 0.35, color="#d62728", label="PI-CON raw", alpha=0.85)
+    axes[0].bar(x + 0.2, a_vals, 0.35, color="#1f77b4", label="AIM corrected", alpha=0.85)
+    axes[0].set_xticks(x)
+    axes[0].set_xticklabels([
+        r"low ($k\!\leq\!5$)",
+        r"mid ($5\!<\!k\!\leq\!16$)",
+        r"high ($k\!>\!16$)",
+    ])
+    axes[0].set_ylabel("Band energy relative error [\\%]")
+    axes[0].set_title("Band Error: Raw vs AIM")
+    axes[0].legend()
 
     # 圖2：最後一幀的能量譜比較
     t_last = float(t_frames[-1])
@@ -284,15 +303,18 @@ def main():
     k_v, e_aim  = energy_spectrum_1d(u_aim_last,  v_aim_last)
     k_v, e_ref2 = energy_spectrum_1d(u_ref_last,  v_ref_last)
 
-    axes[1].loglog(k_v, e_ref2, 'k-',  lw=2, label="DNS ref")
-    axes[1].loglog(k_v, e_raw,  'b--', lw=1.5, label="PI-CON raw")
-    axes[1].loglog(k_v, e_aim,  'r-',  lw=1.5, label="AIM corrected")
+    axes[1].loglog(k_v, e_ref2, color="#1f77b4", linestyle="-",  lw=1.4, label="DNS")
+    axes[1].loglog(k_v, e_raw,  color="#d62728", linestyle="--", lw=1.2, label="PI-CON raw")
+    axes[1].loglog(k_v, e_aim,  color="#2ca02c", linestyle="-",  lw=1.2, label="AIM corrected")
     k53 = k_v[2:40]
-    axes[1].loglog(k53, 2e-3 * k53**(-5/3), 'g:', lw=1, label="k⁻⁵/³")
-    axes[1].axvline(args.k_max_low, color='orange', ls=':', lw=1.5, label=f"k_max_low={args.k_max_low}")
-    axes[1].set_xlabel("k"); axes[1].set_ylabel("E(k)")
-    axes[1].set_title(f"Energy Spectrum at t={t_last:.1f}")
-    axes[1].legend(fontsize=8); axes[1].grid(True, which='both', alpha=0.2)
+    axes[1].loglog(k53, 2e-3 * k53**(-5/3), color="gray", linestyle=":", lw=0.9,
+                   label=r"$k^{-5/3}$")
+    axes[1].axvline(args.k_max_low, color="black", linestyle="-.", lw=0.9,
+                    label=rf"$k_{{\max,\mathrm{{low}}}}={args.k_max_low}$")
+    axes[1].set_xlabel(r"Wavenumber $k$ [1/m]")
+    axes[1].set_ylabel(r"$E(k)$ [m$^3$/s$^2$]")
+    axes[1].set_title(rf"Energy Spectrum at $t={t_last:.1f}$ s")
+    axes[1].legend()
 
     # 圖3：最後一幀渦度比較
     def vorticity(u, v, N):
@@ -309,13 +331,17 @@ def main():
     err_raw = np.abs(om_raw - om_ref)
     err_aim = np.abs(om_aim - om_ref)
     diff = err_raw - err_aim  # positive = AIM better
-    axes[2].imshow(diff, cmap='RdBu_r', origin='lower',
-                   vmin=-vmax*0.3, vmax=vmax*0.3)
-    axes[2].set_title(f"Vorticity error improvement (raw−aim)\nblue=AIM better, red=AIM worse")
+    im = axes[2].imshow(diff.T, cmap="RdBu_r", origin="lower",
+                        vmin=-vmax*0.3, vmax=vmax*0.3,
+                        extent=(0.0, 1.0, 0.0, 1.0), aspect="equal")
+    axes[2].set_title("Vorticity error improvement\n(blue: AIM better, red: AIM worse)")
+    axes[2].set_xlabel(r"$x$ [m]"); axes[2].set_ylabel(r"$y$ [m]")
+    cb = fig.colorbar(im, ax=axes[2], fraction=0.046, pad=0.04)
+    cb.set_label(r"$|\omega - \omega_{\mathrm{DNS}}|$ delta [1/s]", fontsize=8)
+    cb.ax.tick_params(labelsize=8)
 
-    plt.tight_layout()
     out_fig = args.output_dir / f"aim_diagnostic_klow{args.k_max_low}.png"
-    plt.savefig(out_fig, dpi=130, bbox_inches='tight')
+    plt.savefig(out_fig, facecolor="white")  # dpi 由 rcParams (300) 接管
     print(f"\n圖表已存：{out_fig}")
 
 
