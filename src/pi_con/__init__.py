@@ -14,6 +14,7 @@ from pi_con.config import DEFAULT_PICON_ARGS, _validate_al_config, load_picon_co
 from pi_con.decoder import DeepONetCfCDecoder
 from pi_con.dns_align import find_dns_time_idx
 from pi_con.encoders import SpatialSetEncoder, TemporalCfCEncoder
+from pi_con.forcing import ForcingPrior
 from pi_con.encodings import (
     FourierEmbs,
     LearnableFourierEmb,
@@ -45,6 +46,7 @@ __all__ = [
     "CfCCell",
     "DEFAULT_PICON_ARGS",
     "DeepONetCfCDecoder",
+    "ForcingPrior",
     "FourierEmbs",
     "GradNormWeights",
     "_validate_al_config",

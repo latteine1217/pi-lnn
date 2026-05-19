@@ -224,7 +224,7 @@ def create_picon_model(cfg: dict[str, Any]):
     if bool(cfg.get("use_vanilla_deeponet", False)):
         from pi_con.vanilla_deeponet import create_vanilla_deeponet_model
         return create_vanilla_deeponet_model(cfg)
-    return LiquidOperator(
+    model = LiquidOperator(
         fourier_harmonics=int(cfg.get("fourier_harmonics", 8)),
         sensor_value_dim=len(cfg.get("observed_sensor_channels", ["u", "v"])),
         d_model=int(cfg["d_model"]),
@@ -263,6 +263,24 @@ def create_picon_model(cfg: dict[str, Any]):
         use_modified_mlp=bool(cfg.get("use_modified_mlp", False)),
         disable_cross_attention=bool(cfg.get("disable_cross_attention", False)),
     )
+    # ForcingPrior attached as submodule → model.parameters() / state_dict 自動包含。
+    # 預設兩 flag false 時行為等同舊版常數 forcing；任一 true 才有 learnable param。
+    # 不學時用 truth（kolmogorov_*）；學時用 forcing_*_init（刻意偏離 truth，
+    # 否則「收斂到真值」不能證明 identifiability）。
+    from pi_con.forcing import ForcingPrior  # 局部 import 避免循環依賴
+    _learn_A = bool(cfg.get("learn_forcing_A", False))
+    _learn_kf = bool(cfg.get("learn_forcing_k_f", False))
+    _A_truth = float(cfg.get("kolmogorov_A", 0.1))
+    _kf_truth = float(cfg.get("kolmogorov_k_f", 4.0))
+    model.forcing = ForcingPrior(
+        A_init=float(cfg.get("forcing_A_init", 0.05)) if _learn_A else _A_truth,
+        k_f_init=float(cfg.get("forcing_k_f_init", 4.0)) if _learn_kf else _kf_truth,
+        learn_A=_learn_A,
+        learn_k_f=_learn_kf,
+        k_f_min=float(cfg.get("forcing_k_f_min", 1.0)),
+        k_f_max=float(cfg.get("forcing_k_f_max", 8.0)),
+    )
+    return model
 
 
 def make_picon_model_fn(

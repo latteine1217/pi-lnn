@@ -1,0 +1,110 @@
+# configs/exp_241_learn_A.toml
+# What: EXP-241 對照組 (1/3) — 學 forcing 振幅 A，k_f 仍已知 (=2.0)。
+#
+# Why: 真實工程場景：forcing 結構（fan 配置決定 sin wavenumber）已知，但強度未知。
+#      測試 PI-CON 能否從 K=100 sensor + PDE residual 反推 A 真值。
+#
+# Hypothesis: A 在 NS residual 線性 entering，理論可從 PDE residual + sensor MSE 識別。
+#             收斂後 |A_learned − 0.1| / 0.1 應 < 5%；同時 KE rel-err 應在 baseline ±2pp 內。
+#
+# Falsifiability:
+#   (a) A 收斂到 0.095-0.105 且 KE rel-err 7-11% → 學 A identifiability 成立，paper extension OK
+#   (b) A 偏離 > 10% 或 KE > 15% → identifiability 邊緣 / 與 backbone 競爭 → 需檢討
+#   (c) A 卡在初值 0.05 不動 → gradient 路徑斷掉（physics bug） → 立即排查
+#
+# 變動點（vs EXP-241 baseline）：
+#   - learn_forcing_A = true
+#   - forcing_A_init = 0.05（真值 0.1 的 50%，故意偏離防 trivial）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0          # 真值（不學）
+kolmogorov_A = 0.1            # 真值（僅供 metric 對照用，學習用 forcing_A_init）
+
+# 學 A，k_f 不學
+learn_forcing_A = true
+learn_forcing_k_f = false
+forcing_A_init = 0.05         # 50% of truth，刻意偏離
+forcing_k_f_init = 2.0        # 與 kolmogorov_k_f 對齊
+
+iterations = 10000
+num_physics_points = 2048
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+use_augmented_lagrangian = true
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp241-learn-A"
+
+seed = 2

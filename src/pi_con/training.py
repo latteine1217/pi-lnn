@@ -531,8 +531,28 @@ def train_picon_kolmogorov(
                         scheduler.step()
         print(f"  resumed from: {resume_path} (step {start_step})")
 
-    k_f = float(args["kolmogorov_k_f"])
-    A = float(args["kolmogorov_A"])
+    # Forcing：若 ForcingPrior 被 attach 且至少有一邊 learnable，從 model 取 (tensor)
+    # 以維持 gradient path；否則退回原本 float 路徑，行為與舊版一致。
+    _forcing = getattr(net, "forcing", None)
+    _learn_forcing = _forcing is not None and (_forcing.learn_A or _forcing.learn_k_f)
+    if _learn_forcing:
+        # property 每次 call 回傳「當前」tensor（含 autograd），但這個 binding
+        # 是 lazy 的——下面 unsteady_ns_residuals 呼叫處仍要透過 `net.forcing.k_f`
+        # 才能取到 latest 值。這裡的 k_f, A 只用於 RAR 等 detach path。
+        with torch.no_grad():
+            k_f = float(_forcing.k_f.item())
+            A = float(_forcing.A.item())
+    else:
+        k_f = float(args["kolmogorov_k_f"])
+        A = float(args["kolmogorov_A"])
+    # _resolve_k_f / _resolve_A：在 NS residual call 處取「當前」tensor 或 float。
+    # 學 forcing 時必須回傳含 autograd 的 tensor；不學時仍走 float fast path。
+    if _learn_forcing:
+        _resolve_k_f = lambda: net.forcing.k_f  # noqa: E731
+        _resolve_A = lambda: net.forcing.A  # noqa: E731
+    else:
+        _resolve_k_f = lambda: k_f  # noqa: E731
+        _resolve_A = lambda: A  # noqa: E731
     domain_length = float(args["domain_length"])
     base_phys_weight = float(args["physics_loss_weight"])
     phys_warmup_steps = int(args["physics_loss_warmup_steps"])
@@ -708,8 +728,8 @@ def train_picon_kolmogorov(
                         )
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
-                            re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
-                            Lx=_ds.Lx, Ly=_ds.Ly,
+                            re=_ds.re_value, k_f=_resolve_k_f(), A=_resolve_A(),
+                            domain_length=domain_length, Lx=_ds.Lx, Ly=_ds.Ly,
                         )
                         if _phys_normalize:
                             def _nr(r: torch.Tensor) -> torch.Tensor:
@@ -886,8 +906,8 @@ def train_picon_kolmogorov(
                         )
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
-                            re=_ds.re_value, k_f=k_f, A=A, domain_length=domain_length,
-                            Lx=_ds.Lx, Ly=_ds.Ly,
+                            re=_ds.re_value, k_f=_resolve_k_f(), A=_resolve_A(),
+                            domain_length=domain_length, Lx=_ds.Lx, Ly=_ds.Ly,
                         )
                         if _phys_normalize:
                             def _nr(r: torch.Tensor) -> torch.Tensor:
@@ -1092,7 +1112,8 @@ def train_picon_kolmogorov(
                         s_time=_st_phys_cached,
                     )
                     mom_u, mom_v, cont = unsteady_ns_residuals(
-                        uvp_fn, xyt, re=ds.re_value, k_f=k_f, A=A,
+                        uvp_fn, xyt, re=ds.re_value,
+                        k_f=_resolve_k_f(), A=_resolve_A(),
                         domain_length=domain_length, Lx=ds.Lx, Ly=ds.Ly,
                     )
                     if phys_normalize:
@@ -1413,6 +1434,10 @@ def train_picon_kolmogorov(
                 for _c, _m in al_multipliers.items():
                     extra[f"al_lambda_{_c}"] = float(_m.lambda_.item())
                     extra[f"al_C_ema_{_c}"] = float(_m.ema_C.item())
+            if _learn_forcing:
+                with torch.no_grad():
+                    extra["forcing_A"] = float(net.forcing.A.item())
+                    extra["forcing_k_f"] = float(net.forcing.k_f.item())
             log_fn(step, {
                 "l_data": l_data.item(),
                 "l_physics": l_physics.item(),
@@ -1535,6 +1560,7 @@ def train_picon_kolmogorov(
 def main() -> None:
     """What: CLI entry point for core PI-CON training."""
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(
         description="Train core PI-CON on Kolmogorov flow."
@@ -1550,7 +1576,22 @@ def main() -> None:
     # AL semantic validation：必須在 merge 後（spec v4 §6）
     from pi_con.config import _validate_al_config
     _validate_al_config(config)
-    train_picon_kolmogorov(config)
+
+    # 預設 log_fn：把每次 log 寫進 artifacts_dir/metrics.jsonl（JSONL）。
+    # Why: evaluator 的 forcing/AL/GradNorm 軌跡圖需要這份 log；caller 也可用同 schema 後處理。
+    # fresh training 開始時清空既有 metrics.jsonl，避免與舊 run 混。resume 目前禁用
+    # （KNOWN_PITFALLS EXP-082），故不需區分 append 模式。
+    artifacts_dir = Path(config.get("artifacts_dir", "artifacts/picon-default"))
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    metrics_path = artifacts_dir / "metrics.jsonl"
+    if metrics_path.exists():
+        metrics_path.unlink()
+
+    def _log_fn(step: int, metrics: dict) -> None:
+        with metrics_path.open("a", encoding="utf-8") as fp:
+            fp.write(json.dumps({"step": step, **metrics}) + "\n")
+
+    train_picon_kolmogorov(config, log_fn=_log_fn)
 
 if __name__ == "__main__":
     main()

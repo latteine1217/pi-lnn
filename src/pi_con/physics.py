@@ -14,8 +14,8 @@ def unsteady_ns_residuals(
     uvp_fn: Callable,
     xyt: torch.Tensor,
     re: float,
-    k_f: float = 4.0,
-    A: float = 0.1,
+    k_f: float | torch.Tensor = 4.0,
+    A: float | torch.Tensor = 0.1,
     domain_length: float = 1.0,
     Lx: float = 1.0,
     Ly: float = 1.0,
@@ -62,7 +62,9 @@ def unsteady_ns_residuals(
     # Forcing 用 normalized y（k_f cycles per [0,1] domain），與 Lx/Ly 無關。
     # 量級協定：A 為 physical 加速度單位 (m/s²)。修 C2 後 uvp_fn 已 denormalize，
     # advection u·∇u、∇p、ν·∇²u、forcing 都在 physical 量級，互相 commensurate。
-    forcing_wavenumber = (2.0 * torch.pi * float(k_f)) / float(domain_length)
+    # k_f / A 可為 float 或 0-dim tensor（ForcingPrior 學習時）；不再 float(.) 強轉，
+    # 否則會切斷 forcing 參數的 autograd path。
+    forcing_wavenumber = (2.0 * torch.pi * k_f) / float(domain_length)
     forcing_x = A * torch.sin(forcing_wavenumber * xyt[:, 1:2])
     mom_u = du_dt + u * du_dx + v * du_dy + dp_dx - nu * (du_dx2 + du_dy2) - forcing_x
     mom_v = dv_dt + u * dv_dx + v * dv_dy + dp_dy - nu * (dv_dx2 + dv_dy2)

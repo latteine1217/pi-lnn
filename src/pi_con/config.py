@@ -128,6 +128,15 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "sensor_subsample": 1,
     "kolmogorov_k_f": 4.0,
     "kolmogorov_A": 0.1,
+    # ForcingPrior：把 (A, k_f) 從 PDE 已知 prior 改成 optional learnable scalar。
+    # 預設 false → 行為與舊版完全一致；學時把 nn.Parameter 加入 optimizer 一起更新。
+    "learn_forcing_A": False,
+    "learn_forcing_k_f": False,
+    "forcing_A_init": 0.05,        # 起點刻意偏離真值，避免 trivial 收斂
+    "forcing_k_f_init": 4.0,
+    "forcing_k_f_min": 1.0,        # sigmoid 下界，避免退化成 DC forcing
+    "forcing_k_f_max": 8.0,        # 上界略高於 K=100 識別上限 k_max≈5.64，留 buffer 觀察 overshoot
+    "forcing_log_every": 100,      # 每 N step 記錄 A/k_f 到 metrics.jsonl
     "use_temporal_anchor": False,
     "resume_checkpoint": None,
     "T_total": 5.0,
