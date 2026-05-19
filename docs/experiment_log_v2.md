@@ -41,23 +41,28 @@
 
 ## [STATE] Current Baselines
 
-### Re=10000 主線（EXP-200, B3 architecture, n=5 multi-seed）
+### Re=10000 主線（**EXP-241_b NEW BEST**, single seed; EXP-200 multi-seed n=5 為統計參照）
 
-| 項目 | 現況 |
-|---|---|
-| Baseline ID | `EXP-200`（multi-seed group, 5 seeds）|
-| 架構 | B3 = CfC + cross-attn + AL ρ=0.1 + 4-task GradNorm |
-| Multi-seed configs | `configs/stable/exp_200_a.toml` ~ `exp_200_e.toml`（symlink → legacy）|
-| 訓練 wall-time | ~2 h 24 m ± 4 m / seed（MPS, **M3 base 4P+4E**, fp32）|
-| **KE rel-err (n=5)** | **10.77 ± 0.52 %** |
-| u L2 (n=5) | 20.69 ± 0.46 % |
-| v L2 (n=5) | 24.79 ± 0.51 % |
-| ω L2 (n=5) | 52.65 ± 0.56 % |
-| div L2 (n=5) | 0.066 ± 0.001 |
-| ek_ratio (n=5) | 0.920 ± 0.020 |
-| 統計分析 | [`artifacts/seed_statistics.json`](../artifacts/seed_statistics.json) |
-| Inference cost | encoder 71 ms + query 1.5 ms / snapshot（seed=2, MPS fp32, batch=8192）|
-| 結案聲明 | K=100 sparse reconstruction 已達資訊論硬上限；中高頻 ≈100% 為 K=100 Nyquist 限制（不可突破）|
+| 項目 | EXP-241_b（**stable phase new best**）| EXP-200_a~e（multi-seed reference）|
+|---|---|---|
+| Baseline ID | `EXP-241_b` (single seed=42) | `EXP-200` (n=5 multi-seed) |
+| 架構 | B3 (CfC + cross-attn) | B3 |
+| Recipe 差異 | **num_physics_points = 1024 (16× baseline)** | num_physics_points = 64 |
+| 其餘 hyperparams | 同 EXP-200_a (AL ρ=0.1, 4-task GradNorm) | — |
+| **KE rel-err** | **5.97 %** 🥇 | 10.77 ± 0.52 % |
+| u L2 | 16.38 % | 20.69 ± 0.46 % |
+| v L2 | 19.77 % | 24.79 ± 0.51 % |
+| ω L2 | 45.14 % | 52.65 ± 0.56 % |
+| div L2 | 0.046 | 0.066 ± 0.001 |
+| ek_ratio_kf | 0.957 | 0.920 ± 0.020 |
+| 訓練 wall (RTX 3090) | 1 h 19 m 30 s | (multi-seed 在 M3 跑)|
+| 訓練 wall (M3 base 4P+4E, MPS) | 未測 | ~2 h 24 m ± 4 m / seed |
+| GPU util | 75 % (throughput-bound) | 13-34 % (latency-bound) |
+| Inference cost | 待 paper-grade benchmark on RTX 3090 | encoder 71 ms + query 1.5 ms / snapshot (M3 baseline) |
+| 統計地位 | single seed，**待 n≥3 multi-seed 確認 std** | n=5 統計穩定 |
+| 引用 | EXP-241 ablation 詳細數值見下方 group | [`artifacts/seed_statistics.json`](../artifacts/seed_statistics.json) |
+
+**結案更新**: 之前「K=100 sensor 為資訊論硬上限」結論 **部分被 falsify** — collocation density 才是真正 binding constraint。中高頻 ≈100% 仍為 K=100 Nyquist 限制（不可突破），但 **低頻 + KE 整體**還能透過 collocation 變大改善 ~45%。
 
 ### Re=1000 主線（EXP-230 reference baseline）
 
@@ -104,12 +109,46 @@
 
 ### Architecture × Placement 2D ablation group（EXP-240, 2026-05-19 完成）
 
-| ID | Status | 架構 + Placement | KE rel-err | 角色 |
-|---|---|---|---|---|
-| **EXP-240_a** | `ACTIVE_REFERENCE` | B0 + LES_T50 (seed=42) | **19.58 %** | B0 LES placement transfer 證據 |
-| **EXP-240_b** | `ACTIVE_REFERENCE` | B0 + Random (seed=42) | **21.82 %** | B0 placement-agnostic 對照 |
+| ID | Status | 架構 + Placement | KE rel-err | Train wall (RTX 3090) | 角色 |
+|---|---|---|---|---|---|
+| **EXP-240_a** | `ACTIVE_REFERENCE` | B0 + LES_T50 (seed=42) | **19.58 %** | 24:05（並行）| B0 LES placement transfer 證據 |
+| **EXP-240_b** | `ACTIVE_REFERENCE` | B0 + Random (seed=42) | **21.82 %** | 28:30（並行）| B0 placement-agnostic 對照 |
 
 完整 2×3 表見 `[STATE] Architecture × Placement 2×3 完整表` section。
+
+### Collocation density sweep group（EXP-241, 2026-05-19 完成）— **新最佳結果**
+
+| ID | Status | num_physics_points | KE rel-err | Train wall (RTX 3090) | 角色 |
+|---|---|---|---|---|---|
+| **EXP-241_a** | `ACTIVE_REFERENCE` | 256 (4× baseline) | **6.88 %** 🥈 | 1:04:46（並行）| collocation density 中段 |
+| **EXP-241_b** | **`ACTIVE_BASELINE` 🏆** | 1024 (16× baseline) | **5.97 %** 🥇 | 1:19:30（並行）| **stable phase 新最佳**；GPU util 75% |
+
+EXP-241 ablation 完整數值：
+
+| 指標 | EXP-200_a baseline (64) | EXP-241_a (256) | EXP-241_b (1024) | 改善 (best vs baseline) |
+|---|---|---|---|---|
+| KE rel-err | 10.77 ± 0.52 % | 6.88 % | **5.97 %** | **-44.6 %** |
+| u rel-L2 | 20.69 % | 17.13 % | **16.38 %** | -20.8 % |
+| v rel-L2 | 24.79 % | 20.76 % | **19.77 %** | -20.3 % |
+| ω rel-L2 | 52.65 % | 46.71 % | **45.14 %** | -14.3 % |
+| div L2 | 0.066 | 0.0551 | **0.0460** | -30.3 % |
+| ek_ratio_kf | 0.920 | 0.953 | **0.957** | +0.040 |
+| kf amp ratio | 0.937 | 0.960 | **0.972** | +0.035 |
+| kf phase err (rad) | -0.011 | -0.026 | -0.019 | similar |
+| GPU util (RTX 3090) | 13-34 % (latency-bound) | 40 % | **75 %** | throughput-bound |
+| GPU memory | 0.55 GB | 3.69 GB | 12.25 GB | |
+
+**Decision gate (per EXP-241 falsifiability)**: 兩點都 `KE ≤ 9.5 %` ✅ → "collocation density 為 binding constraint, 主線應升級"。**EXP-241_b 取代 EXP-200_a 為 stable phase active baseline**，但保留 EXP-200_a 作 multi-seed n=5 統計參照（EXP-241_b 仍 single seed=42, 需後續 multi-seed 確認 std）。
+
+### Inference cost benchmark（hardware-specific）
+
+| Hardware | Model | Eval wall (full snapshot 評估) | per-snapshot avg |
+|---|---|---|---|
+| M3 base (4P+4E, MPS) | B3 (EXP-094, legacy) | — | encoder 71 ms + query 1.5 ms |
+| RTX 3090 (lab acmt20) | B0 (EXP-240, 201 snapshots) | 16 s/model | ~80 ms/snapshot (full eval pipeline) |
+| RTX 3090 (lab acmt20) | B3 (EXP-241, 201 snapshots) | 79 s/model | ~390 ms/snapshot (full eval pipeline incl. spectral) |
+
+> **Note**: 上述 RTX 3090 數字含整套 evaluator pipeline（場重建 + 譜估 + KE/div/能譜計算 + 繪圖），非純 inference latency。Paper-grade pure encoder/query benchmark 仍以 EXP-094 M3 baseline (71+1.5 ms) 為主 reference；RTX 3090 paper-grade benchmark 待 `scripts/benchmark_inference.py` 重跑。
 
 ### Sensor placement group（EXP-220~222, EXP-224, B3 arch, seed=2, axis-fix v2）
 
@@ -293,9 +332,13 @@ EXP-240_a/_b 完成後 2D ablation 表已封閉：
 
 | 問題 | 現況 | 狀態 |
 |---|---|---|
+| **EXP-241_b multi-seed (n=3-5)** | single seed=42, KE 5.97 % — paper-grade needs std confirmation | **NEW 高優先** |
+| **EXP-241_c collocation = 4096?** | EXP-241_a (256) → EXP-241_b (1024) 還沒 saturated（5.97 vs 6.88, -0.9pp 下行）；4096 可能再降但 OOM risk | 待開工（需 split-batch fallback）|
+| RTX 3090 paper-grade inference benchmark | EXP-094 M3 baseline 71+1.5 ms 為唯一參考；新 hw 待測 | 待 `benchmark_inference.py` 重跑 |
 | Re=1000 stable phase multi-seed（n=5）| 尚未跑；目前只有 legacy EXP-030 single seed | 待開工 |
 | `EXP-220` (= `EXP-200_c`) 5-seed sensor placement variance | 單 seed (seed=2) 結果；無法估計 placement-induced variance | 待開工（若需 paper-grade noise quantification）|
 | LES robustness across LES_seed | 目前 LES generator 用 seed=42 single placement; 跨 LES seed 的 sensor variability 未測 | 待開工 |
+| EXP-242 group: multi-constraint AL (cont 純 AL / NS 加 AL / NS 純 AL) | 設計完成，code change ~80 LOC pending implement | 待開工 |
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論 |
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
 
