@@ -48,7 +48,7 @@
 | Baseline ID | `EXP-200`（multi-seed group, 5 seeds）|
 | 架構 | B3 = CfC + cross-attn + AL ρ=0.1 + 4-task GradNorm |
 | Multi-seed configs | `configs/stable/exp_200_a.toml` ~ `exp_200_e.toml`（symlink → legacy）|
-| 訓練 wall-time | ~2 h 24 m ± 4 m / seed（MPS, M3 Pro, fp32）|
+| 訓練 wall-time | ~2 h 24 m ± 4 m / seed（MPS, **M3 base 4P+4E**, fp32）|
 | **KE rel-err (n=5)** | **10.77 ± 0.52 %** |
 | u L2 (n=5) | 20.69 ± 0.46 % |
 | v L2 (n=5) | 24.79 ± 0.51 % |
@@ -101,6 +101,15 @@
 | **EXP-203** | `ACTIVE_REFERENCE` | B2 (cross-attn, no CfC) | n=1 ablation | 13.62 % |
 | **EXP-204** | `ACTIVE_REFERENCE` | Standard PINN (SiLU) | Single-instance PINN baseline | 38.50 % |
 | **EXP-205** | `ACTIVE_REFERENCE` | Standard PINN (tanh) | Single-instance PINN baseline | 39.80 % |
+
+### Architecture × Placement 2D ablation group（EXP-240, 2026-05-19 完成）
+
+| ID | Status | 架構 + Placement | KE rel-err | 角色 |
+|---|---|---|---|---|
+| **EXP-240_a** | `ACTIVE_REFERENCE` | B0 + LES_T50 (seed=42) | **19.58 %** | B0 LES placement transfer 證據 |
+| **EXP-240_b** | `ACTIVE_REFERENCE` | B0 + Random (seed=42) | **21.82 %** | B0 placement-agnostic 對照 |
+
+完整 2×3 表見 `[STATE] Architecture × Placement 2×3 完整表` section。
 
 ### Sensor placement group（EXP-220~222, EXP-224, B3 arch, seed=2, axis-fix v2）
 
@@ -241,17 +250,42 @@
 
 ---
 
-## [INDEX] Pending（待跑）
+## [STATE] Architecture × Placement 2×3 完整表（2026-05-19）
 
-| ID | Status | 配置 | Hypothesis | 對標 |
+EXP-240_a/_b 完成後 2D ablation 表已封閉：
+
+| Architecture | DNS oracle | LES_T50 | Random | Placement gap |
 |---|---|---|---|---|
-| **EXP-240_a** | `PENDING` | B0 + LES_T50 placement (seed=42) | LES placement 改善跨 architecture 仍有效 → KE ~15-17% | vs EXP-201_a (B0+DNS 18.5%), EXP-221 (B3+LES 12.4%) |
-| **EXP-240_b** | `PENDING` | B0 + Random placement (seed=42) | placement-agnostic 性質跨 architecture 成立 → KE ≈ EXP-240_a | vs EXP-201_a (B0+DNS 18.5%), EXP-224 (B3+Random 13.3%) |
+| **B0** (Vanilla DeepONet, n=1@seed=42) | 18.52 ± 0.66 (n=5, EXP-201) | **19.58** (EXP-240_a) | **21.82** (EXP-240_b) | **3.30 pp** |
+| **B3** (Ours, n=1@seed=2) | 9.40 (EXP-220) / 10.77 ± 0.52 (n=5 EXP-200) | 12.36 (EXP-221) | 13.25 (EXP-224) | 2.48-3.85 pp |
+| **Architecture gap (B0 − B3)** | ~8 pp | **7.22 pp** | **8.57 pp** | — |
 
-Decision gates（per config falsifiability section）:
-- `B0+LES_T50 ≤ 16%`: claim 「LES placement effect 跨 architecture transferable」成立（gap 同 B3 受益 ~3pp）
-- `B0+LES_T50 ∈ [16, 22]%`: 部分有效
-- `B0+LES_T50 > 22%`: LES placement 改善僅 B3 專屬
+### Paper-grade findings (EXP-240 contribution)
+
+1. **Architecture effect dominant**: B3 − B0 ~8 pp 穩定跨所有 placement，**比 placement gap (~3 pp) 大 2-3 ×**
+2. **LES degradation 跨 architecture 比 B3 更輕微**:
+   - B0 DNS → LES_T50: +1.06 pp（vs B3 +2.96 pp）
+   - 解讀：**B3 高表達力會對 placement 更挑剔**；B0 因受限於模型 capacity，placement quality 對 KE 的邊際影響反而 saturated
+3. **LES > Random 跨 architecture 成立**:
+   - B0: Random → LES_T50 gain **2.24 pp**
+   - B3: Random → LES_T50 gain 0.89 pp
+   - 反直覺：**B0 從 LES placement 受益更多**（架構 expressivity 不足時，placement 提供更多信息成為 binding constraint）
+
+### Falsifiability evaluation (per EXP-240 config 預設)
+
+| Decision gate | EXP-240_a 結果 | 判讀 |
+|---|---|---|
+| KE ≤ 16% → "transferable" 成立 | 19.58 % | ❌ 不到 16 % |
+| 16 % < KE ≤ 22% → 部分有效 | 19.58 % | ✅ **此區** |
+| KE > 22% → 僅 B3 專屬 | 19.58 % | ❌ 未到 22 % |
+| `|B0+Random − B0+LES_T50| < 2pp` → placement-agnostic | 2.24 pp | ❌ 略超 2 pp |
+| `> 3pp` → B0 顯著更敏感 | 2.24 pp | ❌ 未到 |
+
+結論：**Hypothesis 部分支持** — LES placement 在 B0 也帶來改善，但 absolute KE 仍受限於架構 capacity。
+
+---
+
+## [STATE] Open Question（stable phase, 待補）
 
 ---
 
