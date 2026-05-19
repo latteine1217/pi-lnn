@@ -11,7 +11,7 @@
 #SBATCH --mem=48G
 #
 # What:
-#   pi-lnn 訓練通用 sbatch template；由 scripts/slurm/submit_exp.sh
+#   pi-con 訓練通用 sbatch template；由 scripts/slurm/submit_exp.sh
 #   把實驗編號與 config 路徑替換後送 slurm。
 #
 # Why:
@@ -25,7 +25,7 @@
 #       2 × 16 CPU = 32 ≤ 48  ✓（餘 16 給 OS / dataloader 突發 / 臨時 eval job）
 #       2 × 48 GB = 96 GB ≤ 112 GB  ✓（餘 ~16 GB 給 OS）
 #   - 訓練程式 single-device，--gres=gpu:1 與其相符（不浪費卡）。
-#   - 訓練主程式：src/lnn_kolmogorov.py（pi_lnn.training.main 的 shim）
+#   - 訓練主程式：src/picon_kolmogorov.py（pi_con.training.main 的 shim）
 #   - device 用 cuda；lab-server 環境無 MPS。
 
 set -euo pipefail
@@ -56,7 +56,7 @@ nvidia-smi -L 2>/dev/null || echo "[WARN] nvidia-smi 不可用"
 uv --version
 
 # ─── 4. 訓練 ──────────────────────────────────────────────────────────
-uv run python -u src/lnn_kolmogorov.py \
+uv run python -u src/picon_kolmogorov.py \
   --config "{CONFIG_PATH}" \
   --device cuda
 
