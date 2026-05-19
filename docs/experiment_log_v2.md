@@ -62,7 +62,18 @@
 | 統計地位 | single seed，**待 n≥3 multi-seed 確認 std** | n=5 統計穩定 |
 | 引用 | EXP-241 ablation 詳細數值見下方 group | [`artifacts/seed_statistics.json`](../artifacts/seed_statistics.json) |
 
-**結案更新**: 之前「K=100 sensor 為資訊論硬上限」結論 **部分被 falsify** — collocation density 才是真正 binding constraint。中高頻 ≈100% 仍為 K=100 Nyquist 限制（不可突破），但 **低頻 + KE 整體**還能透過 collocation 變大改善 ~45%。
+**結案更新（精準版，per EXP-241_b 1024 collo band-energy 分析, 2026-05-19）**:
+
+| 主張 | 修訂 |
+|---|---|
+| K=100 = upper bound on **mid/high bands (k≥8)** | **仍成立** ✅ — band_mid/high @ t=5 ≈ 100 %（baseline 99.97 % → 1024 collo 99.99 %, 無改善）; energy spectrum 在 k~5.6 (Nyquist k_max=√(K/π)) 之後陡降至 DNS 之下 10⁻²~10⁻⁶ |
+| K=100 = upper bound on **low band (k≤8)** | **被 falsify** ❌ — 64 collo physics estimator 不夠密集；1024 collo 把 band_low @ t=5 從 3.62 → 2.41 %（-34 %） |
+| K=100 = upper bound on **整體 KE** | **被 falsify** ❌ — low band 佔 94.4 % 能量，low band 改善 dominate 整體 KE (10.77 → 5.97 %) |
+
+**修正後 binding constraints 分層**:
+1. **Mid/high band (k≥8)**: K=100 sensor → Nyquist 硬上限，**任何 collocation density 都無法突破**
+2. **Low band (k≤8)**: collocation density 為 binding constraint, 1024 collo 仍未 saturated（vs 256 仍有 -0.9 pp 改善），可能 4096 還能再降
+3. **div L2 / NS residual consistency**: collocation density 直接決定 estimator 密度 → 64→1024 collo 讓 div 從 0.184 → 0.046（-75 %）
 
 ### Re=1000 主線（EXP-230 reference baseline）
 
