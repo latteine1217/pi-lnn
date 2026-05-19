@@ -1,0 +1,111 @@
+# configs/exp_243_all_physics_pure_al.toml
+# What: EXP-243 — 全 physics (ns_u + ns_v + cont) 純 AL；GradNorm 完全關閉。
+#
+# Why: user policy「開 AL 就不要 GradNorm」— EXP-242_b/_c 的雙開設計 (NS in GN + AL)
+#      違反此原則。本實驗為一致原則下「全 physics 純 AL」的 clean config。
+#
+#      EXP-242 trio 的 GN/AL truth table 對比:
+#      | Config | ns_u GN | ns_u AL | ns_v GN | ns_v AL | cont GN | cont AL |
+#      | EXP-200_a (baseline) | ✓ | ✗ | ✓ | ✗ | ✓ | ✓ | (cont 雙開違反原則)
+#      | EXP-242_a (cont 純 AL) | ✓ | ✗ | ✓ | ✗ | ✗ | ✓ | (符合原則 for cont)
+#      | EXP-242_b (NS+cont 雙開) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | (全違反原則, KE 14.79%)
+#      | EXP-242_c (NS 純 AL) | ✗ | ✓ | ✗ | ✓ | ✓ | ✓ | (cont 仍違反原則, KE 13.70%)
+#      | **EXP-243 (NEW)** | ✗ | ✓ | ✗ | ✓ | ✗ | ✓ | (全符合原則, no GN at all)
+#
+# Hypothesis:
+#   無 GradNorm 動態 + 全 physics AL 為「最純」配置。若 KE ≈ EXP-242_a 10.19% →
+#   no-GN + pure AL 是 valid 主線替代。若 KE 顯著差於 baseline → GN 對 data weight
+#   保護有實質貢獻。
+#
+# Falsifiability:
+#   (a) KE ≤ 9.5 % → no-GN + pure AL 更好（GN 反而是 noise）
+#   (b) 9.5-11.5 % → ≈ baseline，GN 中性
+#   (c) > 11.5 % → GN 為 essential balancing
+#
+# 唯一改動（vs EXP-242_a）:
+#   - use_gradnorm = false（完全關閉 GN）
+#   - al_constraints = ["ns_u", "ns_v", "cont"]（NS 也加 AL）
+#   - 保留 physics_loss_weight = 0.057 為 NS base contribution（user policy 只禁 GN，
+#     fixed weight 不算 dynamic 仍 OK；與 baseline base 一致便於比較）
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-200_a / EXP-242_a 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights
+data_loss_weight = 1.0
+physics_loss_weight = 0.057      # fixed base for NS (non-GN AL path)
+continuity_weight = 0.0          # cont 由 AL 接管（assert 強制）
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# CHANGED: GradNorm 完全關閉（user policy 開 AL 就不要 GN）
+use_gradnorm = false
+# gradnorm_tasks 跟 init_weights 不重要因 use_gradnorm=false
+
+# AL 全 physics: ns_u + ns_v + cont 三個 constraint
+use_augmented_lagrangian = true
+al_constraints = ["ns_u", "ns_v", "cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = false   # cont 不在 GN（GN off）
+al_allow_ns_in_gradnorm = false     # NS 不在 GN（GN off）
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp243-all-physics-pure-al"
