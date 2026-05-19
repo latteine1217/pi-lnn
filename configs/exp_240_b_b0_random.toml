@@ -1,0 +1,114 @@
+# configs/exp_240_b_b0_random.toml
+# What: EXP-240_b — B0 (vanilla DeepONet) + Random uniform placement (seed=42)。
+#       Architecture × placement 2D ablation 補完 B0 row（cf. v2 log [INDEX]）。
+#
+# Why: 已有 (B3, DNS), (B3, LES_T50), (B3, Random), (B0, DNS), (B0, LES_T50=EXP-240a) 五點；
+#      缺最後一格 (B0, Random)。
+#      若 B0+Random ≈ B0+LES_T50 → placement 演算法在 K=100 sparse + B0 下都 ~等價（與 B3 同 finding）；
+#      若 B0+Random ≫ B0+LES_T50 → B0 對 placement quality 更敏感。
+#
+# Hypothesis:
+#   K=100 sparse regime 下 placement 演算法影響有限（v2 log paper finding 4）；此性質跨 architecture 成立。
+#   預期 B0 + Random ≈ B0 + LES_T50 ≈ 15-17%，gap < 1pp（與 B3 受益模式同）。
+#
+# Falsifiability:
+#   (a) |B0+Random − B0+LES_T50| < 2pp → placement-agnostic 性質跨 architecture 成立
+#   (b) B0+Random > B0+LES_T50 + 3pp → B0 對 placement quality 比 B3 更敏感
+#
+# 唯一改動（vs EXP-088 / EXP-201_a）:
+#   - sensor_jsons / sensor_npzs 改用 Random uniform K=100 seed=42（EXP-224 同 sensor）
+#   - artifacts_dir 標 exp240_b
+#   - seed = 42 對齊 EXP-201_a baseline
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed42.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed42_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-088 / EXP-201_a 完全一致（B0 = vanilla DeepONet）
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+use_augmented_lagrangian = true
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-re10000-exp240b-b0-random"
+
+use_vanilla_deeponet = true
+vanilla_deeponet_K_sensors = 100
+vanilla_deeponet_num_branch_layers = 3
+vanilla_deeponet_num_trunk_layers = 3

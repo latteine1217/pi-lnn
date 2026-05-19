@@ -1,22 +1,30 @@
-# 實驗紀錄（State 主檔，精簡版）
+# 實驗紀錄（Legacy State 主檔，精簡版）
 
-本文件是本 repo 的實驗 state **入口**，不再放完整 RECORD。歷史與詳細紀錄已拆檔，依需求按下方 [Read Order](#read-order) 載入。
+> **⚠️ 2026-05-19 起：研究進入 stable phase，**主要 state 入口已轉至 [`docs/experiment_log_v2.md`](experiment_log_v2.md)**（含 EXP-200+ 重編號 + legacy 對照表）。
+>
+> 本檔（v1）保留為 **legacy state** 供 EXP-001~106 的結論層查詢與雙向追溯。任何新 stable phase 實驗變更、評估、對照前，應**優先讀 v2**。
+
+本文件是本 repo 的 **legacy 實驗 state 入口**，不再放完整 RECORD。歷史與詳細紀錄已拆檔，依需求按下方 [Read Order](#read-order) 載入。
 
 主要用途：
 
-- 快速回答目前主線是什麼
+- 快速回答 legacy 主線是什麼
 - 判斷哪些方向已被支持、證偽或取代
 - 讓 agent 在續跑或比較前先自讀，不靠記憶腦補
+- 提供 stable phase（v2）「往回查」的窗口
 
 ---
 
 ## [STATE] 拆檔導引（Read Order）
 
 > 2026-05-15 主檔再次拆分：把 `[STATE] Supported Decisions` 全部詳細條目、`[DIAGNOSTIC]` 報告、Cylinder 主線、與所有 `[RECORD]` 條目搬到專屬檔，主檔僅保留 `[STATE]/[INDEX]` 結論層。
+>
+> 2026-05-19 stable phase 啟用：主要 state 入口轉至 [`docs/experiment_log_v2.md`](experiment_log_v2.md)；本檔降為 legacy（EXP-001~106）查詢介面。
 
 | 檔 | 內容 | 何時讀 |
 |---|---|---|
-| **本檔** `docs/experiment_log.md` | STATE/INDEX 結論層、Open Question、Rejected | 任何實驗變更、結果判讀、續跑、回歸前先讀 |
+| **[`docs/experiment_log_v2.md`](experiment_log_v2.md)** | **Stable phase 主檔**（EXP-200+ 重編號 + multi-seed `_a~_e` + legacy 雙向對照表）| **stable phase 任何實驗變更前先讀** |
+| **本檔** `docs/experiment_log.md` | Legacy STATE/INDEX 結論層、Open Question、Rejected（EXP-001~106）| stable phase 結論不足、需 legacy 追溯時 |
 | [`docs/experiment_archive_kolmogorov.md`](experiment_archive_kolmogorov.md) | **EXP-001~063** 詳細 RECORD（Re=1000 主線 + Re=10000 早中期）| 早期實驗追溯 |
 | [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md) | **EXP-064~101** 詳細 RECORD + GROUP（K=100 結案後 AL/pivot/multi-seed/benchmark）| 近期實驗判讀 |
 | [`docs/cylinder_log.md`](cylinder_log.md) | Cylinder Wake 主線（CEXP-001/002 + BC loss + NaN 診斷）| Cylinder 任務 |

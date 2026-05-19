@@ -1,0 +1,59 @@
+#!/bin/bash
+#SBATCH --job-name=exp_{EXP_ID}
+#SBATCH --output=logs/exp_{EXP_ID}_%j.out
+#SBATCH --error=logs/exp_{EXP_ID}_%j.err
+#SBATCH --time=14-00:00:00
+#SBATCH --partition=r740
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=16
+#SBATCH --gres=gpu:1
+#SBATCH --mem=48G
+#
+# What:
+#   pi-lnn 訓練通用 sbatch template；由 scripts/slurm/submit_exp.sh
+#   把實驗編號與 config 路徑替換後送 slurm。
+#
+# Why:
+#   單一 template，job-name/output/error 隨 EXP_ID 自動帶入，避免每個實驗手抄 sbatch。
+#
+# Notes:
+#   - --time 修正為 slurm 標準 D-HH:MM:SS（原 14:00:00:00 非法格式）。
+#   - 資源規劃：acmt20 = 48 CPU / 112 GB RAM / 2 GPU；MaxNodes=1。
+#     單 job 配額（1 GPU / 48 GB / 16 CPU）讓兩個訓練可同節點並行：
+#       2 × GPU = 2  ≤ 2   ✓
+#       2 × 16 CPU = 32 ≤ 48  ✓（餘 16 給 OS / dataloader 突發 / 臨時 eval job）
+#       2 × 48 GB = 96 GB ≤ 112 GB  ✓（餘 ~16 GB 給 OS）
+#   - 訓練程式 single-device，--gres=gpu:1 與其相符（不浪費卡）。
+#   - 訓練主程式：src/lnn_kolmogorov.py（pi_lnn.training.main 的 shim）
+#   - device 用 cuda；lab-server 環境無 MPS。
+
+set -euo pipefail
+
+# ─── 1. 進到 repo root ────────────────────────────────────────────────
+cd "${SLURM_SUBMIT_DIR:-$HOME/pi-lnn}"
+
+# ─── 2. 環境 ──────────────────────────────────────────────────────────
+export PYTHONUNBUFFERED=1
+# 確保 uv 在 PATH（lab-server 可能裝在 ~/.local/bin 或 ~/.cargo/bin）
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+command -v uv >/dev/null 2>&1 || { echo "[ERR] uv 不在 PATH；先在 lab-server 裝 uv" >&2; exit 2; }
+
+# ─── 3. 列印環境摘要（方便事後 debug log） ────────────────────────────
+echo "======================================================================"
+echo "[EXP-{EXP_ID}] $(date '+%F %T')  slurm_job=${SLURM_JOB_ID}  node=${SLURMD_NODENAME:-?}"
+echo "  repo:      $(pwd)"
+echo "  config:    {CONFIG_PATH}"
+echo "  cuda vis:  ${CUDA_VISIBLE_DEVICES:-<unset>}"
+echo "  cpus:      ${SLURM_CPUS_PER_TASK:-?}"
+echo "  mem:       ${SLURM_MEM_PER_NODE:-?} MB"
+echo "======================================================================"
+nvidia-smi -L 2>/dev/null || echo "[WARN] nvidia-smi 不可用"
+uv --version
+
+# ─── 4. 訓練 ──────────────────────────────────────────────────────────
+uv run python -u src/lnn_kolmogorov.py \
+  --config "{CONFIG_PATH}" \
+  --device cuda
+
+echo "[$(date '+%F %T')] EXP-{EXP_ID} 訓練結束"
