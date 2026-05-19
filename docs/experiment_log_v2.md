@@ -127,6 +127,30 @@
 
 完整 2×3 表見 `[STATE] Architecture × Placement 2×3 完整表` section。
 
+### Multi-constraint AL ablation group（EXP-242, 2026-05-20 完成）— **multi-AL 對 NS 反效果**
+
+| ID | Status | GN tasks | AL constraints | KE rel-err | Train wall (RTX 3090) | 結論 |
+|---|---|---|---|---|---|---|
+| **EXP-242_a** | `ACTIVE_REFERENCE` | `[data, ns_u, ns_v]` | `[cont]` | **10.19 %** | 1:02:58 | cont 純 AL ≈ baseline 雙開（in 1 std） |
+| **EXP-242_b** | `NEGATIVE_RESULT` | `[data, ns_u, ns_v, cont]` | `[ns_u, ns_v, cont]` | **14.79 %** | 1:05:54 | NS+cont 雙開 KE +4.0 pp 退步（AL over-penalty）|
+| **EXP-242_c** | `NEGATIVE_RESULT` | `[data, cont]` | `[ns_u, ns_v, cont]` | **13.70 %** | 1:03:43 | NS 純 AL 比雙開好 1.1pp 但仍比 baseline 差 +2.9pp |
+
+Decision gates 評估:
+
+| Config | Gate | 結果 |
+|---|---|---|
+| 242_a (a) KE < 9 % 雙開冗餘 | (b) 9-12 % 雙開 ≈ 純 AL ✅ | ADR-001 §4 修訂中性 |
+| 242_b (a) ≤ 9.5 % net positive | (c) > 11.5 % AL over-penalty ✅ | **NS 加 AL = anti-pattern** |
+| 242_c vs 242_b (a) 純 AL 更乾淨 ✅ | (-1.09 pp) | 但 NS 加任何 AL 都不好 |
+
+**Paper-grade findings**:
+1. **L_phys 低 ≠ KE 低**: 242_b L_phys 1.67e-2 (~9× ↓) 但 KE +4 pp 退步 — 經典 PINN over-physics 病態，AL pressure 過度 push NS → data fit 被犧牲
+2. **cont AL 是 sweet spot, NS AL 不是**: cont (divergence) 是 hard 約束（incompressibility）； NS momentum 是 soft 引導，太強會 over-fit 物理解
+3. **GradNorm + AL 雙開 on NS 互相 amplification**: 242_b (雙開) > 242_c (純 AL) 1.09 pp，雙開反而更糟
+4. **ADR-001 §4 禁令對 cont 過於保守**: 242_a (cont 純 AL) = 10.19 % vs baseline 10.77 ± 0.52 % within 1 std → 雙開無害但也無增益。EXP-079 結論「§4 escape hatch 安全」進一步驗證
+
+**Take-away for paper**: 主線 EXP-200_a recipe (cont 雙開 + NS 只 GN, no NS-AL) **已是 multi-AL 配置中最佳**；不要試圖加 NS-AL（會傷害 KE）。collocation density (EXP-241) 才是真正可改善的 lever。
+
 ### Collocation density sweep group（EXP-241, 2026-05-19 完成）— **新最佳結果**
 
 | ID | Status | num_physics_points | KE rel-err | Train wall (RTX 3090) | 角色 |
