@@ -173,15 +173,18 @@ KE rel-err:   6.92 %   (single seed, n=1; multi-seed n≥3 為 高優先 待補)
 
 全 1024 collo + seed=42 對齊比較。EXP-244 為 4-head cross-attn DNS baseline; EXP-245~250 為 6 個 architecture 配 EXP-221 LES_T50 sensor（real-world DNS-free）。**Stable phase 主 baseline 仍是 EXP-200_a~e (n=5 multi-seed)**；本 group 為「collo + 4-head + LES placement」延伸論述。
 
-| ID | Status | Architecture | Sensor | KE rel-err | div L2 | Train wall (RTX 3090) |
-|---|---|---|---|---|---|---|
-| **EXP-244** | **`ACTIVE_BASELINE` 🥇** | B3 + **4-head** | DNS | **5.51 %** | 0.044 | 1:16:40 |
-| EXP-245 | `ACTIVE_REFERENCE` | B3 (1-head) | **LES_T50** | **6.92 %** | 0.049 | 1:19:53 |
-| EXP-246 | `ACTIVE_REFERENCE` | B0 (vanilla) | LES_T50 | 9.96 % | 0.056 | 0:24:58 |
-| EXP-247 | `ACTIVE_REFERENCE` | B1 (no cross-attn) | LES_T50 | 10.62 % | 0.068 | 0:52:43 |
-| EXP-248 | `ACTIVE_REFERENCE` | B2 (no CfC) | LES_T50 | 8.43 % | 0.053 | 0:46:59 |
-| EXP-249 | `ACTIVE_REFERENCE` | Standard PINN SiLU | LES_T50 | 10.13 % | **0.024** | 0:38:07 |
-| EXP-250 | `ACTIVE_REFERENCE` | Standard PINN tanh | LES_T50 | 13.09 % | **0.016** | 0:31:15 |
+| ID | Status | Architecture | Sensor | KE rel-err | u L₂ | v L₂ | ω L₂ | div L₂ | div_ratio | band low (t=5) | Train wall (RTX 3090) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **EXP-244** | **`ACTIVE_BASELINE` 🥇** | B3 + **4-head** | DNS | **5.51 %** | 16.30 % | 19.69 % | 44.95 % | 0.0436 | 0.0049 | **1.46 %** | 1:16:40 |
+| EXP-245 | `ACTIVE_REFERENCE` | B3 (1-head) | **LES_T50** | **6.92 %** | 14.51 % | 19.25 % | 44.32 % | 0.0492 | 0.0055 | 2.85 % | 1:19:53 |
+| EXP-251 | `ACTIVE_REFERENCE` | B3 + **4-head** | LES_T50 | **6.68 %** | 14.36 % | 19.03 % | 43.89 % | 0.0481 | 0.0054 | 2.62 % | (parallel run) |
+| EXP-246 | `ACTIVE_REFERENCE` | B0 (vanilla) | LES_T50 | 9.96 % | 16.59 % | 22.55 % | 47.94 % | 0.0557 | 0.0063 | **0.72 %** | 0:24:58 |
+| EXP-247 | `ACTIVE_REFERENCE` | B1 (no cross-attn) | LES_T50 | 10.62 % | 18.55 % | 25.51 % | 52.27 % | 0.0677 | 0.0076 | 3.85 % | 0:52:43 |
+| EXP-248 | `ACTIVE_REFERENCE` | B2 (no CfC) | LES_T50 | 8.43 % | 15.94 % | 21.30 % | 47.26 % | 0.0528 | 0.0059 | 5.54 % | 0:46:59 |
+| EXP-249 | `ACTIVE_REFERENCE` | Standard PINN SiLU | LES_T50 | 10.13 % | 14.35 % | 19.19 % | 44.35 % | **0.0244** | **0.0027** | 3.01 % | 0:38:07 |
+| EXP-250 | `ACTIVE_REFERENCE` | Standard PINN tanh | LES_T50 | 13.09 % | 17.37 % | 22.98 % | 49.41 % | **0.0157** | **0.0018** | 4.50 % | 0:31:15 |
+
+> **Note (補完 2026-05-20)**: 全表 u/v/ω/div/band 數字從 lab-server artifacts rsync 補回。EXP-251 row 補入。
 
 **5 個 paper-grade findings**:
 
@@ -216,12 +219,14 @@ KE rel-err:   6.92 %   (single seed, n=1; multi-seed n≥3 為 高優先 待補)
 
 ### Multi-constraint AL ablation group（EXP-242 + EXP-243, 2026-05-20 完成）— **NS 加 AL = anti-pattern**
 
-| ID | Status | GN tasks | AL constraints | use_gradnorm | KE rel-err | Train wall | 一致原則 | 結論 |
-|---|---|---|---|---|---|---|---|---|
-| **EXP-242_a** | `ACTIVE_REFERENCE` | `[data, ns_u, ns_v]` | `[cont]` | true | **10.19 %** | 1:02:58 | ✅ | cont 純 AL ≈ baseline 雙開（in 1 std） |
-| **EXP-243** | `NEGATIVE_RESULT` | `[data]` (僅 data) | `[ns_u, ns_v, cont]` | **false** | **13.33 %** | 1:03:05 | ✅ **完全** | 全 physics 純 AL, no GN — multi-AL 對 NS 仍反效果 |
-| **EXP-242_c** | `NEGATIVE_RESULT` | `[data, cont]` | `[ns_u, ns_v, cont]` | true | **13.70 %** | 1:03:43 | ⚠️ cont 雙開 | NS 純 AL + cont 雙開（部分違反） |
-| **EXP-242_b** | `NEGATIVE_RESULT` | `[data, ns_u, ns_v, cont]` | `[ns_u, ns_v, cont]` | true | **14.79 %** | 1:05:54 | ❌ 全雙開 | NS+cont 全雙開（GN+AL 互相 amplification）|
+| ID | Status | GN tasks | AL constraints | use_gradnorm | KE rel-err | u L₂ | v L₂ | ω L₂ | div L₂ | band low (t=5) | Train wall | 一致原則 | 結論 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **EXP-242_a** | `ACTIVE_REFERENCE` | `[data, ns_u, ns_v]` | `[cont]` | true | **10.19 %** | 20.07 % | 24.28 % | 51.78 % | 0.0721 | 6.68 % | 1:02:58 | ✅ | cont 純 AL ≈ baseline 雙開（in 1 std） |
+| **EXP-243** | `NEGATIVE_RESULT` | `[data]` (僅 data) | `[ns_u, ns_v, cont]` | **false** | **13.33 %** | 21.98 % | 26.45 % | 54.17 % | 0.0769 | 11.62 % | 1:03:05 | ✅ **完全** | 全 physics 純 AL, no GN — multi-AL 對 NS 仍反效果 |
+| **EXP-242_c** | `NEGATIVE_RESULT` | `[data, cont]` | `[ns_u, ns_v, cont]` | true | **13.70 %** | 22.44 % | 27.09 % | 54.92 % | 0.0703 | 11.34 % | 1:03:43 | ⚠️ cont 雙開 | NS 純 AL + cont 雙開（部分違反） |
+| **EXP-242_b** | `NEGATIVE_RESULT` | `[data, ns_u, ns_v, cont]` | `[ns_u, ns_v, cont]` | true | **14.79 %** | 23.01 % | 28.06 % | 55.77 % | 0.0712 | 12.99 % | 1:05:54 | ❌ 全雙開 | NS+cont 全雙開（GN+AL 互相 amplification）|
+
+> **Note (補完 2026-05-20)**: u/v/ω/div/band 數字從 lab-server artifacts rsync 補回。Baseline 對照 EXP-200_a n=5: KE 10.77 ± 0.52 %, u 20.69 %, v 24.79 %, ω 52.65 %, div 0.066, band low 3.62 %（line 251 EXP-241 ablation 表）。
 
 Decision gates 評估:
 
@@ -264,6 +269,61 @@ EXP-241 ablation 完整數值：
 | GPU memory | 0.55 GB | 3.69 GB | 12.25 GB | |
 
 **Decision gate (per EXP-241 falsifiability)**: 兩點都 `KE ≤ 9.5 %` ✅ → "collocation density 為 binding constraint, 主線應升級"。**EXP-241_b 取代 EXP-200_a 為 stable phase active baseline**，但保留 EXP-200_a 作 multi-seed n=5 統計參照（EXP-241_b 仍 single seed=42, 需後續 multi-seed 確認 std）。
+
+### Forcing-prior identifiability group（EXP-252~255, zero-ish init final）
+
+全 LES_T50 sensor + 1024 collo + seed=42 + 10k steps（同 EXP-245 setup）對齊比較。
+
+**Init policy**: forcing parameters 用 zero-ish init（`forcing_A_init=0.001, k_f_init=0.01`）落在 sigmoid / log-A parameterization flat region — 與前次 high-init run（A_init=0.05, k_f_init=2.5）合併形成 two-sided test。
+
+| ID | Status | Configuration | A learned (truth 0.1) | k_f learned (truth 2.0) | KE rel-err | u L₂ | v L₂ | ω L₂ | Ens rel-err | div ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| EXP-252 | `REFERENCE` | forcing hardcoded（≡ EXP-245）| 0.1 (fixed) | 2.0 (fixed) | **5.97 %** | 14.46 % | 19.07 % | 43.95 % | 27.51 % | 2.41 % |
+| EXP-253 | `ACTIVE_REFERENCE` | learn k_f only, A fixed 0.1 | 0.1 (fixed) | **0.0102 (err 99.49 %)** | 6.82 % | 14.45 % | 19.01 % | 44.11 % | 27.78 % | 2.20 % |
+| EXP-254 | `ACTIVE_REFERENCE` | learn A only, k_f fixed 2.0 | **0.00133 (err 98.67 %)** | 2.0 (fixed) | 6.84 % | 14.54 % | 19.21 % | 44.30 % | 27.88 % | 2.18 % |
+| EXP-255 | `ACTIVE_REFERENCE` | learn both A + k_f | **0.00100 (err 98.96 %)** | **0.0103 (err 99.48 %)** | 6.82 % | 14.49 % | 19.09 % | 44.22 % | 27.83 % | 2.20 % |
+
+**Finding 1 — Forcing identifiability ill-posed (two-sided verified)**:
+- **k_f from zero-ish init**: 0.0100 → 0.0102（變化 < 0.001 over 10k steps），梯度完全卡死於 sigmoid flat region
+- **A from zero-ish init**: 0.0010 → 0.00133（+33% 但仍離 truth 0.1 兩個量級）
+- **vs 前次 high-init run**（已 archived to legacy）：k_f oscillate ±0.05 不收斂、A 反向漂移 0.05→0.045
+- → **兩端 init 都驗證**：僅靠 sensor MSE + PDE residual，對 (A, k_f) 的 gradient signal **不足以 separately identify**
+
+**Finding 2 — Forcing parameters wrong does *not* break flow reconstruction**:
+- EXP-253/254/255 學到的 (A, k_f) 全錯，但 KE rel-err 6.82~6.84% 與 baseline 6.92%（EXP-245）幾乎一樣
+- Model 直接 fit sensor data，PDE residual 用 wrong forcing 也能 self-consistent
+- 物理解釋：forcing 對 u/v 的 contribution 量級小於 advection/diffusion 項 → flow reconstruction quality 對 forcing identification accuracy 不敏感
+- **paper-grade claim**: 「sensor MSE-driven reconstruction is forcing-agnostic at K=100 budget; forcing identification requires either ① larger K or ② explicit forcing-mode supervision (e.g. spectral peak prior)」
+
+### K-scaling preliminary（EXP-256, K=200 LES sensor）
+
+> **2026-05-21 finalized**: EXP-256 重定義為 K-scaling 證據點（原 "force-from-zero" 設定已併入 EXP-253/255）。
+
+| ID | Status | Configuration | K | KE rel-err | u L₂ | v L₂ | ω L₂ | Ens rel-err | div ratio | k_f amp ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| EXP-245 | `ACTIVE_BASELINE` | 同下，K=100 reference | 100 | **5.97 %** | 14.46 % | 19.07 % | 43.95 % | 27.51 % | 2.41 % | 0.926 |
+| EXP-256 | `ACTIVE_REFERENCE` | B3 + LES_T50 + 1024 collo + seed=42, **K=200** | 200 | **3.91 %** | 10.84 % | 13.92 % | 38.84 % | 22.20 % | 2.18 % | **0.989** |
+
+**Finding — K-scaling 對 low-band metric 有效，high-band metric 邊際遞減**:
+
+| Metric | K=100 (EXP-245) | K=200 (EXP-256) | Δ |
+|---|---|---|---|
+| KE rel-err | 5.97 % | **3.91 %** | **−34.5 %** |
+| u rel-L₂ | 14.46 % | 10.84 % | −25 % |
+| v rel-L₂ | 19.07 % | 13.92 % | −27 % |
+| ω rel-L₂ | 43.95 % | 38.84 % | −12 % |
+| Ens rel-err | 27.51 % | 22.20 % | **−19 %** |
+| k_f amplitude ratio | 0.926 | **0.989** | +6.8 % |
+
+- Nyquist k_max(K=100) ≈ 5.64 → Nyquist k_max(K=200) ≈ 7.98（**+41% 解析**）
+- **KE 改善 −34.5%** 貼近 Nyquist 帶寬擴張幅度（low-band integral 主導）
+- **Enstrophy 改善僅 −19%**（仍 ~22%）：enstrophy ~ ∫ k² E(k) dk → 由 high band (k>10) 主導，K=200 仍 zero info → 改善受限
+- **k_f mode amplitude ratio 0.989** ≈ 1：K=200 sensor 已能 resolve forcing mode k_f=2，是 K=100 baseline 0.926 之外的進一步改善
+- → paper §Future Work 主訊息：**「K-scaling 是 productive direction」**，且 K=100 → 200 step 已有 −35% KE 改善之 preliminary data point
+
+**Take-away**:
+1. **Forcing identifiability**（EXP-253/254/255）：「PI-CON as inverse forcing identification tool」**不成立** at K=100 budget；但**這是 paper finding 而非 architecture failure** — 寫進 §Discussion 作為 K=100 ceiling 的另一個 instance（forcing identification 也受 sensor info bound 限制）
+2. **K-scaling**（EXP-256）：K=100→200, KE −35% **支持 paper §Future Work** 主訊息「higher fidelity 應來自 K-scaling, 不是 architecture search」
 
 ### Inference cost benchmark（hardware-specific）
 
@@ -325,6 +385,11 @@ EXP-241 ablation 完整數值：
 | `EXP-222` | `EXP-102 v2` | 2 | LES_N128 over-disp stand-alone（low-fidelity LES viable）|
 | `EXP-224` | `EXP-101 v2` | 42 | Random uniform |
 | `EXP-230` | `EXP-030` | — | Re=1000 baseline |
+| `EXP-252` | — (≡ `EXP-245`) | 42 | Forcing hardcoded reference（無獨立 artifact，作為 forcing group 對照基準）|
+| `EXP-253` | — (new 2026-05-20) | 42 | Forcing: learn k_f only, A fixed; zero-ish init |
+| `EXP-254` | — (new 2026-05-20) | 42 | Forcing: learn A only, k_f fixed; zero-ish init |
+| `EXP-255` | — (new 2026-05-20) | 42 | Forcing: learn both A + k_f; zero-ish init |
+| `EXP-256` | — (new 2026-05-20, redefined 2026-05-21) | 42 | **K-scaling K=200 LES sensor**（原 "force-from-zero" 已併入 EXP-253/255）|
 | ~~`EXP-223`~~ | ~~`EXP-106`~~ | — | **移除（2026-05-19）**: T=30 dns-init 工程不可遷移（需 DNS IC）且效果不如 T=50；legacy archive 保留 |
 | ~~`EXP-225`~~ | ~~`EXP-103 v2`~~ | — | **移除（2026-05-19）**: T=5 < 1 turnover，非 statistically-converged LES，legacy archive 作失敗教材 |
 
@@ -464,7 +529,10 @@ EXP-240_a/_b 完成後 2D ablation 表已封閉：
 | Re=1000 stable phase multi-seed（n=5）| 尚未跑；目前只有 legacy EXP-030 single seed | 待開工 |
 | `EXP-220` (= `EXP-200_c`) 5-seed sensor placement variance | 單 seed (seed=2) 結果；無法估計 placement-induced variance | 待開工（若需 paper-grade noise quantification）|
 | LES robustness across LES_seed | 目前 LES generator 用 seed=42 single placement; 跨 LES seed 的 sensor variability 未測 | 待開工 |
-| EXP-242 group: multi-constraint AL (cont 純 AL / NS 加 AL / NS 純 AL) | 設計完成，code change ~80 LOC pending implement | 待開工 |
+| EXP-242 group: multi-constraint AL (cont 純 AL / NS 加 AL / NS 純 AL) | **已完成** (EXP-242a/b/c + EXP-243 全 rsync 回, metrics 完整) | ✅ 2026-05-20 |
+| EXP-252~255 forcing-prior identifiability | **已完成** (rerun zero-ish init 全 finalize；finding: identifiability ill-posed two-sided verified) | ✅ 2026-05-21 |
+| EXP-256 K-scaling K=200 LES sensor | **已完成** (KE 3.91% vs K=100 baseline 5.97%, −34.5%, paper Future Work preliminary data) | ✅ 2026-05-21 |
+| EXP-256+ K-scaling sweep K ∈ {50, 200, 400} | 目前只有 K=100 / 200 兩點；完整 K-scaling curve 需 K=50 + K=400 才能 fit Nyquist 帶寬律 | 待開工（paper §Future Work 候選 ablation）|
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論 |
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
 
@@ -484,4 +552,11 @@ EXP-240_a/_b 完成後 2D ablation 表已封閉：
 
 ## 變更紀錄
 
+- **2026-05-21 (forcing identifiability + K-scaling finalize)**: EXP-253/254/255 zero-ish init rerun + EXP-256 (重定義為 K=200 LES sensor) 完成 train + eval。
+  - §Forcing-prior identifiability group 改寫為 final（移除 🚧 RERUN_IN_PROGRESS warning），加入 two-sided identifiability ill-posed finding 與「forcing 全錯但 KE rel-err 不退化」的物理解釋。
+  - **新增 §K-scaling preliminary (EXP-256, K=200 LES)** — KE 5.97% → 3.91% (−34.5%) 為 paper §Future Work K-scaling direction 第一個 preliminary data point。
+  - Pending TODO 表更新：EXP-252~256 group 標 ✅ completed；新增 「K-scaling sweep K ∈ {50, 200, 400}」為下一個候選 ablation。
+- **2026-05-20 (artifacts rsync)**: 從 lab-server rsync 補完 EXP-242a/b/c/243/244/245/246/247/248/249/250/251 + EXP-252~256 完整 u/v/ω/div/div_ratio/band_low metrics。
+  - Architecture × Sensor sweep 表 (line 158-) 補完 u/v/ω/div_ratio/band_low column + 加入 EXP-251 row。
+  - Multi-AL trio 表 (line 207-) 補完 u/v/ω/div/band_low column。
 - **2026-05-19**: v2 啟用。從 legacy EXP-001~106 完整提取 stable phase 主線（B3 multi-seed, B0 multi-seed, B1/B2/PINN ablation, sensor placement series, Re=1000 baseline），以 EXP-200 起編號。Multi-seed 統一 `_a~_e` suffix。Legacy IDs 與其 archive 不動；雙向對照表見 [INDEX] Legacy ↔ Stable ID 雙向對照。

@@ -1,0 +1,103 @@
+# configs/exp_257_les_K400.toml
+# What: EXP-257 — K-scaling sweep 第三點：B3 + 1-head + LES_T50 + K=400 + 1024 collo + seed=42
+#       對齊 EXP-245 (K=100) / EXP-256 (K=200) baseline 主線, 唯一改動 sensor density K=200 → K=400.
+#
+# Why: K-scaling sweep 第三點。前兩點:
+#        K=100 (EXP-245, LES_T50): KE 5.97 % (注: 5.97 為 1024 collo + LES_T50 final, 不是早期 6.92)
+#        K=200 (EXP-256, LES_T50): KE 3.91 % (−34.5 %)
+#      補 K=400 後可 fit Nyquist 帶寬律 KE ∝ 1/√K。
+#      工程可遷移配置 (LES sensor) + 對齊主線 hyperparams.
+#
+# 預測（per Nyquist scaling KE ~ 1/√K 簡化模型）:
+#   - K=100 → 5.97 % (base)
+#   - K=200 → 3.91 % (實測, ratio 0.655)
+#   - K=400 預測: 5.97 × (100/400)^0.5 × scale_factor ≈ 5.97 × 0.5 × 0.875 ≈ 2.6 %
+#     (scale_factor 0.875 來自 K=200 observed/Nyquist-predicted)
+#
+# Falsifiability:
+#   (a) KE ≤ 3 % AND k_f amp ratio > 0.99 → K-scaling 三點 fit Nyquist 帶寬律, paper §Future Work claim 強
+#   (b) KE 3-3.9 % AND k_f amp ≈ 0.99 → improvement 收斂, 邊際遞減清楚
+#   (c) KE > 4 % → K-scaling 在 K=400 已 saturate 至其他 bottleneck (collocation? architecture capacity?)
+#
+# 唯一改動 vs EXP-256 (= stable/exp_256.toml = exp_256_les_K200.toml):
+#   - sensor_jsons / sensor_npzs 改 K=400 LES_T50 (新生成於 2026-05-21)
+#   - artifacts_dir 標 exp257
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K400_N256_t0-5_si100_les_n256_T50standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K400_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp257-les-K400"
