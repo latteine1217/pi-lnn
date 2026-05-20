@@ -2,7 +2,7 @@
 
 > **Status**: Stable phase（2026-05-19 啟用）。研究已脫離前期探索（EXP-001~106），進入主線收斂、論文寫作、多 seed 統計確認階段。
 >
-> **Scope**: 此檔負責 **EXP-200 起所有 stable phase 實驗** 的 state 紀錄。Legacy EXP-001~106 全部保留在 [`docs/experiment_log.md`](experiment_log.md) 與其 archive，不動。
+> **Scope**: 此檔負責 **EXP-200 起所有 stable phase 實驗** 的 state 紀錄。Legacy EXP-001~106 已全部移至 [`docs/archive/`](archive/)，不動。
 >
 > **Numbering convention（穩定階段）**:
 > - `EXP-200~219`: Architecture baselines + ablations
@@ -17,12 +17,12 @@
 
 | 檔 | 內容 | 何時讀 |
 |---|---|---|
-| **本檔** `docs/experiment_log_v2.md` | Stable phase STATE/INDEX、legacy 對照表 | **stable phase 任何實驗變更前** |
-| [`docs/experiment_log.md`](experiment_log.md) | Legacy STATE（EXP-001~106 結論層）| 若 stable phase 結論不足，往回查 |
-| [`docs/experiment_archive_kolmogorov.md`](experiment_archive_kolmogorov.md) | EXP-001~063 詳細 RECORD | 早期實驗追溯 |
-| [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md) | EXP-064~106 詳細 RECORD（含 v2 axis-fix）| 近期 ablation 判讀 |
-| [`docs/cylinder_log.md`](cylinder_log.md) | Cylinder 主線 | Cylinder 任務 |
-| [`docs/diagnostics_log.md`](diagnostics_log.md) | denorm bug + CFD-rigour Q5/Q7/Q8 + Forward CFD | 評估值質疑 |
+| **本檔** `docs/experiment_log_v2.md` | **唯一 active 主檔** — Stable phase STATE/INDEX、legacy 對照表 | **任何實驗變更前都讀這個** |
+| [`docs/archive/experiment_log.md`](archive/experiment_log.md) | Legacy STATE（EXP-001~106 結論層）| 若 stable phase 結論不足，往回查 |
+| [`docs/archive/experiment_archive_kolmogorov.md`](archive/experiment_archive_kolmogorov.md) | EXP-001~063 詳細 RECORD | 早期實驗追溯 |
+| [`docs/archive/experiment_archive_kolmogorov_post_k100.md`](archive/experiment_archive_kolmogorov_post_k100.md) | EXP-064~106 詳細 RECORD（含 v2 axis-fix）| 近期 ablation 判讀 |
+| [`docs/archive/cylinder_log.md`](archive/cylinder_log.md) | Cylinder 主線 | Cylinder 任務 |
+| [`docs/archive/diagnostics_log.md`](archive/diagnostics_log.md) | denorm bug + CFD-rigour Q5/Q7/Q8 + Forward CFD | 評估值質疑 |
 | [`docs/adr/`](adr/) | 設計決策 | 設計權衡追溯 |
 | [`docs/paper_framing_draft.md`](paper_framing_draft.md) | 論文 framing | 寫作 |
 
