@@ -1,0 +1,100 @@
+# configs/exp_252_forcing_baseline.toml
+# What: EXP-252 — forcing identifiability 系列 baseline 對照（A, k_f 全已知）
+#
+# Why: EXP-253~255 要回答「PI-CON 能否從 sensor + PDE residual 反推未知 forcing 參數」。
+#      EXP-252 為 same collo/sensor/seed 的全知對照，避免「學了 forcing 結果變差」
+#      跟 collo/sensor 變化混淆。
+#
+# 設定對齊主線（per user 選項 C, 工程可遷移版）:
+#   - num_physics_points = 1024（同 EXP-241_b/EXP-244/EXP-245 主線）
+#   - sensor = LES_T50 (= EXP-221 sensor, real-world DNS-free placement)
+#   - seed = 42（同 EXP-200_a/EXP-241_b/EXP-244/EXP-245 主 seed）
+#   - 1-head decoder（同 EXP-241_b/EXP-245）
+#
+# 對標: EXP-245 (B3 + 1-head + LES_T50 + 1024 collo + 全知 forcing) KE 6.92%
+#       → EXP-252 結果應該完全等價 EXP-245（recipe 完全相同, 不同 seed?）
+#       實際上 seed=42 vs seed=2 → EXP-245 用 seed=42, EXP-252 也 seed=42 → 完全 reproduce
+#       這 baseline 主要為 EXP-253~255 提供「同 randomness 對照」
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+# Forcing: both hardcoded (全知 baseline)
+learn_forcing_A = false
+learn_forcing_k_f = false
+
+iterations = 10000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp252-forcing-baseline"
