@@ -12,6 +12,8 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "dns_paths": None,
     "re_values": None,
     "observed_sensor_channels": ["u", "v"],
+    "sensor_noise_std": 0.0,          # per-channel std-relative Gaussian additive noise（0 = clean）；
+                                       # e.g. 0.05 = 5% noise; injected pre-normalize, seed-locked。
     "fourier_harmonics": 8,
     "fourier_embed_dim": 0,   # 0 = 使用舊版確定性諧波；>0 = 啟用 LearnableFourierEmb
     "d_model": 64,

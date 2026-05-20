@@ -65,7 +65,9 @@ class KolmogorovDataset:
         observed_channel_names: tuple[str, ...] | list[str] | None = None,
         train_ratio: float = 0.8,
         seed:        int   = 42,
+        sensor_noise_std: float = 0.0,
     ) -> None:
+        # Why: 訓練資料 split / noise injection 共用 RNG，種子由 caller 統一控制。
         rng = np.random.default_rng(seed)
 
         # ── 感測器位置（物理座標）────────────────────────────────────
@@ -90,6 +92,22 @@ class KolmogorovDataset:
         self.sensor_time = npz["time"].astype(np.float32)   # [T]
         self.observed_channel_names = tuple(observed_names)
         raw_sensor_vals = np.stack(observed_fields, axis=-1)  # [K, T, C]
+
+        # ── Measurement noise injection（per-channel std-relative Gaussian additive）─
+        # Why: 模擬真實 sensor 量測誤差。Noise level = σ_noise / σ_signal_per_channel；
+        #      e.g. 0.05 = 5% noise = 加 std=0.05·σ(u) 的 Gaussian 到 u channel。
+        #      在 normalize 之前注入，保持物理意義（noise 量級隨 signal std 縮放）。
+        #      RNG 用 caller seed → reproducible across reruns。
+        self.sensor_noise_std = float(sensor_noise_std)
+        if self.sensor_noise_std > 0.0:
+            per_channel_std = raw_sensor_vals.std(axis=(0, 1))  # [C]
+            noise = rng.normal(
+                loc=0.0,
+                scale=self.sensor_noise_std * per_channel_std[None, None, :],
+                size=raw_sensor_vals.shape,
+            ).astype(np.float32)
+            raw_sensor_vals = raw_sensor_vals + noise
+
         self.observed_channel_mean = raw_sensor_vals.mean(axis=(0, 1)).astype(np.float32)
         self.observed_channel_std = raw_sensor_vals.std(axis=(0, 1)).astype(np.float32)
         self.observed_channel_std = np.maximum(self.observed_channel_std, 1.0e-6).astype(np.float32)

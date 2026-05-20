@@ -87,6 +87,7 @@ def train_picon_kolmogorov(
                 observed_channel_names=tuple(args["observed_sensor_channels"]),
                 train_ratio=0.8,
                 seed=args["seed"],
+                sensor_noise_std=float(args.get("sensor_noise_std", 0.0)),
             )
             for i in range(len(args["re_values"]))
         ]

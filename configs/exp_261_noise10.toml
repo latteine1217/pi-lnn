@@ -1,0 +1,90 @@
+# configs/exp_261_noise10.toml
+# What: EXP-261 — sensor noise robustness ablation @ 10 %（base on EXP-245 baseline, B3 + LES_T50 + 1024 collo + seed=42）
+# Why: 真實工程量測有 1–10 % 量測噪聲 (per Mons 2025 候選 mean-enforced loss);
+#      建立 noise degradation curve, 量化 PI-CON 在不同 noise level 下的 KE rel-err 退化幅度。
+#
+# 對標:
+#   - EXP-245 (clean baseline): KE 5.97 %
+#   - EXP-258 (1 % noise), EXP-259 (3 %), EXP-260 (5 %), EXP-261 (10 %)
+#
+# Falsifiability:
+#   (a) KE degradation 線性 / 平穩，1–10 % noise → KE rel-err < 10 % → PI-CON robust
+#   (b) KE degradation 非線性陡增（如 5 % noise → KE > 12 %）→ 需 noise-aware loss
+#   (c) noise=10 % 仍 < EXP-224 random K=100 (13.25 %) → 架構優於 worse sensor placement
+#
+# 唯一改動 vs EXP-245 (= stable/exp_245.toml):
+#   - sensor_noise_std = 0.1（per-channel std-relative Gaussian additive, RNG seed=42）
+#   - artifacts_dir → exp261
+#
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+sensor_noise_std = 0.1
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 10000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp261-noise10"
