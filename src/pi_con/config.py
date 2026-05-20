@@ -115,7 +115,10 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "warmup_steps": 0,
     "time_marching": True,
     "time_marching_start": 0.5,
-    "time_marching_warmup": 0.5,
+    "time_marching_warmup": 0.5,        # legacy ratio: tm_warmup = ratio * iterations
+    "time_marching_warmup_steps": 0,     # 新 key: 直接 fixed step count（>0 時覆寫 ratio key）；
+                                          # default 0 = 用舊 ratio。Why: 與 total iterations 解耦,
+                                          # 改 iterations 不會 implicit 改 warmup。
     "domain_length": 1.0,
     "use_periodic_domain": True,
     # NS residual 路徑是否反正規化 model output 到物理量級。

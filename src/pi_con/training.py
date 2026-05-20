@@ -561,7 +561,10 @@ def train_picon_kolmogorov(
     use_tm = bool(args["time_marching"])
     tm_t_start = float(args["time_marching_start"])
     tm_t_end = float(datasets[0].sensor_time[-1])
-    tm_warmup = int(args["time_marching_warmup"] * args["iterations"])
+    # Why: time_marching_warmup_steps (>0) 為新「絕對 step」key，覆寫舊 ratio key。
+    # 改 iterations 不會 implicit 改 warmup。Default 0 → fallback 用 ratio key 保留 backward compat。
+    _tm_warmup_steps = int(args.get("time_marching_warmup_steps", 0))
+    tm_warmup = _tm_warmup_steps if _tm_warmup_steps > 0 else int(args["time_marching_warmup"] * args["iterations"])
 
     # Causal weighting setup（PINN: Wang, Sankaran, Perdikaris 2022）
     use_causal = bool(args.get("use_causal_weighting", False))

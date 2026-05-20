@@ -1,0 +1,104 @@
+# configs/exp_262_re1e6_baseline.toml
+# What: EXP-262 — Re=10⁶ baseline 延伸（base on EXP-245: B3 + LES_T sensor + 1024 collo + seed=42）
+#       第一次測試 PI-CON 是否能 generalize 到更高 Re 的 dynamical regime。
+#
+# Why: EXP-245~261 全部 Re=10⁴；Re=10⁶ 是 turbulent regime 高 1 order of magnitude，
+#      U_rms 更大、T_eddy 更短、小尺度 dissipation η ~ Re^(-3/4) 更小。
+#      paper §Future Work cross-Re generalisation 直接證據點。
+#
+# Data sources:
+#   - DNS: jaxpi pre-computed kolmogorov_Re1e6_N512_T5_ds4.npy (N=512, T=5, dt_save=0.05, 101 frames)
+#     源自 N=2048 DNS downsample ×4. forcing A=0.1, k_f=2（與 EXP-245 完全對齊）
+#   - LES: home-gpu generate kolmogorov_les_Re1e6_N512_T5.npy (N=512, T=5, hyperviscosity closure,
+#     stand_alone init=random; **T=5 ≈ 2.8 T_L 為 marginally converged**, caveat 需標)
+#   - Sensor: K=100 QR-pivot from LES → DNS grid（engineering pipeline preserved）
+#
+# 對齊 EXP-245 hyperparams 的關鍵改動:
+#   - dns_paths / sensor_jsons / sensor_npzs → Re=1e6 files
+#   - re_values: 10000 → 1000000
+#   - num_physics_points: 1024 → 512 (N=512 + Re=1e6 高 vorticity 預防 OOM, 同 EXP-257 path)
+#   - time_marching_warmup_steps: 2000 (新 fixed-step key; 取代舊 ratio key 0.3 行為,
+#     讓 warmup 與 total iterations 解耦)
+#
+# Falsifiability:
+#   (a) KE rel-err ≤ 15 % AND k_f amp ratio > 0.7 → PI-CON Re=1e6 generalize, architecture cross-Re viable
+#   (b) KE 15-30 % → marginal, 需 multi-seed + 更長訓練（iterations > 10k）才能評估
+#   (c) KE > 30 % OR div ratio > 10% → architecture 在 Re=1e6 失效, 需 capacity / dt 調整
+#
+# Caveats:
+#   - LES T=5 ≈ 2.8 T_L marginally converged (vs Re=1e4 EXP-221 LES T=50 = 26.5 T_L)
+#     → sensor placement quality 弱於 EXP-245 baseline; 但 home-gpu T=50 Re=1e6 LES wall ~10h CPU
+#   - DNS frames 101 (vs Re=1e4 的 201) → eval grid 較粗，誤差 metric variance 可能較大
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T5_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_Re1e6_N512_T5_ds4.npy"]
+re_values = [1000000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3                # legacy ratio (被下方 _steps 覆寫，留作 fallback)
+time_marching_warmup_steps = 2000          # NEW: fixed step count, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 10000
+num_physics_points = 512                   # N=512 + Re=1e6 高 vorticity → 預防 OOM
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re1000000-exp262-baseline"
