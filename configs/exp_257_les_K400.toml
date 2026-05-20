@@ -22,6 +22,8 @@
 # 唯一改動 vs EXP-256 (= stable/exp_256.toml = exp_256_les_K200.toml):
 #   - sensor_jsons / sensor_npzs 改 K=400 LES_T50 (新生成於 2026-05-21)
 #   - artifacts_dir 標 exp257
+#   - num_physics_points 1024 → 512（K=400 + 1024 collo OOM at 22.69/24 GB on RTX 3090；
+#     降 collo 是 memory 妥協，K-scaling 三點對比時須標明 EXP-257 與 EXP-245/256 collo 不同）
 
 [train]
 sensor_jsons = [
@@ -65,7 +67,7 @@ kolmogorov_k_f = 2.0
 kolmogorov_A = 0.1
 
 iterations = 10000
-num_physics_points = 1024
+num_physics_points = 512
 learning_rate = 1e-3
 lr_schedule = "soap"
 use_schedule_free = true
