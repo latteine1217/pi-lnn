@@ -41,39 +41,54 @@
 
 ## [STATE] Current Baselines
 
-### Re=10000 主線（**EXP-245 baseline**, 工程可遷移版；EXP-200/241_b/244/251 為延伸論述或 legacy reference）
+### Re=10000 主線 = **`EXP-245`**（工程可遷移配置）
 
-| 項目 | **EXP-245 baseline**（NEW）| EXP-251（4-head 延伸）| EXP-241_b（DNS 對照）| EXP-244（DNS+4-head）| EXP-200_a~e（legacy n=5）|
+```
+Baseline ID:  EXP-245
+Config:       configs/stable/exp_245.toml → exp_245_b3_les_T50.toml
+Architecture: B3 (1-head cross-attn, minimal)
+Sensor:       LES_T50  (= EXP-221, real-world DNS-free placement)
+Collocation:  1024
+Seed:         42
+KE rel-err:   6.92 %   (single seed, n=1; multi-seed n≥3 為 高優先 待補)
+```
+
+#### EXP-245 完整 paper-grade metrics
+
+| Metric | 值 |
+|---|---|
+| **KE rel-err** (all / train / val) | **6.92 % / 6.72 / 7.71** |
+| u rel-L2 | 14.51 % |
+| v rel-L2 | 19.25 % |
+| ω rel-L2 | 44.32 % |
+| div L2 mean | 0.0492 (DNS floor 0.0923) |
+| ek_ratio_kf @ last | — |
+| Train wall-time (RTX 3090) | **1 h 19 m 53 s** |
+| Eval wall-time (RTX 3090) | ~80 s / snapshot batch |
+| Artifact | `artifacts/kolmogorov/deeponet-cfc-re10000-exp245-b3-les-T50/` |
+
+#### EXP-245 vs 延伸/對照配置（all single seed=42, 1024 collo, 10k steps）
+
+| 角色 | ID | Architecture | Sensor | KE rel-err | Δ vs baseline |
 |---|---|---|---|---|---|
-| Baseline ID | `EXP-245` | `EXP-251` | `EXP-241_b` | `EXP-244` | `EXP-200` |
-| 角色 | **主 baseline**（工程可遷移）| 4-head 延伸 | DNS 對照 | 4-head + DNS 上限 | legacy reference（n=5 統計）|
-| 架構 | B3 (1-head) | B3 + **4-head** | B3 (1-head) | B3 + 4-head | B3 (1-head) |
-| Sensor | **LES_T50** (real-world) | LES_T50 | DNS | DNS | DNS |
-| collo | 1024 | 1024 | 1024 | 1024 | 64 |
-| seed | 42 | 42 | 42 | 42 | 42/1/2/3/4 |
-| **KE rel-err** | **6.92 %** 🥇 | 6.68 % (-0.24 pp) | 5.97 % (-0.95 pp) | 5.51 % (-1.41 pp) | 10.77 ± 0.52 % |
-| 工程可遷移性 | ✅ 強 | ✅ 強 | ❌ (DNS) | ❌ (DNS) | ❌ (DNS) |
-| 統計地位 | single seed | single seed | single seed | single seed | **n=5 multi-seed** |
-| 待補 | n=3-5 multi-seed | n=3-5 multi-seed | — | — | (legacy, 不再延伸) |
+| **🥇 Main baseline** | **EXP-245** | B3 (1-head) | **LES_T50** | **6.92 %** | — |
+| 4-head 延伸 | EXP-251 | B3 + **4-head** | LES_T50 | 6.68 % | **-0.24 pp** |
+| DNS 對照（單頭）| EXP-241_b | B3 (1-head) | DNS | 5.97 % | **-0.95 pp** |
+| DNS 對照（4-head 上限）| EXP-244 | B3 + **4-head** | DNS | 5.51 % | **-1.41 pp** |
+| Legacy reference | EXP-200_a~e | B3 (1-head) | DNS | 10.77 ± 0.52 % (n=5) | +3.85 pp |
 
-**Baseline 升級邏輯（2026-05-20）**:
-- 主 baseline 對齊 paper 主訴「工程現場無 DNS」→ sensor 必須 LES proxy
-- 對齊主線 hyperparams (1024 collo, 1-head minimal architecture, seed=42)
-- EXP-245 = 「工程可遷移 + 主線 collo + minimal arch」唯一符合配置
-- EXP-200_a~e 仍保留為 legacy reference（n=5 統計穩定但 DNS + 64 collo 工程不對齊）
-- EXP-241_b / EXP-244 為 DNS upper-bound reference（看 oracle sensor 可達多低）
-- EXP-251 為主 baseline + 4-head 延伸（multi-head reshape inductive bias）
-| u L2 | 16.38 % | 20.69 ± 0.46 % |
-| v L2 | 19.77 % | 24.79 ± 0.51 % |
-| ω L2 | 45.14 % | 52.65 ± 0.56 % |
-| div L2 | 0.046 | 0.066 ± 0.001 |
-| ek_ratio_kf | 0.957 | 0.920 ± 0.020 |
-| 訓練 wall (RTX 3090) | 1 h 19 m 30 s | (multi-seed 在 M3 跑)|
-| 訓練 wall (M3 base 4P+4E, MPS) | 未測 | ~2 h 24 m ± 4 m / seed |
-| GPU util | 75 % (throughput-bound) | 13-34 % (latency-bound) |
-| Inference cost | 待 paper-grade benchmark on RTX 3090 | encoder 71 ms + query 1.5 ms / snapshot (M3 baseline) |
-| 統計地位 | single seed，**待 n≥3 multi-seed 確認 std** | n=5 統計穩定 |
-| 引用 | EXP-241 ablation 詳細數值見下方 group | [`artifacts/seed_statistics.json`](../artifacts/seed_statistics.json) |
+**Baseline 選擇邏輯**:
+
+| 條件 | EXP-245 | 為何排除其他 |
+|---|---|---|
+| 工程可遷移（real-world 無 DNS）| ✅ LES_T50 | EXP-241_b/EXP-244/EXP-200_a~e 全用 DNS sensor |
+| 主線 collocation density (1024) | ✅ 1024 | EXP-200_a~e 是 64 (legacy) |
+| Minimal architecture（4-head 屬延伸）| ✅ 1-head | EXP-244/EXP-251 是 4-head (延伸論述) |
+
+**延伸 quantification（vs baseline EXP-245 6.92 %）**:
+- **4-head delta**: -0.24 pp（EXP-251 vs EXP-245，同 LES_T50）
+- **DNS oracle gap**: -0.95 pp（EXP-241_b vs EXP-245，同 1-head）
+- **4-head + DNS oracle combined upper bound**: -1.41 pp（EXP-244 vs EXP-245）
 
 **結案更新（精準版，per EXP-241_b 1024 collo band-energy 分析, 2026-05-19）**:
 
