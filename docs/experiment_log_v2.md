@@ -90,18 +90,18 @@ KE rel-err:   6.92 %   (single seed, n=1; multi-seed n≥3 為 高優先 待補)
 - **DNS oracle gap**: -0.95 pp（EXP-241_b vs EXP-245，同 1-head）
 - **4-head + DNS oracle combined upper bound**: -1.41 pp（EXP-244 vs EXP-245）
 
-**結案更新（精準版，per EXP-241_b 1024 collo band-energy 分析, 2026-05-19）**:
+**結案更新（per EXP-241_b 1024 collo band-energy 分析, 2026-05-19）— K=100 上限分層**:
 
-| 主張 | 修訂 |
+| 主張 | 狀態 |
 |---|---|
-| K=100 = upper bound on **mid/high bands (k≥8)** | **仍成立** ✅ — band_mid/high @ t=5 ≈ 100 %（baseline 99.97 % → 1024 collo 99.99 %, 無改善）; energy spectrum 在 k~5.6 (Nyquist k_max=√(K/π)) 之後陡降至 DNS 之下 10⁻²~10⁻⁶ |
-| K=100 = upper bound on **low band (k≤8)** | **被 falsify** ❌ — 64 collo physics estimator 不夠密集；1024 collo 把 band_low @ t=5 從 3.62 → 2.41 %（-34 %） |
-| K=100 = upper bound on **整體 KE** | **被 falsify** ❌ — low band 佔 94.4 % 能量，low band 改善 dominate 整體 KE (10.77 → 5.97 %) |
+| K=100 upper bound on **mid/high (k≥8)** | ✅ **仍成立**（Nyquist 硬上限）|
+| K=100 upper bound on **low (k≤8)** | ❌ falsify（band_low 3.62→2.41 %）|
+| K=100 upper bound on **整體 KE** | ❌ falsify（low band 佔 94.4 % 能量, 10.77→5.97 %）|
 
-**修正後 binding constraints 分層**:
-1. **Mid/high band (k≥8)**: K=100 sensor → Nyquist 硬上限，**任何 collocation density 都無法突破**
-2. **Low band (k≤8)**: collocation density 為 binding constraint, 1024 collo 仍未 saturated（vs 256 仍有 -0.9 pp 改善），可能 4096 還能再降
-3. **div L2 / NS residual consistency**: collocation density 直接決定 estimator 密度 → 64→1024 collo 讓 div 從 0.184 → 0.046（-75 %）
+**Binding constraints 分層**:
+1. **Mid/high band (k≥8)**: K=100 Nyquist 硬上限 — collocation density 無法突破
+2. **Low band (k≤8)**: collocation density 為 binding constraint（64→1024 仍未 saturated）
+3. **div L2 / NS consistency**: collocation density 主導（64→1024 div 0.184→0.046, -75 %）
 
 ### Re=1000 主線（EXP-230 reference baseline）
 
