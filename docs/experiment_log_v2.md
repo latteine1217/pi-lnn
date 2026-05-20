@@ -28,6 +28,20 @@
 
 ---
 
+## [STATE] Metrics Glossary
+
+| Metric | 定義 | 解讀 |
+|---|---|---|
+| `KE rel-err` | `\|0.5⟨u²+v²⟩_pred − 0.5⟨u²+v²⟩_DNS\| / 0.5⟨u²+v²⟩_DNS`, 取 t=5 | 全頻段 integral 能量誤差 |
+| `u/v/ω rel-L2` | `‖field_pred − field_DNS‖₂ / ‖field_DNS‖₂` | pointwise 場誤差 |
+| `div L2 mean` | `‖∇·u_pred‖₂` over t | incompressibility 違反度（DNS floor ~0.09 為 numerical truncation）|
+| **`ek_ratio_kf_last`** | **`E_pred(k=k_f) / E_DNS(k=k_f)`** at t=5（spectrum value 比）| forcing-injection wavenumber 的能量是否精準（1.0 = perfect, <1 under-driven, >1 over-shoot）|
+| `kf_amplitude_ratio` | `\|û_pred(k_f)\| / \|û_DNS(k_f)\|` (mode coefficient amplitude) | 同上但用複數 mode coeff 拆 amplitude/phase |
+| `kf_phase_err` | `arg(û_pred) − arg(û_DNS)` at k=k_f (radians) | forcing mode 相位差，0 = 同相 |
+| `band_energy_rel_err_last` | 低/中/高 band 各自 KE rel-err at t=5 | band_low (k≤8) / band_mid (8<k≤16) / band_high (k>16) |
+
+---
+
 ## [STATE] Data Version（與 legacy 一致，不變）
 
 - DNS（Re=10000）: [`data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy`](../data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy)
