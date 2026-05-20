@@ -58,9 +58,9 @@ kolmogorov_A = 0.1            # 真值（僅 metric 對照用）
 # Learn both A and k_f
 learn_forcing_A = true
 learn_forcing_k_f = true
-forcing_A_init = 0.05         # 50% of truth
-forcing_k_f_init = 4.0        # 2× truth
-forcing_k_f_min = 1.0
+forcing_A_init = 0.001         # 50% of truth
+forcing_k_f_init = 0.01        # 2× truth
+forcing_k_f_min = 0.001
 forcing_k_f_max = 8.0
 
 iterations = 10000

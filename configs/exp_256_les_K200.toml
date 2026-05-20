@@ -1,27 +1,31 @@
-# configs/exp_253_learn_kf.toml
-# What: EXP-253 (task 1) — 學 forcing wavenumber k_f，A 已知 (=0.1)
+# configs/exp_256_les_K200.toml
+# What: EXP-256 — base on EXP-221 (B3 + 1-head + LES_T50 + seed=42 主線) 但 sensor K=100 → K=200
+#       對齊主線 collo=1024.
 #
-# Why: 工程場景：force 大小已知（量測過 thrust），但波長配置未知（geometry 不明）。
-#      k_f 在 sin 內非線性 entering，識別難度高於 A。
+# Why: 增加 sensor density 看 K=200 LES proxy 是否突破 K=100 Nyquist 上限 (k_max ≈ √(100/π) ≈ 5.64
+#      → √(200/π) ≈ 7.98). 工程可遷移配置 (LES sensor) + 對齊 EXP-245 baseline 主線
+#      hyperparams, 唯一改動 sensor density.
 #
-# Hypothesis: sigmoid bound [1, 8] 提供 well-conditioned search。init=4 對應 sigmoid raw ≈ 0.43，
-#             距離真值 k_f=2 有 2×。若可識別：k_f_learned 收斂到 1.95-2.05，KE rel-err 7-12%.
+# 對標:
+#   - EXP-245 (K=100 LES_T50 baseline): KE 6.92 %
+#   - EXP-251 (K=100 LES_T50 + 4-head): KE 6.68 %
+#   - 預期 EXP-256 K=200 LES_T50: KE 可能再降（band_mid 可能突破）
 #
 # Falsifiability:
-#   (a) k_f 收斂 1.95-2.05 + KE 7-12% → 非線性 identifiability OK
-#   (b) k_f 收斂偶倍頻 4.0 或半倍頻 1.0 → 多解問題（PDE residual 對 k_f 多模）
-#   (c) k_f 卡邊界 1.0 或 8.0 → sigmoid bound 過緊或 gradient 斷
+#   (a) KE < 6.5 % AND band_mid_last < 90 % → K=200 突破 K=100 Nyquist, paper finding strong
+#   (b) KE ≈ 6.5-7.5 % AND band_mid_last ≈ 100 % → K=100 Nyquist 仍是 sensor 信息上限
+#   (c) KE > 8 % AND div / phys_loss 退步 → K=200 over-density 反而干擾優化
 #
-# 對標 EXP-252 baseline (全知 forcing) 看 learn k_f 對 KE 的 cost.
-#
-# 設定對齊 EXP-252（option C 工程可遷移版）唯一改動 forcing flag + init.
+# 唯一改動 vs EXP-245 (= stable/exp_245.toml = exp_245_b3_les_T50.toml):
+#   - sensor_jsons / sensor_npzs 改 K=200 LES_T50 (新生成於 2026-05-20)
+#   - artifacts_dir 標 exp256
 
 [train]
 sensor_jsons = [
-  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone.json",
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100_les_n256_T50standalone.json",
 ]
 sensor_npzs = [
-  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K200_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
 ]
 dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
 re_values = [10000.0]
@@ -54,16 +58,8 @@ time_marching = true
 time_marching_start = 0.5
 time_marching_warmup = 0.3
 domain_length = 1.0
-kolmogorov_k_f = 2.0          # 真值（僅 metric 對照用）
-kolmogorov_A = 0.1            # 真值（不學）
-
-# Learn k_f only
-learn_forcing_A = false
-learn_forcing_k_f = true
-forcing_A_init = 0.1          # 與 truth 對齊
-forcing_k_f_init = 0.01        # 2× truth, 刻意偏離
-forcing_k_f_min = 0.001
-forcing_k_f_max = 8.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
 
 iterations = 10000
 num_physics_points = 1024
@@ -101,4 +97,4 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp253-learn-kf"
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp256-les-K200"
