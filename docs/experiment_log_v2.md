@@ -41,15 +41,17 @@
 
 ## [STATE] Current Baselines
 
-### Re=10000 主線（**EXP-244 NEW BEST**, single seed; EXP-200 multi-seed n=5 為統計參照）
+### Re=10000 主線（**EXP-200_a~e baseline**, n=5 multi-seed；EXP-241_b/244 為延伸論述）
 
-| 項目 | EXP-244（**stable phase new best**）| EXP-241_b (previous best) | EXP-200_a~e（multi-seed reference）|
+| 項目 | **EXP-200_a~e baseline**（n=5）| EXP-241_b（collo 延伸）| EXP-244（4-head 延伸） |
 |---|---|---|---|
-| Baseline ID | `EXP-244` (single seed=42) | `EXP-241_b` | `EXP-200` (n=5 multi-seed) |
-| 架構 | B3 + **4-head cross-attn** | B3 (1-head) | B3 |
-| Recipe 差異 | 1024 collo + 4-head | 1024 collo + 1-head | 64 collo + 1-head |
-| 其餘 hyperparams | 同 EXP-200_a | 同 EXP-200_a | — |
-| **KE rel-err** | **5.51 %** 🥇 | 5.97 % | 10.77 ± 0.52 % |
+| Baseline ID | `EXP-200` (n=5 multi-seed, seed=42/1/2/3/4) | `EXP-241_b` (single, seed=42) | `EXP-244` (single, seed=42) |
+| 角色 | **主 baseline**（統計穩定）| collo density 延伸 | 4-head 延伸 |
+| 架構 | B3 (1-head) | B3 (1-head) | B3 + **4-head cross-attn** |
+| Recipe 差異 | 64 collo | **1024 collo** (16×) | 1024 collo + 4-head |
+| **KE rel-err** | **10.77 ± 0.52 %** | 5.97 % (-4.80 pp) | 5.51 % (-5.26 pp) |
+| 工程可遷移性 | 無（DNS sensor）| 無（DNS sensor）| 無（DNS sensor）|
+| 工程可遷移版本 | (未測 multi-seed LES) | EXP-245 (1-head + LES_T50) 6.92 % | **EXP-251**（pending）|
 | u L2 | 16.38 % | 20.69 ± 0.46 % |
 | v L2 | 19.77 % | 24.79 ± 0.51 % |
 | ω L2 | 45.14 % | 52.65 ± 0.56 % |
@@ -127,9 +129,9 @@
 
 完整 2×3 表見 `[STATE] Architecture × Placement 2×3 完整表` section。
 
-### Architecture × Sensor sweep at 1024 collocation（EXP-244 + EXP-245~250, 2026-05-20 完成）— **EXP-244 新 stable best**
+### Architecture × Sensor sweep at 1024 collocation（EXP-244 + EXP-245~250, 2026-05-20 完成）— **延伸論述 group**
 
-全 1024 collo + seed=42 對齊比較。EXP-244 為 4-head cross-attn DNS baseline; EXP-245~250 為 6 個 architecture 配 EXP-221 LES_T50 sensor（real-world DNS-free）。
+全 1024 collo + seed=42 對齊比較。EXP-244 為 4-head cross-attn DNS baseline; EXP-245~250 為 6 個 architecture 配 EXP-221 LES_T50 sensor（real-world DNS-free）。**Stable phase 主 baseline 仍是 EXP-200_a~e (n=5 multi-seed)**；本 group 為「collo + 4-head + LES placement」延伸論述。
 
 | ID | Status | Architecture | Sensor | KE rel-err | div L2 | Train wall (RTX 3090) |
 |---|---|---|---|---|---|---|
@@ -163,8 +165,8 @@
 5. **PINN tanh outlier 13.09 %** confirm SiLU > tanh activation choice（EXP-250 vs EXP-249 +2.96 pp）
 
 **Take-away for paper**: 
-- 主線升級 EXP-241_b (5.97%) → **EXP-244 (5.51%) 4-head**
-- LES_T50 + 4-head + 1024 collo (尚未測試) 可能再降；建議下一輪 EXP-251 = EXP-244 + LES_T50
+- **主 baseline 維持 EXP-200_a~e (10.77 ± 0.52 %, n=5)** — single-seed 4-head/1024 collo 結果為「延伸 lever」論述，不取代 multi-seed baseline 直到有 multi-seed confirmation
+- EXP-241_b (1024 collo) + EXP-244 (4-head) 都是 DNS-only — 工程可遷移版本 EXP-245 (1-head LES_T50 6.92%) + **EXP-251 (4-head LES_T50, pending)**
 - B0 反超 B1 modifies architectural ablation conclusion: **cross-attention 為 architectural sweet spot**，比 CfC 更關鍵
 
 ### Multi-constraint AL ablation group（EXP-242 + EXP-243, 2026-05-20 完成）— **NS 加 AL = anti-pattern**
