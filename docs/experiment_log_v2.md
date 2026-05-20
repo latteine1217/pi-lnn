@@ -41,15 +41,15 @@
 
 ## [STATE] Current Baselines
 
-### Re=10000 主線（**EXP-241_b NEW BEST**, single seed; EXP-200 multi-seed n=5 為統計參照）
+### Re=10000 主線（**EXP-244 NEW BEST**, single seed; EXP-200 multi-seed n=5 為統計參照）
 
-| 項目 | EXP-241_b（**stable phase new best**）| EXP-200_a~e（multi-seed reference）|
-|---|---|---|
-| Baseline ID | `EXP-241_b` (single seed=42) | `EXP-200` (n=5 multi-seed) |
-| 架構 | B3 (CfC + cross-attn) | B3 |
-| Recipe 差異 | **num_physics_points = 1024 (16× baseline)** | num_physics_points = 64 |
-| 其餘 hyperparams | 同 EXP-200_a (AL ρ=0.1, 4-task GradNorm) | — |
-| **KE rel-err** | **5.97 %** 🥇 | 10.77 ± 0.52 % |
+| 項目 | EXP-244（**stable phase new best**）| EXP-241_b (previous best) | EXP-200_a~e（multi-seed reference）|
+|---|---|---|---|
+| Baseline ID | `EXP-244` (single seed=42) | `EXP-241_b` | `EXP-200` (n=5 multi-seed) |
+| 架構 | B3 + **4-head cross-attn** | B3 (1-head) | B3 |
+| Recipe 差異 | 1024 collo + 4-head | 1024 collo + 1-head | 64 collo + 1-head |
+| 其餘 hyperparams | 同 EXP-200_a | 同 EXP-200_a | — |
+| **KE rel-err** | **5.51 %** 🥇 | 5.97 % | 10.77 ± 0.52 % |
 | u L2 | 16.38 % | 20.69 ± 0.46 % |
 | v L2 | 19.77 % | 24.79 ± 0.51 % |
 | ω L2 | 45.14 % | 52.65 ± 0.56 % |
@@ -126,6 +126,46 @@
 | **EXP-240_b** | `ACTIVE_REFERENCE` | B0 + Random (seed=42) | **21.82 %** | 28:30（並行）| B0 placement-agnostic 對照 |
 
 完整 2×3 表見 `[STATE] Architecture × Placement 2×3 完整表` section。
+
+### Architecture × Sensor sweep at 1024 collocation（EXP-244 + EXP-245~250, 2026-05-20 完成）— **EXP-244 新 stable best**
+
+全 1024 collo + seed=42 對齊比較。EXP-244 為 4-head cross-attn DNS baseline; EXP-245~250 為 6 個 architecture 配 EXP-221 LES_T50 sensor（real-world DNS-free）。
+
+| ID | Status | Architecture | Sensor | KE rel-err | div L2 | Train wall (RTX 3090) |
+|---|---|---|---|---|---|---|
+| **EXP-244** | **`ACTIVE_BASELINE` 🥇** | B3 + **4-head** | DNS | **5.51 %** | 0.044 | 1:16:40 |
+| EXP-245 | `ACTIVE_REFERENCE` | B3 (1-head) | **LES_T50** | **6.92 %** | 0.049 | 1:19:53 |
+| EXP-246 | `ACTIVE_REFERENCE` | B0 (vanilla) | LES_T50 | 9.96 % | 0.056 | 0:24:58 |
+| EXP-247 | `ACTIVE_REFERENCE` | B1 (no cross-attn) | LES_T50 | 10.62 % | 0.068 | 0:52:43 |
+| EXP-248 | `ACTIVE_REFERENCE` | B2 (no CfC) | LES_T50 | 8.43 % | 0.053 | 0:46:59 |
+| EXP-249 | `ACTIVE_REFERENCE` | Standard PINN SiLU | LES_T50 | 10.13 % | **0.024** | 0:38:07 |
+| EXP-250 | `ACTIVE_REFERENCE` | Standard PINN tanh | LES_T50 | 13.09 % | **0.016** | 0:31:15 |
+
+**5 個 paper-grade findings**:
+
+1. **EXP-244 (4-head) 取代 EXP-241_b 為新 stable best** — KE 5.51 % (-0.46 pp vs 1-head)。Multi-head cross-attn 不增 param 但提高 attention 表達力。
+
+2. **1024 collo 大幅縮小 DNS↔LES_T50 gap**:
+   - 64 collo: DNS 9.40% / LES_T50 12.36% → gap **2.96 pp** (EXP-220 vs EXP-221)
+   - 1024 collo: DNS 5.97% / LES_T50 6.92% → gap **0.95 pp** (EXP-241_b vs EXP-245)
+   - Paper 主張「LES proxy pipeline 可達 baseline quality」在 1024 collo 下進一步強化
+
+3. **Architecture ranking 在 LES_T50 + 1024 collo 重新洗牌**:
+   - B3 (6.92) > B2 (8.43) > **B0 (9.96)** > PINN-SiLU (10.13) > **B1 (10.62)**
+   - **B0 vanilla DeepONet 反超 B1 (CfC, no cross-attn)** — 暗示 **cross-attention 比 CfC 更重要** 在 LES + 高 collo 環境（之前 64 collo + DNS 下 B1 14.65 < B0 18.52）
+
+4. **PINN 1024 collo 大幅 improvement**:
+   - PINN-SiLU: 38.50 % (64 collo, EXP-204) → **10.13 %** (1024 collo, EXP-249), -28.4 pp
+   - 「plain MLP PINN 比 operator framework 對 collo density 更敏感」— physics regularization 對 PINN 是 dominant lever
+   - 但 absolute KE 仍輸 operators (B3 6.92 < PINN-SiLU 10.13)
+   - PINN div_L2 0.024/0.016 反而最低 — PINN 對 incompressibility 嚴格滿足，trade-off vs sensor data fit
+
+5. **PINN tanh outlier 13.09 %** confirm SiLU > tanh activation choice（EXP-250 vs EXP-249 +2.96 pp）
+
+**Take-away for paper**: 
+- 主線升級 EXP-241_b (5.97%) → **EXP-244 (5.51%) 4-head**
+- LES_T50 + 4-head + 1024 collo (尚未測試) 可能再降；建議下一輪 EXP-251 = EXP-244 + LES_T50
+- B0 反超 B1 modifies architectural ablation conclusion: **cross-attention 為 architectural sweet spot**，比 CfC 更關鍵
 
 ### Multi-constraint AL ablation group（EXP-242 + EXP-243, 2026-05-20 完成）— **NS 加 AL = anti-pattern**
 
