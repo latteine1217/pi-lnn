@@ -1272,7 +1272,7 @@ def main() -> None:
         k_pred,
         e_pred,
         float(cfg["kolmogorov_k_f"]),
-        k_sensor_nyquist=float(np.sqrt(float(len(sensor_pos_xy)) / float(np.pi))),
+        k_sensor_nyquist=float(np.sqrt(float(len(sensor_pos)) / float(np.pi))),
     )
     plot_vorticity_comparison(
         output_dir / f"vorticity_comparison_t{int(round(t_last))}.png",
@@ -1493,7 +1493,7 @@ def main() -> None:
         "high": [BAND_EDGES_K_HIGH, float(len(x_g) // 2)],
     }
     summary["sensor_information_k_max"] = float(
-        np.sqrt(float(len(sensor_pos_xy)) / float(np.pi))
+        np.sqrt(float(len(sensor_pos)) / float(np.pi))
     )
 
     # Sensor-MSE on K observation points：與 training data loss 同義的 sanity check。
