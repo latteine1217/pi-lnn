@@ -41,17 +41,28 @@
 
 ## [STATE] Current Baselines
 
-### Re=10000 主線（**EXP-200_a~e baseline**, n=5 multi-seed；EXP-241_b/244 為延伸論述）
+### Re=10000 主線（**EXP-245 baseline**, 工程可遷移版；EXP-200/241_b/244/251 為延伸論述或 legacy reference）
 
-| 項目 | **EXP-200_a~e baseline**（n=5）| EXP-241_b（collo 延伸）| EXP-244（4-head 延伸） |
-|---|---|---|---|
-| Baseline ID | `EXP-200` (n=5 multi-seed, seed=42/1/2/3/4) | `EXP-241_b` (single, seed=42) | `EXP-244` (single, seed=42) |
-| 角色 | **主 baseline**（統計穩定）| collo density 延伸 | 4-head 延伸 |
-| 架構 | B3 (1-head) | B3 (1-head) | B3 + **4-head cross-attn** |
-| Recipe 差異 | 64 collo | **1024 collo** (16×) | 1024 collo + 4-head |
-| **KE rel-err** | **10.77 ± 0.52 %** | 5.97 % (-4.80 pp) | 5.51 % (-5.26 pp) |
-| 工程可遷移性 | 無（DNS sensor）| 無（DNS sensor）| 無（DNS sensor）|
-| 工程可遷移版本 | (未測 multi-seed LES) | EXP-245 (1-head + LES_T50) 6.92 % | **EXP-251**（pending）|
+| 項目 | **EXP-245 baseline**（NEW）| EXP-251（4-head 延伸）| EXP-241_b（DNS 對照）| EXP-244（DNS+4-head）| EXP-200_a~e（legacy n=5）|
+|---|---|---|---|---|---|
+| Baseline ID | `EXP-245` | `EXP-251` | `EXP-241_b` | `EXP-244` | `EXP-200` |
+| 角色 | **主 baseline**（工程可遷移）| 4-head 延伸 | DNS 對照 | 4-head + DNS 上限 | legacy reference（n=5 統計）|
+| 架構 | B3 (1-head) | B3 + **4-head** | B3 (1-head) | B3 + 4-head | B3 (1-head) |
+| Sensor | **LES_T50** (real-world) | LES_T50 | DNS | DNS | DNS |
+| collo | 1024 | 1024 | 1024 | 1024 | 64 |
+| seed | 42 | 42 | 42 | 42 | 42/1/2/3/4 |
+| **KE rel-err** | **6.92 %** 🥇 | 6.68 % (-0.24 pp) | 5.97 % (-0.95 pp) | 5.51 % (-1.41 pp) | 10.77 ± 0.52 % |
+| 工程可遷移性 | ✅ 強 | ✅ 強 | ❌ (DNS) | ❌ (DNS) | ❌ (DNS) |
+| 統計地位 | single seed | single seed | single seed | single seed | **n=5 multi-seed** |
+| 待補 | n=3-5 multi-seed | n=3-5 multi-seed | — | — | (legacy, 不再延伸) |
+
+**Baseline 升級邏輯（2026-05-20）**:
+- 主 baseline 對齊 paper 主訴「工程現場無 DNS」→ sensor 必須 LES proxy
+- 對齊主線 hyperparams (1024 collo, 1-head minimal architecture, seed=42)
+- EXP-245 = 「工程可遷移 + 主線 collo + minimal arch」唯一符合配置
+- EXP-200_a~e 仍保留為 legacy reference（n=5 統計穩定但 DNS + 64 collo 工程不對齊）
+- EXP-241_b / EXP-244 為 DNS upper-bound reference（看 oracle sensor 可達多低）
+- EXP-251 為主 baseline + 4-head 延伸（multi-head reshape inductive bias）
 | u L2 | 16.38 % | 20.69 ± 0.46 % |
 | v L2 | 19.77 % | 24.79 ± 0.51 % |
 | ω L2 | 45.14 % | 52.65 ± 0.56 % |
@@ -164,10 +175,15 @@
 
 5. **PINN tanh outlier 13.09 %** confirm SiLU > tanh activation choice（EXP-250 vs EXP-249 +2.96 pp）
 
-**Take-away for paper**: 
-- **主 baseline 維持 EXP-200_a~e (10.77 ± 0.52 %, n=5)** — single-seed 4-head/1024 collo 結果為「延伸 lever」論述，不取代 multi-seed baseline 直到有 multi-seed confirmation
-- EXP-241_b (1024 collo) + EXP-244 (4-head) 都是 DNS-only — 工程可遷移版本 EXP-245 (1-head LES_T50 6.92%) + **EXP-251 (4-head LES_T50, pending)**
-- B0 反超 B1 modifies architectural ablation conclusion: **cross-attention 為 architectural sweet spot**，比 CfC 更關鍵
+**Take-away for paper**（2026-05-20 baseline 升級後）: 
+- **主 baseline = EXP-245 (B3 + 1-head + 1024 collo + LES_T50, KE 6.92%, n=1)** — 工程可遷移配置，對齊 paper 主訴「無 DNS」
+- **延伸論述**:
+  - **collo density**: EXP-241_b (DNS, 1-head, 5.97%) vs baseline 6.92% — DNS sensor 換 LES proxy cost 0.95 pp
+  - **4-head**: EXP-251 (LES_T50, 4-head, 6.68%) vs baseline 6.92% — multi-head inductive bias 改善 0.24 pp
+  - **DNS oracle upper bound**: EXP-244 (DNS, 4-head, 5.51%) 為「omniscient sensor + 4-head」上限
+- **Legacy reference**: EXP-200_a~e (DNS, 64 collo, 10.77 ± 0.52 %, n=5) — paper 寫作可引為「64 collo + DNS 早期 baseline + 統計穩定」reference
+- **High priority**: EXP-245 multi-seed n=3-5 → 把主 baseline 從 n=1 升 statistical
+- B0 反超 B1 (in LES_T50 + 1024 collo): **cross-attention 為 architectural sweet spot**，比 CfC 更關鍵
 
 ### Multi-constraint AL ablation group（EXP-242 + EXP-243, 2026-05-20 完成）— **NS 加 AL = anti-pattern**
 
@@ -412,7 +428,8 @@ EXP-240_a/_b 完成後 2D ablation 表已封閉：
 
 | 問題 | 現況 | 狀態 |
 |---|---|---|
-| **EXP-241_b multi-seed (n=3-5)** | single seed=42, KE 5.97 % — paper-grade needs std confirmation | **NEW 高優先** |
+| **EXP-245 multi-seed (n=3-5)** | NEW main baseline, single seed=42, KE 6.92 % — paper-grade needs std confirmation | **NEW 最高優先** |
+| **EXP-241_b multi-seed (n=3-5)** | DNS 對照 single seed=42, KE 5.97 % — paper-grade needs std confirmation | **NEW 高優先** |
 | **EXP-241_c collocation = 4096?** | EXP-241_a (256) → EXP-241_b (1024) 還沒 saturated（5.97 vs 6.88, -0.9pp 下行）；4096 可能再降但 OOM risk | 待開工（需 split-batch fallback）|
 | RTX 3090 paper-grade inference benchmark | EXP-094 M3 baseline 71+1.5 ms 為唯一參考；新 hw 待測 | 待 `benchmark_inference.py` 重跑 |
 | Re=1000 stable phase multi-seed（n=5）| 尚未跑；目前只有 legacy EXP-030 single seed | 待開工 |
