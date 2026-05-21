@@ -1,0 +1,119 @@
+# configs/exp_264_re1e6_xl_50k.toml
+# What: EXP-264 — Re=10⁶ XL capacity + extended training (Path 2 per v2 log Re=1e6 improvement plan)
+#       base on EXP-262 baseline, 改 d_model 256 → 384, iterations 10k → 50k, lr_decay 2k → 5k
+#       (warmup all 保持 fixed 2000 step), num_physics_points 保持 512 (OOM 預防, d_model 上升 + N=512 grid 已是 RTX 3090 邊緣)
+#
+# Why: EXP-262 (Re=1e6 baseline) KE 23.73 % marginal case (b);
+#      物理 root cause: Kolmogorov scale η ~ Re^(-3/4) Re=1e4→1e6 縮小 ~32×; K=100 Nyquist k_max≈5.64
+#      對 Re=1e6 inertial range (cut-off k≈100) 完全 under-resolved
+#      → architecture capacity (d_model) + 更長訓練 (iterations) 雙 lever 看能否突破 case (a) 15 % 門檻
+#
+# Capacity 升級摘要（vs EXP-262）:
+#   d_model:              256 → 384 (param 量 ~3.14M → ~7M, 2.25× from attn quadratic in d_model)
+#   query_mlp_hidden_dim: 256 → 384 (對齊 d_model 維度)
+#   operator_rank:        256 → 384 (對齊 d_model 維度)
+#   iterations:           10k → 50k (5× 訓練長度)
+#   lr_decay_steps:       2k → 5k   (longer training 對應更慢的 lr decay)
+#
+# warmup 全保持 fixed 2000 step (per user instruction):
+#   lr_warmup_steps:           2000 (不變)
+#   time_marching_warmup_steps: 2000 (不變)
+#   lr_decay_steps:            2000 → 5000 (按 user 確認: warmup 是 2000, decay step 跟 longer training scaling)
+#
+# Predicted KE rel-err:
+#   - EXP-262 baseline (d=256, 10k):     23.73 %
+#   - EXP-264 (d=384, 50k) 預估:          12-15 %（capacity + longer training 雙效應）
+#
+# Falsifiability:
+#   (a) KE ≤ 12 %         → XL capacity + 50k 突破 case (a), Re=1e6 PI-CON 可工程部署 strong claim
+#   (b) KE 12-18 %        → 顯著改善但仍 marginal, 需 LES T=50 sensor (Path 3) 進一步收斂
+#   (c) KE > 18 % stagnant→ architecture / data path 有更深 bottleneck (非 capacity / step 問題)
+#   (d) OOM during train  → 降 d_model 384 → 320, 或降 num_physics_points 512 → 384
+#
+# VRAM estimate (RTX 3090 24 GB):
+#   d_model 384 vs 256: attention quadratic in d_model → 2.25× memory in cross-attn block
+#   Cross-attn Q×K^T: query 65536 × sensor 100 × heads 4 = ~100 MB per layer (linear in d_model)
+#   2nd-order autograd graph on NS residual: dominant memory consumer, scales w/ d_model² × collo
+#   Pre-test wall: EXP-262 d=256 collo=512 預估 ~10 GB → EXP-264 d=384 collo=512 預估 ~14-18 GB
+#   若 OOM: 降 num_physics_points 512 → 384 (1.33× drop, 可救 ~3 GB)
+#
+# 唯一改動 vs EXP-262 (= stable/exp_262.toml = exp_262_re1e6_baseline.toml):
+#   - d_model: 256 → 384
+#   - query_mlp_hidden_dim: 256 → 384
+#   - operator_rank: 256 → 384
+#   - iterations: 10000 → 50000
+#   - lr_decay_steps: 2000 → 5000
+#   - artifacts_dir 標 exp264
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T5.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T5_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_Re1e6_N512_T5_ds4.npy"]
+re_values = [1000000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 384                              # ← XL capacity (vs 256 baseline)
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 384                 # ← 對齊 d_model
+output_head_gain = 1.0
+operator_rank = 384                        # ← 對齊 d_model
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3                 # legacy ratio fallback (被 _steps 覆寫)
+time_marching_warmup_steps = 2000          # fixed step (per user instruction)
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 50000                         # ← 5× longer training
+num_physics_points = 512                   # 保持 EXP-262 (OOM 預防)
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000                     # fixed (不變)
+soap_use_step_decay = true
+lr_decay_steps = 5000                      # ← longer decay 對應 50k iter
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 2500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re1000000-exp264-xl-50k"
