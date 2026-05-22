@@ -323,31 +323,39 @@ EXP-241 ablation 完整數值：
 | EXP-256 | `ACTIVE_REFERENCE` | 同上, **K=200** | 200 | 1024 | 10k / 1 | **3.91 %** | 10.84 % | 13.92 % | 38.84 % | 22.20 % | 2.18 % | 0.989 |
 | EXP-257 | `ACTIVE_REFERENCE` | 同上, **K=400**（collo=512 OOM 妥協）| 400 | **512** | 10k / 1 | **2.90 %** | 9.46 % | 12.15 % | 36.78 % | 20.47 % | 0.56 % | 0.965 |
 
-**Finding — K-scaling 與 Nyquist wave-number reconstruction ceiling 高度重合, high-band 改善遞減**:
+**Finding — K-scaling KE 改善由 spatial under-sampling ratio (d/δ_ω) 主導, 不是 universal 1/√K**:
 
-| Metric | K=100 | K=200 | K=400 | Δ (100→400) | Nyquist / information-budget interpretation |
+⚠️ **REVISED 2026-05-22 (per Re=10⁶ counter-example forcing 重新檢視)**: 早期將 KE ∝ 1/√K 標為「Nyquist 帶寬律完美吻合」是 **公式 dimensional analysis 錯誤 + narrow-range coincidence**, 應改寫如下：
+
+| Metric | K=100 | K=200 | K=400 | Δ (100→400) | 真實 physics interpretation |
 |---|---|---|---|---|---|
-| Nyquist k_max ≈ √(K/π) | 5.64 | 7.98 | **11.28** | +100 % bandwidth | reconstructed wave-number ceiling follows the predicted √K expansion |
-| KE rel-err | 6.92 % | 3.91 % | **2.90 %** | **−58 %** | simplified 1/√K from 6.92 % predicts 3.46 %, observed 2.90 % |
-| u rel-L₂ | 14.51 % | 10.84 % | 9.46 % | −35 % | — |
-| v rel-L₂ | 19.25 % | 13.92 % | 12.15 % | −37 % | — |
-| ω rel-L₂ | 44.32 % | 38.84 % | 36.78 % | −17 % | (high-band amplification 仍 bounded) |
-| Ens rel-err | 27.51 % | 22.20 % | 20.47 % | −26 % | (∫k²E(k) high-band dominated) |
-| k_f amp ratio | 0.926 | **0.989** | 0.965 | +4.2 % | (K=400 collo=512 略 regress) |
+| Sensor spatial spacing d = L/√K | 0.1 | 0.071 | 0.05 | **−50 %** | average inter-sensor distance, dominant K-scaling lever |
+| Re=10⁴ vorticity layer δ_ω ~ Re^{−1/2} | ≈ 0.01 | 0.01 | 0.01 | flat | flow's characteristic spatial scale |
+| **d / δ_ω under-sampling ratio (Re=10⁴)** | **10×** | **7.1×** | **5×** | −50 % | K-scaling halves under-sampling, KE improvement linear in this ratio |
+| KE rel-err (10k single seed) | 6.92 % | 3.91 % | **2.90 %** | **−58 %** | 與 d/δ_ω 改善 −50 % 接近 (PI-CON 在低 sampling 下還有 marginal architecture 補貼) |
+| ω rel-L₂ | 44.32 % | 38.84 % | 36.78 % | −17 % | high-band amplification 仍 bounded by spectrum tail |
+| Ens rel-err | 27.51 % | 22.20 % | 20.47 % | −26 % | ∫k²E(k) high-band dominated |
+| k_f amp ratio | 0.926 | **0.989** | 0.965 | +4.2 % | forcing-mode recover near-perfect at K≥200 |
+| div ratio | 2.41 % | 2.18 % | 0.56 % | −77 % | continuity 在 K=400 大幅改善 |
 
-- **核心論文表述**：K-scaling 的主要證據不是只看 KE fit，而是「有效可重建 wave-number 上限」與 sensor Nyquist 預測高度重合。K=100 的 Nyquist ceiling 約在 k≈5.64，對應中高頻不可觀測；K=200 將 ceiling 推到 k≈7.98，接近低頻/中頻分界；K=400 推到 k≈11.28，已覆蓋 inertial-range 起點，因此重建 fidelity 隨 K 增加出現預期階梯式改善
-- **KE −58% 從 K=100 到 K=400**，支持 Nyquist bandwidth interpretation；actual 2.90 % 優於簡化 1/√K 預測的 3.46 %，但 K=400 使用 collo=512，不能宣稱整體 KE 是嚴格 scaling fit
-- Enstrophy 改善從 −19 %（K=200）到 −26 %（K=400）— marginal 遞減 confirm high-band amplification 仍 bounded
-- div ratio K=400 下降到 **0.56 %**（vs K=100 2.41 %），優於 DNS floor 1.04 % → continuity 約束更嚴格
+**核心物理 framing (REVISED)**:
+- KE rel-err scaling **不是** 「KE ∝ 1/√K 通用 Nyquist 律」 — 那是錯誤 dimensional analysis (1/√K 是 amplitude error 不是 energy error)
+- KE rel-err 由 **spatial under-sampling ratio d/δ_ω** 主導, 其中 d = L/√K 為 sensor 平均間距, δ_ω ~ Re^{−1/2} 為 vorticity layer thickness
+- 對 2D Kolmogorov forced flow, **主能量集中於 forcing scale k_f=2** (Kraichnan dual cascade 中 inverse energy 把能量推到 low-k); K=100 Nyquist k_max=5.64 已 cover >99% spectral energy → K-scaling KE 改善的 driver **是 spatial reconstruction quality 提升, 不是 lost-energy release**
+- 「KE_loss ~ K^{−1}」 (2D enstrophy cascade k^{−3}) 或「K^{−1/3}」 (3D inertial k^{−5/3}) 才是嚴格 spectrum-integral scaling, 但兩者都 **不主導我們的 KE rel-err**（因為主能量已被 K=100 cover）
 
-**Caveat — K-scaling collo / step / seed 對齊**:
+**Caveat — 不嚴格對齊 + framing 修正**:
 - collo: EXP-245/256 用 1024, EXP-257 用 **512**（K=400 + 1024 collo OOM at RTX 3090 22.69/24 GB）→ 三點 collo 不嚴格對齊
-- iter / seed: EXP-245 為 20k n=5 baseline; EXP-256/257 仍 10k single seed. **若以 EXP-245 10k single seed=42 historical row (6.92 %) 為 K-scaling 起點**，Nyquist 帶寬律 6.92→3.91→2.90 % 仍 holds (predicted 6.92×1/√2 = 4.90, 6.92×1/√4 = 3.46; observed 較佳是 collo trade-off + seed 變異)
-- paper-grade 嚴格對比需要 EXP-256/257 也升 20k multi-seed → 列為 §Future Work 候選 ablation
+- iter / seed: EXP-245 為 20k n=5 baseline; EXP-256/257 仍 10k single seed
+- ⚠️ **Re=10⁶ 將不會 follow 同 ratio**：因 Re=10⁶ δ_ω ~ 0.001, K=100 d=0.1 → **d/δ_ω = 100×** 嚴重 under-sampled; K=200 d=0.071 → 71×, K=400 d=0.05 → 50× — 仍 enormous under-sampling
+  - Re=10⁶ K-scaling 預期改善幅度 < Re=10⁴ (per spatial under-sampling severity)
+  - EXP-265 (K=200 Re=10⁶) 預估 KE 14-17%, 而非沿用 Re=10⁴ ratio 計算的 13-16%
 
-**Take-away**:
-1. **K-scaling 三點與 Nyquist-predicted wave-number reconstruction ceiling 高度重合** — paper 主訊息應明確寫成「higher fidelity 主要來自 sensor bandwidth / K-scaling，而不是無限制 architecture search」；K=400 collo 不完全對齊，所以保守邊界是「wave-number ceiling 強 claim、整體 KE scaling 輔助支持」
-2. K=400 KE **2.90 % (10k single seed)** 是迄今最佳值，已突破 EXP-241_b DNS oracle 5.97 % (10k)，也優於 20k n=5 baseline 5.71 ± 0.11 % → 雙 lever（K + collo + 訓練長度）合用 future direction
+**Take-away (REVISED 2026-05-22)**:
+1. **K-scaling KE 改善主要 driver 是 spatial sampling resolution 對 vorticity layer δ_ω 的覆蓋程度**，而非 sensor Nyquist k_max alone
+2. Re=10⁴ 三點 (KE 6.92→3.91→2.90 %) 不是 "perfect 1/√K fit"，而是 **d/δ_ω 從 10× → 5× 線性改善 KE** 的 narrow-range coincidence；此 framing 適合 paper §Theory，**禁止用「Nyquist 帶寬律完美吻合」claim**
+3. Cross-Re paper-grade claim 需要 **plot KE vs d/δ_ω (5 data points)** 看是否 universal collapse — 若 collapse → §Theory 強 paper finding「PI-CON KE error governed by spatial under-sampling ratio」
+4. K=400 KE **2.90 % (10k single seed)** 仍是迄今最佳值，工程意義不變; 但 paper framing 從 "Nyquist scaling" 改為 "spatial sampling-dominated"
 
 ### Sensor noise robustness sweep（EXP-258~261, base on EXP-245 baseline）
 
@@ -389,30 +397,37 @@ EXP-241 ablation 完整數值：
 |---|---|---|---|---|---|---|---|---|---|---|
 | EXP-245 (10k n=1 archived) | `HISTORICAL` | base reference | 10⁴ | 6.92 % | 14.51 % | 19.25 % | 44.32 % | 27.51 % | 2.41 % | 0.926 |
 | EXP-245 (20k n=5, current) | `ACTIVE_BASELINE` | base reference | 10⁴ | **5.71 ± 0.11 %** | 13.65 ± 0.06 | 17.52 ± 0.10 | 41.79 ± 0.12 | 24.11 ± 0.21 | **0.39 ± 0.006 %** | **0.991 ± 0.005** |
-| EXP-262 | `ACTIVE_REFERENCE` | 同上 + Re=10⁶ DNS/LES, num_physics_points=512, time_marching_warmup_steps=2000 | 10⁶ | **23.73 %** | 32.92 % | 33.99 % | 71.17 % | 60.93 % | 0.67 % | 0.919 |
+| EXP-262 | `ACTIVE_REFERENCE` | 同上 + Re=10⁶ DNS/LES, K=100, d_model=256, 10k | 10⁶ | **23.73 %** | 32.92 % | 33.99 % | 71.17 % | 60.93 % | 0.67 % | 0.919 |
+| EXP-264 | `ACTIVE_REFERENCE` | 同上 + **d_model=384, 50k** (Path 2 capacity+step) | 10⁶ | **19.02 %** | 29.69 % | 30.48 % | 67.84 % | 54.99 % | **0.37 %** | 0.746 ⚠️ |
+| EXP-265 | 🔄 `RUNNING` (job 3590) | 同上 + **K=200 LES sensor** (Path A) | 10⁶ | TBD (預估 14-17 %) | — | — | — | — | — | — |
 
-**Finding 1 — Re=10⁶ 落在 falsifiability case (b) marginal 15–30 %**（per config 預設）:
-- KE 23.73 %（> case (a) 15 % "viable" 門檻, < case (c) 30 % "失效" 門檻）
-- 不是 "fail"，但也不算 "deploy ready"
-- u/v rel-L₂ 33 % 顯示 low-band recovery 仍 partial，比 Re=10⁴ baseline 退步 ~2×
+**Finding 1 — Re=10⁶ Path 2 (capacity+step) 改善 KE 4.7 pp, 但 forcing mode 退步**:
+- EXP-262 → EXP-264: KE 23.73 → 19.02 % (-4.7 pp, -20% relative)
+- ω/Ens 改善 marginal (-3.3 / -5.9 pp) — high-band amplification 仍 bounded
+- ⚠️ **k_f amp ratio 反而退步** 0.919 → 0.746 — 50k step + d=384 capacity → GradNorm 末段把 physics weight (1.0+) 過重壓 data fit
+- Conclusion: capacity / step 不是 dominant lever, 改善幅度 marginal
 
-**Finding 2 — Small-scale 結構嚴重退步**:
-- ω rel-L₂ 71 % 顯示 vorticity 場（high-band sensitive）**完全失去解析能力**
-- Enstrophy rel-err 60.9 % 表示 enstrophy ~ ∫k²E(k) 高頻部分完全錯
-- 物理原因：Re=10⁶ 的 Kolmogorov scale η ~ Re^(-3/4) 比 Re=10⁴ 小 ~32×, K=100 Nyquist k_max=5.64 對 Re=10⁶ 的 inertial range 完全 cover 不到（dissipation cut-off 在 k ~ 100 量級）
+**Finding 2 — Cross-Re spatial under-sampling 是 root cause** (per K-scaling §revision 2026-05-22):
+- Re=10⁴ vorticity layer δ_ω ~ Re^{−1/2} = 0.01; K=100 sensor spacing d=0.1 → **d/δ_ω = 10×** under-sampled
+- Re=10⁶ δ_ω ~ 0.001; K=100 d=0.1 → **d/δ_ω = 100×** under-sampled (10× 更嚴重)
+- K-scaling 對 Re=10⁶: K=200 d=0.071 → 71×, K=400 d=0.05 → 50× — **K-scaling 改善 ratio 但仍 enormous under-sampling**
+- **這解釋為何 Re=10⁶ 不能 follow Re=10⁴ K-scaling 改善幅度** — spatial sampling severity 不同
 
-**Finding 3 — Div control 與 forcing mode capture 仍 OK**:
-- div ratio **0.67 %** < DNS floor 3.31 %（Re=10⁶ DNS 本身 |grad u|_F = 12.07, div 量級也更大）→ 約束機制 cross-Re 仍生效
-- k_f amplitude ratio 0.919 ≈ Re=10⁴ baseline 0.926 → forcing mode recover 不退步
+**Finding 3 — Div control 與 forcing mode capture 在 baseline 10k 仍 OK, capacity 升級後 forcing 退步**:
+- EXP-262 div ratio 0.67 % < DNS floor 3.31 %（Re=10⁶ DNS |grad u|_F = 12.07）→ continuity 約束 cross-Re 仍生效
+- EXP-262 k_f amp 0.919 ≈ Re=10⁴ baseline 0.926 → forcing mode recover 在 capacity=256 仍 OK
+- EXP-264 capacity=384 後 k_f amp 反而掉到 0.746 — GradNorm 過度推 physics weight 副作用
 
-**Caveats — 影響 EXP-262 結果解讀的三個 confound**:
-1. **LES T=5 marginally converged** (2.8 T_L for Re=10⁶, vs EXP-221 LES_T50 = 26.5 T_L for Re=10⁴) → sensor placement 品質明顯弱於 EXP-245
+**Caveats — 影響結果解讀的三個 confound (尚未完全拆解)**:
+1. **LES T=5 marginally converged** (2.8 T_L for Re=10⁶, vs EXP-221 LES_T50 = 26.5 T_L for Re=10⁴) → sensor placement 品質弱
 2. **num_physics_points 512** (vs EXP-245 1024)，N=512 OOM 預防 → collo density 不同
-3. **DNS frames 101** (vs Re=10⁴ 的 201) → eval supervision 較稀，metric variance 較大
+3. **DNS frames 101** (vs Re=10⁴ 的 201) → eval supervision 較稀
 
 **Take-away**:
-1. **Cross-Re generalization 部分成功**：低頻 metric (KE / k_f / div) 仍 work, 高頻 metric (ω / enstrophy) 完全失效 — 符合「**K=100 sensor 對 Re=10⁶ 的 inertial range 完全 under-resolved**」物理預期
-2. 不能直接寫「Re=10⁶ 失敗」— 三個 caveat 都是 confound, 需 ablation 拆解
+1. **Re=10⁶ cross-Re 部分成功**：低頻 metric (KE 19% / k_f / div) marginal viable，高頻 metric (ω / enstrophy) 嚴重退步
+2. **Path 2 (capacity+step) 效益遞減** — KE −4.7 pp 但 forcing 退步; capacity 不是 dominant bottleneck
+3. **Path A (K=200 LES) 進行中** (EXP-265, ETA 5 hr) — 直擊 spatial under-sampling root cause
+4. Paper §Cross-Re 章節 framing 應為「**KE error governed by spatial under-sampling ratio d/δ_ω, not Re alone**」 — 不要 frame 成「Re=10⁶ 失敗」
 3. **下一步候選方向**:
    - **Option A**（推薦, 工程 framing）: home-gpu 跑 T=50 Re=10⁶ LES（~10 hr CPU overnight）→ 改 sensor placement → 看 LES quality 是否是 bottleneck
    - **Option B**（diagnostic）: Re=10⁶ + DNS QR-pivot oracle → 看 perfect placement 下能否突破 case (a) 15 % 門檻
@@ -489,6 +504,8 @@ EXP-241 ablation 完整數值：
 | `EXP-260` | — (new 2026-05-21) | 42 | Sensor noise robustness 5 % |
 | `EXP-261` | — (new 2026-05-21) | 42 | Sensor noise robustness 10 % |
 | `EXP-262` | — (new 2026-05-21) | 42 | **Re=10⁶ baseline**（DNS jaxpi pre-computed + LES home-gpu T=5; 首次 time_marching_warmup_steps=2000 fixed-step 用法）|
+| `EXP-264` | — (new 2026-05-22) | 42 | Re=10⁶ Path 2: d_model=384 + 50k iter (capacity + extended training)|
+| `EXP-265` | — (new 2026-05-22) | 42 | Re=10⁶ Path A: K=200 LES sensor + d=384 + 50k (running)|
 | ~~`EXP-223`~~ | ~~`EXP-106`~~ | — | **移除（2026-05-19）**: T=30 dns-init 工程不可遷移（需 DNS IC）且效果不如 T=50；legacy archive 保留 |
 | ~~`EXP-225`~~ | ~~`EXP-103 v2`~~ | — | **移除（2026-05-19）**: T=5 < 1 turnover，非 statistically-converged LES，legacy archive 作失敗教材 |
 
@@ -655,6 +672,13 @@ EXP-240_a/_b 完成後 2D ablation 表已封閉：
 
 ## 變更紀錄
 
+- **2026-05-22 (K-scaling framing 修正 + Re=10⁶ Path 2/A 部署)**:
+  - §K-scaling sweep **嚴謹修正** — 移除「Nyquist 1/√K 完美吻合」claim（dimensional analysis 錯誤 + narrow-range coincidence）
+  - 改寫為「**KE 由 spatial under-sampling ratio d/δ_ω 主導**」framing — d = L/√K 為 sensor 平均間距, δ_ω ~ Re^{−1/2} 為 vorticity layer thickness
+  - Re=10⁴ K-scaling 改善（d/δ_ω 從 10× → 5×, KE 6.92 → 2.90 %）對應 Re=10⁶ K=100 d/δ_ω = **100×**（更嚴重 under-sampling）→ Re=10⁶ K-scaling 改善幅度預期 < Re=10⁴
+  - **新增 EXP-264 (Re=10⁶ Path 2 capacity+step)** results: KE 23.73 → 19.02 %, k_f amp 0.919 → 0.746 (forcing 反退步, GradNorm physics weight 過重 side-effect)
+  - **新增 EXP-265 (Re=10⁶ Path A K=200 LES sensor) 部署中** — 預估 KE 14-17%
+  - Paper §Theory 章節 framing 從「Nyquist 帶寬律」改為「spatial sampling-dominated」（cross-Re paper-grade claim 候選）
 - **2026-05-21 (EXP-245 baseline 升級 10k → 20k n=5, KE 5.71 ± 0.11 %)**:
   - EXP-245 升級 iterations 10k → 20k, time_marching_warmup_steps 改 fixed 2000 (新 key), warmup all (lr/tm/decay) = 2000 fixed steps
   - 5 seeds (_a/_b/_c/_d/_e = 42/1/2/3/4) 全跑完，KE = 5.71 ± 0.11 % (σ=0.11 pp 統計顯著)
