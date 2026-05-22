@@ -1,0 +1,84 @@
+# configs/exp_245_b3_les_T50.toml
+# What: EXP-266_b — placement variance ablation (Random K=100 placement seed=1, training seed=42) (對應 EXP-200_a 的「工程可遷移」對照)
+# Why: 量化 placement-induced variance — placement seed 變動造成的 KE rel-err sigma.
+#      training seed 固定 42 (vs EXP-245_a~e training seed variance), 分離 two variance sources。
+#      EXP-266 系列共 5 placement seeds (42/1/2/3/4), 對齊 EXP-245 multi-seed convention。
+#
+# Sensor: Random uniform K=100 N=256, placement seed varies; vs LES_T50 placement (EXP-245).
+#
+# 派生 from EXP-245 (= EXP-245_a, current baseline 20k), 唯一改動:
+#   - sensor_jsons / sensor_npzs → Random K=100 placement seed=1
+#   - artifacts_dir → exp266b-random-pseed1-20k
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed1.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_random_K100_N256_t0-5_si100_seed1_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp266b-random-pseed1-20k"
