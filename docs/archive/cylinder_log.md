@@ -1,8 +1,10 @@
-# Cylinder Wake 實驗紀錄
+# Cylinder Wake 實驗紀錄（**Superseded — Legacy**）
+
+> ⚠️ **2026-05-22 起本檔 superseded**: 主 state 已升級至 [`docs/cylinder_log_v2.md`](../cylinder_log_v2.md)（套 Kolmogorov v2 格式，含 CEXP-001~013 完整 metrics、multi-confound warning、CEXP-015 falsifiability gate）。本檔保留作歷史追溯，但**所有 cylinder 任務應優先讀 v2**。
 
 本文件是 **RealPDEBench Cylinder Wake**（非週期域）主線的 state 檔，從 [`docs/experiment_log.md`](experiment_log.md) 拆出（2026-05-15 拆檔）。
 
-Kolmogorov（週期域）主線見 [`docs/experiment_log.md`](experiment_log.md)；歷史紀錄見 [`docs/experiment_archive_kolmogorov.md`](experiment_archive_kolmogorov.md) 與 [`docs/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md)。
+Kolmogorov（週期域）主線見 [`docs/experiment_log_v2.md`](../experiment_log_v2.md)；歷史紀錄見 [`docs/archive/experiment_archive_kolmogorov.md`](experiment_archive_kolmogorov.md) 與 [`docs/archive/experiment_archive_kolmogorov_post_k100.md`](experiment_archive_kolmogorov_post_k100.md)。
 
 ---
 
