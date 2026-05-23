@@ -1,0 +1,128 @@
+# configs/exp_cylinder_018_hard_bc_body_aware.toml
+# CEXP-018 = Hard BC + body-aware collocation (H2 enabling condition test)
+#
+# 設計目的：
+#   CEXP-016 (hard BC + random collocation) KE 111.6% catastrophic over-predict。
+#   Hypothesis H2: random sampling 只 ~7% 落 near-body → boundary layer
+#   gradient signal 不足 → physics residual 高 → GradNorm 推 physics 暴衝。
+#
+#   本實驗：CEXP-016 + 唯一變動 physics_collocation_strategy
+#   "random" → "body_aware" (30% near-body distance<median + 70% uniform)。
+#
+# 與 CEXP-016 唯一差異：
+#   physics_collocation_strategy:  "random" → "body_aware"
+#
+# Falsifiability gates (per spec §4):
+#   KE < 10%   AND w_ns_u_final < 0.5 → ✅ H2-A: body_aware is enabling condition
+#   KE 10-30%                          → 🟡 H2-B: partial, combine with H1/H3
+#   KE > 30%                           → ❌ H2-C: not root cause
+#
+# 啟動條件與狀態追蹤：見 docs/cylinder_log_v2.md CEXP-018 entry
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# 空間編碼（對齊 CEXP-002）
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true
+
+# 時間（對齊 CEXP-002）
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# 模型容量（對齊 CEXP-002）
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Physics loss（對齊 CEXP-002）
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# Inflow BC loss（對齊 CEXP-002）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+# bc_outlet_n_points 不設（隱式 0，對齊 CEXP-002）
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "body_aware"   # 30% near-body (distance < median) + 70% uniform
+
+# ===== 唯一變動 =====
+use_hard_body_bc = true   # ← 啟用 Sukumar 2022 output transformation
+                          #    u, v ← (φ/scale).clamp(0,1) · NN
+                          #    p 不 gate
+                          # 物理保證 body 內 u=v=0（no-slip hard constraint）
+                          # cylinder_dataset 自動 detect body 並預計算 SDF grid
+# ====================
+
+# GradNorm（對齊 CEXP-016，4-task；hard BC 是 output transformation 不需 BC weight）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# Time marching（對齊 CEXP-002）
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+# Optimizer（對齊 CEXP-002）
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"  # Lab GPU (RTX 3090)；M2 Mac 跑改回 "mps"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp018-hard-bc-body-aware"
