@@ -99,6 +99,14 @@ def parse_args() -> argparse.Namespace:
             " 此 flag 保留為 no-op 以維持向後相容（舊 script 不會 break）。"
         ),
     )
+    parser.add_argument(
+        "--export_arrays",
+        action="store_true",
+        help=(
+            "Dump per-time-step arrays (KE, divergence ratio, u/v error, kf amp/phase, "
+            "band errors) as series.npz inside output_dir for multi-seed envelope aggregation."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1243,6 +1251,37 @@ def main() -> None:
     kf_phase_ref_series = np.asarray(kf_phase_ref_series)
     kf_phase_pred_series = np.asarray(kf_phase_pred_series)
     band_rel_err_series = {k: np.asarray(v) for k, v in band_rel_err_series.items()}
+
+    # Optional npz dump for multi-seed envelope aggregation; see
+    # scripts/plot_multiseed_envelope.py.
+    if args.export_arrays:
+        np.savez(
+            output_dir / "series.npz",
+            time=sensor_time,
+            KE=ke_pred_series,
+            KE_dns=ke_ref_series,
+            KE_rel_err=ke_rel_err,
+            enstrophy=ens_pred_series,
+            enstrophy_dns=ens_ref_series,
+            div_l2=div_l2_pred,
+            div_l2_dns=div_l2_ref,
+            div_ratio=div_ratio_pred,
+            div_ratio_dns=div_ratio_ref,
+            u_rel_L2=u_rel_l2,
+            v_rel_L2=v_rel_l2,
+            omega_rel_L2=omega_rel_l2,
+            u_rmse=u_rmse,
+            v_rmse=v_rmse,
+            omega_rmse=omega_rmse,
+            kf_amp=kf_amp_pred_series,
+            kf_amp_dns=kf_amp_ref_series,
+            kf_phase=kf_phase_pred_series,
+            kf_phase_dns=kf_phase_ref_series,
+            band_low=band_rel_err_series["low"],
+            band_mid=band_rel_err_series["mid"],
+            band_high=band_rel_err_series["high"],
+        )
+        print(f"[export_arrays] wrote {output_dir / 'series.npz'}")
 
     assert k_ref is not None and e_ref is not None and k_pred is not None and e_pred is not None
     t_last = float(sensor_time[-1])

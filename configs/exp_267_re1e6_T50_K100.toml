@@ -1,0 +1,94 @@
+# configs/exp_267_re1e6_T50_K100.toml
+# What: EXP-267 — Re=10⁶ + K=100 + LES T=50 sensor (vs EXP-262 LES T=5)
+#       拆解「LES T=5 marginally converged」confound, 對齊 EXP-262 其他 hyperparam
+#       (d_model=256, 10k iter, num_physics_points=512)
+#
+# Why: EXP-262 用 LES T=5 (2.8 T_L marginally converged) 作 sensor placement source.
+#      新跑 LES T=50 (50 T_L stat-converged, 比 EXP-221 baseline 26.5 T_L 還高) →
+#      改 sensor placement 看 KE 改善幅度 → quantify「LES quality bottleneck」
+#
+# Predicted KE:
+#   - EXP-262 (LES T=5, K=100, d=256, 10k):  23.73 %
+#   - EXP-267 (LES T=50, K=100, d=256, 10k): 預估 ~18-21 % (LES quality improvement marginal)
+#
+# Falsifiability:
+#   (a) KE ≤ 18 %     → LES T=50 顯著降低 placement bias, sensor placement 是 partial bottleneck
+#   (b) KE 18-22 %    → LES T=50 marginal improvement, 確認 K-scaling (capacity) 才是主 lever
+#   (c) KE 22-25 %    → LES quality 對 KE 影響可忽略, T=5/T=50 same effective placement
+#
+# 唯一改動 vs EXP-262 (= stable/exp_262.toml = exp_262_re1e6_baseline.toml):
+#   - sensor_jsons / sensor_npzs 改 K=100 LES_T50 (新生成於 2026-05-23, home-gpu)
+#   - artifacts_dir 標 exp267
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T50standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000000/sensors_qrpivot_K100_N512_t0-5_si50_les_n512_T50standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_Re1e6_N512_T5_ds4.npy"]
+re_values = [1000000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 10000
+num_physics_points = 512
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re1000000-exp267-T50-K100"
