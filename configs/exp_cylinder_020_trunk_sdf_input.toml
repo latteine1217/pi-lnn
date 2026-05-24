@@ -1,0 +1,125 @@
+# configs/exp_cylinder_020_trunk_sdf_input.toml
+# CEXP-020 = Stage 2 Option A: trunk SDF input feature
+#
+# 設計目的：
+#   Stage 1 (CEXP-016/017/018/019) 全 ❌：hard BC + standard PI-CON architecture
+#   fundamental incompatibility (KE 111-303%). Root cause: trunk net 完全沒有
+#   geometry awareness — hard BC 只是 output post-hoc gate, NN_u 不知 boundary
+#   在哪 → wake 區 over-compensation → GradNorm pathology。
+#
+#   本實驗：trunk 級 geometry awareness — 加 raw φ scalar 到 query input
+#   (query_in dim 4→5, post-Fourier concat), 移除 hard BC gate 完全。
+#   trunk MLP 自學「離 body 越近 → velocity magnitude 越小」inductive bias。
+#
+# 與 CEXP-002 (KE 3.54% working baseline) 唯一差異：
+#   use_body_distance_feature: false → true   (新增 src patch by 2026-05-24 spec)
+#
+# Falsifiability gates (per spec §4):
+#   KE < 10%   → ✅ A: Option A confirmed; trunk SDF is viable alt to hard BC
+#   KE 10-30%  → 🟡 B: partial; consider Options B (Fourier-on-φ) or D (per-layer gate)
+#   KE > 30%   → ❌ C: deeper architectural issue; escalate to E/F
+#
+# 啟動條件與狀態追蹤：見 docs/cylinder_log_v2.md CEXP-020 entry
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# 空間編碼
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true   # cylinder 必要：u_std~0.15，黏性項否則被壓掉
+
+# ===== Stage 2 Option A 唯一變動 =====
+use_body_distance_feature = true   # trunk query_in += φ raw scalar, hard BC OFF
+# ====================================
+
+# 時間
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# 模型容量（與 EXP-001 相同）
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Physics loss
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# Inflow BC loss（新增）
+bc_loss_weight = 0.1      # 固定權重，與 GradNorm 分離
+bc_inflow_u = 0.33        # 從 DNS 量測的來流 u（m/s）
+bc_n_points = 64          # inflow (x=0) 採樣 64 個 (y, t) 點
+bc_body_n_points = 64     # cylinder body no-slip：u=v=0
+bc_slip_n_points = 32     # top/bottom slip (y=0,1)：v=0；32=兩側各 16 點
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# GradNorm
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# Time marching
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+# Optimizer
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "mps"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp020-trunk-sdf-input"

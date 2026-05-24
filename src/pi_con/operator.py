@@ -46,6 +46,7 @@ class LiquidOperator(nn.Module):
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
+        use_body_distance_feature: bool = False,
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
@@ -54,6 +55,8 @@ class LiquidOperator(nn.Module):
         # Hard body BC 是 output transformation：u, v ← (φ/scale).clamp(0,1) · NN
         # 物理保證 body 內 u=v=0（取代 distance-as-input feature 那個會踩 detach 的方案）。
         self.use_hard_body_bc = bool(use_hard_body_bc)
+        # SDF-as-trunk-input (Stage 2 Option A)
+        self.use_body_distance_feature = bool(use_body_distance_feature)
         self.spatial_encoder = SpatialSetEncoder(
             fourier_harmonics,
             sensor_value_dim,
@@ -93,6 +96,7 @@ class LiquidOperator(nn.Module):
             fourier_sigma_bands=fourier_sigma_bands,
             fourier_band_dim_ratios=fourier_band_dim_ratios,
             use_hard_body_bc=use_hard_body_bc,
+            use_body_distance_feature=use_body_distance_feature,
             decoder_attention_heads=decoder_attention_heads,
             use_modified_mlp=use_modified_mlp,
             disable_cross_attention=disable_cross_attention,
@@ -259,6 +263,7 @@ def create_picon_model(cfg: dict[str, Any]):
         fourier_sigma_bands=cfg.get("fourier_sigma_bands"),
         fourier_band_dim_ratios=cfg.get("fourier_band_dim_ratios"),
         use_hard_body_bc=bool(cfg.get("use_hard_body_bc", False)),
+        use_body_distance_feature=bool(cfg.get("use_body_distance_feature", False)),
         decoder_attention_heads=int(cfg.get("decoder_attention_heads", 1)),
         use_modified_mlp=bool(cfg.get("use_modified_mlp", False)),
         disable_cross_attention=bool(cfg.get("disable_cross_attention", False)),
@@ -304,10 +309,11 @@ def make_picon_model_fn(
     net_device = next(iter(net.parameters())).device
     if h_states is None or s_time is None:
         h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
-    use_bd = bool(getattr(net, "use_hard_body_bc", False))
-    if use_bd and body_distance_fn is None:
+    # Stage 2: body_distance_fn 對 hard BC (output gate) 或 SDF input feature (trunk concat) 都需要。
+    _need_bd = bool(getattr(net, "use_hard_body_bc", False)) or bool(getattr(net, "use_body_distance_feature", False))
+    if _need_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 但 make_picon_model_fn() 沒收到 body_distance_fn"
+            "model use_hard_body_bc=True 或 use_body_distance_feature=True 但 make_picon_model_fn() 沒收到 body_distance_fn"
         )
 
     def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
@@ -315,7 +321,7 @@ def make_picon_model_fn(
         xy_d = xyt_d[:, :2]
         t_q_d = xyt_d[:, 2]
         c_t = torch.full((xyt_d.shape[0],), c, dtype=torch.long, device=net_device)
-        bd = body_distance_fn(xy_d) if use_bd else None
+        bd = body_distance_fn(xy_d) if _need_bd else None
         return net.query_decoder(
             xy_d, t_q_d, c_t, h_states, s_time, sensor_pos, body_distance=bd,
         ).to(xyt.device)
@@ -343,17 +349,17 @@ def make_picon_model_fn_uvp(
     net_device = next(iter(net.parameters())).device
     if h_states is None or s_time is None:
         h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
-    use_bd = bool(getattr(net, "use_hard_body_bc", False))
-    if use_bd and body_distance_fn is None:
+    _need_bd = bool(getattr(net, "use_hard_body_bc", False)) or bool(getattr(net, "use_body_distance_feature", False))
+    if _need_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 但 make_picon_model_fn_uvp() 沒收到 body_distance_fn"
+            "model use_hard_body_bc=True 或 use_body_distance_feature=True 但 make_picon_model_fn_uvp() 沒收到 body_distance_fn"
         )
 
     def model_fn_uvp(xyt: torch.Tensor) -> torch.Tensor:
         xyt_d = xyt.to(net_device)
         xy_d = xyt_d[:, :2]
         t_q_d = xyt_d[:, 2]
-        bd = body_distance_fn(xy_d) if use_bd else None
+        bd = body_distance_fn(xy_d) if _need_bd else None
         # raw model output：normalized 量級（mean~0, std~1 per channel）
         raw = net.query_decoder.forward_uvp(
             xy_d, t_q_d, h_states, s_time, sensor_pos, body_distance=bd,

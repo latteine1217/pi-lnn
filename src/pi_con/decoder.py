@@ -43,6 +43,7 @@ class DeepONetCfCDecoder(nn.Module):
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
+        use_body_distance_feature: bool = False,
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
@@ -73,6 +74,9 @@ class DeepONetCfCDecoder(nn.Module):
         # autograd 走得通 → NS residual 算對 ∂u/∂x（不像 distance-as-input
         # 的 detach numpy lookup 漏 chain rule path）。
         self.use_hard_body_bc = bool(use_hard_body_bc)
+        # Stage 2 Option A: SDF input feature
+        # query = [x, y, t, c, φ(x,y)] post-Fourier concat (raw scalar, no encoding on φ).
+        self.use_body_distance_feature = bool(use_body_distance_feature)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
@@ -100,8 +104,9 @@ class DeepONetCfCDecoder(nn.Module):
                 )
             self.spatial_emb = None
             spatial_dim = 4 * fourier_harmonics
-        # query_in 不含 body_distance—— hard BC 是 output transformation，不是 input feature。
-        query_in = spatial_dim + temporal_dim + d_time + 8
+        # query_in 預設不含 body_distance（hard BC 是 output transformation）。
+        # 但 Stage 2 Option A 啟用 use_body_distance_feature=True 時, query_in +1 (raw φ scalar)。
+        query_in = spatial_dim + temporal_dim + d_time + 8 + (1 if self.use_body_distance_feature else 0)
         # Hard BC scale：phi_scale 用於把 distance 轉成 [0, 1] gate。
         # `body_bc_scale=1.0` default = identity scale；caller (training.py) 應該用
         # `set_body_bc_scale()` 注入 dataset-specific 的 max fluid distance。
@@ -230,6 +235,15 @@ class DeepONetCfCDecoder(nn.Module):
                 t_q.unsqueeze(-1), self.T_total, self.temporal_anchor_harmonics
             ))
         base_inputs.append(time_e)
+        # Stage 2 Option A: SDF trunk input — concat raw φ scalar (post-Fourier, no encoding)
+        if self.use_body_distance_feature:
+            if body_distance is None:
+                raise ValueError(
+                    "use_body_distance_feature=True 但 forward_uvp() body_distance=None；"
+                    "請傳入 dataset.query_body_distance_torch(xy) 結果（differentiable）。"
+                )
+            phi_feat = body_distance.reshape(-1, 1)                              # [N, 1]
+            base_inputs.append(phi_feat)
         # NOTE: hard body BC 不在這裡 concat distance（output transformation, 在 return 前）
         base_feat = torch.cat(base_inputs, dim=-1)                              # [N, query_in - 8]
 
@@ -348,6 +362,14 @@ class DeepONetCfCDecoder(nn.Module):
         # 注意：body_distance 在 emb_c 之前 concat，與 forward_uvp 的 base_feat
         # 結構一致（base_feat 含 body_distance，再跟 emb_c concat）。
         trunk_inputs.append(time_e)
+        # Stage 2 Option A: SDF trunk input feature (與 forward_uvp 對稱)。
+        if self.use_body_distance_feature:
+            if body_distance is None:
+                raise ValueError(
+                    "use_body_distance_feature=True 但 forward() body_distance=None；"
+                    "請傳入 dataset.query_body_distance_torch(xy) 結果（differentiable）。"
+                )
+            trunk_inputs.append(body_distance.reshape(-1, 1))                    # [N, 1] raw φ
         # NOTE: hard body BC 是 output transformation，不在這裡 concat distance
         trunk_inputs.append(emb_c)
         trunk_in_cat = torch.cat(trunk_inputs, dim=-1)

@@ -130,14 +130,23 @@ def train_picon_kolmogorov(
     net = create_picon_model(args).to(device)
 
     # ── Body-distance feature（cylinder boundary layer 學習）──────────
-    # use_hard_body_bc=True 時，model output 會套 (φ/scale).clamp(0,1) gate 強制 body 內 u=v=0。
+    # 兩種使用方式 (兩者皆需要 body_distance_fn 注入):
+    # 1. use_hard_body_bc=True (Stage 1 path)：output gate u = (φ/scale).clamp(0,1) · NN。
+    # 2. use_body_distance_feature=True (Stage 2 Option A)：trunk input concat query+=φ。
     # 對 cylinder dataset 從 _detect_body 預計算的 SDF grid 用 bilinear interp 取值；
-    # 對 kolmogorov 退化為常數 1.0（無 body）。
+    # 對 kolmogorov 沒 SDF，啟用任一 flag 都會在 _make_body_distance_fn 內 raise。
     _use_hard_body_bc = bool(args.get("use_hard_body_bc", False))
+    _use_body_distance_feature = bool(args.get("use_body_distance_feature", False))
+    _need_body_distance_fn = _use_hard_body_bc or _use_body_distance_feature
     if _use_hard_body_bc and not getattr(net, "use_hard_body_bc", False):
         raise ValueError(
             "config use_hard_body_bc=True 但 net.use_hard_body_bc=False；"
             "可能 model 用舊 ckpt resume 但 ckpt 是 hard BC 關閉時訓的。"
+        )
+    if _use_body_distance_feature and not getattr(net, "use_body_distance_feature", False):
+        raise ValueError(
+            "config use_body_distance_feature=True 但 net.use_body_distance_feature=False；"
+            "可能 model 用舊 ckpt resume 但 ckpt 是該 flag 關閉時訓的。"
         )
 
     def _make_body_distance_fn(ds):
@@ -158,7 +167,7 @@ def train_picon_kolmogorov(
         return fn
 
     body_distance_fns: list = []
-    if _use_hard_body_bc:
+    if _need_body_distance_fn:
         for ds in datasets:
             body_distance_fns.append(_make_body_distance_fn(ds))
         # 注入 dataset-specific bc_distance_scale 到 model gate
@@ -705,7 +714,7 @@ def train_picon_kolmogorov(
                         sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
                     )
                     _h_cache_lbfgs.append((_h, _st))
-                    _bd_d = body_distance_fns[_i](_xy) if _use_hard_body_bc else None
+                    _bd_d = body_distance_fns[_i](_xy) if _need_body_distance_fn else None
                     _pred = observed_channel_prediction(
                         net=net, xy=_xy, t_q=_tq, c_obs=_c,
                         observed_channel_names=_ds.observed_channel_names,
@@ -728,7 +737,7 @@ def train_picon_kolmogorov(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
                             h_states=_h_p, s_time=_st_p,
-                            body_distance_fn=body_distance_fns[_i] if _use_hard_body_bc else None,
+                            body_distance_fn=body_distance_fns[_i] if _need_body_distance_fn else None,
                         )
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
@@ -881,7 +890,7 @@ def train_picon_kolmogorov(
                         sensor_vals_list[_i], sensor_pos_list[_i], _ds.re_norm, sensor_time_list[_i]
                     )
                     _h_cache_ng.append((_h, _st))
-                    _bd_d = body_distance_fns[_i](_xy) if _use_hard_body_bc else None
+                    _bd_d = body_distance_fns[_i](_xy) if _need_body_distance_fn else None
                     _pred = observed_channel_prediction(
                         net=net, xy=_xy, t_q=_tq, c_obs=_c,
                         observed_channel_names=_ds.observed_channel_names,
@@ -906,7 +915,7 @@ def train_picon_kolmogorov(
                             net, sensor_vals_list[_i], sensor_pos_list[_i],
                             re_norm=_ds.re_norm, sensor_time=sensor_time_list[_i], device=device,
                             h_states=_h_p, s_time=_st_p,
-                            body_distance_fn=body_distance_fns[_i] if _use_hard_body_bc else None,
+                            body_distance_fn=body_distance_fns[_i] if _need_body_distance_fn else None,
                         )
                         _mu, _mv, _co = unsteady_ns_residuals(
                             _uvpfn, _xyt,
@@ -1006,7 +1015,7 @@ def train_picon_kolmogorov(
                 t_q = torch.tensor(t_np, device=device)
                 c = torch.tensor(c_np, dtype=torch.long, device=device)
                 ref = torch.tensor(ref_np, device=device)
-                bd_q = body_distance_fns[i](xy) if _use_hard_body_bc else None
+                bd_q = body_distance_fns[i](xy) if _need_body_distance_fn else None
                 pred = observed_channel_prediction(
                     net=net,
                     xy=xy,
@@ -1056,7 +1065,7 @@ def train_picon_kolmogorov(
                     exploration_ratio=_rar_expl_ratio,
                     # Hard body BC 相容：傳 body_distance_fn 給 RAR pool 內部
                     # make_picon_model_fn_uvp，否則 use_hard_body_bc=True 時 raise。
-                    body_distance_fns=body_distance_fns if _use_hard_body_bc else None,
+                    body_distance_fns=body_distance_fns if _need_body_distance_fn else None,
                 )
 
             if phys_gate:
@@ -1111,7 +1120,7 @@ def train_picon_kolmogorov(
                         re_norm=ds.re_norm,
                         sensor_time=_st_phys,
                         device=device,
-                        body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
+                        body_distance_fn=body_distance_fns[i] if _need_body_distance_fn else None,
                         h_states=_h_phys,
                         s_time=_st_phys_cached,
                     )
@@ -1200,7 +1209,7 @@ def train_picon_kolmogorov(
                         _bc_fn = make_picon_model_fn(
                             net, _sv_bc, sensor_pos_list[i],
                             re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
-                            body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
+                            body_distance_fn=body_distance_fns[i] if _need_body_distance_fn else None,
                         )
 
                         # 1. Inflow BC（x=0：u=u_inf, v=0）
@@ -1275,7 +1284,7 @@ def train_picon_kolmogorov(
                             _uvp_out = make_picon_model_fn_uvp(
                                 net, _sv_bc, sensor_pos_list[i],
                                 re_norm=ds.re_norm, sensor_time=_st_bc, device=device,
-                                body_distance_fn=body_distance_fns[i] if _use_hard_body_bc else None,
+                                body_distance_fn=body_distance_fns[i] if _need_body_distance_fn else None,
                             )(_xyt_out)
                             _u_out = _uvp_out[:, 0:1]
                             _v_out = _uvp_out[:, 1:2]

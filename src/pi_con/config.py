@@ -177,6 +177,12 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                                           # 取代有 detach bug 的 distance-as-input feature。
                                           # True 會改 model architecture（query_in +1），ckpt 不相容
                                           # 僅 cylinder dataset 真正需要；kolmogorov 為 dummy 1.0
+    "use_body_distance_feature": False,  # cylinder trunk SDF input feature (Stage 2 Option A)：
+                                          # query_in = [x, y, t, c, φ(x,y)] (dim 4→5)
+                                          # raw scalar concat post-Fourier, no encoding on φ。
+                                          # 與 use_hard_body_bc 獨立，可同時用 (但 Stage 2 spec 推薦只用此 flag, hard BC off)
+                                          # 改 model architecture（query_in +1），ckpt 不相容。
+                                          # 僅 cylinder dataset 有 SDF; kolmogorov 啟用會 raise。
     "learning_rate": 1e-3,
     "weight_decay": 1e-4,
     "lr_schedule": "none",
