@@ -119,10 +119,13 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | ID | Status | Configuration | KE rel-err | ke_pred/ke_ref | ω RMSE | div L2 | iter | 一句結論 |
 |---|---|---|---|---|---|---|---|---|
 | **CEXP-002** | 🥇 `ACTIVE_BASELINE` | Re=10031, soft inflow BC | **3.54 %** | **1.01** ✅ | 2.14 | 1.14 | 10k | **唯一 working baseline**；振幅高 ~10%，渦核位置可識別 |
-| **CEXP-016** | 🔄 `PENDING_RUN` | Re=10031, **hard body BC + baseline 對齊**（single-variable ablation）| TBD | TBD | TBD | TBD | 10k | **CEXP-010-fair**: paper-grade hard BC effect 評估；唯一變動 `use_hard_body_bc=true`，其餘 100% 對齊 baseline |
+| **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
+| **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
+| **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
+| **CEXP-019** | `NEGATIVE_RESULT` | Re=10031, hard BC + **bc_body 96 + bc_outlet 32** (H3) | 139.3 % ❌ | 2.39 | 12.70 | 6.13 | 10k | **❌ H3-C falsified**：dense BC 沒救（且更糟一點）|
 | **CEXP-001** | `NEGATIVE_RESULT` | Re=10031, **無** BC | 51.0 % | — | — | 1.13 | — | [PHYSICAL_FAILURE] 來流 u → 0；被 CEXP-002 取代；artifact 已遺失 |
 | CEXP-007 | `NEGATIVE_RESULT` | Re=10031, distance feature (BLOCKED), iter=3k | 32.7 % | 0.67 | 7.76 | **2.85** | 3k | `use_body_distance_feature` key 從未落到 main → distance 沒生效 + iter 太短 + 5-task GradNorm 壓 BC |
-| CEXP-010 | `INCONCLUSIVE` | Re=10031, **hard body BC**, body_aware, iter=**5k** (半) | 17.5 % | 0.82 | 8.24 | 1.08 | 5k | KE 退步 5×、ω 退步 4× — 但與 baseline iter/strategy/GradNorm tasks 全不同, **無法歸因**；由 CEXP-016 重做乾淨 A/B |
+| CEXP-010 | `INCONCLUSIVE` (superseded) | Re=10031, **hard body BC**, body_aware, iter=**5k** (半) | 17.5 % | 0.82 | 8.24 | 1.08 | 5k | Multi-confound; **Stage 1 證明 hard BC + standard architecture incompatibility**, CEXP-010 KE 17.5% 是 multi-confound accidental survival |
 | CEXP-013 | `NEGATIVE_RESULT` | Re=1781, d_model **128**, hard BC, body_aware | 46.3 % | **0.54** ❌ | 1.59 | 0.046 | 5k | **mean-flow collapse 直接證據** (ke_pred 僅 ref 的 54%)；div 0.046 是 trivial 解的副作用，非 incompressibility 成就 |
 
 ---
@@ -165,6 +168,33 @@ cylinder div L2 兩個量級 worse 的可能原因（**待 ablation**）：
 - `use_physics_denormalization = true` → 黏性項量級被恢復，但 continuity loss gradient 量級可能變不平衡
 
 **Hypothesis**：可能需要 cylinder-specific 的 continuity weight schedule 或 RAR-on-continuity-residual 才能對齊 Kolmogorov 量級。
+
+### Finding 4 — Stage 1 全 ❌：Hard BC + standard PI-CON architecture 有 fundamental incompatibility（2026-05-23/24）
+
+per [`docs/superpowers/specs/2026-05-23-cylinder-hard-bc-enabling-conditions-design.md`](../docs/superpowers/specs/2026-05-23-cylinder-hard-bc-enabling-conditions-design.md) §4 multi-config decision table 判讀: **全 ❌ pattern → Re-diagnose**。
+
+Stage 1 完整 outcomes:
+
+| Hypothesis | Config | Prior | KE rel-err | ke_pred/ke_ref | Outcome |
+|---|---|---|---|---|---|
+| H1: 5-task GradNorm 把 BC weight 納入動態平衡 | CEXP-017 | 60% | **303.6 %** | **4.04** | ❌ H1-C (**反更糟 3×**) |
+| H2: body_aware sampling 補強 boundary gradient signal | CEXP-018 | 25% | 106.3 % | 2.06 | ❌ H2-C |
+| H3: dense BC supervision (bc_body 96 + bc_outlet 32) | CEXP-019 | 15% | 139.3 % | 2.39 | ❌ H3-C |
+| (control) hard BC alone | CEXP-016 | — | 111.6 % | 2.12 | catastrophic baseline |
+
+**Key insights**:
+
+1. **CEXP-017 顛覆 60% prior**: 5-task GradNorm 把 catastrophic 推得**更糟 3×**, 而非緩解。Training log 顯示 `w_bc` 從 0.1 → 19.5 (推 195×) + `w_ns_u` 從 0.01 → 3.82, BC + physics 同時被推高 → model 仍 over-predict 4×。**BC loss 進 GradNorm 反讓 model 找 trivial 滿足 BC 卻違反 sensor MSE 的解**。
+
+2. **H2/H3 ≈ CEXP-016 持平**: body_aware (KE 106%) 與 dense BC (KE 139%) 都沒把 KE 拉回 baseline 量級 (3.5%)。証明這些 multi-confound 內部 component **不是 enabling conditions**，只是 accidental 條件。
+
+3. **CEXP-010 (legacy multi-confound, KE 17.5%) 是 accidental survival**: 推測 5k iter 不夠長, 還未進入 catastrophic failure mode。10k iter 公平比較全部都 catastrophic。
+
+4. **Hard BC + standard PI-CON architecture (SOAP + ScheduleFree + 4/5-task GradNorm) fundamental incompatibility**: 任何單一 enabling condition 無法救。Catastrophic 機制 (`ke_pred/ke_ref > 2.0` over-predict, `w_ns_u > 2.0` GradNorm pathology) 是架構級而非超參級問題。
+
+**Root cause hypothesis (2026-05-24)**: Trunk net 目前完全沒有 geometry awareness — hard BC gate 只是 output post-hoc transformation, NN_u 對所有 query 都試圖輸出「自然 wake value」, 然後 body-adjacent 值被 gate 壓掉。Wake 區 NN_u 必須過度補償 → physics residual 暴增 → GradNorm 推 w_ns_u → over-predict。
+
+**Stage 2 redirect (Option A)**: 加 SDF `φ` 進 trunk input concat (`query = [x, y, t, c, φ]`), 移除 hard BC gate。Trunk 自學「near-body vs far-field」區分，不依賴 output gate 救援。詳見 [STATE] Open Questions。
 
 ---
 
@@ -245,6 +275,71 @@ cylinder div L2 兩個量級 worse 的可能原因（**待 ablation**）：
 | 設計意圖 | exp_012 (Re=1781 full capacity) collapse 後降 capacity 4-8×：d_model 256→128, operator_rank 256→128, attention layers 2→1, fourier_harmonics 16→12 |
 | 結論 | **Mean-flow collapse 確認**。降 capacity 沒救。引用 Wang 2022 frequency bias 機制。詳見 [STATE] Surprise Findings #2。 |
 
+### CEXP-016：Hard BC + baseline 對齊 (CEXP-010-fair, KE=111.6%, catastrophic)
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_016_hard_bc_fair.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp016-hard-bc-fair/` |
+| Checkpoint | `picon_kolmogorov_final.pt`（step 10000） |
+| KE rel-err mean / late | **111.6 %** / 113.7 % ❌ |
+| u / v RMSE | 0.253 / 0.103 |
+| ω RMSE | **12.62** (5.9× baseline) |
+| div L2 | **6.93** (6× baseline) |
+| ke_pred / ke_ref | 0.142 / 0.067 = **2.12** ❌ (over-predict) |
+| GradNorm `w_ns_u` final | **2.09** (推 209× from 0.01) |
+| 設計變動 | 唯一 `use_hard_body_bc=true`, 其餘 100% 對齊 CEXP-002 baseline |
+| 結論 | **Catastrophic over-predict**。Hard BC gate 強制 body 區 = 0 → NN_u 在 wake 區補償壓力大 → physics residual 暴增 → GradNorm 推 w_ns_u → model 失控 over-predict 2.12×。Stage 1 baseline failure。詳見 Surprise Findings #4。 |
+
+### CEXP-017：Hard BC + 5-task GradNorm (H1, KE=303.6%, **worst**)
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_017_hard_bc_5task_gn.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp017-hard-bc-5task-gn/` |
+| Checkpoint | `picon_kolmogorov_final.pt`（step 10000） |
+| KE rel-err mean / late | **303.6 %** / 305.6 % ❌❌❌ |
+| u / v RMSE | **0.458** / 0.113 |
+| ω RMSE | **19.30** |
+| div L2 | 6.50 |
+| ke_pred / ke_ref | 0.271 / 0.067 = **4.04** (over-predict 4×) |
+| GradNorm `w_ns_u` final | **3.82** (推 382×) |
+| GradNorm `w_bc` final | **19.56** (推 195× from 0.1) |
+| 設計變動 (vs CEXP-016) | `gradnorm_init_weights [1.0, 0.01, 0.01, 0.01]` → `[1.0, 0.01, 0.01, 0.01, 0.1]`（H1: BC weight 進 GradNorm）|
+| 結論 | **❌ H1-C falsified**。5-task GradNorm 反讓 catastrophic 推 3× — BC weight 進 GradNorm 後**反向放大** physics dominance（BC + NS 同時被推高）→ model trivial 滿足 BC 卻違反 sensor MSE → over-predict 4×。Surprise: 60% prior 顛覆。 |
+
+### CEXP-018：Hard BC + body_aware sampling (H2, KE=106.3%, no improvement)
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_018_hard_bc_body_aware.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp018-hard-bc-body-aware/` |
+| Checkpoint | `picon_kolmogorov_final.pt`（step 10000） |
+| KE rel-err mean / late | 106.3 % / 108.7 % ❌ |
+| u / v RMSE | 0.247 / 0.099 |
+| ω RMSE | 11.90 |
+| div L2 | 6.27 |
+| ke_pred / ke_ref | 0.139 / 0.067 = **2.06** |
+| GradNorm `w_ns_u` final | 1.65 (推 165×) |
+| 設計變動 (vs CEXP-016) | `physics_collocation_strategy "random"` → `"body_aware"` (30% near-body + 70% uniform) |
+| 結論 | **❌ H2-C falsified**。body_aware sampling ≈ CEXP-016 (KE 微降 5pp 但仍 catastrophic)。Boundary gradient signal 雖加強, physics dominance 機制不被打破。 |
+
+### CEXP-019：Hard BC + dense BC supervision (H3, KE=139.3%, mild worse)
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_019_hard_bc_dense_bc.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp019-hard-bc-dense-bc/` |
+| Checkpoint | `picon_kolmogorov_final.pt`（step 10000） |
+| KE rel-err mean / late | 139.3 % / 141.4 % ❌ |
+| u / v RMSE | 0.277 / 0.101 |
+| ω RMSE | 12.70 |
+| div L2 | 6.13 |
+| ke_pred / ke_ref | 0.161 / 0.067 = **2.39** |
+| Train wall | 2:27 hr (50% 多 vs 016/017/018 的 1:36 hr — bc_outlet 加密 + body_aware 加 collocation 成本) |
+| 設計變動 (vs CEXP-016) | `bc_body_n_points 64→96` + 新增 `bc_outlet_n_points=32` |
+| 結論 | **❌ H3-C falsified**。加密 soft BC supervision **微更糟** (KE 111→139%)。Hard BC over-predict 機制不被多 BC points 打破。 |
+
 ---
 
 ## [STATE] Orphan Configs（intent-only, **無 artifact**）
@@ -271,10 +366,12 @@ cylinder div L2 兩個量級 worse 的可能原因（**待 ablation**）：
 
 | 問題 | 現況 | 狀態 |
 |---|---|---|
-| **CEXP-016 (= CEXP-010-fair)**: hard BC ON 但 iter/sampling/GradNorm 全與 CEXP-002 對齊 | **config 完成** ([`configs/exp_cylinder_016_hard_bc_fair.toml`](../configs/exp_cylinder_016_hard_bc_fair.toml))，待執行 | **進行中** — Task 6 in progress |
+| **Stage 1 全 falsified（CEXP-017/018/019）** | 已驗證 hard BC + standard PI-CON architecture **fundamental incompatibility** | ✅ Closed 2026-05-24 (Finding #4) |
+| **Stage 2: Option A — Trunk SDF input concat (CEXP-020)** | per [Option A redirect 2026-05-24]: `use_body_distance_feature=true` + `use_hard_body_bc=false`, raw scalar `φ` 進 trunk query input dim 4→5。需先修 src `DEFAULT_PICON_ARGS` 缺失 key（~30 line patch）| **下個 session 啟動**（spec 寫作待開工）|
+| Stage 2 future: Option E (cross-attn geometry tokens) / F (geometry-conditioned hypernetwork) | per user 2026-05-24 prioritization: 「之後很有機會」| Long-term, 下下個 session 或下篇 paper |
 | **CEXP-002 multi-seed (n=3-5)** | single seed only，無 σ | **高優先** — paper-grade rigor |
-| **CEXP-015 (Re=1781, collo 1024+RAR)** | config 完備，gate 已設但**暫不執行**（per 2026-05-22 prioritization decision: hard BC 歸因比 Re=1781 collapse 重要）| `DEFERRED` — gate 見下 |
-| div L2 cylinder vs Kolmogorov 兩個量級差距 | 機制不明（非均勻格 / sensor 集中 / denorm 任一） | 開放（CEXP-016+ 候選研究方向）|
+| **CEXP-015 (Re=1781, collo 1024+RAR)** | config 完備，gate 已設但**暫不執行**（per 2026-05-22 prioritization decision: hard BC 歸因比 Re=1781 collapse 重要）| `DEFERRED` |
+| div L2 cylinder vs Kolmogorov 兩個量級差距 | 機制不明（非均勻格 / sensor 集中 / denorm 任一） | 開放（Stage 2 Option A 可能 indirectly fix —if trunk geometry awareness 改善 incompressibility）|
 | Sensor placement variability | K=100 single placement only | 待開工 |
 | 與 FLRNet / Energy Transformer 比較 | baseline 已建立但未實際 benchmark | 待規劃 |
 | CfC Jacobian spectral radius @ cylinder | 未寫腳本 | 同 Kolmogorov 待開工 |
@@ -333,3 +430,13 @@ cylinder div L2 兩個量級 worse 的可能原因（**待 ablation**）：
   - 加入 [INDEX] 標 `PENDING_RUN`，Open Questions 改為「進行中」
   - CEXP-015 改 `DEFERRED`（prioritization: hard BC 歸因優先於 Re=1781 collapse 解決）
   - Expected outcomes 4 種解讀寫進 config header（A 中性 / B 輕微退步 / C 實質有害 / D 實質有益），各自對應 paper claim
+- **2026-05-23/24 Stage 1 全 ❌**:
+  - CEXP-016 (hard BC fair) eval: **KE 111.6 %**, `ke_pred/ke_ref 2.12`, catastrophic over-predict — 4 種預期 outcome 全沒命中, 出現新 case E (catastrophic)
+  - CEXP-017/018/019 三個 single-variable enabling-condition diagnostic 全部 falsified（per spec [`docs/superpowers/specs/2026-05-23-cylinder-hard-bc-enabling-conditions-design.md`](../docs/superpowers/specs/2026-05-23-cylinder-hard-bc-enabling-conditions-design.md) §4 multi-config decision table 判讀: 全 ❌ pattern → Re-diagnose）
+  - **CEXP-017 顛覆 60% prior**: 5-task GradNorm 反讓 KE 推至 **303.6 %** (over-predict 4.04×), w_bc 飆 195× + w_ns_u 飆 382×
+  - **CEXP-018 (H2 body_aware) ≈ CEXP-016**: KE 106.3 %, body_aware sampling 沒救
+  - **CEXP-019 (H3 dense BC)**: KE 139.3 %, dense BC supervision 微更糟
+  - **Finding 4 新增**: Hard BC + standard PI-CON architecture (SOAP + ScheduleFree + GradNorm) **fundamental incompatibility**, CEXP-010 KE 17.5 % 是 multi-confound accidental survival (5k iter 不夠長, 10k iter 公平比較全 catastrophic)
+  - **Root cause hypothesis (2026-05-24)**: Trunk net 完全沒有 geometry awareness — hard BC 只是 output post-hoc gate, NN 不知道 boundary 在哪 → over-compensation 機制
+  - **Stage 2 redirect (Option A)**: 加 SDF `φ` 進 trunk input concat (`query = [x, y, t, c, φ]`), 移除 hard BC gate; raw scalar concat, hard BC off (per user 2026-05-24 decision). 需先修 src `DEFAULT_PICON_ARGS` 缺失 key (~30 line patch). Options E (cross-attn geometry tokens) + F (geometry-conditioned hypernetwork) 列 long-term future paper material
+  - [INDEX] CEXP-016/017/018/019 entries finalized, [RECORD] 4 個 detail tables 新增, [STATE] Open Questions Stage 2 plan 寫入
