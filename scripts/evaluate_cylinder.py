@@ -398,11 +398,14 @@ def main() -> None:
     xy_t = torch.tensor(xy_flat, device=device)
 
     # Hard body BC（Sukumar 2022）：model output 套 (φ/scale).clamp(0,1) gate。
+    # Stage 2 Option A (use_body_distance_feature)：trunk input 含 φ scalar，同樣需要 _bd_full。
     # 改用 dataset 的 _sdf_grid + bc_distance_scale（C2 修法）：避免 evaluator 重算
     # body mask 與訓練端 silent drift（之前 detect_body 只看 |u|，dataset 看 |u|+|v|）。
     _use_hard_body_bc = bool(getattr(model, "use_hard_body_bc", False))
+    _use_body_distance_feature = bool(getattr(model, "use_body_distance_feature", False))
+    _need_bd = _use_hard_body_bc or _use_body_distance_feature
     _bd_full = None
-    if _use_hard_body_bc:
+    if _need_bd:
         # 直接拿 dataset 已算好的 SDF（normalized 距離，與訓練 query_body_distance 同公式）
         _sdf_grid = ds._sdf_grid                       # [H, W]
         _H, _W = _sdf_grid.shape
