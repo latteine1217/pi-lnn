@@ -123,6 +123,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
 | **CEXP-019** | `NEGATIVE_RESULT` | Re=10031, hard BC + **bc_body 96 + bc_outlet 32** (H3) | 139.3 % ❌ | 2.39 | 12.70 | 6.13 | 10k | **❌ H3-C falsified**：dense BC 沒救（且更糟一點）|
+| **CEXP-020** | `NEGATIVE_RESULT` | Re=10031, **trunk SDF input + hard BC OFF** (Stage 2 Option A) | **405.2 %** ❌❌❌ | **5.06** | 35.1 | 9.80 | 10k | **❌ Option C**：比 hard BC catastrophic 還差 114×；SDF input 在 sensor 不覆蓋 body 區時有害，需要 Options E/F |
 | **CEXP-001** | `NEGATIVE_RESULT` | Re=10031, **無** BC | 51.0 % | — | — | 1.13 | — | [PHYSICAL_FAILURE] 來流 u → 0；被 CEXP-002 取代；artifact 已遺失 |
 | CEXP-007 | `NEGATIVE_RESULT` | Re=10031, distance feature (BLOCKED), iter=3k | 32.7 % | 0.67 | 7.76 | **2.85** | 3k | `use_body_distance_feature` key 從未落到 main → distance 沒生效 + iter 太短 + 5-task GradNorm 壓 BC |
 | CEXP-010 | `INCONCLUSIVE` (superseded) | Re=10031, **hard body BC**, body_aware, iter=**5k** (半) | 17.5 % | 0.82 | 8.24 | 1.08 | 5k | Multi-confound; **Stage 1 證明 hard BC + standard architecture incompatibility**, CEXP-010 KE 17.5% 是 multi-confound accidental survival |
@@ -195,6 +196,37 @@ Stage 1 完整 outcomes:
 **Root cause hypothesis (2026-05-24)**: Trunk net 目前完全沒有 geometry awareness — hard BC gate 只是 output post-hoc transformation, NN_u 對所有 query 都試圖輸出「自然 wake value」, 然後 body-adjacent 值被 gate 壓掉。Wake 區 NN_u 必須過度補償 → physics residual 暴增 → GradNorm 推 w_ns_u → over-predict。
 
 **Stage 2 redirect (Option A)**: 加 SDF `φ` 進 trunk input concat (`query = [x, y, t, c, φ]`), 移除 hard BC gate。Trunk 自學「near-body vs far-field」區分，不依賴 output gate 救援。詳見 [STATE] Open Questions。
+
+### Finding 5 — Stage 2 Option A (trunk SDF input) 也失敗（CEXP-020, 2026-05-24）— SDF input 在 sensor 不覆蓋 body 區時有害
+
+CEXP-020 = CEXP-002 baseline + `use_body_distance_feature=true` + `use_hard_body_bc=false`. KE **405.2%** (比 CEXP-016 hard BC catastrophic 111% 還差 3.6×, Option C per spec §4).
+
+| Metric | CEXP-002 baseline | CEXP-020 (Option A) | Δ |
+|---|---|---|---|
+| KE rel-err mean | 3.54 % | **405.2 %** | 114× 退步 |
+| ke_pred / ke_ref | 1.01 | **5.06** (over-predict 5×) | 更糟 |
+| u RMSE | 0.103 | 0.554 | 5.4× |
+| ω RMSE | 2.14 | 35.1 | 16× |
+| div L2 | 1.14 | 9.80 | 8.6× |
+| GradNorm w_ns_u final | 0.108 | 1.13 (10×) | 偏高但非 catastrophic |
+| L_data final | 1.15e-3 | **5.03e-3** (4× worse data fit) | — |
+
+**根本原因分析**：SDF input 造成 **adversarial training signal**。
+
+- φ(x,y) → 0 near body = trunk MLP 學「suppress velocity」
+- K=100 sensors 全在 wake (x > 0.10), **body 區沒有 sensor supervision 糾正**
+- Model 的 body-region suppression (learned from φ hint) 缺乏 corrective feedback
+- 結果：SDF hint 給錯誤 prior 且無法修正 → data fit 4× 惡化 → KE 405%
+
+**Comparison with CEXP-002** (same config without SDF input, KE 3.54%): 加 SDF input 反而比不加差 114×. SDF input 並非中性特徵——在 sensor coverage 不完整的情況下是有害特徵。
+
+**Paper-grade insight (2026-05-24)**:
+> "Raw SDF scalar as trunk input is harmful when sensors don't cover the body region (K=100 wake-concentrated placement). The φ feature provides a `suppress near body` inductive bias without corrective sensor feedback, perturbing the optimization landscape and degrading data fit 4×. Geometry-aware learning requires stronger structural priors (Options E: cross-attention with geometry tokens, or F: geometry-conditioned hypernetwork) that can leverage geometry information without creating adversarial gradients."
+
+**Next direction (per spec §4 ❌C stop-loss)**:
+- **Not** continuing to Options B/D (Fourier-on-φ / per-layer gate) — same adversarial signal problem
+- **Options E/F are future paper material** per user 2026-05-24 decision
+- Cylinder generalization section paper claim: revise to "geometry awareness requires full sensor coverage or architectural-level enforcement; raw SDF input alone insufficient"
 
 ---
 
@@ -367,8 +399,8 @@ Stage 1 完整 outcomes:
 | 問題 | 現況 | 狀態 |
 |---|---|---|
 | **Stage 1 全 falsified（CEXP-017/018/019）** | 已驗證 hard BC + standard PI-CON architecture **fundamental incompatibility** | ✅ Closed 2026-05-24 (Finding #4) |
-| **Stage 2: Option A — Trunk SDF input concat (CEXP-020)** | per [Option A redirect 2026-05-24]: `use_body_distance_feature=true` + `use_hard_body_bc=false`, raw scalar `φ` 進 trunk query input dim 4→5。需先修 src `DEFAULT_PICON_ARGS` 缺失 key（~30 line patch）| **下個 session 啟動**（spec 寫作待開工）|
-| Stage 2 future: Option E (cross-attn geometry tokens) / F (geometry-conditioned hypernetwork) | per user 2026-05-24 prioritization: 「之後很有機會」| Long-term, 下下個 session 或下篇 paper |
+| **Stage 2: Option A — Trunk SDF input concat (CEXP-020)** | ❌ **Failed** (KE 405.2%, 比 hard BC catastrophic 還差 114×). SDF input 在 sensor 不覆蓋 body 區時有害 (adversarial training signal)。Finding #5 written. | ✅ Closed 2026-05-24 (❌ negative finding) |
+| **Stage 3 (next paper): Option E (cross-attn geometry tokens) / F (geometry-conditioned hypernetwork)** | User: 「之後很有機會」。需要更強結構先驗才能讓 geometry-aware learning 在 sparse sensor 條件下成功。 | Long-term, 下一篇 paper 主軸 |
 | **CEXP-002 multi-seed (n=3-5)** | single seed only，無 σ | **高優先** — paper-grade rigor |
 | **CEXP-015 (Re=1781, collo 1024+RAR)** | config 完備，gate 已設但**暫不執行**（per 2026-05-22 prioritization decision: hard BC 歸因比 Re=1781 collapse 重要）| `DEFERRED` |
 | div L2 cylinder vs Kolmogorov 兩個量級差距 | 機制不明（非均勻格 / sensor 集中 / denorm 任一） | 開放（Stage 2 Option A 可能 indirectly fix —if trunk geometry awareness 改善 incompressibility）|
