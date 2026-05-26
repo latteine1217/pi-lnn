@@ -44,6 +44,7 @@ class DeepONetCfCDecoder(nn.Module):
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
         use_body_distance_feature: bool = False,
+        use_geometry_tokens: bool = False,
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
@@ -114,6 +115,24 @@ class DeepONetCfCDecoder(nn.Module):
         self.register_buffer(
             "body_bc_scale",
             torch.tensor(1.0, dtype=torch.float32),
+            persistent=False,
+        )
+        # Option E: Cross-attention geometry tokens (CEXP-022+)
+        # body surface xy injected by training.py into geometry_pos buffer.
+        # 3 new learnable modules:
+        #   geo_key_proj: Fourier(body_xy) [N_body, spatial_dim] → key space [N_body, query_mlp_hidden_dim]
+        #   geo_value: shared zero-velocity prior [1, query_mlp_hidden_dim] (learned init = 0)
+        #   geo_token_type_bias: key bias distinguishing body tokens from sensor tokens [query_mlp_hidden_dim]
+        self.use_geometry_tokens = bool(use_geometry_tokens)
+        if self.use_geometry_tokens:
+            self.geo_key_proj = nn.Linear(spatial_dim, query_mlp_hidden_dim)
+            self.geo_value = nn.Parameter(torch.zeros(1, query_mlp_hidden_dim))
+            self.geo_token_type_bias = nn.Parameter(torch.zeros(query_mlp_hidden_dim))
+        # geometry_pos: body surface normalized coordinates, shape [N_body, 2]
+        # persistent=False: not saved in ckpt; filled at training start from ds.body_xy
+        self.register_buffer(
+            "geometry_pos",
+            torch.zeros(0, 2, dtype=torch.float32),
             persistent=False,
         )
         rank = d_model if operator_rank is None else operator_rank
@@ -273,6 +292,32 @@ class DeepONetCfCDecoder(nn.Module):
         rel_bias_3 = rel_bias.repeat(3, 1)                                      # [3N, K]
         rel_r_3 = rel_r.repeat(3, 1, 1)                                         # [3N, K, 1]
 
+        # Option E: Append geometry tokens to K-V pool
+        if self.use_geometry_tokens and self.geometry_pos.shape[0] > 0:
+            N_body = self.geometry_pos.shape[0]
+            geo_pos = self.geometry_pos.to(device=device, dtype=xy.dtype)
+            # Fourier encode body surface positions (reuse same spatial_emb as query)
+            if self.spatial_emb is not None:
+                geo_enc = self.spatial_emb(geo_pos, self.domain_length)          # [N_body, spatial_dim]
+            else:
+                geo_enc = periodic_fourier_encode(geo_pos, self.domain_length, self.fourier_harmonics)
+            # Key: position encoding → key projection + token type bias
+            geo_k = self.geo_key_proj(geo_enc) + self.geo_token_type_bias       # [N_body, hidden]
+            # Value: shared zero-velocity prior (all body tokens share same value)
+            geo_v = self.geo_value.expand(N_body, -1)                           # [N_body, hidden]
+            # Extend to [3N, N_body, hidden] for 3-channel batch
+            geo_k_3 = geo_k.unsqueeze(0).expand(3 * N, -1, -1)                 # [3N, N_body, hidden]
+            geo_v_3 = geo_v.unsqueeze(0).expand(3 * N, -1, -1)                 # [3N, N_body, hidden]
+            k_3 = torch.cat([k_3, geo_k_3], dim=1)                             # [3N, K+N_body, hidden]
+            v_3 = torch.cat([v_3, geo_v_3], dim=1)                             # [3N, K+N_body, hidden]
+            # Extend relpos bias: query-to-body distances
+            geo_rel = xy.unsqueeze(1) - geo_pos.unsqueeze(0)                   # [N, N_body, 2]
+            geo_rel_r = torch.sqrt((geo_rel ** 2).sum(-1, keepdim=True) + 1e-8) # [N, N_body, 1]
+            geo_bias = self.relpos_bias(geo_rel_r).squeeze(-1)                  # [N, N_body]
+            rel_bias_3 = torch.cat([rel_bias_3, geo_bias.repeat(3, 1)], dim=1) # [3N, K+N_body]
+            if self.use_locality_decay:
+                rel_r_3 = torch.cat([rel_r_3, geo_rel_r.repeat(3, 1, 1)], dim=1)  # [3N, K+N_body, 1]
+
         if self.disable_cross_attention:
             # B1 ablation: 替 cross-attention 為 mean-pool over K sensor tokens (per query)。
             # v_3 [3N, K, hidden]; pool over dim=1 (K dimension); 結果 [3N, hidden]。
@@ -401,6 +446,29 @@ class DeepONetCfCDecoder(nn.Module):
         # Why: 感測器 x 分佈非均勻，方向向量會將 x-column 非均勻性注入 attention bias，
         #      造成 x 方向條紋偽影；距離已足夠描述近鄰感測器的貢獻強度。
         rel_bias = self.relpos_bias(rel_r).squeeze(-1)
+
+        # Option E: Append geometry tokens to K-V pool (single-channel path, symmetric to forward_uvp)
+        if self.use_geometry_tokens and self.geometry_pos.shape[0] > 0:
+            N_body = self.geometry_pos.shape[0]
+            geo_pos = self.geometry_pos.to(device=xy.device, dtype=xy.dtype)
+            if self.spatial_emb is not None:
+                geo_enc = self.spatial_emb(geo_pos, self.domain_length)
+            else:
+                geo_enc = periodic_fourier_encode(geo_pos, self.domain_length, self.fourier_harmonics)
+            geo_k = self.geo_key_proj(geo_enc) + self.geo_token_type_bias       # [N_body, hidden]
+            geo_v = self.geo_value.expand(N_body, -1)                           # [N_body, hidden]
+            N_q = q.shape[0]
+            geo_k_q = geo_k.unsqueeze(0).expand(N_q, -1, -1)                   # [N_q, N_body, hidden]
+            geo_v_q = geo_v.unsqueeze(0).expand(N_q, -1, -1)                   # [N_q, N_body, hidden]
+            k = torch.cat([k, geo_k_q], dim=1)                                 # [N_q, K+N_body, hidden]
+            v = torch.cat([v, geo_v_q], dim=1)                                 # [N_q, K+N_body, hidden]
+            geo_rel = xy.unsqueeze(1) - geo_pos.unsqueeze(0)
+            geo_rel_r = torch.sqrt((geo_rel ** 2).sum(-1, keepdim=True) + 1e-8)
+            geo_bias = self.relpos_bias(geo_rel_r).squeeze(-1)
+            rel_bias = torch.cat([rel_bias, geo_bias], dim=1)                  # [N_q, K+N_body]
+            if self.use_locality_decay:
+                rel_r = torch.cat([rel_r, geo_rel_r], dim=1)                   # [N_q, K+N_body, 1]
+
         if self.disable_cross_attention:
             # B1 ablation: mean-pool over K sensor tokens (per query)。
             # v [N_q, K, hidden] → mean dim=1 → [N_q, hidden]。

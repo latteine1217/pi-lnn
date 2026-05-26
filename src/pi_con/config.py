@@ -177,6 +177,11 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                                           # 取代有 detach bug 的 distance-as-input feature。
                                           # True 會改 model architecture（query_in +1），ckpt 不相容
                                           # 僅 cylinder dataset 真正需要；kolmogorov 為 dummy 1.0
+    "use_geometry_tokens": False,        # Option E: body 表面 geometry tokens 加入 cross-attention K-V pool。
+                                          # 每個 body token: key=Fourier(body_xy)+type_bias, value=geo_value 共用先驗。
+                                          # body_xy 從 cylinder dataset.body_xy 在訓練開始前注入。
+                                          # True 加入 3 個新 learnable module，ckpt 不相容（cold start）。
+    "n_geometry_tokens": -1,            # geometry token 數量：-1 = 全部 ds.body_xy；正整數 = 取前 n 點。
     "use_body_distance_feature": False,  # cylinder trunk SDF input feature (Stage 2 Option A)：
                                           # query_in = [x, y, t, c, φ(x,y)] (dim 4→5)
                                           # raw scalar concat post-Fourier, no encoding on φ。

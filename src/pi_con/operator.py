@@ -47,6 +47,7 @@ class LiquidOperator(nn.Module):
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
         use_body_distance_feature: bool = False,
+        use_geometry_tokens: bool = False,
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
@@ -57,6 +58,7 @@ class LiquidOperator(nn.Module):
         self.use_hard_body_bc = bool(use_hard_body_bc)
         # SDF-as-trunk-input (Stage 2 Option A)
         self.use_body_distance_feature = bool(use_body_distance_feature)
+        self.use_geometry_tokens = bool(use_geometry_tokens)
         self.spatial_encoder = SpatialSetEncoder(
             fourier_harmonics,
             sensor_value_dim,
@@ -97,6 +99,7 @@ class LiquidOperator(nn.Module):
             fourier_band_dim_ratios=fourier_band_dim_ratios,
             use_hard_body_bc=use_hard_body_bc,
             use_body_distance_feature=use_body_distance_feature,
+            use_geometry_tokens=use_geometry_tokens,
             decoder_attention_heads=decoder_attention_heads,
             use_modified_mlp=use_modified_mlp,
             disable_cross_attention=disable_cross_attention,
@@ -158,6 +161,19 @@ class LiquidOperator(nn.Module):
         if scale <= 0:
             raise ValueError(f"body_bc_scale 必須 > 0，收到 {scale}")
         self.query_decoder.body_bc_scale.fill_(float(scale))
+
+    def set_geometry_tokens(self, body_xy: torch.Tensor) -> None:
+        """Inject body surface positions for geometry token cross-attention (Option E).
+
+        Args:
+            body_xy: [N_body, 2] normalized body surface coordinates from ds.body_xy.
+        """
+        if not self.use_geometry_tokens:
+            raise ValueError(
+                "set_geometry_tokens() 呼叫時 use_geometry_tokens=False；"
+                "請先在 config 啟用 use_geometry_tokens=True。"
+            )
+        self.query_decoder.register_buffer("geometry_pos", body_xy, persistent=False)
 
     def encode(
         self,
@@ -264,6 +280,7 @@ def create_picon_model(cfg: dict[str, Any]):
         fourier_band_dim_ratios=cfg.get("fourier_band_dim_ratios"),
         use_hard_body_bc=bool(cfg.get("use_hard_body_bc", False)),
         use_body_distance_feature=bool(cfg.get("use_body_distance_feature", False)),
+        use_geometry_tokens=bool(cfg.get("use_geometry_tokens", False)),
         decoder_attention_heads=int(cfg.get("decoder_attention_heads", 1)),
         use_modified_mlp=bool(cfg.get("use_modified_mlp", False)),
         disable_cross_attention=bool(cfg.get("disable_cross_attention", False)),

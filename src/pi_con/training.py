@@ -170,6 +170,24 @@ def train_picon_kolmogorov(
     if _need_body_distance_fn:
         for ds in datasets:
             body_distance_fns.append(_make_body_distance_fn(ds))
+
+    # Option E: Geometry tokens — inject body surface coordinates from dataset
+    _use_geometry_tokens = bool(args.get("use_geometry_tokens", False))
+    if _use_geometry_tokens:
+        if not datasets:
+            raise ValueError("use_geometry_tokens=True 但 datasets 為空。")
+        ds0 = datasets[0]
+        if not hasattr(ds0, "body_xy"):
+            raise AttributeError(
+                "use_geometry_tokens=True 需要 cylinder dataset (有 body_xy)；"
+                "kolmogorov dataset 不支援 geometry tokens。"
+            )
+        _n_geo = int(args.get("n_geometry_tokens", -1))
+        body_pos = torch.tensor(ds0.body_xy, dtype=torch.float32, device=device)
+        if _n_geo > 0 and _n_geo < body_pos.shape[0]:
+            body_pos = body_pos[:_n_geo]
+        net.set_geometry_tokens(body_pos)
+        print(f"  geometry_tokens: {body_pos.shape[0]} body surface points injected.")
         # 注入 dataset-specific bc_distance_scale 到 model gate
         # 多 dataset 取最大 scale（保守）
         _bc_scale = max(float(getattr(ds, "bc_distance_scale", 1.0)) for ds in datasets)
