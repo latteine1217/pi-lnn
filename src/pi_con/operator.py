@@ -51,6 +51,12 @@ class LiquidOperator(nn.Module):
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
+        use_re_film: bool = False,
+        use_graph_spatial_encoder: bool = False,
+        graph_k_neighbors: int = 8,
+        use_trunk_geo_context: bool = False,
+        use_graph_spatial_gate: bool = False,
+        geometry_preserve_base_rng: bool = False,
     ) -> None:
         super().__init__()
         # Hard body BC 是 output transformation：u, v ← (φ/scale).clamp(0,1) · NN
@@ -59,6 +65,13 @@ class LiquidOperator(nn.Module):
         # SDF-as-trunk-input (Stage 2 Option A)
         self.use_body_distance_feature = bool(use_body_distance_feature)
         self.use_geometry_tokens = bool(use_geometry_tokens)
+        self.use_graph_spatial_encoder = bool(use_graph_spatial_encoder)
+        self.use_trunk_geo_context = bool(use_trunk_geo_context)
+        self.use_graph_spatial_gate = bool(use_graph_spatial_gate)
+        self.geometry_preserve_base_rng = bool(geometry_preserve_base_rng)
+        # Re FiLM：用 multiplicative (γ_l, β_l) 取代舊 additive bias；multi-Re 訓練必要。
+        # use_re_film=False (default) 維持 EXP-245 / EXP-094 baseline 完整行為。
+        self.use_re_film = bool(use_re_film)
         self.spatial_encoder = SpatialSetEncoder(
             fourier_harmonics,
             sensor_value_dim,
@@ -69,6 +82,11 @@ class LiquidOperator(nn.Module):
             use_periodic_domain=use_periodic_domain,
             fourier_sigma_bands=fourier_sigma_bands,
             fourier_band_dim_ratios=fourier_band_dim_ratios,
+            use_re_film=self.use_re_film,
+            use_graph_spatial_encoder=self.use_graph_spatial_encoder,
+            graph_k_neighbors=graph_k_neighbors,
+            use_graph_spatial_gate=self.use_graph_spatial_gate,
+            geometry_preserve_base_rng=self.geometry_preserve_base_rng,
         )
         self.temporal_encoder = TemporalCfCEncoder(
             d_model,
@@ -78,6 +96,7 @@ class LiquidOperator(nn.Module):
             use_bidirectional=use_bidirectional_cfc,
             cfc_log_tau_min=cfc_log_tau_min,
             cfc_log_tau_max=cfc_log_tau_max,
+            use_re_film=self.use_re_film,
         )
         self.query_decoder = DeepONetCfCDecoder(
             fourier_harmonics=fourier_harmonics,
@@ -103,6 +122,8 @@ class LiquidOperator(nn.Module):
             decoder_attention_heads=decoder_attention_heads,
             use_modified_mlp=use_modified_mlp,
             disable_cross_attention=disable_cross_attention,
+            use_trunk_geo_context=self.use_trunk_geo_context,
+            geometry_preserve_base_rng=self.geometry_preserve_base_rng,
         )
 
         # Physics output denormalization buffers
@@ -163,16 +184,18 @@ class LiquidOperator(nn.Module):
         self.query_decoder.body_bc_scale.fill_(float(scale))
 
     def set_geometry_tokens(self, body_xy: torch.Tensor) -> None:
-        """Inject body surface positions for geometry token cross-attention (Option E).
+        """Inject body surface positions for geometry-aware opt-in paths.
 
         Args:
             body_xy: [N_body, 2] normalized body surface coordinates from ds.body_xy.
         """
-        if not self.use_geometry_tokens:
+        if not (self.use_geometry_tokens or self.use_graph_spatial_encoder or self.use_trunk_geo_context):
             raise ValueError(
-                "set_geometry_tokens() 呼叫時 use_geometry_tokens=False；"
-                "請先在 config 啟用 use_geometry_tokens=True。"
+                "set_geometry_tokens() 呼叫時所有 geometry flag 皆為 False；"
+                "請先在 config 啟用 use_geometry_tokens/use_graph_spatial_encoder/use_trunk_geo_context。"
             )
+        if body_xy.dim() != 2 or body_xy.shape[1] != 2:
+            raise ValueError(f"body_xy 必須是 [N_body,2]，收到 {tuple(body_xy.shape)}")
         self.query_decoder.register_buffer("geometry_pos", body_xy, persistent=False)
 
     def encode(
@@ -188,7 +211,14 @@ class LiquidOperator(nn.Module):
              所有層對 last-dim element-wise，T 軸僅是 batch，向量化後結果等價。
         """
         pos_enc = self.spatial_encoder.encode_pos(sensor_pos)
-        spatial_states = self.spatial_encoder(sensor_vals, pos_enc)  # [T, K, d_model]
+        geometry_pos = self.query_decoder.geometry_pos if self.use_graph_spatial_encoder else None
+        spatial_states = self.spatial_encoder(
+            sensor_vals,
+            pos_enc,
+            re_norm,
+            sensor_pos=sensor_pos,
+            geometry_pos=geometry_pos,
+        )  # [T, K, d_model]
         return self.temporal_encoder(spatial_states, re_norm, sensor_time), sensor_time
 
     def update_state(
@@ -200,7 +230,14 @@ class LiquidOperator(nn.Module):
         h_list: list[torch.Tensor],
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         pos_enc = self.spatial_encoder.encode_pos(sensor_pos)
-        spatial = self.spatial_encoder(sensor_vals_t, pos_enc)
+        geometry_pos = self.query_decoder.geometry_pos if self.use_graph_spatial_encoder else None
+        spatial = self.spatial_encoder(
+            sensor_vals_t,
+            pos_enc,
+            re_norm,
+            sensor_pos=sensor_pos,
+            geometry_pos=geometry_pos,
+        )
         return self.temporal_encoder.step(spatial, h_list, re_norm, dt)
 
     def predict(
@@ -284,6 +321,12 @@ def create_picon_model(cfg: dict[str, Any]):
         decoder_attention_heads=int(cfg.get("decoder_attention_heads", 1)),
         use_modified_mlp=bool(cfg.get("use_modified_mlp", False)),
         disable_cross_attention=bool(cfg.get("disable_cross_attention", False)),
+        use_re_film=bool(cfg.get("use_re_film", False)),
+        use_graph_spatial_encoder=bool(cfg.get("use_graph_spatial_encoder", False)),
+        graph_k_neighbors=int(cfg.get("graph_k_neighbors", 8)),
+        use_trunk_geo_context=bool(cfg.get("use_trunk_geo_context", False)),
+        use_graph_spatial_gate=bool(cfg.get("use_graph_spatial_gate", False)),
+        geometry_preserve_base_rng=bool(cfg.get("geometry_preserve_base_rng", False)),
     )
     # ForcingPrior attached as submodule → model.parameters() / state_dict 自動包含。
     # 預設兩 flag false 時行為等同舊版常數 forcing；任一 true 才有 learnable param。
@@ -294,14 +337,15 @@ def create_picon_model(cfg: dict[str, Any]):
     _learn_kf = bool(cfg.get("learn_forcing_k_f", False))
     _A_truth = float(cfg.get("kolmogorov_A", 0.1))
     _kf_truth = float(cfg.get("kolmogorov_k_f", 4.0))
-    model.forcing = ForcingPrior(
-        A_init=float(cfg.get("forcing_A_init", 0.05)) if _learn_A else _A_truth,
-        k_f_init=float(cfg.get("forcing_k_f_init", 4.0)) if _learn_kf else _kf_truth,
-        learn_A=_learn_A,
-        learn_k_f=_learn_kf,
-        k_f_min=float(cfg.get("forcing_k_f_min", 1.0)),
-        k_f_max=float(cfg.get("forcing_k_f_max", 8.0)),
-    )
+    if _learn_A or _learn_kf or (_A_truth > 0.0 and _kf_truth > 0.0):
+        model.forcing = ForcingPrior(
+            A_init=float(cfg.get("forcing_A_init", 0.05)) if _learn_A else _A_truth,
+            k_f_init=float(cfg.get("forcing_k_f_init", 4.0)) if _learn_kf else _kf_truth,
+            learn_A=_learn_A,
+            learn_k_f=_learn_kf,
+            k_f_min=float(cfg.get("forcing_k_f_min", 1.0)),
+            k_f_max=float(cfg.get("forcing_k_f_max", 8.0)),
+        )
     return model
 
 

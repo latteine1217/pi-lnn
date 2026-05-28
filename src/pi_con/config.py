@@ -40,6 +40,14 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "vanilla_deeponet_num_trunk_layers": 3,   # B0 trunk ResidualMLPBlock 層數
     "disable_cross_attention": False,         # B1 ablation: 停用 decoder cross-attention，
                                               # 改用 mean-pool over K sensor tokens。仍保 CfC encoder。
+    "use_graph_spatial_encoder": False,       # B: sensor tokens 在進 CfC 前從 geometry tokens 聚合訊息。
+                                              # 預設 false 時不建立 graph_spatial_* 參數，舊 ckpt 相容。
+    "graph_k_neighbors": 8,                   # 每個 sensor token 聚合最近幾個 geometry nodes。
+    "use_graph_spatial_gate": False,          # B-control: 以 tanh(gate) 從 0 啟動 graph message。
+    "geometry_preserve_base_rng": False,      # Ablation control: 建 geometry modules 後還原 RNG，
+                                              # 使 baseline 參數初始化不被 optional modules 改變。
+    "use_trunk_geo_context": False,           # C: trunk query 從 geometry memory 取回 query-local context。
+                                              # 預設 false 時不建立 trunk_geo_* 參數，舊 ckpt 相容。
     "use_standard_pinn": False,               # Standard PINN baseline (Wang 2021 style):
                                               # (x, y, t) → MLP → (u, v, p)。sensor 只入 loss。
                                               # 用於對比「operator framework」vs「plain PINN」。
@@ -54,6 +62,8 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "fusion_temperature_init": None,
     "use_locality_decay": False,
     "use_bidirectional_cfc": False,
+    "use_re_film": False,           # Re conditioning: False=舊 additive bias (legacy);
+                                    # True=per-layer FiLM γ⊙x+β (multi-Re 訓練必要, identity init 不傷 single-Re)。
     "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
     "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
     "fourier_sigma_bands": None,    # LearnableFourierEmb 多頻段 σ；None=單一 σ；例 [1.0, 4.0, 12.0]

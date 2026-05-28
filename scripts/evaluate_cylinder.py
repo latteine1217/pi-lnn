@@ -373,6 +373,28 @@ def main() -> None:
         f"  train_idx={len(ds.train_t_idx)}  val_idx={len(ds.val_t_idx)}"
     )
 
+    # Geometry-aware opt-in paths must match training-time injection.
+    # B: graph spatial encoder reads geometry before CfC.
+    # C: trunk query reads geometry memory during full-field query.
+    _use_geometry_tokens = bool(cfg.get("use_geometry_tokens", False))
+    _use_graph_spatial_encoder = bool(cfg.get("use_graph_spatial_encoder", False))
+    _use_trunk_geo_context = bool(cfg.get("use_trunk_geo_context", False))
+    _use_any_geometry_context = (
+        _use_geometry_tokens or _use_graph_spatial_encoder or _use_trunk_geo_context
+    )
+    if _use_any_geometry_context:
+        if not hasattr(ds, "body_xy"):
+            raise AttributeError(
+                "geometry-aware flag=True 需要 CylinderDataset 提供 body_xy；"
+                "evaluate_cylinder.py 無法在沒有幾何點時評估此 checkpoint。"
+            )
+        _n_geo = int(cfg.get("n_geometry_tokens", -1))
+        body_pos = torch.tensor(ds.body_xy, dtype=torch.float32, device=device)
+        if _n_geo > 0 and _n_geo < body_pos.shape[0]:
+            body_pos = body_pos[:_n_geo]
+        model.set_geometry_tokens(body_pos)
+        print(f"  geometry_context: {body_pos.shape[0]} body surface points injected.")
+
     # IMP-6: 驗證 sensor_time uniform；dataset.dt_phys 假設 uniform，nonuniform 會讓
     #        summary metadata 失真。np.gradient 對 nonuniform 仍正確，所以只 warn 不 raise。
     if len(sensor_time) >= 2:

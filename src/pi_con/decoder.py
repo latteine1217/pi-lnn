@@ -48,6 +48,8 @@ class DeepONetCfCDecoder(nn.Module):
         decoder_attention_heads: int = 1,
         use_modified_mlp: bool = False,
         disable_cross_attention: bool = False,
+        use_trunk_geo_context: bool = False,
+        geometry_preserve_base_rng: bool = False,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
@@ -78,6 +80,7 @@ class DeepONetCfCDecoder(nn.Module):
         # Stage 2 Option A: SDF input feature
         # query = [x, y, t, c, φ(x,y)] post-Fourier concat (raw scalar, no encoding on φ).
         self.use_body_distance_feature = bool(use_body_distance_feature)
+        self.geometry_preserve_base_rng = bool(geometry_preserve_base_rng)
         self.fourier_harmonics = int(fourier_harmonics)
         self.use_temporal_anchor = bool(use_temporal_anchor)
         self.T_total = float(T_total)
@@ -128,6 +131,30 @@ class DeepONetCfCDecoder(nn.Module):
             self.geo_key_proj = nn.Linear(spatial_dim, query_mlp_hidden_dim)
             self.geo_value = nn.Parameter(torch.zeros(1, query_mlp_hidden_dim))
             self.geo_token_type_bias = nn.Parameter(torch.zeros(query_mlp_hidden_dim))
+        self.use_trunk_geo_context = bool(use_trunk_geo_context)
+        if self.use_trunk_geo_context:
+            _rng_state = torch.random.get_rng_state() if self.geometry_preserve_base_rng else None
+            try:
+                self.trunk_geo_query_proj = nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim)
+                self.trunk_geo_key_proj = nn.Linear(spatial_dim, query_mlp_hidden_dim)
+                self.trunk_geo_value_proj = nn.Linear(spatial_dim, query_mlp_hidden_dim)
+                self.trunk_geo_rel_bias = nn.Sequential(
+                    nn.LayerNorm(1),
+                    nn.Linear(1, query_mlp_hidden_dim),
+                    nn.SiLU(),
+                    nn.Linear(query_mlp_hidden_dim, 1),
+                )
+                self.trunk_geo_context = nn.Sequential(
+                    nn.LayerNorm(query_mlp_hidden_dim),
+                    nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim),
+                    nn.SiLU(),
+                    nn.Linear(query_mlp_hidden_dim, query_mlp_hidden_dim),
+                )
+                # 由 0 開始，讓新實驗初期從舊 trunk 附近啟動；只有 flag=True 時才存在。
+                self.trunk_geo_gate = nn.Parameter(torch.zeros(1, dtype=torch.float32))
+            finally:
+                if _rng_state is not None:
+                    torch.random.set_rng_state(_rng_state)
         # geometry_pos: body surface normalized coordinates, shape [N_body, 2]
         # persistent=False: not saved in ckpt; filled at training start from ds.body_xy
         self.register_buffer(
@@ -203,6 +230,41 @@ class DeepONetCfCDecoder(nn.Module):
             #      初始 log_locality_decay = -2.0 → α ≈ 0.135，r=0.1 時懲罰 ≈ -0.013，
             #      接近中性，讓模型自行學習是否需要近鄰優先。
             self.log_locality_decay = nn.Parameter(torch.tensor([-2.0], dtype=torch.float32))
+
+    def _geometry_positions(self, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+        if self.geometry_pos.shape[0] == 0:
+            raise ValueError("use_trunk_geo_context=True 但 geometry_pos 為空；請先注入幾何點。")
+        return self.geometry_pos.to(device=device, dtype=dtype)
+
+    def _encode_geometry(self, geo_pos: torch.Tensor) -> torch.Tensor:
+        if self.spatial_emb is not None:
+            return self.spatial_emb(geo_pos, self.domain_length)
+        return periodic_fourier_encode(geo_pos, self.domain_length, self.fourier_harmonics)
+
+    def _apply_trunk_geo_context(
+        self,
+        trunk_feat: torch.Tensor,
+        xy: torch.Tensor,
+    ) -> torch.Tensor:
+        """What: 讓 continuous query trunk 從全域 geometry memory 取回 query-local context。"""
+        if not self.use_trunk_geo_context:
+            return trunk_feat
+        geo_pos = self._geometry_positions(device=xy.device, dtype=xy.dtype)
+        geo_enc = self._encode_geometry(geo_pos)
+        q = self.trunk_geo_query_proj(trunk_feat)
+        k = self.trunk_geo_key_proj(geo_enc)
+        v = self.trunk_geo_value_proj(geo_enc)
+
+        rel = xy.unsqueeze(1) - geo_pos.unsqueeze(0)
+        if self.use_periodic_domain:
+            rel = rel - torch.round(rel / self.domain_length) * self.domain_length
+        rel_r = torch.sqrt((rel ** 2).sum(dim=-1, keepdim=True) + 1e-8)
+        rel_bias = self.trunk_geo_rel_bias(rel_r).squeeze(-1)
+        scores = torch.matmul(q, k.T) / math.sqrt(q.shape[-1])
+        scores = scores + rel_bias
+        attn = torch.softmax(scores, dim=-1)
+        ctx = torch.matmul(attn, v)
+        return trunk_feat + torch.tanh(self.trunk_geo_gate).to(trunk_feat.dtype) * self.trunk_geo_context(ctx)
 
     def forward_uvp(
         self,
@@ -281,6 +343,8 @@ class DeepONetCfCDecoder(nn.Module):
         else:
             for block in self.trunk_blocks:
                 trunk_feat = block(trunk_feat)
+        xy_3 = xy.unsqueeze(0).expand(3, -1, -1).reshape(3 * N, 2)
+        trunk_feat = self._apply_trunk_geo_context(trunk_feat, xy_3)
         trunk_basis = self.trunk_out(trunk_feat).view(3 * N, 3, self.rank)
 
         branch_query = self.branch_norm(trunk_feat)
@@ -428,6 +492,7 @@ class DeepONetCfCDecoder(nn.Module):
         else:
             for block in self.trunk_blocks:
                 trunk_feat = block(trunk_feat)
+        trunk_feat = self._apply_trunk_geo_context(trunk_feat, xy)
 
         trunk_basis = self.trunk_out(trunk_feat).view(-1, 3, self.rank)
         branch_tokens = self.branch_token_proj(h_branch_tokens)

@@ -171,23 +171,31 @@ def train_picon_kolmogorov(
         for ds in datasets:
             body_distance_fns.append(_make_body_distance_fn(ds))
 
-    # Option E: Geometry tokens — inject body surface coordinates from dataset
+    # Geometry-aware opt-in paths — inject body surface coordinates from dataset.
+    # use_geometry_tokens: decoder K/V pool 追加 body tokens。
+    # use_graph_spatial_encoder: sensor tokens 在進 CfC 前聚合 geometry message。
+    # use_trunk_geo_context: trunk query 從 geometry memory 取回 query-local context。
     _use_geometry_tokens = bool(args.get("use_geometry_tokens", False))
-    if _use_geometry_tokens:
+    _use_graph_spatial_encoder = bool(args.get("use_graph_spatial_encoder", False))
+    _use_trunk_geo_context = bool(args.get("use_trunk_geo_context", False))
+    _use_any_geometry_context = _use_geometry_tokens or _use_graph_spatial_encoder or _use_trunk_geo_context
+    if _use_any_geometry_context:
         if not datasets:
-            raise ValueError("use_geometry_tokens=True 但 datasets 為空。")
+            raise ValueError("geometry-aware flag=True 但 datasets 為空。")
         ds0 = datasets[0]
         if not hasattr(ds0, "body_xy"):
             raise AttributeError(
-                "use_geometry_tokens=True 需要 cylinder dataset (有 body_xy)；"
-                "kolmogorov dataset 不支援 geometry tokens。"
+                "geometry-aware flag=True 需要 dataset 提供 body_xy；"
+                "KolmogorovDataset 目前不支援 geometry-aware path。"
             )
         _n_geo = int(args.get("n_geometry_tokens", -1))
         body_pos = torch.tensor(ds0.body_xy, dtype=torch.float32, device=device)
         if _n_geo > 0 and _n_geo < body_pos.shape[0]:
             body_pos = body_pos[:_n_geo]
         net.set_geometry_tokens(body_pos)
-        print(f"  geometry_tokens: {body_pos.shape[0]} body surface points injected.")
+        print(f"  geometry_context: {body_pos.shape[0]} body surface points injected.")
+
+    if _use_hard_body_bc:
         # 注入 dataset-specific bc_distance_scale 到 model gate
         # 多 dataset 取最大 scale（保守）
         _bc_scale = max(float(getattr(ds, "bc_distance_scale", 1.0)) for ds in datasets)
