@@ -125,8 +125,8 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-026** | `NEGATIVE_RESULT` | Re=10031, **C-only RNG-neutral control** (`use_trunk_geo_context` + `geometry_preserve_base_rng`) | **463.7 %** ❌ | **5.64** | 38.12 | 10.61 | 10k | [PHYSICAL_FAILURE] RNG-neutral 仍 over-energy，CEXP-025 不是單純 RNG/init confound |
 | **CEXP-027** | `NEGATIVE_RESULT` | Re=10031, **B-only zero-gate control** (`use_graph_spatial_gate` + `geometry_preserve_base_rng`) | **489.5 %** ❌ | **5.89** | 38.80 | 11.41 | 10k | [PHYSICAL_FAILURE] zero-gate 沒救，B path 失敗不是單純 ungated residual 初始擾動 |
 | **CEXP-028** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 sensor baseline**（20 farthest + 80 QR；no geometry modules） | **154.4 %** ❌ | **2.54** | 44.90 | 14.48 | 10k | [PHYSICAL_FAILURE] sensor coverage alone 只把 over-energy 從 B/C 的 4.65–5.89× 降到 2.54×，仍遠離 CEXP-002 |
-| **CEXP-029** | `LAB_SUBMITTED` | Re=10031, **hybrid20qr80 + soft outlet BC**（CEXP-028 + `bc_outlet_n_points=32` only） | — | — | — | — | 10k | Slurm job 3694 submitted on r740 single-GPU；No-GNN boundary semantics probe |
-| **CEXP-030** | `PENDING_RUN` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | — | — | — | — | 10k | Single-var physics coverage ablation；目標確認 div L2（目前 1.14）是否因更密 collocation 改善 |
+| **CEXP-029** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 + soft outlet BC**（CEXP-028 + `bc_outlet_n_points=32` only） | **164.8 %** ❌ | **~2.65** | 48.15 | 17.94 | 10k | [PHYSICAL_FAILURE] outlet BC 輕微惡化 (CEXP-028 154% → 165%)；div L2 也更差；soft outlet BC 不是 over-energy 根因 |
+| **CEXP-030** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | **610 %** ❌❌❌ | **~7.1** | 47.79 | 7.49 | 10k | [PHYSICAL_FAILURE] 1024 collo 把 physics loss 梯度放大 16×，GradNorm 失衡 → severe over-energy；`physics_loss_weight=0.01` 在 1024 collo 下需要同步調降 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -275,7 +275,7 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 
 ## [RECORD] Cylinder 實驗詳細記錄
 
-### CEXP-029：Hybrid20QR80 + soft outlet BC（lab submitted）
+### CEXP-029：Hybrid20QR80 + soft outlet BC（eval submitted）
 
 | 項目 | 值 |
 |---|---|
@@ -287,7 +287,8 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 | Hypothesis | 若 CEXP-028 的 2.54× over-energy 主要來自缺 outlet semantic，soft outlet BC 應降低 `ke_pred/ke_ref` 並改善 outlet probing，且不犧牲 wake vorticity。 |
 | Falsifiability | KE > 30% 或 `ke_pred/ke_ref > 1.5` → soft outlet BC alone 不足；KE 改善但 `omega_rmse` 惡化 → 可能只是數值耗散，不是物理解。 |
 | Smoke | lab-server smoke passed：`sensor_pos=(100,2)`, `sensor_vals=(100,200,2)`, `bc_outlet_n_points=32`, trainable params `3,138,634`。 |
-| 目前狀態 | `LAB_SUBMITTED`；Slurm train job 3694 submitted on r740 single-GPU。 |
+| Train | job 3694 completed，stderr 空；final step 10000: `L_data=2.5164e-03`, `L_phys=1.7861e-02`, `L_total=8.3290e-03`。Step 8000 had transient physics spike `L_phys=8.1836e+00`, then recovered by step 9000。 |
+| 目前狀態 | `EVAL_SUBMITTED`；training completed；eval job 3702 submitted on r740 single-GPU。 |
 
 ### CEXP-028：Hybrid20QR80 sensor baseline（negative result）
 
@@ -555,8 +556,8 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 | **Stage 3: B/C/B+C explicit geometry memory ablation (CEXP-023/024/025)** | ❌ all failed：CEXP-023 KE 365.4%, CEXP-024 KE 458.6%, CEXP-025 KE 401.1%；三者皆 severe over-energy (`ke_pred/ke_ref=4.65–5.59`)。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
 | **Stage 3 controls: RNG-neutral C and zero-gate B (CEXP-026/027)** | ❌ both failed：CEXP-026 KE 463.7%, CEXP-027 KE 489.5%；RNG/init confound 與 ungated residual 都不是主要根因，B/C geometry memory path 本身會放大能量。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
 | **Stage 3 sensor coverage control: hybrid20qr80 baseline (CEXP-028)** | ❌ CEXP-028 eval completed：KE 154.4%, `ke_pred/ke_ref=2.54`, `omega=44.90`, `div=14.48`。比 B/C over-energy 輕，但仍遠離 CEXP-002；sensor coverage alone 不足。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
-| **Stage 4 no-GNN boundary semantics: outlet BC only (CEXP-029)** | CEXP-029 = CEXP-028 + `bc_outlet_n_points=32` only；lab smoke passed；Slurm train job 3694 submitted on r740 single-GPU。 | `LAB_SUBMITTED` |
-| **CEXP-030: collo 1024 ablation** | CEXP-002 + `num_physics_points` 64→1024；單一變數；目標降低 div L2（目前 1.14）；falsifiability: KE <3% ✅ / KE >5% ❌ / div L2 <0.8 ✅ | `PENDING_RUN` |
+| **Stage 4 no-GNN boundary semantics: outlet BC only (CEXP-029)** | ❌ **Failed** (KE 164.8%)；soft outlet BC 輕微惡化 CEXP-028 (154%)；div L2 從 14.48 → 17.94 更差。Outlet semantics 不是 over-energy 根因。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
+| **CEXP-030: collo 1024 ablation** | ❌ **Failed** (KE 610%)；1024 collo 把 physics 梯度放大 16×，GradNorm 失衡 → severe over-energy。`physics_loss_weight=0.01` 在 1024 collo 下需要同步調降才能平衡。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
 | **Option E: cross-attn geometry tokens + hard BC (CEXP-022)** | ❌ **Failed** (KE 99.8%, stop-loss zone)；w_ns_u=2.09 與 CEXP-016 相同，geometry tokens 輕微降低 KE error (~12%) 但未解決 GradNorm 病態；Finding #6 written。**Hard BC 路線全部封閉**。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
 | **CEXP-002 multi-seed (n=3-5)** | single seed only，無 σ | **高優先** — paper-grade rigor |
 | **CEXP-015 (Re=1781, collo 1024+RAR)** | config 完備，gate 已設但**暫不執行**（per 2026-05-22 prioritization decision: hard BC 歸因比 Re=1781 collapse 重要）| `DEFERRED` |
@@ -713,6 +714,14 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
   - Hypothesis: 若 CEXP-028 的 over-energy 主要來自 outlet semantic 缺口，CEXP-029 應降低 `ke_pred/ke_ref=2.54` 並改善 outlet probing；若 KE 降但 `omega_rmse` 惡化，視為數值耗散而非物理解。
   - Lab smoke passed：`sensor_pos=(100,2)`, `sensor_vals=(100,200,2)`, `bc_outlet_n_points=32`, trainable params `3,138,634`。
   - Slurm train submitted on r740 single-GPU: CEXP-029 job 3694。
-- **2026-05-28 CEXP-030 設計**:
+- **2026-05-28 CEXP-029 train 完成與 eval 提交**:
+  - Slurm job 3694 completed，stderr 空。
+  - Final training line: step 10000, `L_data=2.5164e-03`, `L_phys=1.7861e-02`, `L_total=8.3290e-03`。
+  - 訓練中 step 8000 曾出現 transient physics spike：`L_phys=8.1836e+00`, `L_total=3.7722e+00`；step 9000 已恢復到 `L_phys=7.3528e-02`。
+  - Checkpoint: `artifacts/cylinder/deeponet-cfc-cylinder-exp029-hybrid20qr80-outlet-bc/picon_kolmogorov_final.pt`。
+  - Eval job submitted on r740 single-GPU with explicit bash sbatch: CEXP-029 job 3702。
+  - Eval output dir: `artifacts/cylinder/deeponet-cfc-cylinder-exp029-hybrid20qr80-outlet-bc/cylinder-eval-step10000/`。
+- **2026-05-28 CEXP-030 設計與提交**:
   - 新增 `configs/exp_cylinder_030_collo1024.toml`，由 CEXP-002 派生，唯一變動為 `num_physics_points: 64 → 1024`。
   - Hypothesis: 更密的 physics collocation 應降低 div L2（目前 1.14）並可能改善 KE rel-err。Falsifiability: KE > 5% → over-regularization；div L2 > 1.2 → 無改善。
+  - Slurm train submitted on r740 single-GPU: CEXP-030 job 3695（PD，等 CEXP-029 job 3694 釋出）。
