@@ -1,0 +1,108 @@
+# configs/exp_cylinder_030_collo1024.toml
+# CEXP-030 = CEXP-002 + num_physics_points 64 → 1024
+#
+# 設計目的：
+#   CEXP-002 (soft BC, KE 3.54%) 是唯一 working baseline。
+#   Collocation 只有 64 點，div L2 = 1.14（比 Kolmogorov 差 17×）。
+#   Hypothesis: 1024 random collo 提供更完整 NS + continuity coverage → div L2 下降。
+#
+# 單一變數變動 vs CEXP-002：
+#   num_physics_points: 64 → 1024
+#
+# Falsifiability gates:
+#   KE < 3.0%    → ✅ 改善（更多 physics supervision 有幫助）
+#   KE 3.0-5.0%  → 🟡 同等（collocation 不是瓶頸）
+#   KE > 5.0%    → ❌ over-regularization（physics 壓倒 sensor fit）
+#   div L2 < 0.8 → ✅ incompressibility 改善
+#   div L2 > 1.2 → ❌ 無改善（可能 random 採樣在 fluid domain 效率低）
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true
+
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 10000
+num_physics_points = 1024   # ← 唯一變動（CEXP-002 = 64）
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp030-collo1024"

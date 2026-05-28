@@ -119,11 +119,21 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | ID | Status | Configuration | KE rel-err | ke_pred/ke_ref | ω RMSE | div L2 | iter | 一句結論 |
 |---|---|---|---|---|---|---|---|---|
 | **CEXP-002** | 🥇 `ACTIVE_BASELINE` | Re=10031, soft inflow BC | **3.54 %** | **1.01** ✅ | 2.14 | 1.14 | 10k | **唯一 working baseline**；振幅高 ~10%，渦核位置可識別 |
+| **CEXP-023** | `NEGATIVE_RESULT` | Re=10031, **B+C geometry-aware** (`use_graph_spatial_encoder` + `use_trunk_geo_context`) | **365.4 %** ❌ | **4.65** | 34.60 | 9.93 | 10k | [PHYSICAL_FAILURE] B+C over-predict KE 4.65×，比 CEXP-002 baseline 3.54% 差兩個量級 |
+| **CEXP-024** | `NEGATIVE_RESULT` | Re=10031, **B-only graph spatial encoder** (`use_graph_spatial_encoder`) | **458.6 %** ❌ | **5.59** | 40.55 | 8.69 | 10k | [PHYSICAL_FAILURE] B-only 最差，sensor-side geometry memory 造成 severe over-energy |
+| **CEXP-025** | `NEGATIVE_RESULT` | Re=10031, **C-only trunk geometry context** (`use_trunk_geo_context`) | **401.1 %** ❌ | **5.01** | 32.60 | 11.68 | 10k | [PHYSICAL_FAILURE] C-only 仍 over-predict KE 5.01×，trunk geometry memory 不足 |
+| **CEXP-026** | `NEGATIVE_RESULT` | Re=10031, **C-only RNG-neutral control** (`use_trunk_geo_context` + `geometry_preserve_base_rng`) | **463.7 %** ❌ | **5.64** | 38.12 | 10.61 | 10k | [PHYSICAL_FAILURE] RNG-neutral 仍 over-energy，CEXP-025 不是單純 RNG/init confound |
+| **CEXP-027** | `NEGATIVE_RESULT` | Re=10031, **B-only zero-gate control** (`use_graph_spatial_gate` + `geometry_preserve_base_rng`) | **489.5 %** ❌ | **5.89** | 38.80 | 11.41 | 10k | [PHYSICAL_FAILURE] zero-gate 沒救，B path 失敗不是單純 ungated residual 初始擾動 |
+| **CEXP-028** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 sensor baseline**（20 farthest + 80 QR；no geometry modules） | **154.4 %** ❌ | **2.54** | 44.90 | 14.48 | 10k | [PHYSICAL_FAILURE] sensor coverage alone 只把 over-energy 從 B/C 的 4.65–5.89× 降到 2.54×，仍遠離 CEXP-002 |
+| **CEXP-029** | `LAB_SUBMITTED` | Re=10031, **hybrid20qr80 + soft outlet BC**（CEXP-028 + `bc_outlet_n_points=32` only） | — | — | — | — | 10k | Slurm job 3694 submitted on r740 single-GPU；No-GNN boundary semantics probe |
+| **CEXP-030** | `PENDING_RUN` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | — | — | — | — | 10k | Single-var physics coverage ablation；目標確認 div L2（目前 1.14）是否因更密 collocation 改善 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
 | **CEXP-019** | `NEGATIVE_RESULT` | Re=10031, hard BC + **bc_body 96 + bc_outlet 32** (H3) | 139.3 % ❌ | 2.39 | 12.70 | 6.13 | 10k | **❌ H3-C falsified**：dense BC 沒救（且更糟一點）|
 | **CEXP-020** | `NEGATIVE_RESULT` | Re=10031, **trunk SDF input + hard BC OFF** (Stage 2 Option A) | **405.2 %** ❌❌❌ | **5.06** | 35.1 | 9.80 | 10k | **❌ Option C**：比 hard BC catastrophic 還差 114×；SDF input 在 sensor 不覆蓋 body 區時有害，需要 Options E/F |
+| **CEXP-021** | `NEGATIVE_RESULT` | Re=10031, **SDF trunk + hard BC** (Option A+BC combined) | **174 %** ❌ | **~2.74** | — | — | 10k | [STOP-LOSS] SDF+hard BC 比 hard BC alone (111%) 更糟；w_ns_u=1.96 GradNorm 仍病態；兩者無法互補 |
+| **CEXP-022** | `NEGATIVE_RESULT` | Re=10031, **cross-attn geometry tokens + hard BC** (Option E) | **99.8 %** ❌ | **~1.98** | 12.45 | 6.11 | 10k | [STOP-LOSS] Geometry tokens 輕微改善 (99.8% vs 111.6%) 但 w_ns_u=2.09 GradNorm 病態未解；hard BC 路線架構級失敗確認 |
 | **CEXP-001** | `NEGATIVE_RESULT` | Re=10031, **無** BC | 51.0 % | — | — | 1.13 | — | [PHYSICAL_FAILURE] 來流 u → 0；被 CEXP-002 取代；artifact 已遺失 |
 | CEXP-007 | `NEGATIVE_RESULT` | Re=10031, distance feature (BLOCKED), iter=3k | 32.7 % | 0.67 | 7.76 | **2.85** | 3k | `use_body_distance_feature` key 從未落到 main → distance 沒生效 + iter 太短 + 5-task GradNorm 壓 BC |
 | CEXP-010 | `INCONCLUSIVE` (superseded) | Re=10031, **hard body BC**, body_aware, iter=**5k** (半) | 17.5 % | 0.82 | 8.24 | 1.08 | 5k | Multi-confound; **Stage 1 證明 hard BC + standard architecture incompatibility**, CEXP-010 KE 17.5% 是 multi-confound accidental survival |
@@ -228,9 +238,151 @@ CEXP-020 = CEXP-002 baseline + `use_body_distance_feature=true` + `use_hard_body
 - **Options E/F are future paper material** per user 2026-05-24 decision
 - Cylinder generalization section paper claim: revise to "geometry awareness requires full sensor coverage or architectural-level enforcement; raw SDF input alone insufficient"
 
+### Finding 6 — Option E (cross-attention geometry tokens + hard BC) 失敗：hard BC 路線架構級問題無法透過 geometry encoding 解決（2026-05-28）
+
+CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注入為 K-V pool tokens）。
+
+| Metric | CEXP-002 baseline | CEXP-016 (hard BC) | CEXP-022 (geo tokens + hard BC) | Δ vs CEXP-016 |
+|---|---|---|---|---|
+| KE rel-err mean | 3.54 % | 111.6 % | **99.8 %** | 略好 11% |
+| ke_pred/ke_ref | 1.01 | 2.12 | ~1.98 | 略改善 |
+| ω RMSE | 2.14 | 12.62 | 12.45 | ≈ 同等 |
+| div L2 | 1.14 | 6.93 | 6.11 | 略改善 |
+| **w_ns_u final** | **0.108** | **~2.09** | **2.09** | **同等（GradNorm 仍爆）** |
+
+**關鍵觀察**：w_ns_u = 2.09 與 CEXP-016 完全相同（~2.09）。Geometry tokens 讓 KE 從 111.6% 降至 99.8%（~11% 改善），但 GradNorm 病態機制完全未被打破。
+
+**理論分析**：
+
+1. **Geometry tokens 提供了正確的資訊**：body surface 作為 K-V token，attention mechanism 確實在 body 附近給出 「zero-velocity 先驗」。這解釋了 KE 略降（99.8% vs 111.6%）。
+
+2. **但資訊量仍不夠阻止 GradNorm explosion**：hard BC gate `φ(x,y)/scale * NN_u` 的梯度結構中，gate 近 body ≈ 0，physics residual 的梯度主要由 `gate * ∂NN_u/∂params` 決定。即使 NN_u 因 geometry tokens 在 body 附近輸出較小值，gate 壓縮後的殘差 *gradient magnitude* 對 GradNorm 的 signal-to-noise ratio 仍然很差。
+
+3. **Root cause 不是 geometry awareness，是 hard BC + GradNorm 的 optimization incompatibility**：Finding #4 的結論再次被確認。所有 hard BC 變體（CEXP-016/021/022）的 w_ns_u 最終都在 ~2；這是架構級問題，不是 geometry encoding 問題。
+
+**Paper-grade insight (2026-05-28)**:
+> "Cross-attention geometry tokens provide marginal improvement (~11% KE error reduction) by encoding zero-velocity priors at body surface positions. However, the fundamental incompatibility between hard BC output gates and GradNorm-based multi-task optimization persists: the gate-suppressed physics residual gradients create an unbalanced optimization landscape that drives w_ns_u to over-weight NS momentum loss regardless of geometry encoding. Geometry-aware learning must be pursued without hard BC enforcement."
+
+**Hard BC 路線全封閉（2026-05-28）**：
+- CEXP-016/017/018/019 (Stage 1): all failed
+- CEXP-021 (SDF + hard BC): 174%，w_ns_u=1.96
+- CEXP-022 (geo tokens + hard BC): 99.8%，w_ns_u=2.09
+- 所有 hard BC 實驗都在 90-175% 的 stop-loss zone，w_ns_u 最終都在 ~2.0
+
+**Next direction**: 棄所有 hard BC 路線。若未來需要 strict no-slip enforcement，需要不同的 multi-task optimization（如 augmented Lagrangian 替代 GradNorm）。目前研究方向回歸 CEXP-002 soft BC base，透過 sensor coverage / boundary semantics 改善。
+
 ---
 
 ## [RECORD] Cylinder 實驗詳細記錄
+
+### CEXP-029：Hybrid20QR80 + soft outlet BC（lab submitted）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_029_hybrid20qr80_outlet_bc.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp029-hybrid20qr80-outlet-bc/` |
+| 派生基準 | CEXP-028；唯一變動為新增 `bc_outlet_n_points=32` |
+| Sensor | `sensors_hybrid20qr80_K100_cylinder_Re10031`（與 CEXP-028 相同） |
+| Geometry modules | 全部 off：`use_graph_spatial_encoder=false`, `use_trunk_geo_context=false`, `use_body_distance_feature=false`, `use_hard_body_bc=false` |
+| Hypothesis | 若 CEXP-028 的 2.54× over-energy 主要來自缺 outlet semantic，soft outlet BC 應降低 `ke_pred/ke_ref` 並改善 outlet probing，且不犧牲 wake vorticity。 |
+| Falsifiability | KE > 30% 或 `ke_pred/ke_ref > 1.5` → soft outlet BC alone 不足；KE 改善但 `omega_rmse` 惡化 → 可能只是數值耗散，不是物理解。 |
+| Smoke | lab-server smoke passed：`sensor_pos=(100,2)`, `sensor_vals=(100,200,2)`, `bc_outlet_n_points=32`, trainable params `3,138,634`。 |
+| 目前狀態 | `LAB_SUBMITTED`；Slurm train job 3694 submitted on r740 single-GPU。 |
+
+### CEXP-028：Hybrid20QR80 sensor baseline（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_028_hybrid20qr80_baseline.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp028-hybrid20qr80-baseline/` |
+| 派生基準 | CEXP-002；唯一變動為 sensor placement |
+| Sensor | `sensors_hybrid20qr80_K100_cylinder_Re10031` = 20 farthest-point spatial anchors + 80 QR-pivot sensors |
+| Coverage vs pure QR | hybrid reaches normalized x/y boundary (`x=[0,1]`, `y=[0,1]`), with near inlet 2, near outlet 2, top/bottom 8, upstream-of-body 5；pure QR 對應為 0/0/0/1。 |
+| Hypothesis | 若 CEXP-023~027 失敗主要由 pure QR downstream-only coverage 導致，CEXP-028 應接近 CEXP-002 baseline 或至少降低 inlet/body/outlet probing error。 |
+| Falsifiability | KE <= 10% 且 boundary probing 改善 → hybrid coverage 是必要修正；KE > 30% 或 boundary probing 仍壞 → sensor coverage alone 不足，需 boundary-token / stronger BC semantics。 |
+| Train | job 3690 completed，stderr 空；final step 10000: `L_data=4.2938e-03`, `L_phys=1.3326e-02`, `L_total=1.6004e-02`。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3691 completed cleanly，stderr 空。 |
+| KE rel-err mean / late | **154.4 % / 151.6 %** (`ke_rel_err_mean=1.5444`, `ke_rel_err_late=1.5159`) |
+| ke_pred / ke_ref | **2.54×** (`0.17099 / 0.06719`) |
+| Velocity RMSE | `u=0.3865`, `v=0.1806` |
+| Vorticity / divergence | `omega_rmse=44.90`, `div_l2=14.48`（DNS baseline `div_ref_l2=8.74`） |
+| 判讀 | Hybrid sensor coverage 有降低 global KE over-prediction（B/C/controls 為 4.65–5.89×，CEXP-028 為 2.54×），但仍是 CEXP-002 baseline 的 44× KE error，且 vorticity/divergence 更差；因此 pure QR coverage 不足是因素之一，但 sensor coverage alone 不是充分解。 |
+
+### CEXP-026：C-only RNG-neutral control（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_026_trunk_geo_rng_control.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp026-trunk-geo-rng-control/` |
+| 派生基準 | CEXP-002；對照 CEXP-025 |
+| 唯一架構變動 | `use_trunk_geo_context=true`, `geometry_preserve_base_rng=true` |
+| Hypothesis | 若 CEXP-025 主要是 optional module 消耗 RNG 改變 baseline layer 初始化，則 CEXP-026 應回到接近 CEXP-002；若仍 over-energy，C path 本身有害。 |
+| Falsifiability | KE < 10% → RNG confound 成立；KE > 30% 或 `ke_pred/ke_ref > 2` → C path 仍失敗。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3688 completed cleanly (`stderr` empty) |
+| KE rel-err | **463.7%** (`ke_rel_err_mean=4.6372`) |
+| ke_pred/ke_ref | **5.64** (`0.3787 / 0.06719`) |
+| ω RMSE | **38.12** |
+| div L2 | **10.61** |
+| 目前狀態 | `NEGATIVE_RESULT`；`geometry_preserve_base_rng` 沒有讓 C-only 回到 CEXP-002，反而比 CEXP-025 更差。 |
+
+### CEXP-027：B-only zero-gate RNG-neutral control（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_027_graph_spatial_zero_gate.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp027-graph-spatial-zero-gate/` |
+| 派生基準 | CEXP-002；對照 CEXP-024 |
+| 唯一架構變動 | `use_graph_spatial_encoder=true`, `use_graph_spatial_gate=true`, `geometry_preserve_base_rng=true` |
+| Hypothesis | 若 CEXP-024 主要是 ungated graph residual 初始擾動造成，則 zero-gate 後 CEXP-027 應回到接近 CEXP-002；若仍 over-energy，B path 本身有害。 |
+| Falsifiability | KE < 10% → ungated residual 是主因；KE > 30% 或 `ke_pred/ke_ref > 2` → B path 仍失敗。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3689 completed cleanly (`stderr` empty) |
+| KE rel-err | **489.5%** (`ke_rel_err_mean=4.8946`) |
+| ke_pred/ke_ref | **5.89** (`0.3960 / 0.06719`) |
+| ω RMSE | **38.80** |
+| div L2 | **11.41** |
+| 目前狀態 | `NEGATIVE_RESULT`；zero-gate + RNG-neutral 仍 severe over-energy，甚至略差於 CEXP-024。 |
+
+### CEXP-024：B-only graph spatial encoder（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_024_graph_spatial_only.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp024-graph-spatial-only/` |
+| 派生基準 | CEXP-002（Re=10031, K=100 QR-pivot, soft inflow/body/slip BC, random collocation, 10k planned） |
+| 唯一架構變動 | `use_graph_spatial_encoder=true`, `graph_k_neighbors=8`, `use_trunk_geo_context=false` |
+| Hypothesis | sensor tokens 在進 CfC 前聚合 body geometry，可改善 branch-side 對障礙物位置的記憶。 |
+| Falsifiability | KE < 10% 且 body/wake 指標不惡化 → 有效；KE 10-30% → 部分有效；KE > 30% 或 `ke_pred/ke_ref > 2` → B-only 不足或有害。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3682 completed cleanly (`ExitCode=0:0`) |
+| Metrics | `ke_rel_err_mean=4.5857`, `ke_rel_err_late=4.6610`, `ke_pred/ke_ref=5.59`, `omega_rmse=40.55`, `div_l2=8.69` |
+| 目前狀態 | `NEGATIVE_RESULT`；[RESULT: PHYSICAL_FAILURE] KE > 30% gate 被大幅違反，B-only 明確失敗。 |
+
+### CEXP-025：C-only trunk geometry context（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_025_trunk_geo_only.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp025-trunk-geo-only/` |
+| 派生基準 | CEXP-002（Re=10031, K=100 QR-pivot, soft inflow/body/slip BC, random collocation, 10k planned） |
+| 唯一架構變動 | `use_graph_spatial_encoder=false`, `use_trunk_geo_context=true` |
+| Hypothesis | trunk query 讀取 body geometry memory，可改善 query-side 對 boundary/wake 位置的局部感知。 |
+| Falsifiability | KE < 10% 且 body/wake 指標不惡化 → 有效；KE 10-30% → 部分有效；KE > 30% 或 `ke_pred/ke_ref > 2` → C-only 不足或有害。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3683 completed cleanly (`ExitCode=0:0`) |
+| Metrics | `ke_rel_err_mean=4.0114`, `ke_rel_err_late=4.0264`, `ke_pred/ke_ref=5.01`, `omega_rmse=32.60`, `div_l2=11.68` |
+| 目前狀態 | `NEGATIVE_RESULT`；[RESULT: PHYSICAL_FAILURE] KE > 30% gate 被大幅違反，C-only 明確失敗。 |
+
+### CEXP-023：B+C explicit geometry memory（negative result）
+
+| 項目 | 值 |
+|---|---|
+| Config | `configs/exp_cylinder_023_graph_spatial_trunk_geo.toml` |
+| Artifact | `artifacts/cylinder/deeponet-cfc-cylinder-exp023-graph-spatial-trunk-geo/` |
+| 派生基準 | CEXP-002（Re=10031, K=100 QR-pivot, soft inflow/body/slip BC, random collocation, 10k planned） |
+| 唯一架構變動 | `use_graph_spatial_encoder=true`, `graph_k_neighbors=8`, `use_trunk_geo_context=true` |
+| Hypothesis | explicit geometry memory 讓 sensor token 與 trunk query 都能讀取 body geometry，避免 raw SDF scalar 的 adversarial prior。 |
+| Falsifiability | KE < 10% 且 body/wake 指標不惡化 → 有效；KE 10-30% → 部分有效；KE > 30% 或 `ke_pred/ke_ref > 2` → geometry prior 仍造成 over-predict，停止此路線。 |
+| Eval | `cylinder-eval-step10000/summary.json`；job 3681 completed cleanly (`ExitCode=0:0`) |
+| Metrics | `ke_rel_err_mean=3.6537`, `ke_rel_err_late=3.7174`, `ke_pred/ke_ref=4.65`, `omega_rmse=34.60`, `div_l2=9.93` |
+| 目前狀態 | `NEGATIVE_RESULT`；[RESULT: PHYSICAL_FAILURE] KE > 30% gate 被大幅違反。B+C 是三者中 KE 最低，但仍比 CEXP-002 baseline 3.54% 差兩個量級。 |
 
 ### CEXP-001：無 BC baseline（KE=51%，failure）
 
@@ -400,7 +552,12 @@ CEXP-020 = CEXP-002 baseline + `use_body_distance_feature=true` + `use_hard_body
 |---|---|---|
 | **Stage 1 全 falsified（CEXP-017/018/019）** | 已驗證 hard BC + standard PI-CON architecture **fundamental incompatibility** | ✅ Closed 2026-05-24 (Finding #4) |
 | **Stage 2: Option A — Trunk SDF input concat (CEXP-020)** | ❌ **Failed** (KE 405.2%, 比 hard BC catastrophic 還差 114×). SDF input 在 sensor 不覆蓋 body 區時有害 (adversarial training signal)。Finding #5 written. | ✅ Closed 2026-05-24 (❌ negative finding) |
-| **Stage 3 (next paper): Option E (cross-attn geometry tokens) / F (geometry-conditioned hypernetwork)** | User: 「之後很有機會」。需要更強結構先驗才能讓 geometry-aware learning 在 sparse sensor 條件下成功。 | Long-term, 下一篇 paper 主軸 |
+| **Stage 3: B/C/B+C explicit geometry memory ablation (CEXP-023/024/025)** | ❌ all failed：CEXP-023 KE 365.4%, CEXP-024 KE 458.6%, CEXP-025 KE 401.1%；三者皆 severe over-energy (`ke_pred/ke_ref=4.65–5.59`)。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
+| **Stage 3 controls: RNG-neutral C and zero-gate B (CEXP-026/027)** | ❌ both failed：CEXP-026 KE 463.7%, CEXP-027 KE 489.5%；RNG/init confound 與 ungated residual 都不是主要根因，B/C geometry memory path 本身會放大能量。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
+| **Stage 3 sensor coverage control: hybrid20qr80 baseline (CEXP-028)** | ❌ CEXP-028 eval completed：KE 154.4%, `ke_pred/ke_ref=2.54`, `omega=44.90`, `div=14.48`。比 B/C over-energy 輕，但仍遠離 CEXP-002；sensor coverage alone 不足。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
+| **Stage 4 no-GNN boundary semantics: outlet BC only (CEXP-029)** | CEXP-029 = CEXP-028 + `bc_outlet_n_points=32` only；lab smoke passed；Slurm train job 3694 submitted on r740 single-GPU。 | `LAB_SUBMITTED` |
+| **CEXP-030: collo 1024 ablation** | CEXP-002 + `num_physics_points` 64→1024；單一變數；目標降低 div L2（目前 1.14）；falsifiability: KE <3% ✅ / KE >5% ❌ / div L2 <0.8 ✅ | `PENDING_RUN` |
+| **Option E: cross-attn geometry tokens + hard BC (CEXP-022)** | ❌ **Failed** (KE 99.8%, stop-loss zone)；w_ns_u=2.09 與 CEXP-016 相同，geometry tokens 輕微降低 KE error (~12%) 但未解決 GradNorm 病態；Finding #6 written。**Hard BC 路線全部封閉**。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
 | **CEXP-002 multi-seed (n=3-5)** | single seed only，無 σ | **高優先** — paper-grade rigor |
 | **CEXP-015 (Re=1781, collo 1024+RAR)** | config 完備，gate 已設但**暫不執行**（per 2026-05-22 prioritization decision: hard BC 歸因比 Re=1781 collapse 重要）| `DEFERRED` |
 | div L2 cylinder vs Kolmogorov 兩個量級差距 | 機制不明（非均勻格 / sensor 集中 / denorm 任一） | 開放（Stage 2 Option A 可能 indirectly fix —if trunk geometry awareness 改善 incompressibility）|
@@ -444,6 +601,7 @@ CEXP-020 = CEXP-002 baseline + `use_body_distance_feature=true` + `use_hard_body
 - **Physics Second-Order Autograd NaN**: cylinder 觸發率 ~20%/batch（sensor 與 collocation 都在 grid cells 上）。修法已落地：[`src/pi_con/decoder.py`](../src/pi_con/decoder.py) 用 `rel_r = sqrt((rel**2).sum + 1e-8)`。
 - **非週期域必須加 Inflow BC Loss**: CEXP-001 → CEXP-002 14.5× 改善，已確立硬規則
 - **`use_physics_denormalization = true` 對 cylinder 必開**: u_std ≈ 0.15 黏性項否則被壓掉
+- **Geometry-aware flags 必須明確 opt-in**: `use_graph_spatial_encoder` / `use_trunk_geo_context` 預設 false；啟用但沒有 `body_xy` 時 fail fast，禁止 Kolmogorov 靜默退回錯誤 no-op。
 - **Resume 禁用**: 同 Kolmogorov EXP-082，cylinder `*b_resume_to_*` configs 全 invalid
 - **Sensor file axis convention**: cylinder sensor 由 `scripts/generate_sensors_qrpivot_cylinder.py` 生成；應通過 `test_sensor_axis_convention.py`（待補 cylinder coverage）
 
@@ -469,6 +627,92 @@ CEXP-020 = CEXP-002 baseline + `use_body_distance_feature=true` + `use_hard_body
   - **CEXP-018 (H2 body_aware) ≈ CEXP-016**: KE 106.3 %, body_aware sampling 沒救
   - **CEXP-019 (H3 dense BC)**: KE 139.3 %, dense BC supervision 微更糟
   - **Finding 4 新增**: Hard BC + standard PI-CON architecture (SOAP + ScheduleFree + GradNorm) **fundamental incompatibility**, CEXP-010 KE 17.5 % 是 multi-confound accidental survival (5k iter 不夠長, 10k iter 公平比較全 catastrophic)
-  - **Root cause hypothesis (2026-05-24)**: Trunk net 完全沒有 geometry awareness — hard BC 只是 output post-hoc gate, NN 不知道 boundary 在哪 → over-compensation 機制
-  - **Stage 2 redirect (Option A)**: 加 SDF `φ` 進 trunk input concat (`query = [x, y, t, c, φ]`), 移除 hard BC gate; raw scalar concat, hard BC off (per user 2026-05-24 decision). 需先修 src `DEFAULT_PICON_ARGS` 缺失 key (~30 line patch). Options E (cross-attn geometry tokens) + F (geometry-conditioned hypernetwork) 列 long-term future paper material
-  - [INDEX] CEXP-016/017/018/019 entries finalized, [RECORD] 4 個 detail tables 新增, [STATE] Open Questions Stage 2 plan 寫入
+	- **Root cause hypothesis (2026-05-24)**: Trunk net 完全沒有 geometry awareness — hard BC 只是 output post-hoc gate, NN 不知道 boundary 在哪 → over-compensation 機制
+	- **Stage 2 redirect (Option A)**: 加 SDF `φ` 進 trunk input concat (`query = [x, y, t, c, φ]`), 移除 hard BC gate; raw scalar concat, hard BC off (per user 2026-05-24 decision). 需先修 src `DEFAULT_PICON_ARGS` 缺失 key (~30 line patch). Options E (cross-attn geometry tokens) + F (geometry-conditioned hypernetwork) 列 long-term future paper material
+	- [INDEX] CEXP-016/017/018/019 entries finalized, [RECORD] 4 個 detail tables 新增, [STATE] Open Questions Stage 2 plan 寫入
+- **2026-05-27 CEXP-023 B+C geometry-aware 準備**:
+  - 實作 opt-in flags：`use_graph_spatial_encoder`（B：sensor tokens 進 CfC 前聚合 geometry nodes）與 `use_trunk_geo_context`（C：trunk query 讀 geometry memory）。
+  - 預設 false 時不建立 `graph_spatial_*` / `trunk_geo_*` 參數，舊 Kolmogorov / cylinder baseline checkpoint 相容；啟用但未注入 geometry positions 會 fail fast。
+  - 新增 `configs/exp_cylinder_023_graph_spatial_trunk_geo.toml`，從 CEXP-002 派生，唯一架構變動為 B+C；完整 10k 訓練與 eval 尚未執行。
+  - 驗證包含 unit / equivalence / config model smoke：`tests/test_geometry_graph_features.py`、`tests/test_optimization_equivalence.py`、`tests/test_cfc_pass_refactor.py`、`tests/test_make_picon_model_fn_cache.py`。
+  - 本地 1-step CPU train smoke 已撤回為無效實驗證據；artifact `artifacts/_smoke/cylinder023-graph-spatial-trunk-geo` 已移除。CEXP-023 正式 smoke / train / eval 必須在 lab-server 執行。
+  - lab-server 啟動紀錄：job 3674 因 config 仍指向本機 RealPDEBench path 而 fail fast；`arrow_shards` 修正為 `/home/junyi/RealPDEBench/...` 後重送 job 3675。job 3675 已在 acmt20 / RTX 3090 上進入訓練，Step 1 完成且 stderr empty。
+  - 訓練完成紀錄：job 3675 completed cleanly (`ExitCode=0:0`, elapsed 01:47:39)。Final Step 10000: `L_data=4.4321e-03`, `L_phys=9.7689e-03`, `L_total=1.1669e-02`。需執行 eval 後才能判讀物理品質。
+- **2026-05-27 CEXP-024/025 ablation 準備**:
+  - 新增 CEXP-024 B-only：`configs/exp_cylinder_024_graph_spatial_only.toml`，只啟用 `use_graph_spatial_encoder=true`。
+  - 新增 CEXP-025 C-only：`configs/exp_cylinder_025_trunk_geo_only.toml`，只啟用 `use_trunk_geo_context=true`。
+  - 三組 CEXP-023/024/025 皆使用 lab-server RealPDEBench path、CEXP-002 訓練設定、r740 single-GPU Slurm template；差異只限 geometry flags 與 artifact path。
+  - 提交狀態：CEXP-023 job 3675、CEXP-024 job 3676、CEXP-025 job 3677 皆 train done pending eval。
+  - CEXP-024 訓練完成紀錄：job 3676 completed cleanly (`ExitCode=0:0`, elapsed 01:46:40)。Final Step 10000: `L_data=2.6593e-03`, `L_phys=8.8372e-03`, `L_total=5.9508e-03`。需執行 eval 後才能判讀物理品質。
+  - CEXP-025 訓練完成紀錄：job 3677 completed cleanly (`ExitCode=0:0`, elapsed 01:46:38)。Final Step 10000: `L_data=4.9786e-03`, `L_phys=8.6168e-03`, `L_total=1.4051e-02`。需執行 eval 後才能判讀物理品質。
+- **2026-05-27 CEXP-023/024/025 eval 啟動**:
+  - 直接在 lab-server head node 用 `--device cuda` 跑 CEXP-023 eval 時 fail fast：head node 暴露 GTX 1050，與目前 PyTorch CUDA arch 不相容；partial eval output 已移除。
+  - 初次 Slurm eval jobs 3678/3679/3680 fail fast：`evaluate_cylinder.py` 未同步 training path 的 geometry injection，導致 `use_graph_spatial_encoder` / `use_trunk_geo_context` 時 geometry_pos 為空。這是 evaluator 缺口，未作為模型結果。
+  - 修補 `scripts/evaluate_cylinder.py`：重建 `CylinderDataset` 後，若 geometry-aware flags 開啟，注入 `ds.body_xy` 到 `model.set_geometry_tokens(...)`；缺 `body_xy` 時 fail fast。
+  - 重送 Slurm r740 single-GPU eval jobs：CEXP-023 job 3681、CEXP-024 job 3682、CEXP-025 job 3683。
+  - Eval output dirs: `cylinder-eval-step10000/` under each experiment artifact。
+- **2026-05-27 CEXP-023/024/025 eval 結果**:
+  - CEXP-023 B+C: `ke_rel_err_mean=365.4%`, `ke_pred/ke_ref=4.65`, `omega_rmse=34.60`, `div_l2=9.93` → `NEGATIVE_RESULT`。
+  - CEXP-024 B-only: `ke_rel_err_mean=458.6%`, `ke_pred/ke_ref=5.59`, `omega_rmse=40.55`, `div_l2=8.69` → `NEGATIVE_RESULT`。
+  - CEXP-025 C-only: `ke_rel_err_mean=401.1%`, `ke_pred/ke_ref=5.01`, `omega_rmse=32.60`, `div_l2=11.68` → `NEGATIVE_RESULT`。
+  - 判讀：training loss 低不代表 physical correctness；B/C/B+C geometry memory 全部造成 severe over-energy，未解決 CEXP-020/SDF path 的 adversarial geometry prior 問題。
+- **2026-05-27 CEXP-026/027 control 設計**:
+  - 新增 `geometry_preserve_base_rng`：建立 optional geometry modules 後還原 torch RNG，確保後續 baseline layers 初始化不受影響。
+  - 新增 `use_graph_spatial_gate`：B path 改成 `tokens + tanh(gate) * graph_message`，gate 初始 0；預設 false 以維持 CEXP-024 舊語義。
+  - CEXP-026：C-only + RNG-neutral，用來驗證 CEXP-025 是否主要是 RNG/init confound。
+  - CEXP-027：B-only + zero gate + RNG-neutral，用來驗證 CEXP-024 是否主要是 ungated graph residual 初始擾動。
+  - Slurm 提交：CEXP-026 job 3685、CEXP-027 job 3684；皆使用既有 r740 single-GPU train template。
+- **2026-05-27 CEXP-027 train 完成**:
+  - Slurm job 3684 completed，stderr 空。
+  - Final training line: step 10000, `L_data=3.1957e-03`, `L_phys=1.4935e-02`, `L_total=8.1626e-03`。
+  - Checkpoint: `artifacts/cylinder/deeponet-cfc-cylinder-exp027-graph-spatial-zero-gate/checkpoints/picon_kolmogorov_step_10000.pt`。
+  - Eval 暫等 CEXP-026 完成後一起送出，避免半套結果造成錯誤比較。
+- **2026-05-27 CEXP-026 train 完成與 026/027 eval 提交**:
+  - CEXP-026 Slurm job 3685 completed，stderr 空。
+  - CEXP-026 final training line: step 10000, `L_data=3.5730e-03`, `L_phys=1.1662e-02`, `L_total=9.1182e-03`。
+  - Checkpoint: `artifacts/cylinder/deeponet-cfc-cylinder-exp026-trunk-geo-rng-control/checkpoints/picon_kolmogorov_step_10000.pt`。
+  - Initial eval jobs 3686/3687 failed immediately because `sbatch --wrap` used `/bin/sh` and rejected `set -o pipefail`; this is a submit wrapper error, not evaluator/model evidence.
+  - Eval jobs resubmitted on r740 single-GPU with explicit bash sbatch: CEXP-026 job 3688, CEXP-027 job 3689。
+  - Eval output dirs: `cylinder-eval-step10000/` under each experiment artifact。
+- **2026-05-27 CEXP-026/027 eval 結果**:
+  - CEXP-026 C-only RNG-neutral: `ke_rel_err_mean=463.7%`, `ke_pred/ke_ref=5.64`, `omega_rmse=38.12`, `div_l2=10.61` → `NEGATIVE_RESULT`。
+  - CEXP-027 B-only zero-gate RNG-neutral: `ke_rel_err_mean=489.5%`, `ke_pred/ke_ref=5.89`, `omega_rmse=38.80`, `div_l2=11.41` → `NEGATIVE_RESULT`。
+  - 判讀：CEXP-026 未回到 CEXP-002，否定「CEXP-025 只是 RNG/init confound」；CEXP-027 未回到 CEXP-002 且未改善 CEXP-024，否定「B-only 主要是 ungated graph residual 初始擾動」。
+  - 結論：B/C geometry memory path 的失敗根因更接近 geometry prior 注入位置與 energy amplification，而不是開關初始值或 RNG 消耗。
+- **2026-05-27 boundary semantics probing（CEXP-026/027）**:
+  - Dataset geometry: physical domain `Lx=0.3223`, `Ly=0.1721`；normalized body bbox `x=[0.1961,0.2902]`, `y=[0.4016,0.5827]`；measured inlet `u_inf=0.329345`。
+  - Sensor coverage: K=100 sensors have `x=[0.1843,0.9176]`, `y=[0.2756,0.7008]`；near inlet `x<0.05`: 0；near outlet `x>0.95`: 0；top/bottom `y<0.05 or >0.95`: 0；upstream of body: 1；downstream of body: 99；within 0.03 of body: 0。
+  - Config semantics: `use_periodic_domain=false` lets trunk distinguish upstream/downstream coordinates, but `use_hard_body_bc=false`, `use_body_distance_feature=false`, `bc_outlet_n_points=0`。Thus no explicit outlet boundary condition and no continuous SDF/hard body semantics.
+  - Boundary probing CEXP-026: inlet mean `u≈0.57` vs target `0.329` (RMSE ≈0.25), outlet `v≈0.19–0.36`, outlet `|du/dx|≈5.9–8.1`, body speed RMSE ≈1.55。Sampled region KE ratios: upstream ≈9.4×, near body ≈9.2–9.6×, far wake ≈3.4–3.6×。
+  - Boundary probing CEXP-027: similar; inlet mean `u≈0.55–0.57`, outlet `v≈0.16–0.27`, outlet `|du/dx|≈5.3–7.7`, body speed RMSE ≈1.57–1.60。Sampled region KE ratios: upstream ≈9.5–9.7×, near body ≈9.2–9.6×, far wake ≈3.5–3.9×。
+  - 判讀：模型「能分辨座標左右」但沒有學到 inlet/outlet/body 的 CFD semantic role；B/C body point memory 無法補足 sensor coverage 與 boundary-type prior，反而造成全域 energy amplification。
+- **2026-05-27 CEXP-028 hybrid20qr80 baseline 啟動**:
+  - 新增 `configs/exp_cylinder_028_hybrid20qr80_baseline.toml`，由 CEXP-002 派生，唯一實驗變數為 sensor placement：pure QR → `sensors_hybrid20qr80_K100_cylinder_Re10031`。
+  - Lab smoke: `sensor_pos=(100,2)`, `sensor_vals=(100,200,2)`, `near_inlet=2`, `near_outlet=2`, `top_bottom=8`, trainable params `3,138,634`。
+  - Slurm train submitted on r740 single-GPU: CEXP-028 job 3690。
+- **2026-05-27 CEXP-028 train 完成與 eval 提交**:
+  - Slurm job 3690 completed，stderr 空。
+  - Final training line: step 10000, `L_data=4.2938e-03`, `L_phys=1.3326e-02`, `L_total=1.6004e-02`。
+  - Checkpoint: `artifacts/cylinder/deeponet-cfc-cylinder-exp028-hybrid20qr80-baseline/checkpoints/picon_kolmogorov_step_10000.pt`。
+  - Eval job submitted on r740 single-GPU with explicit bash sbatch: CEXP-028 job 3691。
+  - Eval output dir: `artifacts/cylinder/deeponet-cfc-cylinder-exp028-hybrid20qr80-baseline/cylinder-eval-step10000/`。
+- **2026-05-27 CEXP-028 eval 結果**:
+  - Eval job 3691 completed cleanly，stderr 空；summary path `artifacts/cylinder/deeponet-cfc-cylinder-exp028-hybrid20qr80-baseline/cylinder-eval-step10000/summary.json`。
+  - Metrics: `ke_rel_err_mean=154.4%`, `ke_rel_err_late=151.6%`, `ke_pred/ke_ref=2.54`, `u_rmse=0.3865`, `v_rmse=0.1806`, `omega_rmse=44.90`, `div_l2=14.48`。
+  - 判讀：hybrid20qr80 將 B/C 系列的 severe over-energy（4.65–5.89×）降到 2.54×，說明 pure QR downstream-only coverage 是根因之一；但相對 CEXP-002（KE 3.54%, `ke_pred/ke_ref=1.01`）仍是 `[RESULT: PHYSICAL_FAILURE]`，且 vorticity/divergence 未改善。下一步不應只增加 generic geometry memory，需 explicit boundary semantic 或更強 BC/field-consistency constraint。
+- **2026-05-28 CEXP-022 cross-attn geometry tokens + hard BC 結果**:
+  - CEXP-022 Slurm job 3671 completed cleanly (`ExitCode=0:0`, elapsed 01:42:12)。
+  - Training log 摘要：w_ns_u = 0.064 (step 1000) → 0.730 (step 5000) → **2.09 (step 10000)**；與 CEXP-016 (hard BC alone) 完全相同的 GradNorm 爆炸模式。
+  - Eval job 3692 (step_10000.pt): `ke_rel_err_mean=98.2%`, `u_rmse=0.245`, `omega_rmse=12.55`, `div_l2=6.25`。
+  - Eval job 3693 (final.pt): `ke_rel_err_mean=99.8%`, `u_rmse=0.245`, `omega_rmse=12.45`, `div_l2=6.11`。
+  - 452 body surface points 成功注入（`geometry_context: 452 body surface points injected`），hard BC scale=0.7517。
+  - 判讀：spec §4 stop-loss zone (KE > 100%)；geometry tokens 輕微改善 (99.8% vs 111.6%) 但 GradNorm 病態機制不變；Finding #6 written；hard BC 路線全封閉。
+  - Artifact: `artifacts/cylinder/deeponet-cfc-cylinder-exp022-geometry-tokens/` (summary.json + summary_final.json rsynced)。
+- **2026-05-28 CEXP-029 no-GNN boundary semantic probe 準備**:
+  - 新增 `configs/exp_cylinder_029_hybrid20qr80_outlet_bc.toml`，由 CEXP-028 派生，唯一變動為新增 soft outlet BC：`bc_outlet_n_points=32`。
+  - Hypothesis: 若 CEXP-028 的 over-energy 主要來自 outlet semantic 缺口，CEXP-029 應降低 `ke_pred/ke_ref=2.54` 並改善 outlet probing；若 KE 降但 `omega_rmse` 惡化，視為數值耗散而非物理解。
+  - Lab smoke passed：`sensor_pos=(100,2)`, `sensor_vals=(100,200,2)`, `bc_outlet_n_points=32`, trainable params `3,138,634`。
+  - Slurm train submitted on r740 single-GPU: CEXP-029 job 3694。
+- **2026-05-28 CEXP-030 設計**:
+  - 新增 `configs/exp_cylinder_030_collo1024.toml`，由 CEXP-002 派生，唯一變動為 `num_physics_points: 64 → 1024`。
+  - Hypothesis: 更密的 physics collocation 應降低 div L2（目前 1.14）並可能改善 KE rel-err。Falsifiability: KE > 5% → over-regularization；div L2 > 1.2 → 無改善。
