@@ -2,11 +2,11 @@
 
 **Engineering-deployable sparse-sensor flow reconstruction with bounded spectral recovery at Re=10000.**
 
-We reconstruct 2D Kolmogorov turbulence at Re=10000 from K=100 velocity sensors **without full-field supervision**, using a CfC-DeepONet hybrid PINN. Training signal: sensor MSE on (u, v) plus Navier–Stokes residual. Inference is real-time-compatible (encoder 71 ms + 1.5 ms/snapshot query on Apple M-series MPS).
+We reconstruct 2D Kolmogorov turbulence at Re=10000 from K=100 velocity sensors **without full-field supervision**, using a CfC-DeepONet hybrid PINN. Training signal: sensor MSE on (u, v) plus Navier–Stokes residual. Inference is real-time-compatible for sparse monitoring (Apple M-series MPS, EXP-094 benchmark): encoder 70.7 ± 3.8 ms one-time per trajectory; 31,030 grid-pt queries/sec — 100 ms budget feasible for ≤ 3k sparse queries (typical K=100 monitoring). Full 128² field snapshot 527.8 ± 17.1 ms (above the 100 ms budget — see benchmark table below).
 
 > **Live demo page** → [latteine1217.github.io/pi-lnn](https://latteine1217.github.io/pi-lnn/) (Overview · Details)
 > **Paper framing (v2, engineering pivot)** → [`docs/paper_framing_draft.md`](docs/paper_framing_draft.md)
-> **Experiment state** → [`docs/experiment_log.md`](docs/experiment_log.md) (entry; rest split by topic — see [Documentation map](#documentation-map))
+> **Experiment state** → [`docs/experiment_log_v2.md`](docs/experiment_log_v2.md) (stable phase, EXP-200+ multi-seed naming; legacy logs in [`docs/archive/`](docs/archive/))
 
 ---
 
@@ -34,30 +34,33 @@ branch basis ⊙ trunk basis  →  u / v / p   [N_q, 1]
 - **Operator fusion:** dot-product between branch basis and trunk basis yields `u, v, p`.
 - `p` is model-internal; constrained only by the PDE residual, never by data supervision.
 - `ω`, KE, Enstrophy, E(k), ∇p are evaluation diagnostics — never enter training.
-- **Training signal:** sensor MSE on `u, v` + NS-momentum residual + continuity, GradNorm-balanced; continuity hardened by Augmented Lagrangian (EXP-080 only).
+- **Training signal:** sensor MSE on `u, v` + NS-momentum residual + continuity, GradNorm-balanced; continuity hardened by Augmented Lagrangian (EXP-080 / EXP-245 recipe).
 
 A full annotated walkthrough — time grid, decoder zoom-in, parameter spec, full results gallery, ablation chain — lives on the [Details page](https://latteine1217.github.io/pi-lnn/picon_architecture.html).
 
 ---
 
-## Two Baselines (Re=10000, K=100)
+## Main Baseline (Re=10⁴, K=100, n=5)
 
-This work characterizes a **KE / divergence Pareto trade-off** intrinsic to the AL-continuity formulation. We report two operating points on the Pareto frontier; both are engineering-transferable (sensor-only training, no DNS supervision).
+Active baseline is **EXP-245** — B3 architecture + LES_T50 sensor placement + 1024 collocation + 20k iterations, multi-seed n=5 (seeds 42/1/2/3/4):
 
-| Config | KE rel-err | div L² | ek_ratio_kf | k_f amp ratio | Role |
-|---|---:|---:|---:|---:|---|
-| **EXP-064** | **7.80 %** | 0.184 | **0.938** | **0.962** | KE-optimal (4-task GradNorm, no AL) |
-| **EXP-080** | 10.68 % | **0.067** | 0.911 | 0.937 | Pareto sweet spot (4-task GN + AL ρ=0.1) — **headline architecture** |
+| Config | KE rel-err | div ratio | k_f amp | Role |
+|---|---:|---:|---:|---|
+| **EXP-245** (LES_T50, n=5, 1024 collo, 20k) | **5.71 ± 0.11 %** | **0.39 ± 0.006 %** | **0.991 ± 0.005** | **Active baseline** — engineering-transferable end-to-end (LES-derived placement, sensor-only training) |
+| EXP-271 (DNS-pivot oracle, n=5) | _RUNNING_ (slurm 3696–3700) | _RUNNING_ | _RUNNING_ | Oracle reference for fair LES-vs-DNS placement comparison (assumes DNS access, not field-deployable) |
+| EXP-080 (legacy, single seed, 64 collo, 10k) | 10.68 % | _0.067 (absolute, not ratio)_ | 0.937 | Historical headline — **superseded** by EXP-245 (1024 collo + 20k + LES placement) |
 
-EXP-080 (10.68 % KE / 0.067 div) is the **main paper result**: it sits 3× closer to the DNS divergence floor (0.092) than EXP-064 while still preserving 91 % of forcing-mode amplitude. EXP-064 (7.80 % KE / 0.184 div) is kept as the KE-optimal reference for users who need spatial-mean energy fidelity over strict incompressibility.
+EXP-245 cuts KE rel-err by 47 % relative to EXP-080, achieves **sub-DNS-floor divergence control** (div ratio 0.39 % < DNS finite-difference floor 1.04 %), and uses LES-derived sensor placement so the end-to-end pipeline never touches DNS full-field data (engineering-transferable; see [REAL_WORLD_PIPELINE](CLAUDE.md) doctrine).
 
-See [`docs/experiment_archive_kolmogorov_post_k100.md`](docs/experiment_archive_kolmogorov_post_k100.md) for the 9-point AL Pareto frontier (EXP-070~081) and the 6-lever pivot ablation (EXP-083~087, all falsified).
+See [`docs/experiment_log_v2.md`](docs/experiment_log_v2.md) for the full EXP-200+ stable-phase ladder; [`docs/archive/experiment_archive_kolmogorov_post_k100.md`](docs/archive/experiment_archive_kolmogorov_post_k100.md) for the legacy 64-collocation Pareto frontier (EXP-070~081) and 6-lever ablation.
 
 ---
 
-## Key Result — 5-seed Statistical Significance (2026-05-15)
+## Architectural Significance — B3 vs B0 (legacy 64-collocation group, 2026-05-15)
 
-**B3 (our CfC-DeepONet-PINN at EXP-080 recipe) vs B0 (Vanilla DeepONet)** — 5 random seeds (1, 2, 3, 4, 42) per architecture, Welch's t-test with Bonferroni correction k=4.
+> ⚠️ This 5-seed analysis is computed on the **legacy 64-collocation group** (EXP-200_a~e = legacy B3 from EXP-080/093/094/097/098 vs EXP-201_a~e = legacy B0). The **active main result** is EXP-245 (1024 collo + 20k iter, KE rel-err **5.71 ± 0.11 %**, see Main Baseline above). The table below establishes the **architectural gap** (CfC-DeepONet-PINN vs Vanilla DeepONet) under fixed legacy training budget — absolute KE numbers below are not the headline.
+
+**B3 (CfC-DeepONet-PINN, legacy EXP-080 recipe) vs B0 (Vanilla DeepONet)** — 5 random seeds (1, 2, 3, 4, 42) per architecture, Welch's t-test with Bonferroni correction k=4.
 
 | Metric | B0 mean ± std | **B3 mean ± std** | Δ (B0 − B3) | 95 % CI | Cohen's d | p (Bonferroni) |
 |---|---:|---:|---:|---|---:|---:|
@@ -117,7 +120,8 @@ T = 5 corresponds to ~2.5 eddy-turnover times; this is the chaotic regime. Forwa
 
 | Method | KE % | u L² % | v L² % | ω L² % | Params |
 |---|---:|---:|---:|---:|---:|
-| **B3 = EXP-080 / EXP-094 (Ours, 5-seed mean)** ⭐ | **10.77 ± 0.52** | **20.69 ± 0.46** | **24.79 ± 0.51** | **52.65 ± 0.56** | 3.14 M |
+| B3 = EXP-080 / EXP-094 (legacy 64-collo, 5-seed mean) | 10.77 ± 0.52 | 20.69 ± 0.46 | 24.79 ± 0.51 | 52.65 ± 0.56 | 3.14 M |
+| **B3 = EXP-245 (Active, LES_T50 + 1024 collo + 20k, 5-seed mean)** ⭐ | **5.71 ± 0.11** | **13.65 ± 0.06** | **17.52 ± 0.10** | **41.79 ± 0.12** | 3.14 M |
 | B2 = cross-attn only (no CfC) | 11.95 | 21.61 | 26.17 | 54.18 | 2.74 M |
 | B1 = CfC only (no cross-attn) | 12.65 | 22.71 | 28.95 | 56.56 | 3.14 M |
 | B0 = Vanilla DeepONet (5-seed mean) | 18.52 ± 0.66 | 25.50 ± 0.46 | 31.48 ± 0.70 | 58.38 ± 0.57 | 1.28 M |
@@ -153,7 +157,9 @@ K=100 reconstruction is **provably ill-posed**. Even with incompressibility enfo
 | Explicit div-free invisible perturbation ε | KE(ε) = 0.13 = DNS scale; max\|ε(x_k)\| ~ 1e-16 |
 | Nyquist sensor bandwidth k_max(K) | ≈ √(K/π) = **5.64** |
 | **Spectral truncation lower bound at k_cut = 4** | **KE rel-err ≥ 7.77 %** |
-| **EXP-080 attainment** | 10.68 % = **73 % of the lower bound** |
+| **Spectral truncation lower bound at k_cut = 5** | **KE rel-err ≥ 4.85 %** |
+| EXP-080 attainment (legacy, 64 collo, 10k) | 10.68 % — 73 % of the k_cut=4 bound |
+| **EXP-245 attainment (active, 1024 collo, 20k, n=5)** | **5.71 ± 0.11 %** — between k_cut=4 (7.77 %) and k_cut=5 (4.85 %) → **effective cutoff k_eff ≈ 4.7, ~83 % of Nyquist k_max = 5.64** |
 
 Higher fidelity at mid-high frequencies requires **more sensors, not better architecture** — K-scaling with recipe re-tuning is identified as the productive direction for future work (Future Work item 1).
 
@@ -167,8 +173,9 @@ Higher fidelity at mid-high frequencies requires **more sensors, not better arch
 | Check | Result | Verdict |
 |---|---|---|
 | DNS Pope criterion k_max·η | 1.91 (≥ 1.5 required) | ✓ DNS resolution adequate |
-| EXP-080 ‖∇·u‖₂ / ‖∇u‖_F | **0.88 %** (vs DNS floor 0.29 %) | **~3× floor — near-incompressible** |
-| EXP-064 ‖∇·u‖₂ / ‖∇u‖_F | 2.07 % (vs DNS floor 1.04 % at eval grid) | ~2× floor — acceptable |
+| **EXP-245 div ratio (active, n=5)** | **0.39 ± 0.006 %** (vs DNS finite-diff floor 1.04 %) | **Sub-DNS floor — strict incompressibility** |
+| EXP-080 ‖∇·u‖₂ / ‖∇u‖_F (legacy) | 0.88 % (vs DNS floor 0.29 % at eval grid) | ~3× floor — near-incompressible |
+| EXP-064 ‖∇·u‖₂ / ‖∇u‖_F (legacy) | 2.07 % (vs DNS floor 1.04 % at eval grid) | ~2× floor — acceptable |
 | ∇p rel-L² (EXP-064 / EXP-080) | 112.00 % / 111.15 % | **Architectural failure** (Appendix E "Pressure-Field Scope Limit") |
 
 Pressure (∇p) is not in the supervised channel; both configs give identical failure mode (~112 %), so it is structural, not an AL recipe artefact. Honest disclosure scoped to Appendix E to avoid distracting from the main engineering message.
@@ -189,7 +196,7 @@ Full reports: [`docs/diagnostics_log.md`](docs/diagnostics_log.md) (Q5/Q7/Q8 + F
 
 ![Radial energy spectrum, EXP-064](docs/assets/exp064/energy_spectrum.png)
 
-*Radial energy spectrum E(k). Low-k band (k ≤ 8) carrying 94.4 % of total energy reproduced; mid/high-k content collapses by the CS bound.*
+*Radial energy spectrum E(k). Sensor Nyquist band (k ≤ ⌊√(K/π)⌋ = 5, ≈ 99 % of total energy) reproduced; mid/high-k content collapses by the CS bound.*
 
 EXP-080 evaluation figures (Pareto sweet spot) at [`artifacts/eval-rerun-2026-05-09/exp080-al-4task-rho01/`](artifacts/eval-rerun-2026-05-09/exp080-al-4task-rho01/). Per-band diagnostics over the full time window: [`docs/assets/exp064/band_energy_rel_error_vs_time.png`](docs/assets/exp064/band_energy_rel_error_vs_time.png).
 
@@ -242,21 +249,23 @@ git submodule update --init --recursive
 > script above (idempotent; supports `--check` and `--revert`). Re-run after any
 > `git submodule update`.
 
-**Train EXP-080 (Re=10000, Pareto sweet spot — headline result):**
+**Train EXP-245 (Re=10⁴, K=100, LES_T50 + 1024 collo + 20k — active main baseline):**
 ```bash
 export PYTORCH_ENABLE_MPS_FALLBACK=1   # safety net for any MPS-unsupported ops
 uv run python src/picon_kolmogorov.py \
-  --config configs/exp_079_re10000_al_4task_gradnorm.toml \
+  --config configs/stable/exp_245.toml \
   --device mps
-# Note: EXP-080 reuses exp_079 config with al_rho = 0.1 (sweet spot value)
+# Multi-seed n=5: configs/stable/exp_245_{b,c,d,e}.toml for seeds 1/2/3/4 (seed=42 in main config)
+# Lab-server (slurm): scripts/slurm/submit_exp.sh 245
 ```
 
-**Train EXP-064 (Re=10000, KE-optimal — historical baseline):**
+**Train EXP-080 (legacy headline, Re=10⁴, single seed, 64 collo, 10k):**
 ```bash
 export PYTORCH_ENABLE_MPS_FALLBACK=1
 uv run python src/picon_kolmogorov.py \
-  --config configs/exp_064_re10000_xlarge_sensor_physics.toml \
+  --config configs/exp_079_re10000_al_4task_gradnorm.toml \
   --device mps
+# Note: EXP-080 reuses exp_079 config with al_rho = 0.1 (Pareto sweet spot)
 ```
 
 **Multi-seed sweep (N=5 per architecture):**

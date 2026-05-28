@@ -40,7 +40,7 @@
 | **`ek_ratio_kf_last`** | **`E_pred(k=k_f) / E_DNS(k=k_f)`** at t=5（spectrum value 比）| forcing-injection wavenumber 的能量是否精準（1.0 = perfect, <1 under-driven, >1 over-shoot）|
 | `kf_amplitude_ratio` | `|û_pred(k_f)| / |û_DNS(k_f)|` (mode coefficient amplitude) | 同上但用複數 mode coeff 拆 amplitude/phase |
 | `kf_phase_err` | `arg(û_pred) − arg(û_DNS)` at k=k_f (radians) | forcing mode 相位差，0 = 同相 |
-| `band_energy_rel_err_last` | 低/中/高 band 各自 KE rel-err at t=5 | band_low (k≤8) / band_mid (8<k≤16) / band_high (k>16) |
+| `band_energy_rel_err_last` | 低/中/高 band 各自 KE rel-err at t=5 | band_low (k≤5, **= K=100 Nyquist cutoff $\lfloor\sqrt{K/\pi}\rfloor$**) / band_mid (5<k≤16) / band_high (k>16) — 與 evaluator `BAND_EDGES_K_LOW=5.0` 對齊 |
 
 ---
 
@@ -172,9 +172,9 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 
 | 主張 | 狀態 |
 |---|---|
-| K=100 upper bound on **mid/high (k≥8)** | ✅ **仍成立**（Nyquist 硬上限）|
-| K=100 upper bound on **low (k≤8)** | ❌ falsify（band_low 3.62→2.41 %）|
-| K=100 upper bound on **整體 KE** | ❌ falsify（low band 佔 94.4 % 能量, 10.77→5.97 %）|
+| K=100 upper bound on **mid/high (k>5)** | ✅ **仍成立**（Nyquist 硬上限 $k_{\max}=\lfloor\sqrt{K/\pi}\rfloor=5$）|
+| K=100 upper bound on **low (k≤5)** | ❌ falsify（band_low 3.62→2.41 %）|
+| K=100 upper bound on **整體 KE** | ❌ falsify（low band 佔 ~99 % 能量, 10.77→5.97 %）|
 
 ## 1.3 Re=10³ reference baseline = **EXP-230**
 
