@@ -127,6 +127,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-028** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 sensor baseline**（20 farthest + 80 QR；no geometry modules） | **154.4 %** ❌ | **2.54** | 44.90 | 14.48 | 10k | [PHYSICAL_FAILURE] sensor coverage alone 只把 over-energy 從 B/C 的 4.65–5.89× 降到 2.54×，仍遠離 CEXP-002 |
 | **CEXP-029** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 + soft outlet BC**（CEXP-028 + `bc_outlet_n_points=32` only） | **164.8 %** ❌ | **~2.65** | 48.15 | 17.94 | 10k | [PHYSICAL_FAILURE] outlet BC 輕微惡化 (CEXP-028 154% → 165%)；div L2 也更差；soft outlet BC 不是 over-energy 根因 |
 | **CEXP-030** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | **610 %** ❌❌❌ | **~7.1** | 47.79 | 7.49 | 10k | [PHYSICAL_FAILURE] 1024 collo 把 physics loss 梯度放大 16×，GradNorm 失衡 → severe over-energy；`physics_loss_weight=0.01` 在 1024 collo 下需要同步調降 |
+| **CEXP-031** | `POSITIVE_FINDING` | Re=10031, **hybrid20qr80 + bc_body=0**（CEXP-028 - body soft BC） | **13.1 %** 🟡 | **~1.13** | 9.27 | 5.33 | 10k | ✅ **衝突假說確認**：移除 body BC 後 KE 154%→13.1%（10× 改善）；sensor/BC 空間衝突是 CEXP-028 失敗的根因；剩餘 gap vs CEXP-002 來自 wake coverage 稀疏化 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -270,6 +271,31 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 - 所有 hard BC 實驗都在 90-175% 的 stop-loss zone，w_ns_u 最終都在 ~2.0
 
 **Next direction**: 棄所有 hard BC 路線。若未來需要 strict no-slip enforcement，需要不同的 multi-task optimization（如 augmented Lagrangian 替代 GradNorm）。目前研究方向回歸 CEXP-002 soft BC base，透過 sensor coverage / boundary semantics 改善。
+
+### Finding 7 — Sensor/BC 空間衝突機制確認（CEXP-031, 2026-05-29）
+
+**實驗設計**：CEXP-031 = CEXP-028（hybrid20qr80, KE 154%）+ `bc_body_n_points: 64 → 0`，單一變數。
+
+| Metric | CEXP-002（QR wake + body BC） | CEXP-028（hybrid + body BC） | CEXP-031（hybrid + no body BC） |
+|---|---|---|---|
+| KE rel-err | **3.54 %** | 154.4 % | **13.1 %** |
+| ω RMSE | 2.14 | 44.90 | 9.27 |
+| div L2 | 1.14 | 14.48 | 5.33 |
+| w_ns_u final | 0.108 | — | 2.89 |
+
+**結論**：移除 body soft BC 後，KE 從 154.4% → 13.1%（**10× 改善**）。KE < 30% ✅，衝突假說成立。
+
+**機制**：hybrid20qr80 的 farthest-point anchor sensors 有部分覆蓋 body 附近（upstream/near-body 區域）。這些 sensor 提供 `u ≈ small but nonzero` 的 supervision，與 `bc_body_n_points=64` 在同一空間強制 `u → 0` 形成 competing objectives。GradNorm 無法同時滿足 → optimization landscape 崩潰 → over-energy（154%）。
+
+**剩餘 gap（13.1% vs CEXP-002 3.54%）的可能原因**：
+1. **Wake coverage 稀疏化**：hybrid sensor 把 K=100 budget 分散到 near-body/inlet/outlet，wake 主要動態模式（vortex street）的 sensor density 降低，重建精度下降
+2. **No-slip 缺乏 supervision**：沒有 body BC 後，body surface 附近 u=v=0 完全沒有 loss 約束；w_ns_u=2.89 顯示 physics residual 在 body 附近仍高
+3. **Farthest-point anchor 帶來 far-field 不一致**：20 個 farthest 點覆蓋了 inlet/outlet 等難以重建的位置，model 在這些位置的 loss 較難收斂
+
+**Paper-grade insight (2026-05-29)**:
+> "When sensors are placed in body-adjacent regions, soft body BC creates competing objectives in the same spatial domain, causing GradNorm to diverge. The solution for deployment depends on sensor placement: wake-concentrated sensors (CEXP-002) can coexist with soft body BC; body-adjacent sensors require removing body BC supervision or using a conflict-aware multi-task optimizer."
+
+**CEXP-002 成功的深層原因更新**：pure QR wake sensor (x > 0.10) 不只是「sensor 多」，而是在空間上與 body soft BC 完全分區（sensors 全在 x > 0.10，body BC 在 x ≈ 0.2–0.29）。這個隱式分區是 CEXP-002 穩定訓練的關鍵條件，之前未被識別。
 
 ---
 
