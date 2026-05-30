@@ -71,8 +71,12 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "data_loss_weight": 1.0,
     "t_early_weight": 1.0,       # t <= t_early_threshold 的 data loss 乘數（1.0 = 無加權）
     "t_early_threshold": 0.1,    # 早期時間定義上限
-    "lbfgs_max_iter": 20,        # L-BFGS 每步最大 line-search 次數
+    "lbfgs_max_iter": 20,        # L-BFGS 每步最大 line-search 次數（含 phase2 finetune）
     "lbfgs_history_size": 10,    # L-BFGS curvature history buffer 大小
+    # Phase2 L-BFGS finetune（EXP-274, 2026-05-31）：主 phase（SOAP/AdamW）跑完後，
+    # 同進程切 L-BFGS 在 eval-mode(y_t) 上續收斂 N 步。0 = 停用（向後相容）。
+    # GradNorm 於 phase2 凍結；AL λ 凍結（不再 dual update），僅留 ρ 二次罰 + 凍結 λ 線性項。
+    "lbfgs_finetune_steps": 0,
     # --- Natural Gradient (Gauss-Newton) optimizer ---
     # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
     # 適用範圍：N (residuals) << P (params) 才划算（pi-con 典型 N~200, P~10⁵）。
@@ -122,6 +126,10 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     #      平衡。pre-fix 時 bc_loss_weight=0.1 是基於 broken BC 量級 tune 的，
     #      修 C3 後 BC 量級變化 40×，固定 weight 失準 → 改用 GradNorm 自適應。
     "gradnorm_ema_momentum": 0.9,
+    # PCGrad 前置診斷：每 N step 計算 data vs physics 梯度 cosine（0 = 關閉）。
+    # 純觀測、不改訓練；沿用 GradNorm trunk_out 參考層。用於判斷是否值得導入 PCGrad
+    # gradient surgery（cosine 長期 ≥ 0 → 無方向衝突 → 不需要）。
+    "cosine_diag_freq": 0,
     "warmup_steps": 0,
     "time_marching": True,
     "time_marching_start": 0.5,
@@ -221,6 +229,8 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "al_init_lambda": 0.0,
     "al_rho": 1.0,
     "al_update_freq": 100,         # 每 N steps 執行一次 dual update
+    "al_start_step": 0,            # dual update 起始 step（含）；step < al_start_step 時 λ 凍結
+                                   # 在 init 值（仍保留 ρ 二次罰）。0 = 舊行為（從頭開始更新）。
     "al_lambda_clip": 10.0,        # 上限；clamp(0, Λ)，C ≥ 0 故無下限負值
     "al_ema_momentum": 0.5,
     "al_allow_cont_in_gradnorm": False,    # ADR-001 §4 escape hatch — 預設禁止。

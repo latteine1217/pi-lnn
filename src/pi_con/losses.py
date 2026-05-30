@@ -202,6 +202,56 @@ def _gradnorm_step(
         gn_weights.log_weights.copy_(torch.log(w_new.clamp(min=1e-8)))
 
 
+def gradient_cosine_diagnostic(
+    losses_by_name: dict[str, torch.Tensor],
+    ref_params: list[torch.Tensor],
+) -> dict[str, float]:
+    """What: 量化各 task gradient（對 ref_params）之間的 cosine similarity。
+
+    Why: PCGrad gradient surgery 只在 task 梯度方向衝突（cosine < 0）時才有作用。
+         導入 PCGrad 前必須先用數據證明衝突真實存在，否則屬過度設計（CLAUDE.md
+         Simplicity）。本函式沿用 GradNorm 的 trunk_out 參考層（autograd.grad，
+         成本與 _gradnorm_step 同級），純觀測：不寫任何 .grad、不改訓練行為。
+
+    呼叫契約：須在 backward 之前呼叫，且各 loss 的計算圖仍存活
+             （內部用 retain_graph=True，呼叫端後續 backward 不受影響）。
+
+    回傳（全為 python float，已 detach）：
+        cos_data_phys    : cos(g_data, g_ns_u + g_ns_v + g_cont)  ← 2-group PCGrad 主指標
+        cos_data_<task>  : cos(g_data, g_<task>)，每個非 data task 各一
+        gnorm_<task>     : ‖g_<task>‖₂（量級失衡 context，與 GradNorm 對照用）
+
+    若 ref_params 對某 loss 無貢獻（grad=None）以零向量代入，cosine 退化為 0。
+    """
+    flat: dict[str, torch.Tensor] = {}
+    for name, l_i in losses_by_name.items():
+        grads = torch.autograd.grad(
+            l_i, ref_params,
+            retain_graph=True, create_graph=False, allow_unused=True,
+        )
+        flat[name] = torch.cat([
+            (g if g is not None else torch.zeros_like(p)).reshape(-1)
+            for g, p in zip(grads, ref_params)
+        ]).detach()
+
+    def _cos(a: torch.Tensor, b: torch.Tensor) -> float:
+        denom = a.norm() * b.norm()
+        return float((a @ b) / denom) if denom > 1e-12 else 0.0
+
+    out: dict[str, float] = {f"gnorm_{n}": float(v.norm()) for n, v in flat.items()}
+    if "data" in flat:
+        phys = [flat[n] for n in ("ns_u", "ns_v", "cont") if n in flat]
+        if phys:
+            phys_agg = phys[0]
+            for p in phys[1:]:
+                phys_agg = phys_agg + p
+            out["cos_data_phys"] = _cos(flat["data"], phys_agg)
+        for n, v in flat.items():
+            if n != "data":
+                out[f"cos_data_{n}"] = _cos(flat["data"], v)
+    return out
+
+
 def observed_channel_prediction(
     net: "LiquidOperator",
     xy: torch.Tensor,
