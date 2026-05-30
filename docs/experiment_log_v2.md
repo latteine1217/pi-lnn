@@ -149,6 +149,8 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 2. **k_f amp 0.991 ≈ 1.0**: forcing-mode recover 接近完美
 3. **σ = 0.11 pp**: n=5 統計顯著確立, KE 5.71 % 為 publication-grade 數字
 
+> **DNS oracle fair comparison（EXP-271, 2026-05-29）**: 完全相同 config（20k n=5）換回 DNS QR-pivot sensor → KE **4.68 ± 0.06 %**。但 trade-off：DNS 贏整體能量(KE +1.03 pp)、**LES 贏逐點場(u L2 13.65 vs 15.34)**。原「no measurable penalty」claim 已改為 trade-off framing（詳見 §4.3）。
+
 ## 1.2 證據鏈：collocation density 為 binding constraint（EXP-241）
 
 64 → 256 → 1024 collocation density sweep 確認「density-bound」假說：
@@ -401,6 +403,45 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 
 > "Sensor placement strategy contributes a variance source 6.2× larger than training stochasticity (σ_placement 0.68 % vs σ_training 0.11 %, both n=5 at fixed K=100). LES-derived QR-pivot placement also improves mean KE by 2.24 percentage points (5.71 % vs 7.95 %, z ≈ 3.3). Engineering deployment should prioritize placement optimization over training repetition."
 
+## 4.3 DNS-pivot oracle multi-seed（EXP-271, B3 + DNS QR-pivot + 1024 collo + 20k n=5, 2026-05-29）
+
+> **目的**: EXP-245 使用 LES_T50 sensor（工程可遷移）；EXP-271 在**完全相同訓練 config**（B3 / 1024 collo / 20k / seeds 42/1/2/3/4）下換回 DNS QR-pivot sensor，作為「oracle upper bound」。§4.1 的 oracle（EXP-220）使用 64 collo / 10k / 1 seed，無法直接與 EXP-245 做 fair 統計比較；EXP-271 補全此缺口。
+
+**Setup**:
+- Config: `configs/exp_271_b3_dns_pivot.toml` (seed=42) + `exp_271{b,c,d,e}_b3_dns_pivot_seed{1,2,3,4}.toml`
+- Sensor: `data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.{json,npz}`（DNS QR-pivot oracle）
+- Architecture / collocation / iter / seeds: **完全對齊 EXP-245** — B3 1-head cross-attn, 1024 collo, 20k iter, seeds 42/1/2/3/4
+- Artifacts: `artifacts/kolmogorov/deeponet-cfc-re10000-exp271{,b,c,d,e}-b3-dns-pivot-*-20k/`
+- Eval: `artifacts/_lab_rsync/eval_271_seed{a,b,c,d,e}/summary.json`（rsync 2026-05-29）
+- Slurm: jobs 3696/3707~3710 train + 3713/3715/3717~3719 eval, acmt20 (RTX 3090)
+
+### EXP-271 n=5 multi-seed metrics
+
+| Seed | KE rel-err | band_low rel-err (last) | div ratio |
+|---|---|---|---|
+| _a (42) | 4.69 % | 2.77 % | 0.362 % |
+| _b (1)  | 4.70 % | 2.78 % | 0.363 % |
+| _c (2)  | 4.66 % | 2.75 % | 0.360 % |
+| _d (3)  | 4.77 % | 2.86 % | 0.370 % |
+| _e (4)  | 4.60 % | 2.75 % | 0.368 % |
+| **mean ± std** | **4.68 ± 0.06 %** | **2.78 ± 0.04 %** | **0.365 ± 0.004 %** |
+
+### EXP-245 vs EXP-271 fair comparison（同配置 20k n=5，僅 sensor 來源不同；全用論文一致 time-mean 欄位）
+
+| 實驗 | Sensor 來源 | KE | u L2 | v L2 | ω L2 | div ratio | kf amp |
+|---|---|---|---|---|---|---|---|
+| **EXP-271** | DNS QR-pivot oracle | **4.68 ± 0.06 %** | 15.34 ± 0.06 % | 18.10 ± 0.03 % | 42.41 ± 0.12 % | 0.36 ± 0.004 % | 0.986 |
+| **EXP-245** | LES_T50（工程可遷移）| 5.71 ± 0.11 % | **13.65 ± 0.06 %** | **17.52 ± 0.10 %** | **41.79 ± 0.12 %** | 0.39 ± 0.006 % | 0.991 |
+| **誰贏** | — | DNS +1.03 pp | **LES +1.69 pp** | **LES +0.58 pp** | LES 略 | ~平 | ~平 |
+
+### Paper-grade findings（2026-05-29 修正：先前誤用 u_rel_l2_last，已改用論文一致的 time-mean u_rel_l2_mean）
+
+1. **整體 vs 逐點 trade-off**：DNS oracle 整體能量(KE)更準(4.68 vs 5.71)，但 **LES placement 逐點場(u/v/ω L2)反而更準**(u 13.65 vs 15.34)。兩者各有所長，無人全面碾壓。
+2. **「no measurable penalty」claim 已死**：兩組 KE 95% CI 不重疊([4.62,4.74] vs [5.61,5.81])，不能宣稱 statistically indistinguishable。改用 **trade-off framing**（已寫入 paper：abstract / ch4:45 / ch5:7,11）。
+3. **gap 量級對比**：random placement KE ~59 % → 兩種 well-formed placement 都壓到 4.7–5.7 %；DNS↔LES 之間僅 1 pp 量級差異，placement strategy 的「演算法選擇」遠不如「有沒有 well-formed placement」重要。
+4. **div_ratio**: EXP-271 0.36 % vs EXP-245 0.39 %（已降級為 diagnostic，見 §9.4，**不寫 sub-DNS**）。
+5. **Paper claim（§Results）**: 「LES-derived placement 與 DNS oracle 互有取捨（DNS 贏整體能量、LES 贏逐點），LES 競爭力足且無需 DNS 全場 → REAL_WORLD_PIPELINE 工程可遷移。」
+
 ---
 
 # §5 對照群 C：Sensor Amount（K-scaling）
@@ -603,6 +644,69 @@ These methods produce smooth reconstructions because their basis functions are s
 
 ---
 
+# §8.5 Uncertainty Quantification — Split Conformal Prediction（EXP-245 post-hoc, 2026-05-29）
+
+> **[STATUS: VALIDATED · PARKED]** — 結果已驗證且 reproducible，但**暫不寫入論文**，保留待後續使用。
+> Post-hoc UQ：不重訓、不改架構，對 EXP-245 (seed=42, `multiseed/seeda`) 套 split conformal。
+> 腳本 [`scripts/conformal_prediction.py`](../scripts/conformal_prediction.py)；artifact `artifacts/conformal_exp245/`。
+> 內建 sanity gate（KE rel-err 6.72% PASS，確認 `multiseed/seeda` = EXP-245 LES_T50，非 legacy EXP-200）。
+
+**兩條路徑（對齊 ENGINEERING_VISION）**：
+- **Path A (transferable, headline)**：calibration = 均勻隨機 held-out 位置（排除訓練 100 sensor），只用點量測 → 工程可遷移。n_cal=200（現實額外 sensor 預算）。
+- **Path B (oracle, 僅研究用)**：calibration = DNS 全場隨機點，n_cal=5000 → full-field 保證，**工程不可遷移**。
+
+**Marginal coverage（multi-draw n=50，mean±std；u/v 平均）**：
+
+| α | target | Path A fixed | Path B fixed |
+|---|---|---|---|
+| 0.05 | 0.95 | 0.955 ± 0.015 | 0.950 ± 0.004 |
+| 0.10 | 0.90 | 0.906 ± 0.020 | 0.899 ± 0.007 |
+| 0.20 | 0.80 | 0.805 ± 0.029 | 0.801 ± 0.009 |
+
+→ 兩路徑 marginal coverage 皆精準命中 target。Path A std 較大（n_cal=200 有限樣本），但仍 center 在 1−α，證明**工程可遷移 CP 成立**（不需 DNS 即可給統計保證）。
+
+**Adaptive σ 比較（不重訓；三個工程可遷移候選 + fixed）**：
+以「到最近 sensor 距離」分四分位 bin，coverage spread = max−min（越低越均勻）。α=0.1, u, Path B oracle（n_cal=5000, 50 draws）：
+
+| 方法 σ | marginal cov | mean halfwidth | **conditional spread** |
+|---|---|---|---|
+| fixed-width | 0.900 | 0.0962 | 0.093 |
+| adaptive: dist（原始距離）| 0.901 | 0.1136 (+18%) | 0.160 ❌ over-correct |
+| **adaptive: √dist（tempered）** | 0.901 | **0.0960（持平）** | **0.022** ✅ 3-4× 更均勻 |
+| adaptive: PDE residual | 0.900 | 0.1161 (+21%) | 0.099 ≈ fixed |
+
+conditional coverage by σ-quartile（α=0.1, u, Path B, near→far sensor）：
+
+| | Q1 (near) | Q2 | Q3 | Q4 (far) |
+|---|---|---|---|---|
+| fixed-width | 0.952 | 0.909 | 0.880 | 0.859 |
+| √dist (tempered) | 0.892 | 0.898 | 0.898 | 0.914 |
+| PDE residual | 0.952 | 0.912 | 0.884 | 0.853 |
+
+**發現（推翻原假設 "residual 最佳"）**：
+1. **fixed-width 揭示誤差非空間均勻**：近 sensor over-cover (0.952)、遠 sensor under-cover (0.859) → 重建誤差確實隨離 sensor 距離增大。
+2. **√dist 是贏家**：conditional spread 0.093→0.022（3-4× 更均勻）且平均寬度持平（誤差隨距離成長但**比距離緩**，√ 是對的 power）。工程可遷移（只需 sensor 座標）。
+3. **PDE residual σ 失敗**：stratified 曲線幾乎完全疊在 fixed 上（residual 空間近乎常數），寬度 +21%。**根因**：(a) 模型被 physics loss + GradNorm 驅使 residual 空間均勻；(b) K=100 ill-posed null-space（§7.3）下**低 PDE residual ≠ 低重建誤差**，residual 與 error 解耦 → 反過來是 §7.3 ill-posedness 的另一證據。
+
+**√dist power-law 檢驗（避免 diffusion overclaim）**：fit `|error| ~ dist^p` → p_pointwise 0.42 (u)/0.44 (v)，p_binned_median 0.45/0.46（接近 0.5，**溫和支持 √**）；但 log-log corr 僅 0.18（距離只解釋少量 pointwise 誤差變異）。→ √dist 是 **population-level scaling**，非 pointwise 物理定律；論文寫「empirically √dist tempering」，diffusion 機制列 plausible interpretation，不可當證明。
+
+**時間外推 / 交換性壓測（α=0.1, u, target 0.90）**：
+
+| t_split | i.i.d. (參考) | forward 早→晚 | reverse 晚→早 |
+|---|---|---|---|
+| 2.5 | 0.901 ± 0.009 | 0.997（保守）| 0.616（anti-conservative）|
+| 4.0 | 0.902 ± 0.011 | 0.991 | 0.711 |
+
+- **i.i.d. 校準 coverage 精準命中 0.90**（窗內交換性成立）。
+- **時間外推破壞交換性，且方向不對稱**：forward（早校準→晚測試）over-cover ~0.99（保守，安全）；reverse（晚校準→早測試）崩到 0.62–0.71（**少 20–28 pp**，危險）。
+- **根因**：重建誤差強烈時間非平穩——早期 t 誤差高（CfC temporal encoder warm-up / transient），晚期低。
+- **operating-regime 邊界（寫入 paper）**：CP 保證僅在「calibration 與 target 同一時間窗（交換）」成立。部署時校準資料必須與預測窗交換，**禁止跨時間 regime 校準**。這也獨立佐證模型重建品質隨 CfC context 累積而改善。
+
+**Paper framing**：headline = Path A + **√dist tempered adaptive**（工程可遷移、marginal coverage 命中 target、conditional coverage 均勻、寬度無代價）；Path B 為 oracle 上限；PDE-residual σ 為誠實負面結果連結 ill-posedness；時間外推為 operating-regime 邊界 + 非平穩性證據。
+圖（`artifacts/conformal_exp245/`）：`calibration_curve.png`、`stratified_coverage.png`（紅=residual 疊在藍=fixed，綠=√dist 水平）、`time_extrapolation.png`（紅 reverse 崩至 0.62）、`residual_width_field.png`、`error_vs_time.png`（相對誤差 21%→5%，真實場 RMS 全程平穩 → 隔離 CfC context warm-up，非 flow transient）。
+
+---
+
 # §9 Diagnostics / Negative Findings
 
 > 本章節記錄「跑過但證實不該往那走」的負面結果 — 對論文 §Discussion 仍有價值（誠實揭露所做的 ablation），但不該被誤讀為主線進度。
@@ -655,6 +759,92 @@ Decision gates 評估:
 - Model 直接 fit sensor data，PDE residual 用 wrong forcing 也能 self-consistent
 - 物理解釋：forcing 對 u/v 的 contribution 量級小於 advection/diffusion 項 → flow reconstruction quality 對 forcing identification accuracy 不敏感
 - **paper-grade claim**: 「sensor MSE-driven reconstruction is forcing-agnostic at K=100 budget; forcing identification requires either ① larger K or ② explicit forcing-mode supervision (e.g. spectral peak prior)」
+
+## 9.3 RAR（Residual Adaptive Resampling）ablation — **FAILED → 已修正待重跑**（EXP-272, 2026-05-29）
+
+> **背景**: EXP-054（舊架構 64 collo，無 GradNorm/AL）顯示 RAR freq=1000 可帶來 -2.2 pp；但現行架構（1024 collo + GradNorm + AL + SOAP）從未重測 RAR。本實驗驗證 RAR 在當前 stable config 下是否仍有益。
+
+**Setup**:
+- Config: `configs/exp_272_b3_les_T50_rar1000.toml`
+- Base: EXP-245_a (seed=42, KE 5.90%) — **byte-identical 除以下三項**：
+  - `physics_collocation_strategy = "rar"` (was "random")
+  - `rar_update_freq = 1000`（freq < 1000 已知 SOAP preconditioner 失效）
+  - `rar_pool_multiplier = 10`（pool = 1024 × 10 = 10240 候選點）
+  - `rar_exploration_ratio = 0.2`（20% 隨機點防 mode collapse）
+- Sensor: LES_T50（工程可遷移，同 EXP-245）
+- Collocation: 1024 / Iter: 20k / Seed: 42
+- Slurm: job 3721, acmt20 (RTX 3090), 2026-05-29
+
+**Hypothesis**: RAR 偏向高殘差區域採樣，有助於高梯度時刻的 physics residual 收斂。
+
+**Falsifiability**: 若 KE ≥ 5.90% 或訓練過程 L_phys 出現 spike（同 EXP-053 模式），則 RAR 在當前架構無效/有害。
+
+**Status**: `NEGATIVE_RESULT` — RAR 在現行架構下淨有害（2026-05-30 重跑完成 + 評估）
+
+**修 bug 過程**（首跑 job 3721 FAILED）:
+- **首跑（job 3721, 2026-05-29）FAILED**：啟動 9 秒崩於第一次 RAR pool 更新。
+  `RuntimeError: Trying to backward through the graph a second time`
+  （[physics.py](../src/pi_con/physics.py) `_rar_update_pool` → `_g1`）。
+- **根因**：u/v/p 是同一次 forward `uvp` 的 slice，共用同一張 autograd graph；
+  `_g1` 三次一階 grad 未設 `retain_graph=True`，第一次 backward 釋放 saved tensors
+  後第二次即 double-backward。RAR 路徑（`physics_collocation_strategy="rar"`）在現行
+  架構從未被執行過，首次啟用即踩中，與 RAR 物理假設無關（純工程 bug）。
+- **修正**：前兩次 `_g1` 改 `retain_graph=True`，最後一次釋放（commit `4c76b6b`）。
+  regression test [`tests/test_rar_pool_autograd.py`](../tests/test_rar_pool_autograd.py)
+  monkeypatch uvp_fn 重現崩潰並守住修正（修正前 raise、修正後 PASS）。
+
+**重跑（job 3739, 2026-05-30, COMPLETED 2h43m）+ 評估結果**（同 evaluator, time-mean 欄位）:
+
+| 指標 (time-mean) | EXP-245_a (random collo) | EXP-272 (rar freq=1000) | 判讀 |
+|---|---|---|---|
+| **KE rel-err** | **5.90 %** | **10.28 %** | +4.38 pp（1.74× 變差）|
+| KE rel-err (val) | 6.53 % | 11.58 % | 變差 |
+| u rel-L2 | 13.59 % | 18.59 % | 變差 |
+| v rel-L2 | 17.53 % | 24.97 % | 變差 |
+| omega rel-L2 | 41.66 % | 50.37 % | 變差 |
+| Ens rel-err | 24.41 % | 34.54 % | 變差 |
+| div_ratio (pred) | 0.385 % | 6.66 % | 17× 變差 |
+| E(k_f=2) ratio @last | 0.969 | 0.856 | 偏離 1 |
+| sensor MSE | 5.63e-4 | 1.14e-3 | 2× 變差 |
+| EXP-054 (舊架構參考) | 19.6 % (from 21.8 %) | — | rar 64 collo, 無 GradNorm/AL |
+
+**判讀（Falsifiability 命中）**：§9.3 預設「KE ≥ 5.90% 或 L_phys spike → RAR 無效/有害」。
+- KE = 10.28% ≥ 5.90% → **Falsified，RAR 淨有害**，且**每一項指標都變差**（非單一指標雜訊）。
+- 但**非經由 L_phys spike**：訓練 l_physics 單調下降（step 2000 的 30.5 → 20000 的 4.58），
+  無 EXP-053 式 spike → 失效機制不是 SOAP preconditioner 失效/優化不穩。
+- **物理機制（hypothesis）**：RAR 把 collocation 集中到高殘差區（高梯度/小尺度/早期 t），
+  在 K=100 sparse-sensor underdetermined 系統中，physics residual 是 bulk 場的主要正則化；
+  集中採樣使平滑 bulk 與 continuity 失去均勻約束 → 全域能量分布漂移（KE↑）、
+  散度約束惡化（div_ratio 0.385%→6.66%）。連 sensor MSE 也 2× 變差，顯示非均勻 collocation
+  破壞了 data/physics 的權衡平衡。
+- **工程結論**：現行 B3（1024 uniform collocation + GradNorm + AL + SOAP）下，均勻隨機採樣已對
+  underdetermined 場提供平衡覆蓋；RAR 的高殘差集中反而**移除 bulk 覆蓋**，淨有害。
+  **保留 `physics_collocation_strategy="random"`**；RAR 寫入 ablation 作 NEGATIVE_RESULT，
+  支持 baseline 設計選擇。eval artifact: `artifacts/eval_272/`（lab-server）。
+
+## 9.4 「sub-DNS divergence」是 band-limiting 假象 — **claim 降級**（2026-05-29）
+
+> **觸發**: 使用者質疑「重建場散度怎麼可能比 DNS 還低」。執行對照實驗 [`scripts/divergence_smoothness_control.py`](../scripts/divergence_smoothness_control.py) 驗證。
+
+**先確認不是計算 bug**: evaluator [`evaluate_deeponet_cfc.py:1112-1113`](../scripts/evaluate_deeponet_cfc.py:1112) 對 pred 與 DNS **用同一個 `divergence_fd`(2 階中心差分) + 同網格(128² block-avg) + 同分母(DNS strain-rate Frob 8.898)**。報告的 div_ratio 兩邊皆 FD，autograd 只用於 training loss。比較公平，0.39% < 1.04% 數字正確。
+
+**Control 結果**（DNS 譜空間 isotropic 低通後，用同款 FD 算散度比）:
+
+| 場 | div_ratio (mean over t) | 說明 |
+|---|---|---|
+| DNS full (block-avg 128, k≤64) | **1.037 %** | 重現 evaluator 的 1.04% floor（驗證 replication）|
+| DNS 低通 **k≤5** | **0.069 %** | 真正 k≤5 的場散度 |
+| DNS 低通 k≤8 | 0.151 % | |
+| DNS 低通 **k≤16** | **0.376 %** | |
+| **PI-CON 實測 (EXP-245/271)** | **0.36–0.39 %** | ≈ k≤16 band-limited DNS |
+
+**結論**:
+1. **FD 散度截斷誤差 ∝ 場的高波數含量**（中心差分截斷誤差 $O(\Delta x^2 \partial^3 u)$）。DNS 的 1.04% 全是「完整 cascade(k→64)被 FD 微分」的截斷誤差；DNS 在譜空間守恆到 ~1e-13。
+2. **PI-CON 的 0.39% ≈ k≤16 band-limited DNS 的 0.376%**，而非接近 k≤5（0.069%）。代表 PI-CON 有效頻段到 ~k=16（與 spectrum floor 一致），其低散度**主要來自「場比 DNS 平滑(缺 k=16~64 高頻)」**，不是「比 DNS 更守恆」。
+3. **"sub-DNS divergence" framing 必須降級**：不能當 contribution / headline；任何 CFD 審稿人一眼識破「band-limited 場 FD 散度天生低」。
+4. **可保留的誠實 claim**：AL-continuity 把重建散度壓到「其 resolved bandwidth(k≲16)的 FD 截斷 floor」(0.39% ≈ 0.376%)，證明約束 active；但這是 secondary diagnostic，不是「優於 DNS 的不可壓縮性」。
+
+**論文影響（2026-05-29 降級已執行）**: chapter03 floor 定義加 band-limiting 說明；chapter04 §sub_dns_div 重寫為 diagnostic（移除 "X× below floor"）；chapter05 contribution/implication 移除 sub-DNS 條目；C/Eng abstract 移除 sub-DNS 句；thesis/CLAUDE.md 主訊息 contribution #2 改寫。
 
 ---
 
@@ -907,3 +1097,25 @@ Decision gates 評估:
   - 從 lab-server rsync 補完 EXP-242a/b/c/243/244/245/246/247/248/249/250/251 + EXP-252~256 完整 metrics
   - EXP-253/254/255 zero-ish init rerun + EXP-256 (K=200 LES sensor) finalize
 - **2026-05-19**: v2 啟用。從 legacy EXP-001~106 完整提取 stable phase 主線（B3/B0 multi-seed, B1/B2/PINN ablation, sensor placement series, Re=1000 baseline），以 EXP-200 起編號。Multi-seed 統一 `_a~_e` suffix。Legacy IDs 與其 archive 不動。
+
+---
+
+## EXP-274 — AL delayed-start + Phase2 L-BFGS finetune（訓練策略探索）
+
+**日期**: 2026-05-31 ｜ **狀態**: 🛠 實作完成 + 測試通過（4 passed），待 r740 啟動
+**Config**: `configs/exp_274_al_delay_lbfgs.toml`（派生 EXP-271, DNS QR-pivot oracle, seed=42）
+
+**Why**: 探索兩個訓練策略：(1) AL dual update 延後到 step≥10000、freq 100→500（早期 λ 凍結在 0，
+僅留 ρ 二次罰，讓 data/NS 先收斂，後期才用 λ 線性項收緊 continuity）；(2) 主 phase (SOAP 20k)
+後同進程切 L-BFGS 在 eval-mode(y_t) finetune 5000 步（max_iter=20, λ 凍結），用二階收斂壓低 residual。
+
+**程式變更（向後相容，預設停用）**:
+- `config.py`: 新增 `al_start_step`(預設 0) + `lbfgs_finetune_steps`(預設 0)
+- `training.py`: 兩處 AL dual update 加 `step >= al_start_step` gate；main loop 後新增 Phase2
+  L-BFGS finetune block（eval-mode、GradNorm 凍結、λ 凍結、loss 組法同 non-gradnorm AL path）
+- `tests/test_al_delay_lbfgs_finetune.py`: 4 passed（gate 凍結/解凍、phase 接續、λ 凍結、向後相容）
+
+**變更（vs EXP-271）**: `al_update_freq` 100→500；`al_start_step` 0→10000；`lbfgs_finetune_steps` 0→5000
+
+**待評估**: KE rel-err（目標 ≤ EXP-271 baseline）；div L2（phase2 後是否進一步下降）。
+Falsifiability: phase2 後 L_data 大幅上升或 KE 退步 → 此策略對本問題無益。

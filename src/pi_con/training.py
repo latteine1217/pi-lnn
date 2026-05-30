@@ -436,6 +436,7 @@ def train_picon_kolmogorov(
     use_al = bool(args.get("use_augmented_lagrangian", False))
     al_multipliers: dict[str, AugmentedLagrangianMultiplier] = {}
     al_update_freq = int(args.get("al_update_freq", 100))
+    al_start_step = int(args.get("al_start_step", 0))  # EXP-274: dual update 延遲起始
     if use_al:
         al_constraints: list[str] = list(args.get("al_constraints", ["cont"]) or ["cont"])
         # Pre-condition asserts（runtime fail-fast；config-load _validate_al_config 也會擋）
@@ -809,7 +810,8 @@ def train_picon_kolmogorov(
             optimizer.step(closure)
 
             # AL dual update — 嚴格在 step(closure) 之後，用 closure 最後一次的 l_cont
-            if al_cont is not None and step > 0 and step % al_update_freq == 0:
+            # al_start_step gate（EXP-274）：step < al_start_step 時 λ 凍結，僅留 ρ 二次罰
+            if al_cont is not None and step >= al_start_step and step > 0 and step % al_update_freq == 0:
                 _last_lcont = _lbfgs_info.get("l_cont_for_al")
                 if _last_lcont is not None:
                     al_cont.update(_last_lcont)
@@ -1475,7 +1477,8 @@ def train_picon_kolmogorov(
 
             # AL dual update（spec v4 §4 + EXP-242 multi-constraint）— 嚴格在 optimizer.step() 之後
             # 每個 constraint 各自獨立 update（一步延遲與 single-AL 相同，acceptable per spec）
-            if al_multipliers and step > 0 and step % al_update_freq == 0:
+            # al_start_step gate（EXP-274）：step < al_start_step 時 λ 凍結，僅留 ρ 二次罰
+            if al_multipliers and step >= al_start_step and step > 0 and step % al_update_freq == 0:
                 _loss_by_constraint = {
                     "ns_u": l_ns_u_total,
                     "ns_v": l_ns_v_total,
