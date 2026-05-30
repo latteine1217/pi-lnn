@@ -130,8 +130,8 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-031** | `POSITIVE_FINDING` | Re=10031, **hybrid20qr80 + bc_body=0**（CEXP-028 - body soft BC） | **13.1 %** 🟡 | **~1.13** | 9.27 | 5.33 | 10k | ✅ 移除 body BC 後 KE 154%→13.1%（10× 改善）；見 Finding #8 統一 2×2 交互作用解釋 |
 | **CEXP-032** | `NEGATIVE_RESULT` | Re=10031, **QR wake + bc_body=0**（CEXP-002 - body soft BC） | **177.8 %** ❌❌❌ | **~2.7** | 13.14 | 5.50 | 10k | [PHYSICAL_FAILURE] **推翻「body BC 冗余」假說**：QR body 區唯一約束就是 body BC，移除後 body interior 無拘束 → 污染整個 wake；w_ns_u 推 272× |
 | **CEXP-033** | `NEGATIVE_RESULT` | Re=10031, **hybrid95downstream + bc_body=0**（CEXP-031 - 5 upstream sensors） | **12.5 %** 🟡 | **~1.12** | 9.57 | 5.33 | 10k | upstream sensor **不是** 13.1% gap 主因（CEXP-031 13.1% ≈ CEXP-033 12.5%）；gap 來自 hybrid coverage density 而非 sensor 衝突 |
-| **CEXP-034** | `LAB_SUBMITTED` | Re=10031, **CEXP-002 + K=200 QR sensor**（single-var: sensor K 100→200） | — | — | — | — | 10k | Slurm job 3740；測試更密 wake 感測能否改善 baseline 3.54% |
-| **CEXP-035** | `LAB_SUBMITTED` | Re=10031, **K=200 + collo 1024**（CEXP-034 + num_physics_points 64→1024） | — | — | — | — | 10k | Slurm job 3741；**Finding #9 falsification test**：K=200 是否化解 CEXP-030 (K=100+1024, 610%) 的 ill-posedness |
+| **CEXP-034** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + K=200 QR sensor**（single-var: sensor K 100→200） | **355.5 %** ❌❌❌ | **4.55** | 46.08 | 11.69 | 10k | ❌ K=200 災難性惡化 baseline 100×（3.54%→355%）；強烈確認 Finding #8——K=200 引入 upstream 8 + within-body-x 11 sensor → 與 body BC 嚴重衝突，over-energy 4.55× |
+| **CEXP-035** | `NEGATIVE_RESULT` | Re=10031, **K=200 + collo 1024**（CEXP-034 + num_physics_points 64→1024） | **375.4 %** ❌❌❌ | **4.75** | 45.78 | 8.27 | 10k | ❌ K=200+collo1024 亦災難（375%）；vs CEXP-030 (K=100+collo1024, 610%) 略好但仍崩潰 → 更多 collo 在 sensor/BC 已衝突基礎上無法挽救（div 8.27 略降是 collo 副作用，非物理正確）|
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -715,6 +715,12 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
   - 分佈圖 `docs/figures/cylinder_sensor_K100_vs_K200.png`：K=200 仍集中 wake，但 upstream 8（vs K=100 的 1）、within-body-x 11（vs 0）；near-body dist<0.03 反而較少（4 vs 7）。
   - CEXP-034 = CEXP-002 + K=200（collo 64）；CEXP-035 = CEXP-034 + collo 1024（Finding #9 falsification：K=200 是否化解 CEXP-030 ill-posedness）。
   - Slurm r740 並行提交：CEXP-034 job 3740、CEXP-035 job 3741（8-CPU template 兩 job 同節點並行）。
+  - **Eval 結果（job 3743，2026-05-30）**：
+    - CEXP-034 (K=200, collo 64): KE **355.5%**, ke_pred/ref **4.55**, omega 46.08, div 11.69 → ❌ 災難
+    - CEXP-035 (K=200, collo 1024): KE **375.4%**, ke_pred/ref **4.75**, omega 45.78, div 8.27 → ❌ 災難
+    - **結論（呼應 Finding #8）**：K=200 反而比 K=100 baseline (3.54%) 惡化 100×。QR-pivot 在 K=200 時自然把 sensor 鋪到 upstream (8) 與 body 上下剪切層 (within-body-x 11)，這些 velocity supervision 與 body soft BC (u→0) 在重疊空間競爭 → GradNorm 撕裂 → over-energy 4.5×。**「更多 sensor」在有 body BC 的情況下有害，不是有益**。
+    - **對 Finding #9 的補充**：CEXP-035 (K=200+collo1024, 375%) vs CEXP-030 (K=100+collo1024, 610%) 略好，暗示 sensor density 對 ill-posedness 有微弱緩解；但因 K=200 同時引爆 sensor/BC 衝突 (Finding #8)，無法乾淨隔離。collo 1024 在兩個 K 都有害。
+    - **下一步若要測 K=200**：必須同時 `bc_body_n_points=0`（依 Finding #8，sensor 已覆蓋 body 區時不可再加 body BC）。當前 CEXP-034/035 是「雙約束衝突」的再次印證，非乾淨的 K-scaling 測試。
 - **2026-05-29 CEXP-032/033 + Finding #8（body-region constraint 原則）**:
   - CEXP-032（QR + bc_body=0）KE **177.8%**、CEXP-033（hybrid95downstream + bc_body=0）KE **12.5%**。
   - CEXP-032 推翻先前「body BC 冗余」假說（預測 3.5%，實際 177.8%，錯 40×）；揭露完整 2×2 交互作用。
