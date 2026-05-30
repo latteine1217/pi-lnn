@@ -174,16 +174,19 @@ def _rar_update_pool(
         v = uvp[:, 1:2]
         p = uvp[:, 2:3]
 
-        def _g1(y: torch.Tensor) -> torch.Tensor:
+        # u/v/p 是同一次 forward `uvp` 的 slice，共用同一張 autograd graph。
+        # 三次一階 grad 必須讓前兩次 retain_graph=True，否則第一次 backward 就釋放
+        # saved tensors，第二次即 double-backward 崩潰（EXP-272 job 3721 根因）。
+        def _g1(y: torch.Tensor, retain: bool) -> torch.Tensor:
             g = torch.autograd.grad(
                 y, xyt_pool, torch.ones_like(y),
-                create_graph=False, allow_unused=True,
+                create_graph=False, retain_graph=retain, allow_unused=True,
             )[0]
             return g if g is not None else torch.zeros_like(xyt_pool)
 
-        u_xyt = _g1(u)
-        v_xyt = _g1(v)
-        p_xyt = _g1(p)
+        u_xyt = _g1(u, retain=True)
+        v_xyt = _g1(v, retain=True)
+        p_xyt = _g1(p, retain=False)  # 最後一次釋放圖
 
         du_dx = u_xyt[:, 0:1]; du_dy = u_xyt[:, 1:2]; du_dt = u_xyt[:, 2:3]
         dv_dx = v_xyt[:, 0:1]; dv_dy = v_xyt[:, 1:2]; dv_dt = v_xyt[:, 2:3]
