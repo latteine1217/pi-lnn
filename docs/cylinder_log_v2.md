@@ -126,7 +126,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-027** | `NEGATIVE_RESULT` | Re=10031, **B-only zero-gate control** (`use_graph_spatial_gate` + `geometry_preserve_base_rng`) | **489.5 %** ❌ | **5.89** | 38.80 | 11.41 | 10k | [PHYSICAL_FAILURE] zero-gate 沒救，B path 失敗不是單純 ungated residual 初始擾動 |
 | **CEXP-028** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 sensor baseline**（20 farthest + 80 QR；no geometry modules） | **154.4 %** ❌ | **2.54** | 44.90 | 14.48 | 10k | [PHYSICAL_FAILURE] sensor coverage alone 只把 over-energy 從 B/C 的 4.65–5.89× 降到 2.54×，仍遠離 CEXP-002 |
 | **CEXP-029** | `NEGATIVE_RESULT` | Re=10031, **hybrid20qr80 + soft outlet BC**（CEXP-028 + `bc_outlet_n_points=32` only） | **164.8 %** ❌ | **~2.65** | 48.15 | 17.94 | 10k | [PHYSICAL_FAILURE] outlet BC 輕微惡化 (CEXP-028 154% → 165%)；div L2 也更差；soft outlet BC 不是 over-energy 根因 |
-| **CEXP-030** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | **610 %** ❌❌❌ | **~7.1** | 47.79 | 7.49 | 10k | [PHYSICAL_FAILURE] 1024 collo 把 physics loss 梯度放大 16×，GradNorm 失衡 → severe over-energy；`physics_loss_weight=0.01` 在 1024 collo 下需要同步調降 |
+| **CEXP-030** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + collo 1024**（single-var: `num_physics_points` 64→1024） | **610 %** ❌❌❌ | **~7.1** | 47.79 | 7.49 | 10k | [PHYSICAL_FAILURE] **ill-posedness（非 GradNorm 失衡）**：training 全健康（L_data 1.79e-3, L_phys 1.67e-2, w_ns_u 僅 0.65）但 eval KE 610%；強 physics 在 sparse-sensor underdetermined 系統中把場推向 spurious NS-consistent 解。見 Finding #9 |
 | **CEXP-031** | `POSITIVE_FINDING` | Re=10031, **hybrid20qr80 + bc_body=0**（CEXP-028 - body soft BC） | **13.1 %** 🟡 | **~1.13** | 9.27 | 5.33 | 10k | ✅ 移除 body BC 後 KE 154%→13.1%（10× 改善）；見 Finding #8 統一 2×2 交互作用解釋 |
 | **CEXP-032** | `NEGATIVE_RESULT` | Re=10031, **QR wake + bc_body=0**（CEXP-002 - body soft BC） | **177.8 %** ❌❌❌ | **~2.7** | 13.14 | 5.50 | 10k | [PHYSICAL_FAILURE] **推翻「body BC 冗余」假說**：QR body 區唯一約束就是 body BC，移除後 body interior 無拘束 → 污染整個 wake；w_ns_u 推 272× |
 | **CEXP-033** | `NEGATIVE_RESULT` | Re=10031, **hybrid95downstream + bc_body=0**（CEXP-031 - 5 upstream sensors） | **12.5 %** 🟡 | **~1.12** | 9.57 | 5.33 | 10k | upstream sensor **不是** 13.1% gap 主因（CEXP-031 13.1% ≈ CEXP-033 12.5%）；gap 來自 hybrid coverage density 而非 sensor 衝突 |
@@ -337,6 +337,36 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 > "Body-region reconstruction in obstacle flows requires exactly one constraint source. With wake-concentrated sensors that leave the body region unsupervised, a soft body BC is necessary (removing it lets the unconstrained body region corrupt the entire wake, KE 3.5%→178%). With body-adjacent sensors, the soft body BC instead conflicts with sensor supervision and must be removed (KE 154%→13%). The two constraint sources are mutually exclusive, not additive. The optimal configuration (wake QR-pivot sensors + soft body BC, KE 3.54%) succeeds because the single constraint per region is spatially partitioned: inflow BC anchors the inlet, body BC anchors the obstacle, and information-optimal sensors anchor the wake."
 
 **對 paper 的意義**：這個 2×2 是一個乾淨、可發表的 sensor-placement / BC-design ablation。它把「為何 CEXP-002 work、為何所有改進嘗試失敗」用一個原則解釋完畢。不再是「遇到瓶頸」，而是「已找到設計原則，CEXP-002 正好落在最優格」。
+
+### Finding 9 — CEXP-030 collo 1024 失敗是 ill-posedness，非 GradNorm 失衡（2026-05-29，修正先前歸因）
+
+> ⚠️ **修正記錄**：先前（2026-05-28）把 CEXP-030 失敗歸因為「physics 梯度放大 16× → GradNorm 失衡」。經查證 **此歸因錯誤**，本 finding 取代之。
+
+**錯誤歸因的反證**：
+
+1. **Physics loss 用 mean reduction**（`training.py:1179` `torch.mean(mom_u**2)`）→ loss 期望值不隨 collocation 點數變，沒有「放大 16×」。
+2. **CEXP-030 訓練曲線全部健康**：
+
+| | CEXP-002 (64 collo) | CEXP-030 (1024 collo) |
+|---|---|---|
+| L_data final | 1.15e-3 | 1.79e-3（相當）|
+| L_phys final | 3.25e-2 | 1.67e-2（更低）|
+| w_ns_u final | 0.108 | **0.65**（溫和，未爆）|
+| **KE eval** | **3.54 %** | **610 %** |
+
+w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training loss 全綠但 eval 災難 → 排除優化失衡，確認是 **泛化 / ill-posedness 失敗**。
+
+**真正機制（sparse-sensor PINN ill-posedness）**：
+- NS + continuity 在「K=100 sensor 全集中 wake」的稀疏約束下 **underdetermined**——有無窮多 divergence-free + NS-consistent 場，只有一個是真實 DNS 場。
+- **64 collo**：physics 弱正則化，data interpolation 主導 → 落在真實解附近（3.54%）。
+- **1024 collo**：physics 變主導場塑造力，在全場（含無 sensor 的上游/body/far-wake/邊界）強力施加「滿足 NS」。但「滿足 NS」≠「正確解」→ model 滑到一個 spurious 解：NS 殘差低 ✓、100 sensor 吻合 ✓、但無 sensor 區能量爆 7×（ke_pred/ke_ref≈7.1）→ KE 610%。
+
+**與 Kolmogorov 的對比（為何 K 主線加 collo 反而好）**：Kolmogorov 週期域 + 固定 forcing + sensor 全域分佈 → 解空間受限，EXP-245 用 1024 collo 改善。Cylinder 開放域 + wake-only sensor → 解空間極大，physics 過強有害。即 Krishnapriyan 2021 描述的 PINN failure mode。
+
+**Paper-grade insight (2026-05-29)**:
+> "In sparse-sensor reconstruction of open-domain flows, increasing PDE collocation density degrades accuracy: with sensors confined to the wake, the NS system is underdetermined, and strong physics enforcement drives the solution onto a spurious NS-consistent manifold whose energy is wrong by 7×, despite low training data- and physics-losses. The accuracy of the working configuration depends on physics acting as weak regularization, not a dominant field-shaping constraint."
+
+**統一視角（Findings #8 + #9 合起來）**：CEXP-002 的成功來自一個微妙平衡——(a) 每個區域恰好一個 velocity supervision（Finding #8），(b) physics 弱到只當正則化、由 data 主導內插（Finding #9）。**任何強化 physics（加 collo）或弄亂 supervision（sensor/BC 衝突）的動作都破壞此平衡。**
 
 ---
 
@@ -624,7 +654,7 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 | **Stage 3 controls: RNG-neutral C and zero-gate B (CEXP-026/027)** | ❌ both failed：CEXP-026 KE 463.7%, CEXP-027 KE 489.5%；RNG/init confound 與 ungated residual 都不是主要根因，B/C geometry memory path 本身會放大能量。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
 | **Stage 3 sensor coverage control: hybrid20qr80 baseline (CEXP-028)** | ❌ CEXP-028 eval completed：KE 154.4%, `ke_pred/ke_ref=2.54`, `omega=44.90`, `div=14.48`。比 B/C over-energy 輕，但仍遠離 CEXP-002；sensor coverage alone 不足。 | ✅ Closed 2026-05-27 (`NEGATIVE_RESULT`) |
 | **Stage 4 no-GNN boundary semantics: outlet BC only (CEXP-029)** | ❌ **Failed** (KE 164.8%)；soft outlet BC 輕微惡化 CEXP-028 (154%)；div L2 從 14.48 → 17.94 更差。Outlet semantics 不是 over-energy 根因。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
-| **CEXP-030: collo 1024 ablation** | ❌ **Failed** (KE 610%)；1024 collo 把 physics 梯度放大 16×，GradNorm 失衡 → severe over-energy。`physics_loss_weight=0.01` 在 1024 collo 下需要同步調降才能平衡。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
+| **CEXP-030: collo 1024 ablation** | ❌ **Failed** (KE 610%)；**修正歸因**：非 GradNorm 失衡（w_ns_u 僅 0.65、training loss 全健康），而是 sparse-sensor PINN 的 ill-posedness——強 physics 把 underdetermined 系統推向 spurious NS-consistent 解。見 Finding #9。 | ✅ Closed 2026-05-29 (`NEGATIVE_RESULT`) |
 | **Body-region constraint 機制（CEXP-031/032/033, Finding #8）** | ✅ **解決**：2×2 交互作用——body 區必須恰好一個約束（零 → 污染整場 178%；雙 → GradNorm 衝突 154%）。CEXP-002（QR + body BC）正好落在最優格。"瓶頸"已轉為可發表的 sensor/BC design ablation。 | ✅ Closed 2026-05-29 (Finding #8) |
 | **Option E: cross-attn geometry tokens + hard BC (CEXP-022)** | ❌ **Failed** (KE 99.8%, stop-loss zone)；w_ns_u=2.09 與 CEXP-016 相同，geometry tokens 輕微降低 KE error (~12%) 但未解決 GradNorm 病態；Finding #6 written。**Hard BC 路線全部封閉**。 | ✅ Closed 2026-05-28 (`NEGATIVE_RESULT`) |
 | **CEXP-002 multi-seed (n=3-5)** | single seed only，無 σ | **高優先** — paper-grade rigor |
