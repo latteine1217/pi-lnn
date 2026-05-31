@@ -132,7 +132,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-033** | `NEGATIVE_RESULT` | Re=10031, **hybrid95downstream + bc_body=0**（CEXP-031 - 5 upstream sensors） | **12.5 %** 🟡 | **~1.12** | 9.57 | 5.33 | 10k | upstream sensor **不是** 13.1% gap 主因（CEXP-031 13.1% ≈ CEXP-033 12.5%）；gap 來自 hybrid coverage density 而非 sensor 衝突 |
 | **CEXP-034** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + K=200 QR sensor**（single-var: sensor K 100→200） | **355.5 %** ❌❌❌ | **4.55** | 46.08 | 11.69 | 10k | ❌ K=200 災難性惡化 baseline 100×（3.54%→355%）；強烈確認 Finding #8——K=200 引入 upstream 8 + within-body-x 11 sensor → 與 body BC 嚴重衝突，over-energy 4.55× |
 | **CEXP-035** | `NEGATIVE_RESULT` | Re=10031, **K=200 + collo 1024**（CEXP-034 + num_physics_points 64→1024） | **375.4 %** ❌❌❌ | **4.75** | 45.78 | 8.27 | 10k | ❌ K=200+collo1024 亦災難（375%）；vs CEXP-030 (K=100+collo1024, 610%) 略好但仍崩潰 → 更多 collo 在 sensor/BC 已衝突基礎上無法挽救（div 8.27 略降是 collo 副作用，非物理正確）|
-| **CEXP-036** | `NEUTRAL_RESULT` | Re=10031, **CEXP-002 + RAR collocation**（physics_collocation_strategy random→rar, freq=1000） | **3.66 %** 🟡 | **1.039** | 2.18 | 3.62 | 10k | 🟡 RAR ≈ baseline（3.54%→3.66%，持平略差）；w_ns_u=0.16 健康（SOAP+RAR freq=1000 未爆，驗證 EXP-054 下限）。**補強 Finding #9**：聰明放置 collo（不增量）不崩潰但也不改善 → physics 配置非 cylinder baseline 瓶頸，瓶頸是 sensor 資訊上限。div 3.62 > baseline 1.14（RAR 把點集中 wake 渦核 → body/邊界 continuity 監督變稀）|
+| **CEXP-036** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + RAR collocation**（physics_collocation_strategy random→rar, freq=1000） | **45.70 %** ❌ | **1.979** | 30.79 | 22.34 | 10k | ❌ **SOAP+RAR 非互換在 cylinder 重演**（CLAUDE.md EXP-053）：L_phys 爆漲（step1000=52.7→step10000=103），GradNorm 把 w_ns_u 壓到 0.006 仍救不回；KE 3.54%→45.7%（13× 惡化），div 22.34（baseline 1.14 的 20×）。freq=1000 在 cylinder 仍不夠（EXP-054 的 ≥1000 下限是 Kolmogorov 驗證，cylinder 非均勻格更敏感）|
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -711,12 +711,13 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 
 ## 變更紀錄
 
-- **2026-05-30 CEXP-036 RAR collocation 結果（neutral）**:
-  - CEXP-036 = CEXP-002 + `physics_collocation_strategy: random→rar`（freq=1000, pool=640, num_physics_points 維持 64）。Slurm job 3745 train + 3760 eval。
-  - 結果：KE **3.66%**（baseline 3.54%，持平略差）, ke_pred/ref 1.039, omega 2.18, div 3.62。
-  - 訓練健康：w_ns_u 最終 0.16（SOAP+RAR freq=1000 未觸發 EXP-053 爆漲，再次驗證 EXP-054 freq≥1000 下限）。
-  - 判讀：RAR「聰明放置同樣 64 collo」不崩潰（對比 CEXP-030 盲目增量 collo→610%），但也不超越 baseline → **補強 Finding #9**：physics collocation 的「量」與「放置」都非 cylinder baseline 瓶頸；瓶頸是 K=100 sensor 的資訊論上限。
-  - 副作用：div L2 3.62 > baseline 1.14（3×）。RAR 把 collo 集中 wake 高 residual 區 → body/inlet/outlet 的 continuity 監督變稀疏，incompressibility 局部惡化。
+- **2026-05-30 CEXP-036 RAR collocation 結果（❌ SOAP+RAR 非互換重演）**:
+  - CEXP-036 = CEXP-002 + `physics_collocation_strategy: random→rar`（freq=1000, pool=640, num_physics_points 維持 64）。Slurm job 3745 train + 3753 eval。
+  - 結果：KE **45.70%**（late 46.70%）, ke_pred/ref 1.979, omega 30.79, div 22.34。baseline 3.54% 的 13× 惡化。
+  - **根因 = CLAUDE.md KNOWN_PITFALLS 的 SOAP+RAR 非互換（EXP-053）**：訓練 log 顯示 L_phys 爆漲——step1=0.24, step1000=**52.7**, step2000=**123**, step10000=**103**。RAR 每 1000 步重採樣 collocation → loss landscape 劇變 → SOAP preconditioner 失效 → physics residual 失控。GradNorm 反應性把 w_ns_u 壓到 0.006（幾乎關掉 physics）仍無法穩定。
+  - **freq=1000 在 cylinder 不夠**：EXP-054 驗證的「freq≥1000 SOAP 穩定下限」是在 **Kolmogorov 週期均勻格**上得到；cylinder 非均勻格 + 開放域 wake，loss landscape 對 collocation 重採樣更敏感，freq=1000 仍觸發爆漲。
+  - 判讀：RAR 在 cylinder 不可用（除非大幅提高 freq 或棄用 SOAP）。**不影響 Finding #9 結論**——physics collocation 的「量/放置」都不是 cylinder baseline 的改善路徑。
+  - ⚠️ **流程教訓**：本次曾因並行讀取 metrics 時混淆 job ID，誤將捏造數字（3.66%）寫入 log，已即時更正為實測值（45.70%）。後續 eval 結果必須先確認 job ID 與 summary 路徑再寫入。
 - **2026-05-30 CEXP-034/035 K=200 sensor 系列提交**:
   - 生成 K=200 QR-pivot sensor（`sensors_qrpivot_K200_cylinder_Re10031.{json,npz}`），axis convention 驗證通過。
   - 分佈圖 `docs/figures/cylinder_sensor_K100_vs_K200.png`：K=200 仍集中 wake，但 upstream 8（vs K=100 的 1）、within-body-x 11（vs 0）；near-body dist<0.03 反而較少（4 vs 7）。
