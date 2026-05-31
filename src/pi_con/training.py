@@ -1653,37 +1653,49 @@ def train_picon_kolmogorov(
             history_size=int(args.get("lbfgs_history_size", 10)),
             line_search_fn="strong_wolfe",
         )
+        # fixed_batch（EXP-275 診斷）：true 時整個 phase2 只採樣一次、跨所有 outer step 重用。
+        # Why: L-BFGS 的 curvature history (s_k,y_k) 需「同一目標函數」才有效；每 outer step 重採樣
+        #      （EXP-274 freq=1）使 history 混入不同 batch 的梯度差 → curvature 失效（同 SOAP+RAR
+        #      freq≥1000 才穩的機制）。fixed_batch=true → 目標函數固定 → curvature history 自洽。
+        _ft_fixed_batch = bool(args.get("lbfgs_finetune_fixed_batch", False))
+        _ft_cache: tuple[list, list] | None = None
         _ft_lam_str = "n/a" if al_cont is None else f"{al_cont.lambda_.item():.3e}"
         print(
             f"=== Phase2 L-BFGS finetune: {_lbfgs_finetune_steps} steps"
-            f"  max_iter={_ft_max_iter}  λ_frozen={_ft_lam_str} ===",
+            f"  max_iter={_ft_max_iter}  λ_frozen={_ft_lam_str}"
+            f"  fixed_batch={_ft_fixed_batch} ===",
             flush=True,
         )
         _base_step = args["iterations"]
         for _ft_i in range(1, _lbfgs_finetune_steps + 1):
             step = _base_step + _ft_i
             net.train()
-            # 採樣一次（closure 被 line-search 多次呼叫時重用同批資料）。t_max=None → full range。
-            _fixed_data = []
-            for _i, _ds in enumerate(datasets):
-                n_q = int(args.get("num_query_points", 0)) or _ds.sensor_pos.shape[0]
-                xy_np, t_np, c_np, ref_np = _ds.sample_sensor_batch(rng, n=n_q, t_max=None)
-                _fixed_data.append((
-                    torch.tensor(xy_np, dtype=torch.float32, device=device),
-                    torch.tensor(t_np, device=device),
-                    torch.tensor(c_np, dtype=torch.long, device=device),
-                    torch.tensor(ref_np, device=device),
-                ))
-            _fixed_phys = []
-            if _ft_phys_gate:
+            # 採樣：fixed_batch 時只在第一個 outer step 採一次後快取重用；否則每 step 重採（舊行為）。
+            # 任一模式下，closure 被 line-search 多次呼叫時都重用同批。t_max=None → full range。
+            if _ft_cache is None or not _ft_fixed_batch:
+                _fixed_data = []
                 for _i, _ds in enumerate(datasets):
-                    xy_np, t_np = _ds.sample_physics_points(
-                        rng, n=_ft_n_phys, t_max=None, strategy=_ft_phys_strategy
-                    )
-                    _fixed_phys.append(torch.tensor(
-                        np.concatenate([xy_np, t_np[:, None]], axis=1),
-                        dtype=torch.float32, device=device, requires_grad=True,
+                    n_q = int(args.get("num_query_points", 0)) or _ds.sensor_pos.shape[0]
+                    xy_np, t_np, c_np, ref_np = _ds.sample_sensor_batch(rng, n=n_q, t_max=None)
+                    _fixed_data.append((
+                        torch.tensor(xy_np, dtype=torch.float32, device=device),
+                        torch.tensor(t_np, device=device),
+                        torch.tensor(c_np, dtype=torch.long, device=device),
+                        torch.tensor(ref_np, device=device),
                     ))
+                _fixed_phys = []
+                if _ft_phys_gate:
+                    for _i, _ds in enumerate(datasets):
+                        xy_np, t_np = _ds.sample_physics_points(
+                            rng, n=_ft_n_phys, t_max=None, strategy=_ft_phys_strategy
+                        )
+                        _fixed_phys.append(torch.tensor(
+                            np.concatenate([xy_np, t_np[:, None]], axis=1),
+                            dtype=torch.float32, device=device, requires_grad=True,
+                        ))
+                _ft_cache = (_fixed_data, _fixed_phys)
+            else:
+                _fixed_data, _fixed_phys = _ft_cache
             _ft_info: dict = {}
 
             def _ft_closure() -> torch.Tensor:

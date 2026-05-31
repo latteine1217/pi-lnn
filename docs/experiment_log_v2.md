@@ -1131,7 +1131,7 @@ Decision gates 評估:
 
 ## EXP-274 — AL delayed-start + Phase2 L-BFGS finetune（訓練策略探索）
 
-**日期**: 2026-05-31 ｜ **狀態**: ✅ 訓練完成（job 3750, 4h49m）— **待 DNS 評估**（控制流已驗證）
+**日期**: 2026-05-31 ｜ **狀態**: ✅ 已評估（job 3750, 4h49m）— **neutral result：與 baseline 統計不可區分，不採用（無可測量增益）**
 **Config**: `configs/exp_274_al_delay_lbfgs.toml`（派生 EXP-271, DNS QR-pivot oracle, seed=42）
 
 **Why**: 探索兩個訓練策略：(1) AL dual update 延後到 step≥10000、freq 100→500（早期 λ 凍結在 0，
@@ -1164,9 +1164,55 @@ Decision gates 評估:
 - 注意 λ 終值僅 **0.0085**（遠未達 clip=10）— EMA momentum 0.5 + freq 500 稀疏更新下累積緩慢
 - phase2 (20001–25000) λ 凍結在 0.0085；L-BFGS 全程 l_data/l_cont 在同量級震盪，**無單調下降**（curvature history 因每步重採樣 collocation 而失效，與 SOAP+RAR 失效機制相同）
 
-**[STATUS: 待 DNS 評估]**: KE rel-err / div L2 / spectrum slope **尚未計算**。先前誤用不存在的腳本，
-正確評估腳本為 `scripts/evaluate_deeponet_cfc.py`，待跑完補上對照（vs EXP-271 baseline KE 4.68 ± 0.06%）。
+**DNS 評估（2026-05-31, `evaluate_deeponet_cfc.py`, 兩者皆 seed=42 final.pt — 真實同seed對照）**:
 
-**初步觀察（僅基於訓練 loss，非 DNS 對照，不可作結論）**:
-- phase2 L-BFGS 對 loss 無改善 → 二階 finetune 對此問題的增益存疑
-- 最終判定（採用/不採用）必須等 DNS benchmark，不能只看 training loss
+| 指標 | EXP-271 baseline | EXP-274 | Δ |
+|---|---|---|---|
+| KE rel-err (all) | 4.682% | **4.571%** | −0.11pp（noise 內）|
+| u rel-L2 (all) | 15.34% | 15.08% | −0.26pp |
+| v rel-L2 (all) | 17.90% | 17.75% | −0.15pp |
+| ω rel-L2 (all) | 41.41% | 41.33% | −0.08pp |
+| enstrophy rel-err | 22.42% | 22.32% | −0.10pp |
+| div ratio (pred) | 0.66% | 0.69% | +0.03pp（皆 < DNS floor 1.04%）|
+| k_f amplitude ratio | 0.9944 | 0.9945 | 持平 |
+| E(k_f) ratio | 0.9931 | 0.9931 | 持平 |
+
+> 兩欄皆 single seed=42、DNS QR-pivot oracle、20k，取自各自 `eval/summary.json`（evaluator 真實輸出）。
+> EXP-271 n=5 mean = 4.68 ± 0.06%；EXP-274 的 4.571% 落在此帶內，單 seed 差異不可宣稱顯著。
+
+**結論（neutral result，假設未被支持）**:
+1. **兩個策略無可測量增益**：EXP-274 在 KE/u/v/ω/Ens 全部微好 0.08–0.26pp，但全落在單 seed noise
+   （n=5 σ≈0.06pp）內 → 與 baseline **統計不可區分**。div 微升 0.03pp，無實質意義（皆 < DNS floor）。
+2. **AL delayed-start 原假設未被支持**：預期「早期 λ=0 → 模型卡 high-div basin → div 惡化」未發生
+   （div 0.66→0.69%，幾乎不變）。根因：ρ=0.1 二次罰在早期已足夠約束 continuity；且 λ 終值僅 0.0085
+   （freq 500 + EMA 0.5 累積過慢，遠未達 clip=10）→ AL 線性項本來就幾乎沒發揮，延不延遲都無感。
+3. **Phase2 L-BFGS 無效**：5000 步 training loss 同量級震盪無單調下降，DNS 指標無改善。
+   curvature history 因每步重採樣 collocation 失效（同 SOAP+RAR 失效機制），且 ScheduleFree y_t 已近最優。
+4. **處置：不採用**。+5k 步（≈+25% wall）+ 流程複雜度換不到可測量指標，違反 Simplicity。
+   `al_start_step` / `lbfgs_finetune_steps` 預設 0（停用）保留為可選旋鈕，現有實驗不受影響。
+
+**控制流驗證 ✅（真實 log）**: λ step 1–9999 嚴格凍結 0；step 10000 起開啟 dual update；phase2 λ 凍結 0.0085。實作與設計一致。
+
+---
+
+## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
+
+**日期**: 2026-05-31 ｜ **狀態**: 🛠 實作完成 + 測試通過（5 passed），待 r740 啟動
+**Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
+
+**診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
+L-BFGS curvature history `(s_k, y_k)` 跨不同 batch 累積 → Hessian 近似失效（同 SOAP+RAR
+freq≥1000 才穩的機制）。phase2 逐步 l_data 軌跡證實：5000 步在 5.94e-4~1.08e-2 鋸齒震盪，
+前1000步均 2.75e-3 ≈ 後1000步均 2.74e-3，**完全無下降**。
+
+**程式變更（向後相容，預設 false）**:
+- `config.py`: 新增 `lbfgs_finetune_fixed_batch`(預設 False)
+- `training.py`: phase2 採樣改快取式 — fixed_batch=true 時只在第一個 outer step 採一次後跨步重用
+- `tests/`: 新增 `test_lbfgs_finetune_fixed_batch_runs`（5 passed）
+
+**唯一變因（vs EXP-274）**: `lbfgs_finetune_fixed_batch` False→True（steps/max_iter/history/AL 全同）
+
+**Falsifiability（三分支判讀）**:
+- (a) l_data 仍鋸齒不降 → curvature 假設錯，失效另有原因（y_t 已最優 / 無可榨空間）
+- (b) l_data 單調降但 DNS KE/div 退步 → 過擬合固定 collocation（救優化傷泛化）→ phase2 路線不可行
+- (c) l_data 單調降且 DNS 指標改善 → fixed batch 為正確修法，EXP-274 確為設計錯配

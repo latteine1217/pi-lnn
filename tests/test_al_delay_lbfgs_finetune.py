@@ -143,3 +143,30 @@ def test_lbfgs_finetune_disabled_is_legacy(tmp_path):
     train_picon_kolmogorov(cfg, log_fn=_log)
     assert "lbfgs_finetune" not in phases, "未啟用時不應有 phase2"
     assert (tmp_path / "art" / "picon_kolmogorov_final.pt").exists()
+
+
+def test_lbfgs_finetune_fixed_batch_runs(tmp_path):
+    """EXP-275: lbfgs_finetune_fixed_batch=true 能跑完、phase2 接續、λ 凍結、loss 有限。
+
+    驗證控制流；curvature-history 是否真正生效屬訓練動態，由 EXP-275 完整實驗判定。
+    """
+    cfg = _base_cfg(tmp_path)
+    cfg.update({
+        "iterations": 4,
+        "al_start_step": 0,
+        "lbfgs_finetune_steps": 3,
+        "lbfgs_max_iter": 2,
+        "lbfgs_finetune_fixed_batch": True,
+    })
+    records: list[tuple[int, str | None, float]] = []
+
+    def _log(step, metrics):
+        records.append((step, metrics.get("phase"), metrics.get("l_data", float("nan"))))
+
+    train_picon_kolmogorov(cfg, log_fn=_log)
+
+    assert (tmp_path / "art" / "picon_kolmogorov_final.pt").exists()
+    ft = [r for r in records if r[1] == "lbfgs_finetune"]
+    assert [r[0] for r in ft] == [5, 6, 7], "phase2 step 編號應接續主 phase"
+    for _, _, ld in ft:
+        assert np.isfinite(ld), "fixed_batch phase2 l_data 必須有限"

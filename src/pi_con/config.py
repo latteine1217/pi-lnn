@@ -77,6 +77,10 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     # 同進程切 L-BFGS 在 eval-mode(y_t) 上續收斂 N 步。0 = 停用（向後相容）。
     # GradNorm 於 phase2 凍結；AL λ 凍結（不再 dual update），僅留 ρ 二次罰 + 凍結 λ 線性項。
     "lbfgs_finetune_steps": 0,
+    # EXP-275 診斷：phase2 是否固定 batch（整個 phase2 只採樣一次、跨 outer step 重用）。
+    # False（預設）= 每 outer step 重採（EXP-274 行為，curvature history 失效）；
+    # True = 固定目標函數，L-BFGS curvature history (s_k,y_k) 才自洽。配 lbfgs_max_iter 加大使用。
+    "lbfgs_finetune_fixed_batch": False,
     # --- Natural Gradient (Gauss-Newton) optimizer ---
     # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
     # 適用範圍：N (residuals) << P (params) 才划算（pi-con 典型 N~200, P~10⁵）。
