@@ -21,13 +21,14 @@ Why:  AL 的 4 個 meta 參數從未系統優化過。GradNorm 已自動調適 t
 Objective（engineering-transferable，無 DNS leakage）:
   obj = l_data_tail · (1 + 0.5·relu(l_ns/L_NS_THR − 1) + 0.5·relu(l_cont/L_CONT_THR − 1))
   - 只用 sensor MSE (l_data) + physics residual (l_ns, l_cont)，符合 ENGINEERING_VISION。
-  - 門檻按當前健康 run (EXP-273 tail) 2× 上緣校準：L_NS_THR=5e-3, L_CONT_THR=2e-3。
+  - 門檻校準到 16k proxy budget 健康量級（EXP-273 step=16k: l_ns≈4.47e-3,
+    l_cont≈2.04e-3）×1.3 margin → L_NS_THR=6e-3, L_CONT_THR=2.7e-3。改 budget 須重校。
   - 單側罰：l_cont < 門檻時不獎勵更低（避免 Optuna 學到「過度強約束 → 過平滑場」）。
   - ⚠️ obj 不含 DNS KE（避免工程不可遷移）。top-3 必須用 evaluate_deeponet_cfc.py
     離線對照 DNS KE 驗證，且跑 multi-seed 排除 placement overfit 後才能採用。
 
-執行（lab-server r740 via slurm；proxy budget 預設 8000 steps）:
-    uv run python scripts/sweep_al_re10000.py --trials 30 --iterations 8000 --device cuda
+執行（lab-server r740 via slurm；proxy budget 預設 16000 steps，~2.2hr/trial）:
+    uv run python scripts/sweep_al_re10000.py --trials 30 --iterations 16000 --device cuda
 
 本地 smoke（不送 GPU）:
     PYTORCH_ENABLE_MPS_FALLBACK=1 uv run python scripts/sweep_al_re10000.py \
@@ -49,11 +50,13 @@ from picon_kolmogorov import DEFAULT_PICON_ARGS, load_picon_config, train_picon_
 # ── 常數 ──────────────────────────────────────────────────────────────────────
 BASE_CONFIG = Path(__file__).parent.parent / "configs" / "exp_245_b3_les_T50.toml"
 OPTUNA_DB_DIR = Path("artifacts/sweep_al")
-METRIC_TAIL_STEPS = 500          # 尾段平均步數（降雜訊）
+METRIC_TAIL_STEPS = 1000         # 尾段平均步數（降雜訊；16k proxy 取最後 1k）
 
-# Objective 門檻（按 EXP-273 tail 健康量級 2× 上緣校準）
-L_NS_THRESHOLD = 5.0e-3
-L_CONT_THRESHOLD = 2.0e-3
+# Objective 門檻：校準到 **16k proxy budget** 的健康量級（EXP-273 step=16k：
+# l_ns≈4.47e-3, l_cont≈2.04e-3），取 ~1.3× margin → 健康 baseline 得 ~0 罰，
+# 只有比 baseline 更差的 AL 配置才被罰。⚠️ 若改 --iterations，須一併重校門檻。
+L_NS_THRESHOLD = 6.0e-3
+L_CONT_THRESHOLD = 2.7e-3
 PENALTY_COEFF = 0.5              # 物理違反的相對放大係數
 
 
@@ -136,7 +139,8 @@ def make_objective(base_cfg: dict, device: str, iterations: int, use_wandb: bool
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="AL continuity 參數優化（Optuna TPE）")
     p.add_argument("--trials", type=int, default=30)
-    p.add_argument("--iterations", type=int, default=8000, help="每 trial proxy budget")
+    p.add_argument("--iterations", type=int, default=16000,
+                   help="每 trial proxy budget（預設 16k：loss 已近收斂門檻；改值須重校門檻）")
     p.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None)
     p.add_argument("--study-name", default="al-re10000-v1")
     p.add_argument("--no-resume", action="store_true", help="不續跑、重建 study")
