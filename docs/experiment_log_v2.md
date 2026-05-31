@@ -1197,7 +1197,7 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: ✅ 已評估（job 3766, 5h09m）— **假設證實但路線仍不採用：fixed batch 修好優化，DNS 指標卻不動**
+**日期**: 2026-05-31 ｜ **狀態**: 🛠 實作完成 + 測試通過（5 passed），待 r740 啟動
 **Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
 
 **診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
@@ -1216,43 +1216,3 @@ freq≥1000 才穩的機制）。phase2 逐步 l_data 軌跡證實：5000 步在
 - (a) l_data 仍鋸齒不降 → curvature 假設錯，失效另有原因（y_t 已最優 / 無可榨空間）
 - (b) l_data 單調降但 DNS KE/div 退步 → 過擬合固定 collocation（救優化傷泛化）→ phase2 路線不可行
 - (c) l_data 單調降且 DNS 指標改善 → fixed batch 為正確修法，EXP-274 確為設計錯配
-
-### 結果（2026-05-31，真實數據）
-
-**Phase2 training loss 軌跡（metrics.jsonl）— curvature 假設證實 ✅**:
-
-| | EXP-274 (fixed=False) | EXP-275 (fixed=True) |
-|---|---|---|
-| l_data 前1000均 | 2.75e-3 | 1.65e-3 |
-| l_data 後1000均 | 2.74e-3 | **0.82e-3** |
-| 後/前 ratio | 0.994（鋸齒，不降）| **0.497（單調降一半）** |
-
-→ **診斷正確**：EXP-274 L-BFGS 失效根因確為「每 outer step 重採樣破壞 curvature history」。
-fixed batch 後 L-BFGS 恢復真正二階收斂（l_data 單調降 ~2×）。
-
-**DNS 評估（`evaluate_deeponet_cfc.py`, 皆 seed=42 final.pt 同條件對照）**:
-
-| 指標 | EXP-271 (無phase2) | EXP-274 (fixed=F) | EXP-275 (fixed=T) |
-|---|---|---|---|
-| KE rel-err | 4.692% | 4.571% | 4.593% |
-| u rel-L2 | 15.33% | 15.08% | 14.90% |
-| v rel-L2 | 18.11% | 17.75% | 17.56% |
-| ω rel-L2 | 42.36% | 41.33% | 41.33% |
-| Ens rel-err | 23.29% | 22.32% | 22.49% |
-| div ratio | 0.36% | 0.69% | 0.73% |
-| k_f amp ratio | 0.9864 | 0.9945 | 0.9947 |
-
-→ **EXP-275 DNS 指標與 EXP-274/271 幾乎完全相同**（全在單 seed noise σ≈0.06pp 內）。
-training loss 降一半，DNS 重建指標**完全不動**。
-
-**結論：落在分支 (b) 的變體 — 救了優化，但對工程目標無用**:
-1. **L-BFGS 確實能優化**（fixed batch 後 l_data 單調降 2×）→ EXP-274 失效是設計錯配，**非 L-BFGS 本質不行**。診斷假設完全證實。
-2. **但 DNS 指標不動**：training loss（= sensor MSE + physics residual，proxy）已在 SOAP 主 phase 末達到
-   「對 DNS 重建夠好」的飽和區。在此區繼續壓 proxy，**proxy↔DNS-truth 相關性已飽和**，多榨的 loss 不轉化為場重建改善。
-3. **深層洞見（對未來決策有指導性）**：在已收斂的 PINN 上加二階 finetune 或更多優化步數，對工程目標（DNS 場重建）
-   無增益——瓶頸不在「優化器能否壓低 training loss」，而在「K=100 sensor + PDE 的資訊論上限」。
-   要再進步只能 K-scaling（加 sensor），不能靠優化器。呼應 §Future Work K-scaling 方向。
-4. **處置：phase2 finetune 路線整體不採用**。即使優化修好，+5k 步（≈+25% wall）換不到 DNS 指標。
-   `lbfgs_finetune_steps` / `lbfgs_finetune_fixed_batch` 預設 0/False（停用）保留為診斷工具，現有實驗不受影響。
-
-**控制流驗證 ✅**: λ 凍結 0.0085；fixed_batch=True 整個 phase2 重用同一批（log 確認 `fixed_batch=True`）。
