@@ -66,6 +66,8 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                                     # True=per-layer FiLM γ⊙x+β (multi-Re 訓練必要, identity init 不傷 single-Re)。
     "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
     "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
+    "cfc_input_dependent_tau": False,  # True=liquid time-constant：τ 由 (x,h) 動態調制（對齊官方 CfC）；False=static τ (legacy)
+    "cfc_tau_mod_scale": 2.0,       # input-dependent τ 的 tanh 調制幅度（log 空間）；僅 cfc_input_dependent_tau=True 生效
     "fourier_sigma_bands": None,    # LearnableFourierEmb 多頻段 σ；None=單一 σ；例 [1.0, 4.0, 12.0]
     "fourier_band_dim_ratios": None,  # 對應各 band 的通道比例；總和需 = 1.0；例 [0.5, 0.375, 0.125]
     "data_loss_weight": 1.0,
@@ -198,6 +200,8 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                               # 此 config 值僅在 dataset 沒提供時作 fallback。
     "bc_n_points": 32,        # inflow 邊界（x=0）採樣點數
     "bc_body_n_points": 0,    # cylinder body no-slip BC 採樣點數；0 = 停用
+    "bc_body_weight": 1.0,    # body no-slip 項相對其他 BC 的額外乘數（Zhu 2025 α-rebalancing）；
+                              # α_eff = bc_loss_weight × bc_body_weight。預設 1.0 向後相容。
     "bc_slip_n_points": 0,    # top/bottom slip BC (y=0,y=1) 採樣點數；0 = 停用
     "bc_outlet_n_points": 0,  # cylinder outlet (x=1) ∂u/∂x≈0 BC 採樣點數；0 = 停用
     "use_hard_body_bc": False,           # cylinder hard body BC（Sukumar 2022 風格）：

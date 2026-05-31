@@ -1286,10 +1286,15 @@ def train_picon_kolmogorov(
                             )
                             _u_body = _bc_fn(_xyt_body, c=0)
                             _v_body = _bc_fn(_xyt_body, c=1)
+                            # Zhu 2025 α-rebalancing：body no-slip 項可獨立加重（_bc_body_w），
+                            # 不影響 inflow/slip。α_eff = bc_loss_weight × bc_body_weight。
+                            _bc_body_w = float(args.get("bc_body_weight", 1.0))
                             l_bc_total = (
                                 l_bc_total
-                                + torch.mean((_u_body - _u_zero_norm) ** 2)
-                                + torch.mean((_v_body - _v_zero_norm) ** 2)
+                                + _bc_body_w * (
+                                    torch.mean((_u_body - _u_zero_norm) ** 2)
+                                    + torch.mean((_v_body - _v_zero_norm) ** 2)
+                                )
                             )
 
                         # 3. Slip BC（y=0, y=1 簡化為 v=0）

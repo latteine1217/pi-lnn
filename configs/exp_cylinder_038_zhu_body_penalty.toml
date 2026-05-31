@@ -1,0 +1,110 @@
+# configs/exp_cylinder_038_zhu_body_penalty.toml
+# CEXP-038 = CEXP-002 + Zhu 2025 body penalty α-rebalancing（soft, no gate）
+#
+# 設計目的（Zhu 2025, Acta Mechanica Sinica, arXiv:2503.24074）：
+#   hard BC 全失敗（CEXP-016 111%, CEXP-037 283%）。Zhu 歸因：圓柱後方 wake 速度低
+#   → body no-slip penalty 相對 fluid NS residual 太弱 → over-energy。修法：提高 α。
+#   本實驗：用 soft body no-slip penalty（非 gate），α_eff = 0.1×100 = 10（Zhu 值）。
+#
+# 變更 vs CEXP-002：
+#   use_gradnorm:     true → false   (固定權重，純測 α 效果)
+#   bc_body_n_points: 64   → 64      (body 內撒點 no-slip；CEXP-002 本有 64)
+#   bc_body_weight:   (新) → 100     (body 項獨立加重；α_eff=0.1×100=10)
+#   use_hard_body_bc: false（不用 gate，用 soft penalty）
+#
+# Falsifiability：
+#   KE < 20% + ke_pred/ref∈[0.8,1.2] → ✅ Zhu 對，α 是真因
+#   KE 20-100%                        → 🟡 α 部分有效
+#   KE > 100%                         → ❌ α 不是真因（強化 Finding #8）
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true
+
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_body_weight = 100.0    # ← Zhu α-rebalancing：α_eff = 0.1×100 = 10
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+use_hard_body_bc = false  # ← soft penalty（Zhu 形式），不用 gate
+
+# GradNorm 關掉，固定權重純測 α 效果
+use_gradnorm = false
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp038-zhu-body-penalty"
