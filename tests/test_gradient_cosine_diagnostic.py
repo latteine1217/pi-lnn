@@ -99,27 +99,28 @@ def test_pcgrad_no_conflict_equals_sum() -> None:
 
 
 def test_pcgrad_conflict_removes_component() -> None:
-    """cos<0（衝突）時投影後兩組梯度內積應 ≥ 0（衝突被削掉）。"""
-    layer = _shared_layer()
-    x = torch.randn(8, 4)
-    out = layer(x)
-    # data 拉 out→0；phys 拉 out→大正值 → 兩組梯度方向相反
-    data_loss = (out ** 2).mean()
-    phys_loss = -(out.sum())  # 梯度與 data 反向（鼓勵 out 增大）
-    params = list(layer.parameters())
+    """cos<0（衝突）時：投影後合成梯度與兩原始梯度的內積皆 ≥ 0（衝突分量被削掉）。
 
-    g_d = torch.autograd.grad(data_loss, params, retain_graph=True)
-    g_p = torch.autograd.grad(phys_loss, params, retain_graph=True)
-    fd = torch.cat([g.reshape(-1) for g in g_d])
-    fp = torch.cat([g.reshape(-1) for g in g_p])
-    dot_before = float(fd @ fp)
+    用單一 leaf 參數直接構造保證衝突：g_data=2w（正），g_phys=c（負）→ dot<0。
+    """
+    w = torch.nn.Parameter(torch.ones(10))
+    data_loss = (w ** 2).sum()            # grad = 2w = +2
+    phys_loss = (w * (-3.0)).sum()        # grad = -3
+    params = [w]
+
+    g_d = torch.autograd.grad(data_loss, params, retain_graph=True)[0].reshape(-1).clone()
+    g_p = torch.autograd.grad(phys_loss, params, retain_graph=True)[0].reshape(-1).clone()
+    dot_before = float(g_d @ g_p)
+    assert dot_before < 0  # 構造確為衝突（2·(-3)·10 = -60）
 
     cos = pcgrad_two_group_backward(data_loss, phys_loss, params)
-    # 構造上應為衝突
-    assert dot_before < 0 and cos < 0
+    assert cos < 0
     # 投影後合成梯度有限、非 NaN
-    for p in params:
-        assert p.grad is not None and torch.isfinite(p.grad).all()
+    assert w.grad is not None and torch.isfinite(w.grad).all()
+    # PCGrad 性質：投影後合成梯度不再與任一原始梯度反向（內積 ≥ −tol）
+    g_total = w.grad.reshape(-1)
+    assert float(g_total @ g_d) >= -1e-4
+    assert float(g_total @ g_p) >= -1e-4
 
 
 def test_pcgrad_extra_loss_accumulates() -> None:
