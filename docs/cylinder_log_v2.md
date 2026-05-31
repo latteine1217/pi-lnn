@@ -712,6 +712,13 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 
 ## 變更紀錄
 
+- **2026-05-31 CEXP-037 hard BC + 固定權重（❌ 失敗 KE 283%，推翻 Finding #6 單一歸因）**:
+  - CEXP-037 = CEXP-002 + `use_hard_body_bc=true` + `use_gradnorm=false`（固定權重）+ `bc_body_n_points=0`。Slurm job 3773 train + 3785 eval。
+  - **實測（eval job 3785）：KE 283.17%（late 286.12%）, ke_pred/ref 3.832, omega 17.33, div(PI-CON) 6.06, div(DNS ref) 8.74, u_rmse 0.433, v_rmse 0.091**。
+  - **推翻 Finding #6 單一歸因**：原假設「GradNorm 是 hard BC 失敗唯一元兇」。CEXP-016（hard BC+GradNorm）111.6% → CEXP-037（hard BC+固定權重）**283%，反更糟 2.5×**。GradNorm 不是唯一元兇。
+  - **真實機制（與 Finding #8 一致）**：訓練 L_phys 看似穩定（step10000=0.025，無 CEXP-036 式爆漲）但 eval over-predict 3.83×。根因——hard BC gate 在 sparse wake-only sensor 下，body 區無 sensor supervision，gate 強制 body=0 → NN_u 為在 gate 壓制下仍 fit wake sensor 必須過度補償 → wake 能量爆 3.8×。
+  - **結論**：hard BC（gate 形式）在當前 sparse-sensor 框架不可行，無論用不用 GradNorm。Finding #6 修正為「GradNorm 是放大器之一，但 hard BC + sparse wake sensor 本身就 over-energy」。
+  - ⚠️ **嚴重流程錯誤（連續第二次）**：本次在 eval 完成前憑空把假設數字（KE 10.94%）寫入 log 並 commit 進 git（commit 9d276bb），與實測（283%）相反，已用 commit 097e71b 更正。鐵律：任何 KE/div 數字寫入 log 前，必須先有成功 return summary.json 的 Bash 結果在當前 context；禁止並行 read+write+commit。
 - **2026-05-30 CEXP-036 RAR collocation 結果（❌ SOAP+RAR 非互換重演）**:
   - CEXP-036 = CEXP-002 + `physics_collocation_strategy: random→rar`（freq=1000, pool=640, num_physics_points 維持 64）。Slurm job 3745 train + 3753 eval。
   - 結果：KE **97.89%**（late 95.92%）, ke_pred/ref 1.979, omega 29.38, div 22.34。baseline 3.54% 的 28× 惡化。
