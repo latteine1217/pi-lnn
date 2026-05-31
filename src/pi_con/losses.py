@@ -252,6 +252,81 @@ def gradient_cosine_diagnostic(
     return out
 
 
+def pcgrad_two_group_backward(
+    data_loss: torch.Tensor,
+    phys_loss: torch.Tensor,
+    params: list[torch.Tensor],
+    extra_loss: torch.Tensor | None = None,
+) -> float:
+    """What: 2-group 對稱 PCGrad（Yu et al., 2020）— 把 data 與 physics 兩組梯度
+            的方向衝突分量投影掉，結果寫回 params 的 .grad，取代 l_total.backward()。
+
+    Why: cosine 診斷（EXP-cosdiag）顯示 data/physics 梯度在 trunk_out 上大致正交、
+         mean≈0、僅偶發 cos<0。PCGrad 只在 cos<0 的 step 生效（削掉互相抵銷分量），
+         其餘 step 為 identity。採 2-group（physics task 已合併為一組）對應 cosine
+         診斷主軸，且只需 2 次 full-graph backward（per-task 4-group 需 4 次）。
+
+    對稱投影（2-task 無 order 依賴，用原始梯度同時投影）：
+        若 g_d · g_p < 0：
+            g_p ← g_p − (g_d·g_p / ‖g_d‖²) g_d
+            g_d ← g_d − (g_d·g_p / ‖g_p‖²) g_p   （用原始 g_d·g_p）
+        否則不變。
+    最終 grad = g_d_pc + g_p_pc，覆寫 p.grad。
+
+    AL / BC 等不進投影的項由 extra_loss 帶入（比照 AL-GradNorm 解耦原則，spec v4 §5）：
+    在投影寫回 .grad 後再 backward accumulate。
+
+    Args:
+        data_loss: 已加權 data group scalar（ws[data]·l_data），帶計算圖。
+        phys_loss: 已加權 physics group scalar（Σ ws[i]·l_i over ns_u/ns_v/cont(/bc)）。
+        params:    net.parameters() list；投影在整個共享參數向量上定義。
+        extra_loss: optional 非投影項（AL term + 固定 weight BC）；None = 無。
+
+    Returns:
+        cos(g_data, g_phys)（float，供 log）。
+
+    [RISK: 記憶體] 兩次 full-graph autograd.grad（phys 含二階物理圖）期間二階圖駐留 ~×2；
+        flatten 梯度向量 2 份（P×4B 各一），P~3M 時約 25MB，相對 activation 圖可忽略。
+    """
+    need_retain = extra_loss is not None
+    g_d = torch.autograd.grad(
+        data_loss, params, retain_graph=True, create_graph=False, allow_unused=True,
+    )
+    g_p = torch.autograd.grad(
+        phys_loss, params, retain_graph=need_retain, create_graph=False, allow_unused=True,
+    )
+    fd = torch.cat([
+        (g if g is not None else torch.zeros_like(p)).reshape(-1)
+        for g, p in zip(g_d, params)
+    ])
+    fp = torch.cat([
+        (g if g is not None else torch.zeros_like(p)).reshape(-1)
+        for g, p in zip(g_p, params)
+    ])
+
+    dot = fd @ fp
+    if dot < 0:
+        fd_pc = fd - (dot / (fp @ fp).clamp(min=1e-12)) * fp
+        fp_pc = fp - (dot / (fd @ fd).clamp(min=1e-12)) * fd
+    else:
+        fd_pc, fp_pc = fd, fp
+    g_total = fd_pc + fp_pc
+
+    # 覆寫 p.grad（取代 backward；optimizer.zero_grad 已清空，此處直接賦值）
+    offset = 0
+    for p in params:
+        n = p.numel()
+        p.grad = g_total[offset:offset + n].view_as(p).clone()
+        offset += n
+
+    # 非投影項：在圖仍存活時 backward，accumulate 進 p.grad（+= 行為正確）
+    if extra_loss is not None:
+        extra_loss.backward()
+
+    denom = fd.norm() * fp.norm()
+    return float(dot / denom) if denom > 1e-12 else 0.0
+
+
 def observed_channel_prediction(
     net: "LiquidOperator",
     xy: torch.Tensor,

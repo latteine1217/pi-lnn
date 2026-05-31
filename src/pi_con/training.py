@@ -22,6 +22,7 @@ from pi_con.losses import (
     _gradnorm_step,
     gradient_cosine_diagnostic,
     observed_channel_prediction,
+    pcgrad_two_group_backward,
 )
 from pi_con.operator import (
     LiquidOperator,
@@ -429,6 +430,11 @@ def train_picon_kolmogorov(
     cos_ref_params: list[torch.Tensor] = (
         list(net.query_decoder.trunk_out.parameters()) if cos_diag_freq > 0 else []
     )
+    # PCGrad 2-group 對稱 gradient surgery（取代 l_total.backward）。
+    # 僅在 use_gradnorm + phys_active 時生效；否則退回標準路徑。
+    use_pcgrad = bool(args.get("use_pcgrad", False))
+    if use_pcgrad and not use_gradnorm:
+        raise ValueError("use_pcgrad=True 需 use_gradnorm=True（PCGrad 對 GradNorm 加權後梯度投影）")
 
     # AL setup（spec v4 §3 / §4；EXP-242 系列：multi-constraint）
     # `al_multipliers: dict[name, AL]` 支援多 constraint 共用 hyperparams (v1)。
@@ -685,6 +691,7 @@ def train_picon_kolmogorov(
         # cos_diag 在所有 optimizer path（含 lbfgs/ng）前先初始化，避免診斷未跑時
         # log_fn 讀到未定義變數（NameError）。
         cos_diag: dict[str, float] = {}
+        pc_cos: float | None = None  # PCGrad 當步 cos(g_data, g_phys)（None = PCGrad 未跑）
         if use_tm:
             # warmup_steps 期間 t_max 固定在 tm_t_start，warm-up 結束後才開始展開。
             effective_step = max(0, step - warmup_steps)
@@ -1512,6 +1519,8 @@ def train_picon_kolmogorov(
             extra: dict[str, float] = {}
             if cos_diag:
                 extra.update(cos_diag)
+            if pc_cos is not None:
+                extra["cos_pcgrad"] = pc_cos
             if use_gradnorm and gn_weights is not None:
                 ws_vals = gn_weights.weights.detach().cpu().tolist()
                 for name, val in zip(gn_weights.task_names, ws_vals):
@@ -1565,6 +1574,8 @@ def train_picon_kolmogorov(
                 else:
                     for _c, _m in al_multipliers.items():
                         main += f" λ{_c}={_m.lambda_.item():.3e}"
+            if pc_cos is not None:
+                main += f" pc_cos={pc_cos:+.3f}"
             print(main + tm_str, flush=True)
 
         if args["checkpoint_period"] > 0 and step % args["checkpoint_period"] == 0:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 
-from pi_con.losses import gradient_cosine_diagnostic
+from pi_con.losses import gradient_cosine_diagnostic, pcgrad_two_group_backward
 
 
 def _shared_layer() -> torch.nn.Linear:
@@ -74,3 +74,69 @@ def test_does_not_break_backward() -> None:
     l_total = l_data + l_ns_u + l_ns_v + l_cont
     l_total.backward()  # 不應 raise（圖仍存活）
     assert all(p.grad is not None for p in ref)
+
+
+# ── PCGrad 2-group 對稱投影測試 ──────────────────────────────────────────
+
+
+def test_pcgrad_no_conflict_equals_sum() -> None:
+    """cos≥0（無衝突）時 PCGrad = identity：p.grad 應等於 (g_data+g_phys)。"""
+    layer = _shared_layer()
+    x = torch.randn(8, 4)
+    out = layer(x)
+    # 兩組設計成同向（同一 loss 正倍數）→ cos>0
+    data_loss = (out ** 2).mean()
+    phys_loss = 2.0 * (out ** 2).mean()
+    params = list(layer.parameters())
+
+    # 參考：標準 backward 的梯度
+    ref_grads = torch.autograd.grad(data_loss + phys_loss, params, retain_graph=True)
+
+    cos = pcgrad_two_group_backward(data_loss, phys_loss, params)
+    assert cos > 0.0
+    for p, g_ref in zip(params, ref_grads):
+        assert torch.allclose(p.grad, g_ref, atol=1e-5)
+
+
+def test_pcgrad_conflict_removes_component() -> None:
+    """cos<0（衝突）時投影後兩組梯度內積應 ≥ 0（衝突被削掉）。"""
+    layer = _shared_layer()
+    x = torch.randn(8, 4)
+    out = layer(x)
+    # data 拉 out→0；phys 拉 out→大正值 → 兩組梯度方向相反
+    data_loss = (out ** 2).mean()
+    phys_loss = -(out.sum())  # 梯度與 data 反向（鼓勵 out 增大）
+    params = list(layer.parameters())
+
+    g_d = torch.autograd.grad(data_loss, params, retain_graph=True)
+    g_p = torch.autograd.grad(phys_loss, params, retain_graph=True)
+    fd = torch.cat([g.reshape(-1) for g in g_d])
+    fp = torch.cat([g.reshape(-1) for g in g_p])
+    dot_before = float(fd @ fp)
+
+    cos = pcgrad_two_group_backward(data_loss, phys_loss, params)
+    # 構造上應為衝突
+    assert dot_before < 0 and cos < 0
+    # 投影後合成梯度有限、非 NaN
+    for p in params:
+        assert p.grad is not None and torch.isfinite(p.grad).all()
+
+
+def test_pcgrad_extra_loss_accumulates() -> None:
+    """extra_loss（AL/BC）應在投影後 accumulate 進 p.grad。"""
+    layer = _shared_layer()
+    x = torch.randn(8, 4)
+    out = layer(x)
+    data_loss = (out ** 2).mean()
+    phys_loss = 0.5 * (out ** 2).mean()
+    extra = 3.0 * (out ** 2).mean()
+    params = list(layer.parameters())
+
+    # 無 extra 的合成
+    g_no_extra = torch.autograd.grad(data_loss + phys_loss, params, retain_graph=True)
+
+    pcgrad_two_group_backward(data_loss, phys_loss, params, extra_loss=extra)
+    # 有 extra → 每個 p.grad 應 > 無 extra 版本（同向放大，cos>0 不投影）
+    for p, g0 in zip(params, g_no_extra):
+        assert torch.isfinite(p.grad).all()
+        assert p.grad.norm() > g0.norm()

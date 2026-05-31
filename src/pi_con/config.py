@@ -130,6 +130,12 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     # 純觀測、不改訓練；沿用 GradNorm trunk_out 參考層。用於判斷是否值得導入 PCGrad
     # gradient surgery（cosine 長期 ≥ 0 → 無方向衝突 → 不需要）。
     "cosine_diag_freq": 0,
+    # PCGrad 2-group 對稱 gradient surgery（Yu et al., 2020）。預設 false。
+    # True 時取代 l_total.backward()：對 data group vs physics group 兩組梯度，
+    # 在 cos<0 的 step 投影掉互相抵銷分量；AL/BC 不進投影（解耦）。
+    # 需 use_gradnorm=True 且 num_physics_points>0（否則退回標準 backward）。
+    # [RISK] 每步 2 次 full-graph backward（含二階物理圖），wall-clock ~1.5–2×。
+    "use_pcgrad": False,
     "warmup_steps": 0,
     "time_marching": True,
     "time_marching_start": 0.5,
