@@ -1197,7 +1197,7 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: 🛠 實作完成 + 測試通過（5 passed），待 r740 啟動
+**日期**: 2026-05-31 ｜ **狀態**: ⏳ 訓練中（job 3766, RUNNING，~2.5h）— 結果待跑完，**禁止填入未驗證數據**
 **Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
 
 **診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
