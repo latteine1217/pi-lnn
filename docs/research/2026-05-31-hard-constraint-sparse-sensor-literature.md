@@ -2,74 +2,76 @@
 
 > 日期：2026-05-31
 > 觸發：CEXP-016~037 hard BC 路線全失敗後，調查文獻 SOTA 怎麼做 geometry enforcement + sparse reconstruction。
->
-> ⚠️ **狀態：PROVISIONAL（未驗證）**。本文件目前是 agent 根據領域先驗知識的整理，**不是** deep-research workflow 的實際輸出。
-> 實際 workflow（task `ws0kmswts`）仍在背景執行中。完成後將用「真正 cited + 3-vote 對抗驗證」的結果替換本文件。
-> 在替換前，下方所有 claim 的「信心」標記與引用 **未經 workflow 驗證**，請勿當成已核實的文獻證據引用。
+> 方法：deep-research workflow（run wf_c6a8ca74）— 5 角度 fan-out → 21 來源 → claims 抽取 → 3-vote 對抗驗證。
+> **狀態：VERIFIED**（本文件內容為 workflow 實際輸出，非先驗腦補。每條 claim 附 vote 與 source）。
 
 ---
 
-## 核心結論（對本專案最關鍵）
+## 最重要發現（直接命中本專案）
 
-1. **[DECISION-CRITICAL] 文獻一致指向：別再「硬 gate velocity + 換更好的 optimizer」，而是改 parameterization → stream-function / divergence-free 輸出。**
-   - 輸出 ψ，u=∂ψ/∂y, v=−∂ψ/∂x → ∇·u=0 by construction（架構保證）。
-   - body 上設 ψ=const → 自動 u=v=0（no-slip），**且 velocity network 不需過度補償**（約束在 potential 不在 velocity output）。
-   - 同時解決我們三個問題：(a) CEXP-037 的 over-energy（無 velocity gate → 無過度補償）、(b) CEXP-002 的 div=1.14 over-smoothing 假解（div=0 正確）、(c) 使用者「強迫模型知道圓柱」（body 變成 ψ 的 level-set）。
-   - ⚠️ 這與使用者「NS primitive variable only, 不要 stream function」的決定衝突——文獻證據強烈建議重新考慮。
+### ★ Zhu et al. 2025 (arXiv:2503.24074) — 獨立記錄了我們的 over-energy 失敗機制
 
-2. **[DECISION-CRITICAL] 若堅持 primitive variable：augmented Lagrangian 是文獻首選的 constraint handler**，明確優於 fixed weight（CEXP-037 失敗）與 GradNorm（CEXP-016 失敗）。multiplier 跟著「實際 constraint violation」走，不跟 gradient magnitude → 不會因 gate 壓 physics 梯度而失控。我們專案已有 AL 基礎設施。
+penalty-based immersed/porous-media PINN，flow past cylinder。**這是整個 corpus 中最對症的一篇**：
+- 它在 NS momentum 嵌入連續 body-fraction φ：`(1−φ)·(NS residual) + α·φ·(u−U) = 0`（φ=0 流體, φ=1 固體, U=0 no-slip）。**不是 output transform gate**。
+- 它**明確記錄**：圓柱後方速度低 → solid penalty `α·φ·(u−U)` 相對 fluid residual 變小 → 形成「competitive relationship」→ **圓柱後緣成為主要誤差區**。
+- **這正是我們 CEXP-037 的 over-energy（ke_pred/ref 3.83）機制**：body 區 penalty 太弱、wake 過度補償。
+- 它的解法：**提高 α 到 ~10 重新平衡**（penalty rebalancing），**不是用更硬的 gate**。
+- vote 3-0，single-source 但與 abstract 直接核對。
 
-3. **[DECISION-CRITICAL] 我們的 sparse + PDE-only 設定，比文獻幾乎所有 sparse reconstruction benchmark 都難。** Shallow Decoder / Voronoi-CNN / FLRNet 全部靠「full-field snapshot library 學 data prior」填補無 sensor 區，從不靠 PDE residual。在我們「工程現場無 DNS」的框架下這是 non-transferable。**這是合法的 novelty framing，不是缺陷**。
+→ **我們撞的牆，文獻已記錄，且修法是「調 penalty 平衡」或「換 div-free 參數化」，不是 hard gate。**
+
+### ★ 真正的研究 gap（= 我們的 novelty）
+
+> workflow 結論原文：「No source was found that combines ALL three of the project's hard constraints — **sparse wake-only sensors + hard solid-body BC + PDE-residual-only (no full-field prior)**. This exact configuration is a genuine research gap.」
+
+reconstruction SOTA（FLRONet/Voronoi-CNN）與 physics-enforcement SOTA（hard-BC/div-free PINN）是**兩個幾乎不相交的文獻**；我們正好坐在交集，而交集人煙稀少。**這是合法的論文定位，不是缺陷。**
 
 ---
 
-## 1. Hard-constraint / boundary enforcement
+## 1. Hard-constraint / boundary enforcement（已驗證 claims）
 
-| Claim | 信心 | 內容 |
+| Claim | vote | 內容 |
 |---|---|---|
-| Output-transform hard BC 用 ADF | HIGH 3/3 | Sukumar & Srivastava CMAME 2022：u=g+φ·NN，φ 是 approximate distance function。我們的 hard BC gate 就是這個。但原論文只 demo Poisson/elasticity，**沒測 advection-dominated wake**。 |
-| **Hard gate 在大/無監督區會 degrade，標準解法是 stream-function 而非更硬的 gate** | HIGH 3/3 | div-free PINN（2023-24）一致報告：輸出 ψ 比 penalize continuity 或 gate velocity 訓練更 well-conditioned。corpus 中最一致的「該怎麼做」訊號。 |
-| 過約束造成 ill-conditioned optimization，fixed weight 救不回 | MEDIUM 2/3 | Wang-Sankaran-Perdikaris NTK 2022 / gradient pathologies：stiff Jacobian。GradNorm 在 constrained task 梯度塌陷時會自己發散（= 我們 gate 壓 physics 梯度的情形）。 |
-| **Augmented Lagrangian 是 fixed weight / GradNorm 失敗時的首選** | HIGH 3/3 | hPINN（Lu et al.）+ 2023-24 follow-ups：AL multiplier 跟 constraint violation 走，比 fixed penalty / GradNorm 穩健得多。 |
-| Geometry 可當 input field（SDF/occupancy）餵給網路 | MEDIUM 2/3 | Geo-FNO 2022/23、PI-DeepONet on geometries。但改善多在「geometry families + full field」設定，**非 sparse-sensor PINN**；單一固定圓柱好處主要是 localize body，不改善 no-slip。（呼應我們 CEXP-020 SDF input 失敗）|
+| **Sukumar ADF hard BC**：`u = g + φ·NN`，φ 是 approximate distance function（R-functions + transfinite interpolation），body 上 φ=0 乘性歸零，BC by construction、移除 BC penalty | **3-0 (×4)** | Sukumar & Srivastava CMAME 2022 / arXiv:2104.08426。我們的 hard BC gate 就是這個。canonical。 |
+| **Div-free 架構強制**（3 種）：(a) stream-function/curl `u=curl(ψ)`，div(curl)=0 恒等（2D 單一 ψ exact）；(b) spectral Leray (Helmholtz-Hodge) projection 限制 hypothesis space 到 div-free 到機器精度；(c) div-free matrix-valued RBF kernel（Wendland C⁴）。全部移除 divergence loss term + 改善 2D NS 穩定性 | **3-0 / 2-1** | stream-function PINN: Horne et al. arXiv:2601.06244。Leray: 'Project and Generate' arXiv:2603.24500。DFK: arXiv:2504.01913。理論根據 Neural Conservation Laws NeurIPS 2022。 |
+| **SDF-conditioned operator**：SDF 當 input 給 Geometric-DeepONet → boundary-layer 精度 +32% vs 標準 DeepONet（steady 3D, Re 10-1000）；加 Sobolev gradient 約束再 +25~45% | 3-0 / 2-1 | Rabeh et al. 2025 arXiv:2503.17289。⚠️ **trained from FULL fields, 非 sparse sensor**；自報「up to」最佳值。呼應我們 CEXP-020 SDF input 在 sparse 下失敗。 |
+| **HCP-PINN projection layer**：把 (u,v,p) 投影到「只容許離散化 NS 精確解」的 hyperplane，硬約束 PDE 而非 soft loss | 2-1 | Horne et al. arXiv:2601.06244。NUANCE: exact 在離散 affine 形式，非連續 PDE pointwise。 |
+| **純 hard BC 在複雜幾何會 degrade interior**：hard particular-solution network 被迫精確滿足 BC → 內部「disordered」高頻失真；改用 **soft** particular-solution net 反而更準 | 2-1 (medium) | arXiv:2411.08122 (Nov 2024)。**直接反駁「hard BC 一定更好」**，呼應我們 hard BC 系列失敗。single-source。 |
 
----
+## 2. Sparse-sensor reconstruction（已驗證 claims）
 
-## 2. Sparse-sensor flow reconstruction
-
-| Claim | 信心 | 內容 |
+| Claim | vote | 內容 |
 |---|---|---|
-| **主流 sparse 重建學 full-field prior，不靠 PDE residual 填無監督區** | HIGH 3/3 | Shallow Decoder（Erichson 2020）、Voronoi-CNN（Fukami NMI 2021）、FLRNet（2024）全部 train on 大量 full snapshots。他們避開了我們撞的 ill-posedness，因為從不要 physics 填無監督區。我們的設定真的更難。 |
-| QR-pivoting / POD sensor placement 是標準最優佈點 | HIGH 3/3 | Manohar-Brunton-Kutz-Brunton IEEE CSM 2018。我們的 QR-pivot sensor 就是這個，到 2024 仍是 field standard。 |
-| wake-confined sensor 已知 under-constrain upstream/near-body | MEDIUM 2/3 | 重建誤差集中在「無 sensor 且無強 mode」處；覆蓋 stagnation/shear 區重要。呼應但未解決我們 CEXP-028/034「加 body-adjacent sensor 與 body BC 衝突」。 |
-| div-free 輸出改善重建場的物理真實性 | MEDIUM 2/3 | div-free kernel / stream-function decoder：重建場的散度統計更接近 reference。呼應我們 CEXP-002 div=1.14 異常低於 DNS（over-smoothed）。 |
+| **Reconstruction SOTA = supervised full-field operator，不用 physics residual / hard BC** | **3-0 / 2-1** | FLRONet 2024 arXiv:2412.08009（Voronoi sensor encoding + FNO branch-trunk）；Voronoi-CNN Fukami Nat. Commun. 2021。**plain Adam + MSE/perceptual loss，無 GradNorm/NTK/AL，無 hard BC**。⚠️ 全靠 full-field snapshot library 學 data prior = 我們明確拒絕的工程不可遷移假設。 |
+| **QR-pivot sensor placement** 是標準最優佈點，勝過 random/uniform | **3-0** | Manohar, Brunton, Kutz, Brunton IEEE CSM 2018 / arXiv:1701.07569。我們的 QR-pivot 就是這個，canonical。 |
+| **Global/spectral div cleanup 勝過 local collocation penalty**（long-rollout 穩定）| 2-1 (medium) | 'Project and Generate' arXiv:2603.24500。single-source, generative-turbulence context（非 sparse reconstruction）。 |
+
+## 3. Optimizer / loss-balancing
+
+- workflow **未**確立 SOAP 為 PINN 標準（我先前草稿的這點未被支持）。
+- reconstruction 主流用 plain Adam + MSE（無動態 weighting）。
+- **過度強調 augmented Lagrangian 是我先前草稿的錯誤**——workflow 找到的 over-energy 修法是 **penalty rebalancing（提高 α）** 與 **div-free 參數化**，不是 AL。AL 在此 corpus 未被當成主流 fix。
 
 ---
 
-## 3. Optimizer pairing（cross-cutting）
+## 對 cylinder 問題的行動建議（基於已驗證證據）
 
-| Claim | 信心 | 內容 |
-|---|---|---|
-| 無單一 loss-weighting 主宰；穩健 pattern = 「AL for hard constraints + 輕 fixed/NTK weight for soft physics」 | HIGH 3/3 | PINN review 2023-24 共識：GradNorm 對「梯度會消失的 constraint term」脆弱；stiff term 用 AL 或 NTK。 |
-| ~~SOAP/二階是 PINN 標準~~ | **KILLED 1/3** | 未獲支持。PINN 常見二階是 L-BFGS（常接在 Adam 後）。SOAP 在通用 DL 有，但 PINN-specific corpus 沒有確立它為標準。**我們的 SOAP 是專案選擇，非 field norm。** |
+1. **最強訊號 = stream-function / div-free 架構**（3-0 多來源）。同時解 (a) CEXP-037 over-energy（無 velocity gate → 無過度補償，約束在 ψ）、(b) CEXP-002 div=1.14 over-smoothing 假解（div=0 by construction）、(c) geometry awareness（body = ψ level-set）。⚠️ 與使用者「NS primitive only」決定衝突，但這是文獻最一致的方向。
+2. **若堅持 primitive variable**：Zhu 2025 的 immersed body-fraction `(1−φ)·NS + α·φ·(u−U)` + 提高 α（~10）重新平衡，是有 citation 的對症做法（取代我先前誤推的 AL）。注意它仍會在圓柱後緣留誤差。
+3. **論文定位**：sparse wake-only + hard BC + PDE-only 三者交集是 genuine gap → 合法 novelty。
 
----
+## Key sources（已驗證）
+- Sukumar & Srivastava, CMAME 2022 (arXiv:2104.08426) — ADF hard BC
+- **Zhu et al. 2025 (arXiv:2503.24074)** — immersed body-fraction PINN，記錄 over-energy 機制 ★
+- Horne, Jimack, Khan, Wang (arXiv:2601.06244) — stream-function + HCP projection
+- 'Project and Generate' (arXiv:2603.24500) — Leray projection div-free
+- Rabeh et al. 2025 (arXiv:2503.17289) — Geometric-DeepONet (SDF)
+- arXiv:2411.08122 — 純 hard BC degrade interior，改 soft 更好
+- FLRONet (arXiv:2412.08009) + Voronoi-CNN (Fukami Nat. Commun. 2021)
+- Manohar et al. IEEE CSM 2018 (arXiv:1701.07569) — QR-pivot placement
 
-## 對 cylinder 問題的直接建議（report §4）
-
-1. **文獻最強訊號 = stream-function（div-free）輸出 + body 上 ψ=const**。同時解 over-energy + div over-smoothing + geometry awareness。與「NS primitive only」決定衝突，值得重新考慮。
-2. 若堅持 primitive variable → **augmented Lagrangian（我們已有）** 明確優於 fixed weight（CEXP-037）與 GradNorm（CEXP-016）。
-3. sparse + PDE-only 比文獻 benchmark 難 → 合法 novelty，非缺陷。
-
-## Key sources
-- Sukumar & Srivastava, CMAME 2022 — exact BC via distance functions（hard-BC 經典）
-- Manohar, Brunton, Kutz, Brunton, IEEE CSM 2018 — QR-pivot sensor placement
-- Fukami, Maulik, Fukagata, Taira, Nat. Mach. Intell. 2021 — Voronoi-CNN
-- Wang, Sankaran, Perdikaris 2022 — NTK / gradient pathologies of PINNs
-- hPINN / Augmented-Lagrangian PINN（Lu et al. + 2023-24 follow-ups）
-- Geo-FNO（Li et al. 2022/23）；FLRNet（2024）
-
-## Caveats
-- stream-function 優越性、div-free realism 在 *data-driven decoder* 設定最強；轉到 *PDE-residual-only sparse* PINN 物理上合理但未被直接 benchmark。
-- sparse 重建文獻的精度數字不可與我們直接比（full-field prior 假設）。
-- Optimizer（SOAP）在 PINN 文獻 under-documented。
+## Limitations（workflow 自報）
+- 多個量化 claim（Geo-DeepONet +32%、DFK exactness、FLRONet superiority）single-source、自報、未獨立複現。
+- 兩篇 2026 arXiv ID（2601.06244, 2603.24500）peer-review 狀態未確認。
+- stream-function 優越性在 *data-driven decoder* 設定最強；轉到 *PDE-residual-only sparse* PINN 物理合理但未被直接 benchmark。
+- 21 來源檢視；無一篇同時涵蓋我們三個約束。
