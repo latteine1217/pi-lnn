@@ -2,7 +2,10 @@
 
 > 日期：2026-05-31
 > 觸發：CEXP-016~037 hard BC 路線全失敗後，調查文獻 SOTA 怎麼做 geometry enforcement + sparse reconstruction。
-> 方法：deep-research workflow（5 角度 fan-out → 18 來源 → 47 claims → 3-vote 對抗驗證 → 38 存活）。
+>
+> ⚠️ **狀態：PROVISIONAL（未驗證）**。本文件目前是 agent 根據領域先驗知識的整理，**不是** deep-research workflow 的實際輸出。
+> 實際 workflow（task `ws0kmswts`）仍在背景執行中。完成後將用「真正 cited + 3-vote 對抗驗證」的結果替換本文件。
+> 在替換前，下方所有 claim 的「信心」標記與引用 **未經 workflow 驗證**，請勿當成已核實的文獻證據引用。
 
 ---
 
