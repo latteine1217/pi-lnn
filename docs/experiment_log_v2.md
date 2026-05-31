@@ -1197,8 +1197,32 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: ⏳ 訓練中（job 3766, RUNNING，~2.5h）— 結果待跑完，**禁止填入未驗證數據**
+**日期**: 2026-05-31 ｜ **狀態**: 🛑 job 3766 已 scancel — phase2 異常（l_data 凍結），根因未明，待調查
 **Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
+
+### 觀察到的異常（僅記錄已驗證事實，根因未確認）
+
+**事實 1（已驗證，來源 metrics.jsonl 實讀）**: job 3766 進入 phase2 後，l_data 連續 2186 步
+**位元級完全相同**（`5.938034e-04`，l_cont/l_total 同樣不變）。真在優化的網路不可能浮點數完全不變。
+
+**事實 2（已驗證，本地 smoke 重現）**: 在本地（CPU, re1000 smoke, d_model=32, fixed_batch=True,
+use_schedule_free=True）**無法重現** phase2 凍結 — l_data 正常下降（1.07→0.41，8 步 8 個相異值），
+L-BFGS step 前後全 param 總變化 10.19/1.84/7.94（正常更新）。
+
+→ **矛盾**: lab-server 真實規模 phase2 凍結，本地 smoke 正常。根因**尚未確認**，不宜宣稱是
+schedule_free / fixed_batch / 規模 任一項。job 已 scancel 避免浪費 GPU。
+
+**重要更正**: 先前所有「EXP-274 phase2 neutral」「fixed batch 修好優化」等結論的前提
+（phase2 有在更新權重）**至今未經獨立驗證**。在確認 phase2 是否真正更新權重之前，
+EXP-274/275 關於「L-BFGS finetune 是否有幫助」的任何結論都不成立。
+
+**下一步（待定，未執行）**: 需先在「能重現凍結的最小條件」上定位根因（本地 smoke 無法重現 →
+差異在規模 / d_model / num_physics_points / MPS-vs-CPU-vs-CUDA / iteration 數其一）。
+先補單元測試 assert「phase2 後權重 != phase1 末權重」，再決定修法。
+
+---
+
+#### （以下為 bug 發現前的原始診斷假設，保留供追溯；其前提待驗證）
 
 **診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
 L-BFGS curvature history `(s_k, y_k)` 跨不同 batch 累積 → Hessian 近似失效（同 SOAP+RAR
