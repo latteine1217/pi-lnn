@@ -43,7 +43,7 @@ reconstruction SOTA（FLRONet/Voronoi-CNN）與 physics-enforcement SOTA（hard-
 | Claim | vote | 內容 |
 |---|---|---|
 | **Reconstruction SOTA = supervised full-field operator，不用 physics residual / hard BC** | **3-0 / 2-1** | FLRONet 2024 arXiv:2412.08009（Voronoi sensor encoding + FNO branch-trunk）；Voronoi-CNN Fukami Nat. Commun. 2021。**plain Adam + MSE/perceptual loss，無 GradNorm/NTK/AL，無 hard BC**。⚠️ 全靠 full-field snapshot library 學 data prior = 我們明確拒絕的工程不可遷移假設。 |
-| **QR-pivot sensor placement** 是標準最優佈點，勝過 random/uniform | **3-0** | Manohar, Brunton, Kutz, Brunton IEEE CSM 2018 / arXiv:1701.07569。我們的 QR-pivot 就是這個，canonical。 |
+| ~~QR-pivot sensor placement 標準最優佈點~~ | **未驗證** | ⚠️ workflow caveat #1：**sensor-placement 細節（QR-pivot/POD/greedy）沒有被任何 surviving claim 證實**。驗證到的 reconstruction 方法（FLRONet/FLRNet）改用 placement-agnostic Voronoi encoding，不做 placement 最優化。我們的 QR-pivot 路線在此 corpus **未被覆蓋**——這是 open question 不是已驗證事實。 |
 | **Global/spectral div cleanup 勝過 local collocation penalty**（long-rollout 穩定）| 2-1 (medium) | 'Project and Generate' arXiv:2603.24500。single-source, generative-turbulence context（非 sparse reconstruction）。 |
 
 ## 3. Optimizer / loss-balancing
@@ -62,7 +62,7 @@ reconstruction SOTA（FLRONet/Voronoi-CNN）與 physics-enforcement SOTA（hard-
 
 ## Key sources（已驗證）
 - Sukumar & Srivastava, CMAME 2022 (arXiv:2104.08426) — ADF hard BC
-- **Zhu et al. 2025 (arXiv:2503.24074)** — immersed body-fraction PINN，記錄 over-energy 機制 ★
+- **Zhu, Chen, Deng, Bian 2025, Acta Mechanica Sinica（已發表期刊, DOI 10.1007/s10409-025-25273-x, arXiv:2503.24074）** — immersed body-fraction PINN，Eq.(12) `(1−φ)·NS + α·φ·(u−U)`，verbatim 記錄「competitive relationship」+ rear-boundary 主誤差，α=10 緩解 ★ 最對症
 - Horne, Jimack, Khan, Wang (arXiv:2601.06244) — stream-function + HCP projection
 - 'Project and Generate' (arXiv:2603.24500) — Leray projection div-free
 - Rabeh et al. 2025 (arXiv:2503.17289) — Geometric-DeepONet (SDF)
@@ -70,8 +70,18 @@ reconstruction SOTA（FLRONet/Voronoi-CNN）與 physics-enforcement SOTA（hard-
 - FLRONet (arXiv:2412.08009) + Voronoi-CNN (Fukami Nat. Commun. 2021)
 - Manohar et al. IEEE CSM 2018 (arXiv:1701.07569) — QR-pivot placement
 
+## Open Questions（workflow 自報，其中 #2 是我們的下一步關鍵）
+
+1. sparse sensor 在「全集中 wake、無 upstream/body 覆蓋」下怎麼最優佈點？驗證到的 reconstruction 論文都不做 placement 最優化（只用 placement-agnostic Voronoi）。
+2. **★ 結合 exact div-free 架構（stream-function/Leray）+ body-fraction/hard no-slip，是否真的消除 wake over-energy，還是同時強制 div-free 與 solid-zero-velocity 會重新引入 Zhu et al. 記錄的 competitive-term 失衡？無任何 source 測過這個組合。** ← 這正是我們若走 stream-function 要面對的核心未知。
+3. 為何 production reconstruction（FLRONet/FLRNet）完全不用 physics residual + adaptive weighting？是否因 full-field MSE 已足夠；在「真正 sensors-only 無 full-field」預算下加 PDE residual + hard BC 是否有幫助？（= 我們的設定）
+4. body-fraction PINN (Zhu 2503.24074) 在 cylinder sparse reconstruction 的量化精度（KE/RMSE）是多少？vs hard-output-transform 在相同稀疏度下的 head-to-head？corpus 只抓到失敗機制，沒抓到精度數字。
+
 ## Limitations（workflow 自報）
 - 多個量化 claim（Geo-DeepONet +32%、DFK exactness、FLRONet superiority）single-source、自報、未獨立複現。
-- 兩篇 2026 arXiv ID（2601.06244, 2603.24500）peer-review 狀態未確認。
+- 兩篇 2026 arXiv ID（2601.06244, 2603.24500）peer-review 狀態未確認，是極新、輕度審查的工作。
 - stream-function 優越性在 *data-driven decoder* 設定最強；轉到 *PDE-residual-only sparse* PINN 物理合理但未被直接 benchmark。
-- 21 來源檢視；無一篇同時涵蓋我們三個約束。
+- over-energy 失敗只在**單一 source（Zhu 2503.24074）**具體記錄；其修法（提高 body-fraction penalty）是經驗性，非一般保證。
+- 1 條 claim 被推翻：HDNet Helmholtz hard-decomposition（arXiv:2406.08570）未通過驗證（1-2）。
+- 統計：6 角度、28 來源 fetch、116 claims 抽取、25 驗證、24 confirmed、1 killed、合成後 10 條。
+- 無一篇同時涵蓋我們三個約束（sparse wake-only + hard solid BC + PDE-only）。
