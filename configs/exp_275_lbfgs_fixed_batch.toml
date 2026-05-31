@@ -1,23 +1,25 @@
-# configs/exp_274_al_delay_lbfgs.toml
-# What: EXP-274 — AL delayed-start + Phase2 L-BFGS finetune（探索性訓練策略）
-# Why: 探索兩個訓練策略對 KE/div 的影響：
-#        (1) AL dual update 延後到 step >= 10000 才開啟（早期 λ 凍結在 0，僅留 ρ 二次罰），
-#            freq 由 100 放寬到 500 — 假設早期讓 data/NS 先收斂、後期才用 λ 線性項收緊 continuity。
-#        (2) 主 phase (SOAP 20k) 跑完後，同進程切 L-BFGS 在 eval-mode(y_t) 上 finetune 5000 步
-#            (max_iter=20)，λ 凍結 — 假設二階 optimizer 能進一步壓低 residual。
+# configs/exp_275_lbfgs_fixed_batch.toml
+# What: EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效的 curvature-history 假設）
+# Why: EXP-274 的 phase2 L-BFGS 對 training loss 與 DNS 指標皆無增益。診斷假設：
+#        phase2 每個 outer step 重採樣 sensor/collocation（freq=1）→ L-BFGS 的 curvature
+#        history (s_k, y_k) 跨不同 batch 累積 → Hessian 近似失效 → L-BFGS 退化成帶雜訊一階法。
+#        （與 SOAP+RAR freq≥1000 才穩的失效機制同源。）
+#        phase2 逐步 l_data 已證實：5000 步在 5.94e-4~1.08e-2 鋸齒震盪，前/後1000步均 ~2.75e-3，完全無下降。
 #
-# 派生 from EXP-271 (= exp_271_b3_dns_pivot.toml)，唯一改動:
-#   - al_update_freq: 100 → 500
-#   - al_start_step: 0 → 10000（新 key）
-#   - lbfgs_finetune_steps: 0 → 5000（新 key）
-#   - lbfgs_max_iter: 20（既有預設，明示）
-#   - artifacts_dir → exp274
+# 嚴格單變因對照（vs EXP-274 = exp_274_al_delay_lbfgs.toml）：唯一改動 =
+#   - lbfgs_finetune_fixed_batch: (未設, =False) → true（整個 phase2 只採樣一次、跨 outer step 重用）
+#   - artifacts_dir → exp275
+#   其餘（al_start_step=10000, freq=500, lbfgs_finetune_steps=5000, max_iter=20, history=10,
+#         phase1 全部設定, seed=42, DNS QR-pivot sensor）全與 EXP-274 byte-identical。
+#   NOTE: 刻意「不」一起改 max_iter/history，以保單變因。確認 fixed_batch 有效後再另開實驗調這些。
 #
 # Hypothesis（SCIENTIFIC_HYPOTHESIS_PROTOCOL）:
-#   - 預期解決: 早期 AL λ 線性項過早收緊 continuity 壓抑 data 學習 → 延後開啟讓 KE 先到位。
-#   - Expected_Change: phase2 後 div L2 進一步下降；KE rel-err 持平或微幅改善。
-#   - Falsifiability: 若 phase2 後 L_data 大幅上升（LBFGS 過度收 cont 犧牲 data）或
-#     KE rel-err 退步，則此策略對本問題無益。
+#   - 預期解決: 固定目標函數 → curvature history (s_k,y_k) 自洽 → L-BFGS 真正二階收斂。
+#   - Expected_Change: phase2 l_data 變「單調下降」（vs EXP-274 的鋸齒震盪）。
+#   - Falsifiability:
+#       (a) 若 l_data 仍鋸齒不降 → curvature 假設錯，失效另有原因（如 y_t 已最優、無可榨空間）。
+#       (b) 若 l_data 單調降但 DNS KE/div 退步 → 過擬合固定 collocation（救優化傷泛化）→ phase2 路線不可行。
+#       (c) 若 l_data 單調降且 DNS 指標改善 → fixed batch 為正確修法，EXP-274 確為設計錯配。
 
 [train]
 sensor_jsons = [
@@ -82,14 +84,15 @@ use_augmented_lagrangian = true
 al_constraints = ["cont"]
 al_init_lambda = 0.0
 al_rho = 0.1
-al_update_freq = 500       # EXP-274: 100 → 500（放寬 dual update 頻率）
-al_start_step = 10000      # EXP-274: dual update 延後到 step >= 10000；早期 λ 凍結在 0
+al_update_freq = 500
+al_start_step = 10000
 al_lambda_clip = 10.0
 al_ema_momentum = 0.5
 al_allow_cont_in_gradnorm = true
-lbfgs_finetune_steps = 1000   # EXP-275: fixed-batch 下用較少 outer step（固定目標 + 大 max_iter）
-lbfgs_max_iter = 50           # EXP-275: fixed batch 後 line-search 在固定目標上才划算 → 加大
-lbfgs_history_size = 20       # EXP-275: 固定目標下加大 curvature history
+lbfgs_finetune_steps = 5000
+lbfgs_finetune_fixed_batch = true   # EXP-275: 唯一變因 — phase2 固定 batch，curvature history 自洽
+lbfgs_max_iter = 20
+lbfgs_history_size = 10
 checkpoint_period = 500
 seed = 42
 device = "mps"
