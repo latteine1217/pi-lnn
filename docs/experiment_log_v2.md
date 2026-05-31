@@ -846,6 +846,32 @@ Decision gates 評估:
 
 **論文影響（2026-05-29 降級已執行）**: chapter03 floor 定義加 band-limiting 說明；chapter04 §sub_dns_div 重寫為 diagnostic（移除 "X× below floor"）；chapter05 contribution/implication 移除 sub-DNS 條目；C/Eng abstract 移除 sub-DNS 句；thesis/CLAUDE.md 主訊息 contribution #2 改寫。
 
+## 9.5 訓練長度：20k 是早停，40k 真實改善且非 overfit — **POSITIVE_FINDING**（EXP-273, 2026-05-31）
+
+> **觸發**: 分析 EXP-245_a metrics.jsonl 後段斜率，發現 20k 尚未飽和（最後 5k 步 l_data −20.6%、l_physics −32.6%）。EXP-273 = EXP-245_a byte-identical config，唯一改 `iterations` 20k→40k（lr_decay_steps 維持 2000 + ScheduleFree → 前 20k 軌跡完全相同，乾淨延伸；step 20000 l_data 3.229e-3 ≈ EXP-245 的 3.233e-3 驗證吻合）。job 3746, acmt20, 5h28m COMPLETED。
+
+**結果**（同 evaluator, time-mean, seed=42 paired comparison）:
+
+| 指標 | EXP-245_a (20k) | EXP-273 (40k) | Δ |
+|---|---|---|---|
+| **KE rel-err (all)** | **5.90 %** | **4.95 %** | **−0.95 pp（−16% 相對）** |
+| KE rel-err (train) | 5.74 % | 4.84 % | −0.90 pp |
+| KE rel-err (val) | 6.53 % | 5.39 % | −1.14 pp |
+| u rel-L2 | 13.59 % | 13.10 % | −0.5 pp |
+| v rel-L2 | 17.53 % | 16.63 % | −0.9 pp |
+| Ens rel-err | 24.41 % | 21.44 % | −3.0 pp |
+| div ratio (pred) | 0.385 % | 0.32 % | 更好 |
+| E(k_f=2) ratio @last | 0.969 | 0.976 | 更接近 1 |
+
+**判讀**:
+1. **真效果非 seed 雜訊**：paired（seed=42，唯一差 iterations），−0.95 pp ≫ training σ=0.11 pp；4.95% 亦贏 multi-seed mean 5.71%。
+2. **非 sensor overfit**（關鍵反向假設已排除）：val KE 也降（6.53→5.39%，幅度 > train），train/val gap 縮小（0.79→0.55 pp）。overfit 應 val↑/gap↑，觀察到相反 → 真泛化。
+3. **物理同步改善**：l_physics 後半減半、div 0.385→0.32%、E(k_f) 0.969→0.976 → 往「更滿足 NS」收斂，非擬合 sensor。
+
+**結論**: 20k baseline 是早停，PI-CON 被低估。`iterations` 是唯一實測有效的訓練超參（cf. §9.3 RAR NEGATIVE）。
+
+[RISK: 成本] 2× 算力（5.5hr vs 2.7hr）換 −0.95 pp；K-scaling 仍是更大 lever（K=200→2.47%）。是否把 baseline 升級為 40k 需 multi-seed n=5 確立 σ 後再決定（見 §13）。eval artifact: `artifacts/eval_273/`（lab-server）。
+
 ---
 
 # §10 Summary Tables
@@ -1046,6 +1072,9 @@ Decision gates 評估:
 | EXP-269/270 K=200/400 sweep 20k | **已完成** (KE 2.47 / 1.76 %) | ✅ 2026-05-24 |
 | EXP-269/270 multi-seed | single seed only | 待開工 |
 | Grid independence (Re=10⁴) | **已完成** (PASS, N=256 ref converged at machine ε) | ✅ 2026-05-24 |
+| **EXP-273 training length 20k→40k (single seed)** | **已完成** (KE 5.90→4.95%, −0.95pp, 非 overfit；20k 是早停, 見 §9.5) | ✅ 2026-05-31 |
+| **EXP-273 40k multi-seed n=5** | single seed only; 需 σ 才能把新 baseline (40k) 寫進 paper | 待開工（高優先, paper baseline 升級用）|
+| RAR collocation ablation (EXP-272) | **已完成** (NEGATIVE: KE 5.90→10.28%, 見 §9.3) | ✅ 2026-05-30 |
 | Classical interpolation re-benchmark vs EXP-245 20k | 目前 squeeze report 對比 EXP-080 legacy 10.68%；新 baseline 5.71% 下 Pareto trade 重算 | 待開工（paper polish 用）|
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論（傾向維持獨立 v2）|
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
@@ -1102,7 +1131,7 @@ Decision gates 評估:
 
 ## EXP-274 — AL delayed-start + Phase2 L-BFGS finetune（訓練策略探索）
 
-**日期**: 2026-05-31 ｜ **狀態**: 🛠 實作完成 + 測試通過（4 passed），待 r740 啟動
+**日期**: 2026-05-31 ｜ **狀態**: ✅ 訓練完成（job 3750, 4h49m）— **待 DNS 評估**（控制流已驗證）
 **Config**: `configs/exp_274_al_delay_lbfgs.toml`（派生 EXP-271, DNS QR-pivot oracle, seed=42）
 
 **Why**: 探索兩個訓練策略：(1) AL dual update 延後到 step≥10000、freq 100→500（早期 λ 凍結在 0，
@@ -1117,5 +1146,27 @@ Decision gates 評估:
 
 **變更（vs EXP-271）**: `al_update_freq` 100→500；`al_start_step` 0→10000；`lbfgs_finetune_steps` 0→5000
 
-**待評估**: KE rel-err（目標 ≤ EXP-271 baseline）；div L2（phase2 後是否進一步下降）。
-Falsifiability: phase2 後 L_data 大幅上升或 KE 退步 → 此策略對本問題無益。
+**訓練軌跡（從 metrics.jsonl，已驗證為真實數據）**:
+
+| step | l_data | l_cont | λ_cont | 備註 |
+|---|---|---|---|---|
+| 1 | 2.53e+0 | 1.88e-1 | 0.000 | λ 凍結 |
+| 5000 | 8.12e-3 | 1.99e-2 | 0.000 | λ 凍結（< al_start_step） |
+| 9500 | 4.51e-3 | 7.56e-3 | 0.000 | λ 凍結 |
+| 10000 | 9.55e-3 | 6.97e-3 | 0.0007 | **dual update 開啟** |
+| 15000 | 2.17e-3 | 3.40e-3 | 0.0057 | λ 累積中 |
+| 20000 | 3.34e-3 | 2.56e-3 | 0.0085 | phase1 結束 |
+| 20001 (ft) | 5.94e-4 | 2.52e-3 | 0.0085 | phase2 起，λ 凍結 |
+| 25000 (ft) | 2.77e-3 | 2.69e-3 | 0.0085 | phase2 結束 |
+
+**控制流驗證 ✅（皆為真實 log 數據）**:
+- λ 在 step 1–9999 嚴格凍結為 0（僅 ρ=0.1 二次罰生效）；step 10000 起 dual update 開啟，freq 500
+- 注意 λ 終值僅 **0.0085**（遠未達 clip=10）— EMA momentum 0.5 + freq 500 稀疏更新下累積緩慢
+- phase2 (20001–25000) λ 凍結在 0.0085；L-BFGS 全程 l_data/l_cont 在同量級震盪，**無單調下降**（curvature history 因每步重採樣 collocation 而失效，與 SOAP+RAR 失效機制相同）
+
+**[STATUS: 待 DNS 評估]**: KE rel-err / div L2 / spectrum slope **尚未計算**。先前誤用不存在的腳本，
+正確評估腳本為 `scripts/evaluate_deeponet_cfc.py`，待跑完補上對照（vs EXP-271 baseline KE 4.68 ± 0.06%）。
+
+**初步觀察（僅基於訓練 loss，非 DNS 對照，不可作結論）**:
+- phase2 L-BFGS 對 loss 無改善 → 二階 finetune 對此問題的增益存疑
+- 最終判定（採用/不採用）必須等 DNS benchmark，不能只看 training loss
