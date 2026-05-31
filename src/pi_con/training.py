@@ -1440,27 +1440,53 @@ def train_picon_kolmogorov(
                         max_weight=float(args.get("gradnorm_max_weight", 0.0)),
                     )
                 ws = gn_weights.weights.detach()
+                _idx_data = gn_weights.index_of("data")
 
-                # 依 task_names 組 l_total（GradNorm-managed terms）
-                if phys_active:
-                    l_total = sum(ws[i] * _gn_losses[i] for i in range(len(_gn_losses)))
+                if use_pcgrad and phys_active:
+                    # PCGrad 2-group：data group vs physics group（其餘 GradNorm task）。
+                    # AL / 固定-weight BC 不進投影（解耦），由 extra_loss 帶入。
+                    _data_loss = ws[_idx_data] * l_data
+                    _phys_loss = sum(
+                        ws[i] * _gn_losses[i]
+                        for i in range(len(_gn_losses)) if i != _idx_data
+                    )
+                    _extra = None
+                    if "bc" not in gn_weights:
+                        _extra = _bc_weight * l_bc_total
+                    if al_term is not None:
+                        _extra = al_term if _extra is None else _extra + al_term
+                    pc_cos = pcgrad_two_group_backward(
+                        _data_loss, _phys_loss, list(net.parameters()), extra_loss=_extra,
+                    )
+                    # l_total 僅供 log（detached；投影前等價量級）
+                    l_total = (
+                        _data_loss + _phys_loss
+                        + (_extra if _extra is not None else 0.0)
+                    ).detach()
+                    torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+                    optimizer.step()
                 else:
-                    # phys 未啟用時只留 data + (BC 若有)
-                    l_total = ws[gn_weights.index_of("data")] * l_data
-                    if "bc" in gn_weights:
-                        l_total = l_total + ws[gn_weights.index_of("bc")] * l_bc_total
+                    # 標準 GradNorm backward 路徑
+                    # 依 task_names 組 l_total（GradNorm-managed terms）
+                    if phys_active:
+                        l_total = sum(ws[i] * _gn_losses[i] for i in range(len(_gn_losses)))
+                    else:
+                        # phys 未啟用時只留 data + (BC 若有)
+                        l_total = ws[_idx_data] * l_data
+                        if "bc" in gn_weights:
+                            l_total = l_total + ws[gn_weights.index_of("bc")] * l_bc_total
 
-                # GradNorm 不管的固定 weight 項：
-                #   - BC：當 "bc" 不在 GradNorm tasks 時用固定 _bc_weight
-                if "bc" not in gn_weights:
-                    l_total = l_total + _bc_weight * l_bc_total
-                # AL term：固定 weight = 1，AL 與 GradNorm 完全解耦（spec v4 §5）
-                if al_term is not None:
-                    l_total = l_total + al_term
+                    # GradNorm 不管的固定 weight 項：
+                    #   - BC：當 "bc" 不在 GradNorm tasks 時用固定 _bc_weight
+                    if "bc" not in gn_weights:
+                        l_total = l_total + _bc_weight * l_bc_total
+                    # AL term：固定 weight = 1，AL 與 GradNorm 完全解耦（spec v4 §5）
+                    if al_term is not None:
+                        l_total = l_total + al_term
 
-                l_total.backward()
-                torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
-                optimizer.step()
+                    l_total.backward()
+                    torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+                    optimizer.step()
             else:
                 # 非 GradNorm 路徑（包含 EXP-070 純 AL）
                 if al_term is not None:
