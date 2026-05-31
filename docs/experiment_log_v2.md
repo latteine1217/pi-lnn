@@ -1197,41 +1197,8 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: 🛑 job 3766 已 scancel（phase2 確認為 no-op bug）— **發現 phase2 L-BFGS 從未更新權重**
+**日期**: 2026-05-31 ｜ **狀態**: ⏳ 訓練中（job 3766, RUNNING，~2.5h）— 結果待跑完，**禁止填入未驗證數據**
 **Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
-
-### 🛑 重大發現：phase2 L-BFGS 是 no-op（2026-05-31）
-
-job 3766 跑到 phase2 後，l_data **2186 步位元級完全相同**（5.938034e-04 一字不差）。
-本地最小重現（CPU, re1000 smoke, fixed_batch=True）二分對照：
-
-| 設定 | phase2 l_data 相異值 | 全 param 每 step 總變化 |
-|---|---|---|
-| `use_schedule_free=True`（= EXP-274/275 設定）| **1（完全不變）** | **0.0（L-BFGS step 不改任何權重）** |
-| `use_schedule_free=False` | 8（每步不同）| 5.67（正常更新）|
-
-- 梯度**非 0**（flat-grad max=1.15, norm=0.36）→ 不是 tolerance_grad 早停。
-- L-BFGS `.step()` 前後 param 零變化 → step 本身無效，非「改了又被還原」。
-
-**確認結論**: `use_schedule_free=True` 時，phase2 的獨立 L-BFGS `.step()` 完全不更新權重。
-EXP-274、EXP-275 兩次 phase2 **都是 no-op**（EXP-274 用 fixed_batch=False，每步換 batch 故 l_data 鋸齒，
-但權重同樣沒動）。
-
-**回溯影響（修正先前錯誤解讀）**:
-- 先前「EXP-274 phase2 neutral / L-BFGS 對此問題無增益」的解讀**前提錯誤** — phase2 根本是 no-op，
-  EXP-274 final.pt = 其主 phase y_t；vs EXP-271 的微小差異純來自主 phase 的 AL-delayed-start，與 phase2 無關。
-- **「L-BFGS finetune 對此問題是否有幫助」這個原始問題，至今從未被真正測試過。**
-
-**未確認（不宣稱）**: 為何 use_schedule_free=True 會使同批 param 上的獨立 L-BFGS `.step()` 失效，
-微觀機制尚未確認 — toy 重現（plain Linear + schedulefree.eval() + LBFGS）未成功復現此現象，
-故「schedulefree wrapper 干擾」僅為假設，需進一步定位。
-
-**下一步（待定，未執行）**: 修法需先確認根因。候選 — phase2 前用 deepcopy 把 y_t 權重移到全新乾淨
-net/leaf-param 再跑 L-BFGS（脫離 schedulefree 與 base_optimizer state），並補單元測試 assert 權重有更新。
-
----
-
-#### （以下為 bug 發現前的原始診斷假設，已被上方 no-op 發現取代，保留供追溯）
 
 **診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
 L-BFGS curvature history `(s_k, y_k)` 跨不同 batch 累積 → Hessian 近似失效（同 SOAP+RAR
