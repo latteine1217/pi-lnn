@@ -1,0 +1,108 @@
+# configs/exp_cylinder_037_hardbc_fixed_weight.toml
+# CEXP-037 = CEXP-002 + hard BC gate + fixed weight (no GradNorm) + bc_body=0
+#
+# 設計目的（Finding #6 乾淨對照）：
+#   CEXP-016 (hard BC + GradNorm) KE 111.6%, w_ns_u 推爆到 2.09。
+#   Finding #6 歸因：hard BC gate + GradNorm 優化不相容。
+#   本實驗：移除 GradNorm 改固定權重，驗證 hard BC 單獨是否可行。
+#
+# 變更 vs CEXP-002：
+#   use_hard_body_bc: false → true   (Sukumar 2022 output gate, body 內 u=v=0 機器精度)
+#   use_gradnorm:     true  → false  (Finding #6 元兇，改固定權重)
+#   bc_body_n_points: 64    → 0      (gate 已管 body，Finding #8 一區一約束)
+#
+# Falsifiability：
+#   KE < 20%   → ✅ Finding #6 正確：GradNorm 是 hard BC 失敗元兇
+#   KE 20-100% → 🟡 部分原因
+#   KE > 100% + L_phys 爆漲 → ❌ hard BC 路線徹底封閉
+
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true
+
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 0      # ← gate 已管 body（Finding #8）
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# ===== CEXP-037 變動 =====
+use_hard_body_bc = true   # ← Sukumar gate（架構級 geometry enforcement）
+use_gradnorm = false      # ← 移除 GradNorm（Finding #6 元兇），改固定權重
+# ==========================
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp037-hardbc-fixed-weight"
