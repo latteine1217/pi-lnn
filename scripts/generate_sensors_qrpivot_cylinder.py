@@ -298,6 +298,10 @@ def main() -> None:
     parser.add_argument("--body-threshold", type=float, default=1e-4,
                         help="Cylinder body 偵測速度閾值")
     parser.add_argument("--out", required=True, help="輸出目錄")
+    parser.add_argument("--random-seed", type=int, default=None,
+                        help="若設定，改用 uniform random placement（從 fluid 域均勻隨機抽 K 點），"
+                             "而非 QR-pivot。用於 placement ablation（CEXP-041）。"
+                             "body 排除 / axis convention / 輸出 schema 與 QR 完全相同。")
     args = parser.parse_args()
 
     K = args.K
@@ -327,15 +331,24 @@ def main() -> None:
     n_fluid = fluid_mask.sum()
     print(f"  Cylinder body: {n_body} cells  Fluid domain: {n_fluid} / {H*W} cells")
 
-    # ── Snapshot matrix + QR pivot ────────────────────────────────────────────
-    print("Building snapshot matrix ...")
-    A = build_snapshot_matrix(shards, args.time_stride, fluid_mask)
-
     fluid_indices = np.argwhere(fluid_mask.reshape(-1)).ravel()  # [N_fluid]
-    sensor_fluid_idx, uniform_picks_in_fluid, qr_picks_in_fluid = hybrid_uniform_qr_sensors(
-        A, fluid_mask, K=K, n_uniform=int(args.n_uniform),
-    )
-    del A
+
+    if args.random_seed is not None:
+        # Random placement ablation：均勻隨機從 fluid 域抽 K 點（不建 snapshot matrix）。
+        # body 已排除（fluid_indices 來自 fluid_mask），axis/schema 與 QR 路徑完全相同。
+        print(f"Random placement (seed={args.random_seed}): {K} sensors from {len(fluid_indices)} fluid cells ...")
+        _rng = np.random.default_rng(args.random_seed)
+        sensor_fluid_idx = _rng.choice(len(fluid_indices), size=K, replace=False)
+        uniform_picks_in_fluid = sensor_fluid_idx
+        qr_picks_in_fluid = np.array([], dtype=np.int64)
+    else:
+        # ── Snapshot matrix + QR pivot ────────────────────────────────────────────
+        print("Building snapshot matrix ...")
+        A = build_snapshot_matrix(shards, args.time_stride, fluid_mask)
+        sensor_fluid_idx, uniform_picks_in_fluid, qr_picks_in_fluid = hybrid_uniform_qr_sensors(
+            A, fluid_mask, K=K, n_uniform=int(args.n_uniform),
+        )
+        del A
 
     # 轉回 (H, W) 格點 flat index
     sensor_flat = fluid_indices[sensor_fluid_idx]  # [K] 在 H×W 的 flat index
