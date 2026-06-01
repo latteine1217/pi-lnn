@@ -50,6 +50,8 @@ class DeepONetCfCDecoder(nn.Module):
         disable_cross_attention: bool = False,
         use_trunk_geo_context: bool = False,
         geometry_preserve_base_rng: bool = False,
+        use_sensor_film: bool = False,
+        film_use_geometry: bool = False,
     ) -> None:
         super().__init__()
         self.use_periodic_domain = bool(use_periodic_domain)
@@ -131,6 +133,29 @@ class DeepONetCfCDecoder(nn.Module):
             self.geo_key_proj = nn.Linear(spatial_dim, query_mlp_hidden_dim)
             self.geo_value = nn.Parameter(torch.zeros(1, query_mlp_hidden_dim))
             self.geo_token_type_bias = nn.Parameter(torch.zeros(query_mlp_hidden_dim))
+        # B3: Sensor-conditioned FiLM. cond = per-query sensor hidden (+ body_distance if geometry)。
+        # γ identity-init (γ=1, β=0) → use_sensor_film=False 時 self.film_mlp 不建立；
+        # 啟用時初始輸出 γ=1,β=0 不破壞既有 trunk_feat（向後相容）。
+        self.use_sensor_film = bool(use_sensor_film)
+        self.film_use_geometry = bool(film_use_geometry)
+        if self.use_sensor_film:
+            if d_model != query_mlp_hidden_dim:
+                raise ValueError(
+                    f"use_sensor_film 需要 d_model({d_model}) == query_mlp_hidden_dim"
+                    f"({query_mlp_hidden_dim})；否則 sensor hidden 維度與 trunk feature 不符。"
+                )
+            _cond_dim = query_mlp_hidden_dim + (1 if self.film_use_geometry else 0)
+            self.film_mlp = nn.Sequential(
+                nn.Linear(_cond_dim, query_mlp_hidden_dim),
+                nn.SiLU(),
+                nn.Linear(query_mlp_hidden_dim, 2 * query_mlp_hidden_dim),
+            )
+            # identity init：最後一層 weight=0，bias=[1...(γ), 0...(β)] → 初始 γ=1,β=0。
+            nn.init.zeros_(self.film_mlp[-1].weight)
+            with torch.no_grad():
+                self.film_mlp[-1].bias[:query_mlp_hidden_dim].fill_(1.0)
+                self.film_mlp[-1].bias[query_mlp_hidden_dim:].fill_(0.0)
+
         self.use_trunk_geo_context = bool(use_trunk_geo_context)
         if self.use_trunk_geo_context:
             _rng_state = torch.random.get_rng_state() if self.geometry_preserve_base_rng else None
@@ -241,6 +266,37 @@ class DeepONetCfCDecoder(nn.Module):
             return self.spatial_emb(geo_pos, self.domain_length)
         return periodic_fourier_encode(geo_pos, self.domain_length, self.fourier_harmonics)
 
+    def _apply_sensor_film(
+        self,
+        trunk_feat: torch.Tensor,        # [M, hidden]，M = N (forward) 或 3N (forward_uvp)
+        h_branch_tokens: torch.Tensor,   # [N, d_model] per-query sensor hidden（== query_mlp_hidden_dim）
+        body_distance: torch.Tensor | None,  # [N] or [N,1] or None
+        n_repeat: int,                   # 1 (forward) 或 3 (forward_uvp)
+    ) -> torch.Tensor:
+        """B3: γ(cond)⊙trunk_feat + β(cond)，cond 從 per-query sensor hidden (+geometry)。
+
+        Why: 不在 velocity output 強制 body=0（已證 over-energy），改用 sensor 狀態
+             大域調制 trunk feature。conditioning 來自有 supervision 的 sensor，
+             結構性回避「body 區無校正」根因（Finding #8）。
+        """
+        if not self.use_sensor_film:
+            return trunk_feat
+        cond = h_branch_tokens                                       # [N, hidden]
+        if self.film_use_geometry:
+            if body_distance is None:
+                raise ValueError(
+                    "film_use_geometry=True 但 _apply_sensor_film body_distance=None；"
+                    "請傳入 dataset.query_body_distance_torch(xy)。"
+                )
+            cond = torch.cat([cond, body_distance.reshape(-1, 1)], dim=-1)  # [N, hidden+1]
+        gb = self.film_mlp(cond)                                     # [N, 2·hidden]
+        hidden = gb.shape[-1] // 2
+        gamma, beta = gb[:, :hidden], gb[:, hidden:]                # [N, hidden] each
+        if n_repeat > 1:
+            gamma = gamma.repeat(n_repeat, 1)                       # [3N, hidden]
+            beta = beta.repeat(n_repeat, 1)
+        return gamma * trunk_feat + beta
+
     def _apply_trunk_geo_context(
         self,
         trunk_feat: torch.Tensor,
@@ -344,6 +400,7 @@ class DeepONetCfCDecoder(nn.Module):
             for block in self.trunk_blocks:
                 trunk_feat = block(trunk_feat)
         xy_3 = xy.unsqueeze(0).expand(3, -1, -1).reshape(3 * N, 2)
+        trunk_feat = self._apply_sensor_film(trunk_feat, h_branch_tokens, body_distance, n_repeat=3)
         trunk_feat = self._apply_trunk_geo_context(trunk_feat, xy_3)
         trunk_basis = self.trunk_out(trunk_feat).view(3 * N, 3, self.rank)
 
@@ -492,6 +549,7 @@ class DeepONetCfCDecoder(nn.Module):
         else:
             for block in self.trunk_blocks:
                 trunk_feat = block(trunk_feat)
+        trunk_feat = self._apply_sensor_film(trunk_feat, h_branch_tokens, body_distance, n_repeat=1)
         trunk_feat = self._apply_trunk_geo_context(trunk_feat, xy)
 
         trunk_basis = self.trunk_out(trunk_feat).view(-1, 3, self.rank)

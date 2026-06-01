@@ -64,6 +64,10 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     "use_bidirectional_cfc": False,
     "use_re_film": False,           # Re conditioning: False=舊 additive bias (legacy);
                                     # True=per-layer FiLM γ⊙x+β (multi-Re 訓練必要, identity init 不傷 single-Re)。
+    "use_sensor_film": False,       # B3: sensor hidden state 經 FiLM 調制 decoder trunk feature。
+                                    # 預設 false 向後相容（FiLM γ identity-init，啟用不破壞 baseline）。
+    "film_use_geometry": False,     # B3-b: FiLM conditioning 額外 concat body_distance（明示 geometry）。
+                                    # 僅在 use_sensor_film=true 時生效。
     "cfc_log_tau_min": -1.0,        # CfC 時間常數初始下界 log τ；對 turbulence 多尺度建議 -3.0
     "cfc_log_tau_max": 1.0,         # CfC 時間常數初始上界 log τ；典型 1.0~1.6（log T_total）
     "cfc_input_dependent_tau": False,  # True=liquid time-constant：τ 由 (x,h) 動態調制（對齊官方 CfC）；False=static τ (legacy)

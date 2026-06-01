@@ -59,6 +59,8 @@ class LiquidOperator(nn.Module):
         use_trunk_geo_context: bool = False,
         use_graph_spatial_gate: bool = False,
         geometry_preserve_base_rng: bool = False,
+        use_sensor_film: bool = False,
+        film_use_geometry: bool = False,
     ) -> None:
         super().__init__()
         # Hard body BC 是 output transformation：u, v ← (φ/scale).clamp(0,1) · NN
@@ -128,6 +130,8 @@ class LiquidOperator(nn.Module):
             disable_cross_attention=disable_cross_attention,
             use_trunk_geo_context=self.use_trunk_geo_context,
             geometry_preserve_base_rng=self.geometry_preserve_base_rng,
+            use_sensor_film=bool(use_sensor_film),
+            film_use_geometry=bool(film_use_geometry),
         )
 
         # Physics output denormalization buffers
@@ -333,6 +337,8 @@ def create_picon_model(cfg: dict[str, Any]):
         use_trunk_geo_context=bool(cfg.get("use_trunk_geo_context", False)),
         use_graph_spatial_gate=bool(cfg.get("use_graph_spatial_gate", False)),
         geometry_preserve_base_rng=bool(cfg.get("geometry_preserve_base_rng", False)),
+        use_sensor_film=bool(cfg.get("use_sensor_film", False)),
+        film_use_geometry=bool(cfg.get("film_use_geometry", False)),
     )
     # ForcingPrior attached as submodule → model.parameters() / state_dict 自動包含。
     # 預設兩 flag false 時行為等同舊版常數 forcing；任一 true 才有 learnable param。
