@@ -263,6 +263,8 @@ class TemporalCfCEncoder(nn.Module):
         use_bidirectional: bool = False,
         cfc_log_tau_min: float = -1.0,
         cfc_log_tau_max: float = 1.0,
+        cfc_input_dependent_tau: bool = False,
+        cfc_tau_mod_scale: float = 2.0,
         use_re_film: bool = False,
     ) -> None:
         super().__init__()
@@ -283,14 +285,22 @@ class TemporalCfCEncoder(nn.Module):
             for _ in range(max(num_token_attention_layers, 0))
         ])
         self.cells = nn.ModuleList([
-            CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+            CfCCell(
+                d_model, d_model,
+                log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max,
+                input_dependent_tau=cfc_input_dependent_tau, tau_mod_scale=cfc_tau_mod_scale,
+            )
             for _ in range(num_layers)
         ])
         if use_bidirectional:
             # 反向 CfC：獨立參數，從 t=T-1 掃回 t=0。
             # Why: 讓 h_states[0] 也能看到未來觀測，消除因果編碼在 t=0 的資訊不對稱。
             self.backward_cells = nn.ModuleList([
-                CfCCell(d_model, d_model, log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max)
+                CfCCell(
+                    d_model, d_model,
+                    log_tau_min=cfc_log_tau_min, log_tau_max=cfc_log_tau_max,
+                    input_dependent_tau=cfc_input_dependent_tau, tau_mod_scale=cfc_tau_mod_scale,
+                )
                 for _ in range(num_layers)
             ])
 

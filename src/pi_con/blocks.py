@@ -14,6 +14,16 @@ class CfCCell(nn.Module):
         τ ∈ [exp(min), exp(max)]，linspace 對齊 hidden_size 個 channel。
     對 turbulence 多尺度，建議 (-3, 1) 覆蓋 dt~T_total 三個量級；預設
     (-1, 1) 維持向後相容。
+
+    input_dependent_tau:
+        False (default): τ = exp(log_tau_a) 為 static per-channel 參數，與既有
+            實驗位元級相容。
+        True: 對齊官方 CfC 的 liquid time-constant（原版 t_a = time_a(backbone)
+            為 input-dependent）。本實作以
+                log τ = log_tau_a + tau_mod_scale · tanh(time_a(xh))
+            表示：time_a zero-init 使啟動時調制為 0、τ 等於 static 路徑（平滑啟動
+            且與 static 數值一致）；tanh 保證 τ 有界（∈ [τ0·e^-s, τ0·e^+s]），
+            避免 exp 對 input-dependent 項的梯度爆炸。
     """
 
     def __init__(
@@ -22,6 +32,8 @@ class CfCCell(nn.Module):
         hidden_size: int,
         log_tau_min: float = -1.0,
         log_tau_max: float = 1.0,
+        input_dependent_tau: bool = False,
+        tau_mod_scale: float = 2.0,
     ) -> None:
         super().__init__()
         if log_tau_min >= log_tau_max:
@@ -35,6 +47,14 @@ class CfCCell(nn.Module):
         self.time_b = nn.Linear(combined, hidden_size)
         nn.init.xavier_uniform_(self.time_b.weight)
         nn.init.zeros_(self.time_b.bias)
+        self.input_dependent_tau = bool(input_dependent_tau)
+        self.tau_mod_scale = float(tau_mod_scale)
+        if self.input_dependent_tau:
+            # liquid time-constant：(x,h) 相依的 τ 調制。zero-init → 啟動時調制為 0，
+            # τ 等於 static 路徑，故與 input_dependent_tau=False 的數值起點一致。
+            self.time_a = nn.Linear(combined, hidden_size)
+            nn.init.zeros_(self.time_a.weight)
+            nn.init.zeros_(self.time_a.bias)
 
     def forward(
         self,
@@ -45,7 +65,12 @@ class CfCCell(nn.Module):
         xh = torch.cat([x, h], dim=-1)
         f1 = torch.tanh(self.ff1(xh))
         f2 = torch.tanh(self.ff2(xh))
-        tau_a = torch.exp(self.log_tau_a)
+        if self.input_dependent_tau:
+            # liquid τ：在 per-channel 多尺度 bias 上疊加有界的 (x,h) 相依調制。
+            log_tau = self.log_tau_a + self.tau_mod_scale * torch.tanh(self.time_a(xh))
+            tau_a = torch.exp(log_tau)
+        else:
+            tau_a = torch.exp(self.log_tau_a)
         t_b = self.time_b(xh)
         if isinstance(dt, torch.Tensor) and dt.dim() > 0:
             dt = dt.unsqueeze(-1)

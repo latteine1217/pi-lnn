@@ -43,6 +43,8 @@ class LiquidOperator(nn.Module):
         use_periodic_domain: bool = True,
         cfc_log_tau_min: float = -1.0,
         cfc_log_tau_max: float = 1.0,
+        cfc_input_dependent_tau: bool = False,
+        cfc_tau_mod_scale: float = 2.0,
         fourier_sigma_bands: tuple[float, ...] | list[float] | None = None,
         fourier_band_dim_ratios: tuple[float, ...] | list[float] | None = None,
         use_hard_body_bc: bool = False,
@@ -96,6 +98,8 @@ class LiquidOperator(nn.Module):
             use_bidirectional=use_bidirectional_cfc,
             cfc_log_tau_min=cfc_log_tau_min,
             cfc_log_tau_max=cfc_log_tau_max,
+            cfc_input_dependent_tau=cfc_input_dependent_tau,
+            cfc_tau_mod_scale=cfc_tau_mod_scale,
             use_re_film=self.use_re_film,
         )
         self.query_decoder = DeepONetCfCDecoder(
@@ -313,6 +317,8 @@ def create_picon_model(cfg: dict[str, Any]):
         use_periodic_domain=bool(cfg.get("use_periodic_domain", True)),
         cfc_log_tau_min=float(cfg.get("cfc_log_tau_min", -1.0)),
         cfc_log_tau_max=float(cfg.get("cfc_log_tau_max", 1.0)),
+        cfc_input_dependent_tau=bool(cfg.get("cfc_input_dependent_tau", False)),
+        cfc_tau_mod_scale=float(cfg.get("cfc_tau_mod_scale", 2.0)),
         fourier_sigma_bands=cfg.get("fourier_sigma_bands"),
         fourier_band_dim_ratios=cfg.get("fourier_band_dim_ratios"),
         use_hard_body_bc=bool(cfg.get("use_hard_body_bc", False)),
