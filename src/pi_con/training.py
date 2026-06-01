@@ -139,7 +139,9 @@ def train_picon_kolmogorov(
     # 對 kolmogorov 沒 SDF，啟用任一 flag 都會在 _make_body_distance_fn 內 raise。
     _use_hard_body_bc = bool(args.get("use_hard_body_bc", False))
     _use_body_distance_feature = bool(args.get("use_body_distance_feature", False))
-    _need_body_distance_fn = _use_hard_body_bc or _use_body_distance_feature
+    # B3-b: film_use_geometry 也需要 body_distance 傳進 decoder forward（FiLM geometry 分支）。
+    _film_use_geometry = bool(args.get("film_use_geometry", False))
+    _need_body_distance_fn = _use_hard_body_bc or _use_body_distance_feature or _film_use_geometry
     if _use_hard_body_bc and not getattr(net, "use_hard_body_bc", False):
         raise ValueError(
             "config use_hard_body_bc=True 但 net.use_hard_body_bc=False；"

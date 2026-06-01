@@ -425,7 +425,9 @@ def main() -> None:
     # body mask 與訓練端 silent drift（之前 detect_body 只看 |u|，dataset 看 |u|+|v|）。
     _use_hard_body_bc = bool(getattr(model, "use_hard_body_bc", False))
     _use_body_distance_feature = bool(getattr(model, "use_body_distance_feature", False))
-    _need_bd = _use_hard_body_bc or _use_body_distance_feature
+    # B3-b: film_use_geometry（在 query_decoder 上）也需要 body_distance 傳進 forward。
+    _film_use_geometry = bool(getattr(getattr(model, "query_decoder", None), "film_use_geometry", False))
+    _need_bd = _use_hard_body_bc or _use_body_distance_feature or _film_use_geometry
     _bd_full = None
     if _need_bd:
         # 直接拿 dataset 已算好的 SDF（normalized 距離，與訓練 query_body_distance 同公式）
