@@ -170,3 +170,54 @@ def test_lbfgs_finetune_fixed_batch_runs(tmp_path):
     assert [r[0] for r in ft] == [5, 6, 7], "phase2 step 編號應接續主 phase"
     for _, _, ld in ft:
         assert np.isfinite(ld), "fixed_batch phase2 l_data 必須有限"
+
+
+def _capture_phase2_lbfgs_lr(monkeypatch, cfg):
+    """攔截 phase2 建立的 torch.optim.LBFGS，回傳其 lr。"""
+    import torch
+
+    captured: dict[str, float] = {}
+    _orig = torch.optim.LBFGS.__init__
+
+    def _spy(self, params, lr=1.0, *a, **k):
+        captured["lr"] = float(lr)
+        return _orig(self, params, lr, *a, **k)
+
+    monkeypatch.setattr(torch.optim.LBFGS, "__init__", _spy)
+    train_picon_kolmogorov(cfg, log_fn=None)
+    return captured.get("lr")
+
+
+def test_phase2_lbfgs_lr_decoupled_from_learning_rate(tmp_path, monkeypatch):
+    """EXP-275 根因回歸：phase2 L-BFGS 的 lr 必須用 lbfgs_finetune_lr（預設 1.0），
+
+    不可沿用一階 learning_rate（=1e-3）。L-BFGS+strong_wolfe 是 Newton step，lr=1.0；
+    誤用 1e-3 在深收斂點會使 step 退化成零權重更新 → loss 凍結（job 3766 根因）。
+    """
+    cfg = _base_cfg(tmp_path)
+    cfg.update({
+        "iterations": 3,
+        "al_start_step": 0,
+        "lbfgs_finetune_steps": 1,
+        "lbfgs_max_iter": 2,
+        "learning_rate": 1e-3,   # 一階 LR；phase2 不該用這個
+    })
+    lr = _capture_phase2_lbfgs_lr(monkeypatch, cfg)
+    assert lr == pytest.approx(1.0), (
+        f"phase2 L-BFGS 預設 lr 應為 1.0（Newton step），實得 {lr}；"
+        "誤用一階 learning_rate 會在深收斂點凍結"
+    )
+
+
+def test_phase2_lbfgs_lr_configurable(tmp_path, monkeypatch):
+    """lbfgs_finetune_lr 可由 config 覆寫。"""
+    cfg = _base_cfg(tmp_path)
+    cfg.update({
+        "iterations": 3,
+        "al_start_step": 0,
+        "lbfgs_finetune_steps": 1,
+        "lbfgs_max_iter": 2,
+        "lbfgs_finetune_lr": 0.5,
+    })
+    lr = _capture_phase2_lbfgs_lr(monkeypatch, cfg)
+    assert lr == pytest.approx(0.5), f"lbfgs_finetune_lr 未生效，實得 {lr}"

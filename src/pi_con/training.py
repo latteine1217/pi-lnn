@@ -1679,9 +1679,11 @@ def train_picon_kolmogorov(
         _ft_phys_normalize = bool(args.get("physics_residual_normalize", False))
         _ft_max_iter = int(args.get("lbfgs_max_iter", 20))
 
+        # lr=lbfgs_finetune_lr（預設 1.0，Newton step）。EXP-275 根因：誤用一階 learning_rate
+        # （1e-3）會在深收斂點使 step 退化成零權重更新 → loss 凍結（job 3766）。
         ft_optimizer = torch.optim.LBFGS(
             net.parameters(),
-            lr=float(args["learning_rate"]),
+            lr=float(args.get("lbfgs_finetune_lr", 1.0)),
             max_iter=_ft_max_iter,
             history_size=int(args.get("lbfgs_history_size", 10)),
             line_search_fn="strong_wolfe",

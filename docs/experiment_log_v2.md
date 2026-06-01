@@ -1197,32 +1197,47 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: 🛑 job 3766 已 scancel — phase2 異常（l_data 凍結），根因未明，待調查
-**Config**: `configs/exp_275_lbfgs_fixed_batch.toml`（嚴格單變因 vs EXP-274）
+**日期**: 2026-05-31 ｜ **狀態**: ✅ 根因確認 + 已修（bug）— **phase2 L-BFGS lr 誤用 1e-3，深收斂點零更新致 loss 凍結**
+**Config**: `configs/exp_275_lbfgs_fixed_batch.toml`
 
-### 觀察到的異常（僅記錄已驗證事實，根因未確認）
+### 🐛 根因（systematic-debugging 確認，2026-05-31）
 
-**事實 1（已驗證，來源 metrics.jsonl 實讀）**: job 3766 進入 phase2 後，l_data 連續 2186 步
-**位元級完全相同**（`5.938034e-04`，l_cont/l_total 同樣不變）。真在優化的網路不可能浮點數完全不變。
+**症狀（已驗證, metrics.jsonl 實讀）**: job 3766 phase2 l_data 連續 2186 步位元級不變（`5.938034e-04`）。
 
-**事實 2（已驗證，本地 smoke 重現）**: 在本地（CPU, re1000 smoke, d_model=32, fixed_batch=True,
-use_schedule_free=True）**無法重現** phase2 凍結 — l_data 正常下降（1.07→0.41，8 步 8 個相異值），
-L-BFGS step 前後全 param 總變化 10.19/1.84/7.94（正常更新）。
+**根因（已確認）**: phase2 的 `torch.optim.LBFGS` 在 [training.py:1677] 用 `lr=learning_rate=1e-3`
+（SOAP 一階法 LR）。但 **L-BFGS+strong_wolfe 是 Newton step，標準 lr=1.0**（line search 自決步長）。
+lr=1e-3 把步長縮 1000×，進入深收斂區（梯度小）後 L-BFGS step 退化成**零權重更新** → loss 凍結。
 
-→ **矛盾**: lab-server 真實規模 phase2 凍結，本地 smoke 正常。根因**尚未確認**，不宜宣稱是
-schedule_free / fixed_batch / 規模 任一項。job 已 scancel 避免浪費 GPU。
+**決定性證據（lab-server GPU 真實 scale, d_model=256, CUDA, job 3790）**:
 
-**重要更正**: 先前所有「EXP-274 phase2 neutral」「fixed batch 修好優化」等結論的前提
-（phase2 有在更新權重）**至今未經獨立驗證**。在確認 phase2 是否真正更新權重之前，
-EXP-274/275 關於「L-BFGS finetune 是否有幫助」的任何結論都不成立。
+| 設定 | phase2 l_data | param_change/step | 相異值 |
+|---|---|---|---|
+| `lr=1e-3`（原 bug）| 1.35e-2 → 1.98e-4 | 末兩步 **4e-06 → 0.0**（凍結 onset）| 7/8 |
+| `lr=1.0`（修法）| 4.65e-5 → **4.34e-7**（低 450×）| [81,61,40,31,23,18,14,13] 全大 | 8/8 |
 
-**下一步（待定，未執行）**: 需先在「能重現凍結的最小條件」上定位根因（本地 smoke 無法重現 →
-差異在規模 / d_model / num_physics_points / MPS-vs-CPU-vs-CUDA / iteration 數其一）。
-先補單元測試 assert「phase2 後權重 != phase1 末權重」，再決定修法。
+→ lr=1e-3 在梯度變小時 param_change 歸零（凍結）；lr=1.0 全程大幅更新且 loss 降更深。
+job 3766 跑滿 20000 步（l_data 已到 5.9e-4，比此處 3000 步更收斂 68×）→ 從 phase2 第一步就**永久**凍結。
+本地 smoke 不凍結因 d_model=32 短訓練，phase2 起點梯度大（~0.4–1.0），1e-3 步仍足以動。
+
+**先前錯誤假說的更正**: 「float32 精度飢餓」framing **不準** — param_change 是**精確 0.0**（L-BFGS line
+search 回傳零步），非浮點微小累積。「已達最優」也已被 PROBE 排除（凍結點 grad_max=0.47，GD 能降 loss）。
+
+### 修法（已套用 + 測試）
+
+- `config.py`: 新增 `lbfgs_finetune_lr`（預設 **1.0**）
+- `training.py:1677`: phase2 L-BFGS 改用 `lbfgs_finetune_lr` 而非 `learning_rate`
+- `tests/`: 新增 2 個回歸測試（lr 預設=1.0 解耦於 learning_rate / 可 config 覆寫）— **修法前 RED 修法後 GREEN**，7 passed
+- 回歸：既有 lbfgs/al/smoke 19 passed
+
+**對先前結論的影響（重大更正）**: EXP-274（lr 同樣=1e-3 + 每步換 batch）與 EXP-275 的 phase2
+**兩次都是 no-op**（權重未更新）。先前所有「phase2 neutral / L-BFGS 對此問題無增益」的結論**前提錯誤**，
+作廢。**「L-BFGS finetune 是否真能改善 DNS 重建」這個原始問題，修法後尚未測試** → 需重跑 EXP-275（lr=1.0）才有答案。
+
+**下一步（待使用者決定）**: 用修法後程式碼重跑 EXP-275（phase2 lr=1.0），首次真正測試 L-BFGS finetune 效果。
 
 ---
 
-#### （以下為 bug 發現前的原始診斷假設，保留供追溯；其前提待驗證）
+#### （以下為 bug 發現前的原始診斷假設，已被上方根因取代，保留供追溯）
 
 **診斷假設**: EXP-274 phase2 L-BFGS 無增益的根因 = **每 outer step 重採樣**（freq=1）使
 L-BFGS curvature history `(s_k, y_k)` 跨不同 batch 累積 → Hessian 近似失效（同 SOAP+RAR

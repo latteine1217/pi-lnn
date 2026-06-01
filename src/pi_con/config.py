@@ -87,6 +87,10 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
     # False（預設）= 每 outer step 重採（EXP-274 行為，curvature history 失效）；
     # True = 固定目標函數，L-BFGS curvature history (s_k,y_k) 才自洽。配 lbfgs_max_iter 加大使用。
     "lbfgs_finetune_fixed_batch": False,
+    # EXP-275 根因修正：phase2 L-BFGS 的 lr。L-BFGS+strong_wolfe 是 Newton step，標準 lr=1.0
+    # （line search 自行決定步長）。先前誤用一階 learning_rate（=1e-3），在深收斂點 step
+    # 退化成零權重更新 → loss 凍結（job 3766：l_data 2186 步位元級不變）。預設 1.0。
+    "lbfgs_finetune_lr": 1.0,
     # --- Natural Gradient (Gauss-Newton) optimizer ---
     # 啟用：lr_schedule="ng"。論文：Curvature-Aware Optimization for High-Accuracy PINNs。
     # 適用範圍：N (residuals) << P (params) 才划算（pi-con 典型 N~200, P~10⁵）。
