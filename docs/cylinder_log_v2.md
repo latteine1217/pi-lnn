@@ -134,6 +134,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-035** | `NEGATIVE_RESULT` | Re=10031, **K=200 + collo 1024**（CEXP-034 + num_physics_points 64→1024） | **375.4 %** ❌❌❌ | **4.75** | 45.78 | 8.27 | 10k | ❌ K=200+collo1024 亦災難（375%）；vs CEXP-030 (K=100+collo1024, 610%) 略好但仍崩潰 → 更多 collo 在 sensor/BC 已衝突基礎上無法挽救（div 8.27 略降是 collo 副作用，非物理正確）|
 | **CEXP-036** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + RAR collocation**（physics_collocation_strategy random→rar, freq=1000） | **97.89 %** ❌ | **1.979** | 29.38 | 22.34 | 10k | ❌ **SOAP+RAR 非互換在 cylinder 重演**（CLAUDE.md EXP-053）：L_phys 爆漲（step1000=52.7→step2000=123→step10000=103），GradNorm 把 w_ns_u 壓到 0.006 仍救不回；KE 3.54%→97.9%（28× 惡化），div 22.34（baseline 1.14 的 20×）。freq=1000 在 cylinder 仍不夠（EXP-054 的 ≥1000 下限是 Kolmogorov 均勻格驗證，cylinder 非均勻格更敏感）|
 | **CEXP-037** | `NEGATIVE_RESULT` | Re=10031, **hard BC + 固定權重（no GradNorm）+ bc_body=0** | **283.17 %** ❌ | **3.832** | 17.33 | 6.06 | 10k | ❌ **關掉 GradNorm 仍失敗**：CEXP-016（hard BC+GradNorm）111.6% → CEXP-037（hard BC+固定權重）**283%（反更糟 2.5×）**。**推翻 Finding #6 單一歸因**：GradNorm 不是 hard BC 失敗的唯一元兇；訓練 L_phys 看似穩定（step10000=0.025）但 eval over-predict 3.83× → hard BC gate 本身在 sparse-sensor 下造成 over-energy（同 Finding #8 機制：body 區無 sensor，gate 壓 NN_u → wake 過度補償）|
+| **CEXP-038** | `NEGATIVE_RESULT` | Re=10031, **Zhu soft body penalty α=10（bc_body_weight=100, no gate, no GradNorm）** | **684.16 %** ❌❌❌ | **7.841** | 47.26 | 14.11 | 10k | ❌ **提高 α 反而最糟**：soft body penalty α_eff 0.1→10（Zhu 2025 值）→ KE 從 CEXP-002 3.54% 爆到 684%（over-predict 7.84×，比 CEXP-037 hard gate 283% 更慘）。**推翻 Zhu 單純調 α 的歸因**：在 sparse wake-only sensor 下，加重 body penalty 只是把 over-energy 推得更高（body 強制 u=0 + 無 sensor 校正 → NN 在 wake 補償更兇）。確認 Finding #8 才是根本——body 區無 sensor 是結構問題，非 penalty 強度問題。L_phys 訓練穩定（step10000=0.04）但 eval 災難。|
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -711,6 +712,15 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 ---
 
 ## 變更紀錄
+
+- **2026-05-31 CEXP-038 Zhu soft body penalty α-rebalancing（❌ 失敗 KE 684%，推翻「調 α 即可」歸因）**:
+  - CEXP-038 = CEXP-002 + soft body no-slip penalty（非 gate）+ `bc_body_weight=100`（α_eff = bc_loss_weight 0.1 × 100 = 10，Zhu 2025 值）+ `use_gradnorm=false`。Slurm job 3793 train + 3796 eval。新增 src key `bc_body_weight`（commit 6d90d9a）。
+  - **實測（eval job 3796 log + summary.json）：KE 684.16%（late 687.79%）, ke_pred/ref 7.841, omega 47.26, div(PI-CON) 14.11, div(DNS ref) 8.74, u_rmse 0.755, v_rmse 0.198**。
+  - **推翻 Zhu「提高 α 即可」的歸因**：Zhu 2025（arXiv:2503.24074）主張 hard BC 的 over-energy 是 body penalty α 太弱（0.1），提高到 ~10 可解。實測**提高 α 反而最糟**——KE 684% > CEXP-037 hard gate 283% > CEXP-016 GradNorm 111%。α 越大 over-predict 越兇（7.84× vs 3.83× vs 2.12×）。
+  - **真實機制**：在 sparse **wake-only** sensor 下，加重 body penalty（強制 body u=0）但 body 區**無 sensor 校正** → NN 為同時滿足「body=0」與「fit wake sensor」，在 wake 過度補償得更厲害。α 越大，這個無 sensor 校正的補償越失控。Zhu 的方法在他們的設定（可能有更密 observation / 不同 sensor 分佈）有效，但**我們 K=100 wake-only 的稀疏度下不適用**。
+  - **確認 Finding #8 是根本**：cylinder hard/penalty BC 全失敗（CEXP-016/021/022/037/038）的共同根因不是 optimizer（GradNorm）、不是 gate vs penalty 形式、不是 α 強度，而是 **body 區沒有 sensor supervision** 這個結構性問題。任何「強制 body=0」的機制 + 「無 sensor 校正」都會在 wake over-energy。
+  - **下一步**：所有「在 primitive variable 上強制 body BC」的路線（gate / soft penalty / α-tuning）已系統性證明失敗。剩下唯一未試、且文獻最強訊號的方向 = **stream-function（div-free 架構）**——它不靠「強制 body velocity=0 + sensor 校正」，而是讓 body 成為 ψ 的 level-set，從架構消除 over-energy 機制。建議重新評估走 stream-function（使用者先前否決，但 primitive-variable 路線現已窮盡）。
+  - 流程：嚴守鐵律——train job 3793 完成 → 送 eval 3796 → 等 COMPLETED → 序列讀 log + summary.json → **才**寫數字。無並行 read+write+commit，無捏造。
 
 - **2026-05-31 CEXP-037 hard BC + 固定權重（❌ 失敗 KE 283%，推翻 Finding #6 單一歸因）**:
   - CEXP-037 = CEXP-002 + `use_hard_body_bc=true` + `use_gradnorm=false`（固定權重）+ `bc_body_n_points=0`。Slurm job 3773 train + 3785 eval。
