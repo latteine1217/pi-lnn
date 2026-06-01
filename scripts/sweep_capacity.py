@@ -119,7 +119,7 @@ def generate_config(variant: dict) -> Path:
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--run", action="store_true", help="實際執行 train+eval（預設僅生成 config + 印計畫）。")
-    p.add_argument("--only", type=str, default=None, help="只處理指定 variant id（如 exp_265_cap_liquid_tau）。")
+    p.add_argument("--only", type=str, default=None, help="只處理指定 variant id（如 exp_285_cap_liquid_tau）。")
     p.add_argument("--device", choices=["auto", "cpu", "mps", "cuda"], default=None, help="覆蓋 config device。")
     return p.parse_args()
 
