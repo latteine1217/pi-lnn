@@ -9,13 +9,13 @@ CfC-DeepONet 容量診斷 sweep：固定 K=100 / DNS / seed，掃描三條容量
   ceiling 仍有距離 → 架構/訓練瓶頸；plateau 且貼近 ceiling → 資訊論硬上限。
 
 Sweep 矩陣（base = EXP-094 B3 dns-pivot seed=2, KE 9.4% baseline）：
-  - exp_260_cap_baseline   : 對照錨點（無 override）
-  - exp_261_cap_width128   : d_model 256→128（width 下界）
-  - exp_262_cap_width512   : d_model 256→512（width 上界）
-  - exp_263_cap_rank128    : operator_rank 256→128（rank 下界）
-  - exp_264_cap_rank512    : operator_rank 256→512（rank 上界；注意 separable DeepONet
+  - exp_280_cap_baseline   : 對照錨點（無 override）
+  - exp_281_cap_width128   : d_model 256→128（width 下界）
+  - exp_282_cap_width512   : d_model 256→512（width 上界）
+  - exp_283_cap_rank128    : operator_rank 256→128（rank 下界）
+  - exp_284_cap_rank512    : operator_rank 256→512（rank 上界；注意 separable DeepONet
                              「大 p + 大 r 塌成 trivial solution」退化風險）
-  - exp_265_cap_liquid_tau : cfc_input_dependent_tau=true（恢復 input-dependent 液態 τ）
+  - exp_285_cap_liquid_tau : cfc_input_dependent_tau=true（恢復 input-dependent 液態 τ）
 
 What: 讀 base TOML → 套 override → 生成隔離 artifacts 的 config（含 provenance header）。
 Why: 6 份近乎相同的手寫 TOML 違反 DRY；generator 讓 sweep 可重跑、override 一目了然。
@@ -23,7 +23,7 @@ Why: 6 份近乎相同的手寫 TOML 違反 DRY；generator 讓 sweep 可重跑�
 預設 dry-run：只生成 config + 印執行計畫（不燒計算）。
   uv run python scripts/sweep_capacity.py                 # 生成 config + 印計畫
   uv run python scripts/sweep_capacity.py --run           # 依序 train+eval 全部變體
-  uv run python scripts/sweep_capacity.py --run --only exp_265_cap_liquid_tau
+  uv run python scripts/sweep_capacity.py --run --only exp_285_cap_liquid_tau
 
 注意（KNOWN_PITFALLS）：
   - resume 系統禁用 → 每個變體必須 1-shot 從 scratch 跑完，勿中斷。
@@ -44,12 +44,12 @@ ARTIFACT_ROOT = "artifacts/kolmogorov/cap_sweep"
 
 # 每個變體：相對 base 的 override（其餘繼承 EXP-094 baseline）。
 SWEEP: list[dict] = [
-    {"id": "exp_260_cap_baseline",   "axis": "baseline",  "desc": "對照錨點（= EXP-094 B3, static τ, d_model=256, rank=256）", "overrides": {}},
-    {"id": "exp_261_cap_width128",   "axis": "width",     "desc": "width↓: d_model 256→128", "overrides": {"d_model": 128}},
-    {"id": "exp_262_cap_width512",   "axis": "width",     "desc": "width↑: d_model 256→512", "overrides": {"d_model": 512}},
-    {"id": "exp_263_cap_rank128",    "axis": "rank",      "desc": "rank↓: operator_rank 256→128", "overrides": {"operator_rank": 128}},
-    {"id": "exp_264_cap_rank512",    "axis": "rank",      "desc": "rank↑: operator_rank 256→512（separable DeepONet 大p+大r 退化風險）", "overrides": {"operator_rank": 512}},
-    {"id": "exp_265_cap_liquid_tau", "axis": "liquid-τ",  "desc": "cfc_input_dependent_tau=true（恢復 input-dependent 液態時間常數）", "overrides": {"cfc_input_dependent_tau": True}},
+    {"id": "exp_280_cap_baseline",   "axis": "baseline",  "desc": "對照錨點（= EXP-094 B3, static τ, d_model=256, rank=256）", "overrides": {}},
+    {"id": "exp_281_cap_width128",   "axis": "width",     "desc": "width↓: d_model 256→128", "overrides": {"d_model": 128}},
+    {"id": "exp_282_cap_width512",   "axis": "width",     "desc": "width↑: d_model 256→512", "overrides": {"d_model": 512}},
+    {"id": "exp_283_cap_rank128",    "axis": "rank",      "desc": "rank↓: operator_rank 256→128", "overrides": {"operator_rank": 128}},
+    {"id": "exp_284_cap_rank512",    "axis": "rank",      "desc": "rank↑: operator_rank 256→512（separable DeepONet 大p+大r 退化風險）", "overrides": {"operator_rank": 512}},
+    {"id": "exp_285_cap_liquid_tau", "axis": "liquid-τ",  "desc": "cfc_input_dependent_tau=true（恢復 input-dependent 液態時間常數）", "overrides": {"cfc_input_dependent_tau": True}},
 ]
 
 

@@ -73,7 +73,7 @@ CfC/LTC 的表達力**整個來源**是 input- 與 state-dependent 的 per-neuro
 ### 3.2 Separable (PI-)DeepONet：大 p 小 r（CMAME 2024，3-0）
 trunk latent 分解成 hidden dim `p` × tensor rank `r`。**實證最佳 = 大 p + 小 r；同時放大 p 與 r 會塌成 trivial solution。**
 → 啟示：擴容量放在 **hidden 寬度**，不是無腦放大 rank；rank 過大有明確退化風險。
-⚠️ 此結論在 Burgers 方程得到，外推到 2D Kolmogorov 需自證（故 sweep 含 rank 上界 exp_264 監測退化）。
+⚠️ 此結論在 Burgers 方程得到，外推到 2D Kolmogorov 需自證（故 sweep 含 rank 上界 exp_284 監測退化）。
 
 ### 3.3 POD-DeepONet 對照（3-0）
 固定 POD basis 取代學習式 trunk、branch 只學係數。可作「固定 vs 學習 trunk」ablation。
@@ -87,15 +87,15 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 ## [SECTION 4] 容量診斷 sweep 設計
 
 **腳本**: `scripts/sweep_capacity.py`（dry-run 生成 config；`--run` 執行）。
-**生成 config**: `configs/generated/exp_260~265_cap_*.toml`（base = EXP-094 B3 dns-pivot seed=2, KE 9.4%）。
+**生成 config**: `configs/generated/exp_280~285_cap_*.toml`（base = EXP-094 B3 dns-pivot seed=2, KE 9.4%）。
 固定 K=100 / DNS / seed=2，掃三軸：
 
 | EXP | 變動 | 監測重點 |
 |---|---|---|
-| 260 baseline | 無（對照錨點）| 基準 KE/E(k) |
-| 261 / 262 | d_model 128 / 512（width）| width plateau 點 |
-| 263 / 264 | operator_rank 128 / 512（rank）| rank plateau；264 監測 separable 退化 |
-| 265 | `cfc_input_dependent_tau=true`（liquid τ）| §1 修法是否改善中頻 |
+| 280 baseline | 無（對照錨點）| 基準 KE/E(k) |
+| 281 / 282 | d_model 128 / 512（width）| width plateau 點 |
+| 283 / 284 | operator_rank 128 / 512（rank）| rank plateau；284 監測 separable 退化 |
+| 285 | `cfc_input_dependent_tau=true`（liquid τ）| §1 修法是否改善中頻 |
 
 ### 判讀表（plateau vs 資訊上限）
 
@@ -145,6 +145,6 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 | input-dependent τ opt-in flag | `src/pi_con/blocks.py` (CfCCell)、`encoders.py`、`operator.py`、`config.py` | ✅ 已實作 |
 | 回歸測試（11 cases） | `tests/test_cfc_input_dependent_tau.py` | ✅ 11 passed |
 | 容量 sweep generator/driver | `scripts/sweep_capacity.py` | ✅ dry-run 驗證 |
-| 生成 sweep config（6 變體） | `configs/generated/exp_260~265_cap_*.toml` | ✅ load+build OK |
+| 生成 sweep config（6 變體） | `configs/generated/exp_280~285_cap_*.toml` | ✅ load+build OK |
 
 **新增 config keys**（已註冊於 `DEFAULT_PICON_ARGS`）：`cfc_input_dependent_tau`（預設 False）、`cfc_tau_mod_scale`（預設 2.0）。
