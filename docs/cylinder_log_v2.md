@@ -135,6 +135,10 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-036** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + RAR collocation**（physics_collocation_strategy random→rar, freq=1000） | **97.89 %** ❌ | **1.979** | 29.38 | 22.34 | 10k | ❌ **SOAP+RAR 非互換在 cylinder 重演**（CLAUDE.md EXP-053）：L_phys 爆漲（step1000=52.7→step2000=123→step10000=103），GradNorm 把 w_ns_u 壓到 0.006 仍救不回；KE 3.54%→97.9%（28× 惡化），div 22.34（baseline 1.14 的 20×）。freq=1000 在 cylinder 仍不夠（EXP-054 的 ≥1000 下限是 Kolmogorov 均勻格驗證，cylinder 非均勻格更敏感）|
 | **CEXP-037** | `NEGATIVE_RESULT` | Re=10031, **hard BC + 固定權重（no GradNorm）+ bc_body=0** | **283.17 %** ❌ | **3.832** | 17.33 | 6.06 | 10k | ❌ **關掉 GradNorm 仍失敗**：CEXP-016（hard BC+GradNorm）111.6% → CEXP-037（hard BC+固定權重）**283%（反更糟 2.5×）**。**推翻 Finding #6 單一歸因**：GradNorm 不是 hard BC 失敗的唯一元兇；訓練 L_phys 看似穩定（step10000=0.025）但 eval over-predict 3.83× → hard BC gate 本身在 sparse-sensor 下造成 over-energy（同 Finding #8 機制：body 區無 sensor，gate 壓 NN_u → wake 過度補償）|
 | **CEXP-038** | `NEGATIVE_RESULT` | Re=10031, **Zhu soft body penalty α=10（bc_body_weight=100, no gate, no GradNorm）** | **684.16 %** ❌❌❌ | **7.841** | 47.26 | 14.11 | 10k | ❌ **提高 α 反而最糟**：soft body penalty α_eff 0.1→10（Zhu 2025 值）→ KE 從 CEXP-002 3.54% 爆到 684%（over-predict 7.84×，比 CEXP-037 hard gate 283% 更慘）。**推翻 Zhu 單純調 α 的歸因**：在 sparse wake-only sensor 下，加重 body penalty 只是把 over-energy 推得更高（body 強制 u=0 + 無 sensor 校正 → NN 在 wake 補償更兇）。確認 Finding #8 才是根本——body 區無 sensor 是結構問題，非 penalty 強度問題。L_phys 訓練穩定（step10000=0.04）但 eval 災難。|
+| **CEXP-039** | `PENDING_EVAL` | Re=10031, **Sensor-conditioned FiLM（B3-a）**（`use_sensor_film=true`，no geo，CEXP-002 base） | — | — | — | — | 10k | job 3846 訓練中（重提，之前 3827 因 arrow path 未 sed 失敗） |
+| **CEXP-040** | `PENDING_EVAL` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | — | — | — | — | 10k | job 3847 訓練中（重提，之前 3828 因 arrow path 未 sed 失敗） |
+| **CEXP-041** | `NEGATIVE_RESULT` | Re=10031, **random sensor placement K=100 seed=42**（CEXP-002 base，唯一變數：QR-pivot → random） | **251.21 %** ❌❌❌ | **3.513** | 83.95 | 37.47 | 10k | ❌ **資訊論失敗**（非 over-energy 機制）：random sensor 對 wake modes 覆蓋稀疏 → wake 渦街直接消失，KE over-predict 3.51×。無剪切環（不同於 CEXP-037/038）。div 37.47 = 37× baseline（physics 全程未被有效校正）。**修正 Finding #8**：體覆蓋 vs QR 信息效率，後者才是關鍵 |
+| **CEXP-042** | `NEGATIVE_RESULT` | Re=10031, **random placement + collo 1024 + PCGrad**（CEXP-041 + `num_physics_points 64→1024` + `use_pcgrad=true`） | **174.45 %** ❌❌ | **2.744** | 68.62 | 12.61 | 10k | ❌ 仍失敗但相對 CEXP-041 改善：KE 251%→174%（−76pp）；div 37.47→12.61（66% 改善）。**PCGrad 全程負 cos**（data vs physics 持續衝突），gradient surgery 有效（不是 neutral）。但 174% 仍 49× baseline（3.54%），random sensor 資訊論瓶頸未解 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -342,6 +346,11 @@ CEXP-022 = CEXP-016 + cross-attention geometry tokens（body surface points 注�
 > "Body-region reconstruction in obstacle flows requires exactly one constraint source. With wake-concentrated sensors that leave the body region unsupervised, a soft body BC is necessary (removing it lets the unconstrained body region corrupt the entire wake, KE 3.5%→178%). With body-adjacent sensors, the soft body BC instead conflicts with sensor supervision and must be removed (KE 154%→13%). The two constraint sources are mutually exclusive, not additive. The optimal configuration (wake QR-pivot sensors + soft body BC, KE 3.54%) succeeds because the single constraint per region is spatially partitioned: inflow BC anchors the inlet, body BC anchors the obstacle, and information-optimal sensors anchor the wake."
 
 **對 paper 的意義**：這個 2×2 是一個乾淨、可發表的 sensor-placement / BC-design ablation。它把「為何 CEXP-002 work、為何所有改進嘗試失敗」用一個原則解釋完畢。不再是「遇到瓶頸」，而是「已找到設計原則，CEXP-002 正好落在最優格」。
+
+> ⚠️ **2026-06-02 修正（CEXP-041 random placement 揭露更深一層）**：
+> 2×2 表的「hybrid + no body BC」（13.1%）vs CEXP-002（3.54%）的 gap 原本歸因於 hybrid coverage density。CEXP-041 現在進一步揭露：**即使 random placement 完全覆蓋 body 周圍（原來的「缺口」），KE 反而從 3.54% 爆到 251%（71×）**。
+> 這意味 Finding #8 的「恰好一個約束」是必要條件，**但不是充分條件**——sensor 的「資訊論品質」（QR-pivot 抓 wake dominant modes vs random 均勻分佈但 wake 信息稀疏）才是 CEXP-002 成功的更根本原因。
+> **修正後的統一原則**：CEXP-002 成功 = (a) 每區恰好一個約束（Finding #8）+ **(b) sensor 是 wake 動態 modes 的信息論最優佈點（QR-pivot）**。任何破壞 (a) 或 (b) 的操作都崩潰：hybrid 破壞 (a)（雙約束），random 破壞 (b)（信息論劣等）。
 
 ### Finding 9 — CEXP-030 collo 1024 失敗是 ill-posedness，非 GradNorm 失衡（2026-05-29，修正先前歸因）
 
@@ -712,6 +721,23 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 ---
 
 ## 變更紀錄
+
+- **2026-06-02 CEXP-042 random + collo1024 + PCGrad（❌ 失敗 KE 174%，但 div 大幅改善）**:
+  - CEXP-042 = CEXP-041（random placement）+ `num_physics_points 64→1024` + `use_pcgrad=true`。SLURM job 3841 train，head node CPU eval。
+  - **實測（eval PID 3240140，summary.json 2026-06-02）：KE 174.45%（late 174.42%），ke_pred/ref 2.744×，omega 68.62，div(PI-CON) 12.61，div(DNS ref) 8.74，u_rmse 0.5247，v_rmse 0.1325。**
+  - **PCGrad 有效 gradient surgery**：pc_cos 全程大部分負（step3000 = −0.95，最強衝突），data vs physics 確實持續衝突，PCGrad 在做投影（非 neutral）。
+  - **相對 CEXP-041 改善**：KE 251%→174%（−77pp）；div 37.47→12.61（66% 改善）——dense collocation（1024 points）有效強化 physics supervision。但 174% 仍是 baseline 3.54% 的 **49×**，random sensor 的資訊論瓶頸是根本限制。
+  - **新 finding**：GradNorm w_cont 膨脹至 10.4（step10000），說明 continuity 任務被 GradNorm 放大 10×——與 Finding #3（cylinder div 比 Kolmogorov 差 292×）一致，continuity 在 cylinder 非均勻格確實需要更多「調度資源」。
+  - **vs CEXP-030（QR + collo1024, KE 610%）**：random + collo1024 + PCGrad（174%）明顯好於 QR + collo1024（610%），但兩者基底不同（random base vs QR base），不能直接比較 collo 效果。
+  - 流程：序列化：train job 3841 done → CPU eval（head node cuda 不相容，改 cpu） → find summary.json nested path → 讀取確認數字 → 寫 log。嚴守鐵律。
+  - **FiLM jobs 3827/3828 已在本次 session 重提為 3846/3847**（原失敗原因：arrow path 未 sed，commit 4a121e8 的 dynamic n_repeat bug 已修，本次修路徑後重送）。
+
+- **2026-06-02 CEXP-041 random sensor placement（❌ 失敗 KE 251%，修正 Finding #8）**:
+  - CEXP-041 = CEXP-002 + random sensor placement（唯一變數：QR-pivot → random seed=42 K=100）。SLURM eval + CPU head node eval。
+  - **實測（summary.json 確認）：KE 251.21%（late 250.92%），ke_pred/ref 3.513×，omega 83.95，div 37.47，u_rmse 0.6046，v_rmse 0.0847。**
+  - **修正 Finding #8 解讀**：原歸因「body 區無 sensor 校正」→ random 補 body 周圍 sensor 後 KE 反而從 3.54%（QR）退化到 251%（random），高 71×。
+  - **真實瓶頸 = sensor 資訊效率**：QR-pivot 抓 wake 主要動態 modes（前 r=100 正交基底），random 均勻分佈但 wake modes 覆蓋稀疏 → 渦街直接消失；div 37.47（QR baseline 1.14 的 33×）= physics 全程缺乏 sensor 校正。
+  - **修正 Finding #8 標題**：「sensor 資訊效率（QR wake modes）> 空間覆蓋（random 含 body 區）」。 finding text 見下方 Finding #8 修正版（2026-06-02）。
 
 - **2026-05-31 CEXP-038 Zhu soft body penalty α-rebalancing（❌ 失敗 KE 684%，推翻「調 α 即可」歸因）**:
   - CEXP-038 = CEXP-002 + soft body no-slip penalty（非 gate）+ `bc_body_weight=100`（α_eff = bc_loss_weight 0.1 × 100 = 10，Zhu 2025 值）+ `use_gradnorm=false`。Slurm job 3793 train + 3796 eval。新增 src key `bc_body_weight`（commit 6d90d9a）。
