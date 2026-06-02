@@ -139,6 +139,7 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-040** | `PENDING_EVAL` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | — | — | — | — | 10k | job 3847 訓練中（重提，之前 3828 因 arrow path 未 sed 失敗） |
 | **CEXP-041** | `NEGATIVE_RESULT` | Re=10031, **random sensor placement K=100 seed=42**（CEXP-002 base，唯一變數：QR-pivot → random） | **251.21 %** ❌❌❌ | **3.513** | 83.95 | 37.47 | 10k | ❌ **資訊論失敗**（非 over-energy 機制）：random sensor 對 wake modes 覆蓋稀疏 → wake 渦街直接消失，KE over-predict 3.51×。無剪切環（不同於 CEXP-037/038）。div 37.47 = 37× baseline（physics 全程未被有效校正）。**修正 Finding #8**：體覆蓋 vs QR 信息效率，後者才是關鍵 |
 | **CEXP-042** | `NEGATIVE_RESULT` | Re=10031, **random placement + collo 1024 + PCGrad**（CEXP-041 + `num_physics_points 64→1024` + `use_pcgrad=true`） | **174.45 %** ❌❌ | **2.744** | 68.62 | 12.61 | 10k | ❌ 仍失敗但相對 CEXP-041 改善：KE 251%→174%（−76pp）；div 37.47→12.61（66% 改善）。**PCGrad 全程負 cos**（data vs physics 持續衝突），gradient surgery 有效（不是 neutral）。但 174% 仍 49× baseline（3.54%），random sensor 資訊論瓶頸未解 |
+| **CEXP-043** | `NEGATIVE_RESULT` | Re=10031, **QR-pivot + collo 1024 + PCGrad**（CEXP-002 base + `num_physics_points 64→1024` + `use_pcgrad=true`） | **309.38 %** ❌❌ | **4.093** | 34.25 | 5.78 | 10k | ❌ PCGrad 使 CEXP-030（610%）減半→309%，但仍失敗 87×。div 5.78（physics enforcement 更強）；KE 反比 random 版 CEXP-042（174%）更差——QR wake-only supervision + collo1024 形成更強 spurious attractor，PCGrad 僅部分壓制。paradox：div 更好（5.78 < 12.61）但 KE 更差（309% > 174%）= QR ill-posedness 比 random 更深 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -721,6 +722,18 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 ---
 
 ## 變更紀錄
+
+- **2026-06-02 CEXP-043 QR-pivot + collo1024 + PCGrad（❌ 失敗 KE 309%，PCGrad 使 CEXP-030 610%→309%）**:
+  - CEXP-043 = CEXP-002（QR-pivot baseline）+ `num_physics_points 64→1024` + `use_pcgrad=true`。SLURM job 3853（elapsed 2h09m），CPU eval。
+  - **實測（summary.json 確認）：KE 309.38%（late 313.47%），ke_pred/ref 4.093×，omega 34.25，div(PI-CON) 5.78，div(DNS ref) 8.74，u_rmse 0.4784，v_rmse 0.2549。**
+  - **PCGrad 有效但不充分**：vs CEXP-030（QR+collo1024 no PCGrad，KE 610%）→ PCGrad 使 KE 減半（610%→309%），w_ns_u=2.07/w_cont=1.52（相對 CEXP-042 的 5.84/10.40 溫和很多）。pc_cos 全程負（最低 -0.955）= data-physics 持續衝突，gradient surgery 有在運作。
+  - **[PARADOX] div 更好但 KE 更差**：CEXP-043 div 5.78 < CEXP-042 div 12.61（QR 物理 enforcement 更強），但 KE 309% > CEXP-042 的 174%。更好的 physics compliance 反而對應更差的 field 重建 → 確認 **Finding #9 ill-posedness**：NS residual 低 ≠ 解正確，spurious NS-consistent manifold 存在。
+  - **QR ill-posedness 比 random 更深**：random（174%）優於 QR（309%），反轉 CEXP-002（QR 3.54% vs 251%）的相對關係。原因：QR sensor 集中 wake → collo 1024 在全域（含無 sensor 的上游/邊界）強力施加 NS → wake 強 data pull + 全域 physics push = 更猛烈衝突，形成更強 spurious attractor。random sensor 全域分散 → physics fill-in 更均勻，spurious attractor 較弱。
+  - **統一三方比較（QR+collo1024 ablation）**：
+    - CEXP-030（no PCGrad）：610%，7.49 div
+    - CEXP-043（PCGrad）：309%，5.78 div
+    - PCGrad effect on QR: −301pp KE，−1.71 div（改善但遠不夠）
+  - 流程：train job 3853 done → 確認 final.pt → CPU eval（GTX1050 arch 不相容）→ find nested summary.json → 讀取確認 → 寫 log。
 
 - **2026-06-02 CEXP-042 random + collo1024 + PCGrad（❌ 失敗 KE 174%，但 div 大幅改善）**:
   - CEXP-042 = CEXP-041（random placement）+ `num_physics_points 64→1024` + `use_pcgrad=true`。SLURM job 3841 train，head node CPU eval。
