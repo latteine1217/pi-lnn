@@ -1114,6 +1114,11 @@ Decision gates 評估:
 
 # §15 變更紀錄
 
+- **2026-06-01 (EXP-274/275 AL-delayed + L-BFGS finetune 路線結案)**:
+  - EXP-274: AL dual update 延後 step≥10000 + phase2 L-BFGS finetune 5000 步（all seed=42 vs EXP-271 baseline），DNS 指標統計不可區分（KE 4.571% ≈ baseline 4.692%，noise 內）。
+  - EXP-275: 發現 phase2 L-BFGS 誤用 `lr=1e-3`（SOAP LR），深收斂點零更新（no-op）。systematic-debugging 確認根因：L-BFGS+strong_wolfe 應 `lr=1.0`。修法後重跑，phase2 確實優化（l_data 1.33e-6→1.12e-7），但 DNS 指標仍不動（KE 4.886%，+0.19pp）。
+  - **最終結論**: L-BFGS finetune training loss 能降，但不轉化為 DNS 重建改善。瓶頸為 K=100 資訊論上限。phase2 finetune 路線整體放棄；fix（`lbfgs_finetune_lr=1.0`）保留，feature 停用。
+  - 新增 `lbfgs_finetune_lr`（default 1.0）、`lbfgs_finetune_fixed_batch`、`al_start_step` 三個 config key（全預設停用，向後相容）。7 tests passed。
 - **2026-05-27 (narrative 重組)**:
   - 把 v2 從「按時間/編號群組」改為「按主線敘事」結構：§1 主線 / §2 延伸 / §3-§7 五條對照 / §8 inference / §9 diagnostics
   - 新增 §7 **vs Classical Interpolation**：從 `docs/archive/squeeze_report_2026-05-11.md` 整合 RBF×3 / IDW / div-free trig LSQ + SVD null-space + Pareto trade
@@ -1148,8 +1153,13 @@ Decision gates 評估:
 
 ## EXP-274 — AL delayed-start + Phase2 L-BFGS finetune（訓練策略探索）
 
-**日期**: 2026-05-31 ｜ **狀態**: ✅ 已評估（job 3750, 4h49m）— **neutral result：與 baseline 統計不可區分，不採用（無可測量增益）**
+**日期**: 2026-05-31 ｜ **狀態**: ✅ 已評估（job 3750, 4h49m）— **neutral result（但前提已更正，見下）**
 **Config**: `configs/exp_274_al_delay_lbfgs.toml`（派生 EXP-271, DNS QR-pivot oracle, seed=42）
+
+> ⚠️ **更正（2026-06-01，EXP-275 調查後）**: EXP-274 的 phase2 L-BFGS 因 `lr=1e-3`（誤用 SOAP LR）
+> 在深收斂點退化成**零權重更新（no-op）**。當時評估的 final.pt = 主 phase y_t，與 phase2 無關。
+> 因此 EXP-274「phase2 neutral」的前提（phase2 有在更新權重）**不成立**，結論係偶然正確：
+> bug 修正後（EXP-275, lr=1.0），phase2 確實在優化，但 DNS 指標仍不改善——route 放棄的結論不變。
 
 **Why**: 探索兩個訓練策略：(1) AL dual update 延後到 step≥10000、freq 100→500（早期 λ 凍結在 0，
 僅留 ρ 二次罰，讓 data/NS 先收斂，後期才用 λ 線性項收緊 continuity）；(2) 主 phase (SOAP 20k)
@@ -1292,10 +1302,12 @@ freq≥1000 才穩的機制）。phase2 逐步 l_data 軌跡證實：5000 步在
 
 **唯一變因（vs EXP-274）**: `lbfgs_finetune_fixed_batch` False→True（steps/max_iter/history/AL 全同）
 
-**Falsifiability（三分支判讀）**:
-- (a) l_data 仍鋸齒不降 → curvature 假設錯，失效另有原因（y_t 已最優 / 無可榨空間）
-- (b) l_data 單調降但 DNS KE/div 退步 → 過擬合固定 collocation（救優化傷泛化）→ phase2 路線不可行
-- (c) l_data 單調降且 DNS 指標改善 → fixed batch 為正確修法，EXP-274 確為設計錯配
+**Falsifiability（三分支判讀）— 實際結果**:
+- (a) l_data 仍鋸齒不降 → ❌（EXP-275 fix 後 l_data 正常下降至 1.12e-7）
+- (b) l_data 單調降但 DNS KE/div 退步或不動 → **✅ 實際落此分支**（DNS 指標統計不可區分）
+- (c) l_data 單調降且 DNS 指標改善 → ❌
+
+→ **結論: 優化 proxy(loss) 不等於改善 DNS 重建。route 放棄（見上方最終評估）。**
 
 ---
 
