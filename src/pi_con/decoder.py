@@ -269,7 +269,7 @@ class DeepONetCfCDecoder(nn.Module):
     def _apply_sensor_film(
         self,
         trunk_feat: torch.Tensor,        # [M, hidden]，M = N (forward) 或 3N (forward_uvp)
-        h_branch_tokens: torch.Tensor,   # [N, d_model] per-query sensor hidden（== query_mlp_hidden_dim）
+        h_branch_tokens: torch.Tensor,   # [N, K, d_model] 或 [N, d_model]
         body_distance: torch.Tensor | None,  # [N] or [N,1] or None
         n_repeat: int,                   # 1 (forward) 或 3 (forward_uvp)
     ) -> torch.Tensor:
@@ -278,20 +278,30 @@ class DeepONetCfCDecoder(nn.Module):
         Why: 不在 velocity output 強制 body=0（已證 over-energy），改用 sensor 狀態
              大域調制 trunk feature。conditioning 來自有 supervision 的 sensor，
              結構性回避「body 區無校正」根因（Finding #8）。
+
+        h_branch_tokens 形狀說明：
+            - 若 temporal encoder 輸出 [T, K, d_model]，則 h_states[idx] = [N, K, d_model]（3D）。
+            - 3D 時對 K tokens 做 mean pooling → 得到 [N, d_model] summary。
+            - 2D [N, d_model] 時直接使用（test / legacy path）。
         """
         if not self.use_sensor_film:
             return trunk_feat
-        cond = h_branch_tokens                                       # [N, hidden]
+        # 若 h_branch_tokens 是 [N, K, d_model]（從 h_states 直接切出），先 mean over K 維
+        # Why: film_mlp 期望 1D per-query conditioning；K sensor tokens 的平均是最自然的全局摘要。
+        if h_branch_tokens.dim() == 3:
+            cond = h_branch_tokens.mean(dim=-2)                      # [N, d_model]
+        else:
+            cond = h_branch_tokens                                   # [N, d_model]（2D legacy/test）
         if self.film_use_geometry:
             if body_distance is None:
                 raise ValueError(
                     "film_use_geometry=True 但 _apply_sensor_film body_distance=None；"
                     "請傳入 dataset.query_body_distance_torch(xy)。"
                 )
-            cond = torch.cat([cond, body_distance.reshape(-1, 1)], dim=-1)  # [N, hidden+1]
-        gb = self.film_mlp(cond)                                     # [N, 2·hidden]
+            cond = torch.cat([cond, body_distance.reshape(-1, 1)], dim=-1)  # [N, d_model+1]
+        gb = self.film_mlp(cond)                                     # [N, 2·d_model]
         hidden = gb.shape[-1] // 2
-        gamma, beta = gb[:, :hidden], gb[:, hidden:]                # [N, hidden] each
+        gamma, beta = gb[..., :hidden], gb[..., hidden:]            # [N, hidden] each（... 保持維度中性）
         if n_repeat > 1:
             gamma = gamma.repeat(n_repeat, 1)                       # [3N, hidden]
             beta = beta.repeat(n_repeat, 1)
