@@ -1078,6 +1078,23 @@ Decision gates 評估:
 | Classical interpolation re-benchmark vs EXP-245 20k | 目前 squeeze report 對比 EXP-080 legacy 10.68%；新 baseline 5.71% 下 Pareto trade 重算 | 待開工（paper polish 用）|
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論（傾向維持獨立 v2）|
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
+| **PCGrad: 方法本質無效 vs 我們的設定壓抑** | EXP-pcgrad NEUTRAL (KE −0.15pp, 雜訊級) — 但有 4 個混淆變因未控制 | 待判讀（見下方分離設計）|
+
+### PCGrad NEUTRAL 結果的混淆變因（要分離「方法 vs 設定」需逐一控制）
+
+當前結論只證明「在此 setup 下無顯著增益」。要回答「是 PCGrad 本質無效還是我們壓抑了它」，需控制：
+
+1. **GradNorm/AL 已先吸收衝突**（最可能主因）：PCGrad 是對「已被 GradNorm 平衡的梯度」再投影。
+   應加測 **PCGrad-only（關 GradNorm + 關 AL，固定 weight）** vs GradNorm-only vs 兩者疊加 → 看 PCGrad 單獨是否有效。
+2. **cosine 量在 trunk_out，投影在全參數**：診斷用 trunk_out 小參考層（cos≈0），但投影對全模型。
+   兩者衝突結構可能不同；應在**全參數**上量 cosine 再判斷投影是否真有對象。
+3. **單 seed**：0.15pp ≪ seed std (~1–2pp)。應 **n=3–5 seed** 才能把雜訊級訊號與真實效果分開。
+4. **對稱投影 + 2-group**：本實驗用對稱 + physics 合併。可能（a）非對稱「保護 data」更合本問題；
+   （b）per-task 4-group 捕捉 ns/cont 內部衝突。兩者均未測。
+
+> 判讀傾向：變因 1（GradNorm+AL 已平衡）最可能是主因 —— cosine≈0 本身就是「衝突已被既有機制吸收」的證據，
+> 而非「本質無衝突」。即 **PCGrad 不是無效，而是在此 pipeline 中與 GradNorm 角色重疊、邊際貢獻被前者吃掉**。
+> 若要 paper-grade 結論，最小可分離實驗 = 變因 1（PCGrad-only vs GradNorm-only，單 seed 即可初判）。
 
 ---
 
@@ -1197,7 +1214,7 @@ Decision gates 評估:
 
 ## EXP-275 — L-BFGS fixed-batch 診斷（驗證 EXP-274 phase2 失效機制）
 
-**日期**: 2026-05-31 ｜ **狀態**: ✅ 根因確認 + 已修（bug）— **phase2 L-BFGS lr 誤用 1e-3，深收斂點零更新致 loss 凍結**
+**日期**: 2026-05-31 / 重跑 2026-06-01 ｜ **狀態**: ✅ 已評估（job 3821, 7h24m）— **negative result：phase2 lr=1.0 解凍，但 DNS 指標無改善**
 **Config**: `configs/exp_275_lbfgs_fixed_batch.toml`
 
 ### 🐛 根因（systematic-debugging 確認，2026-05-31）
@@ -1233,7 +1250,31 @@ search 回傳零步），非浮點微小累積。「已達最優」也已被 PRO
 **兩次都是 no-op**（權重未更新）。先前所有「phase2 neutral / L-BFGS 對此問題無增益」的結論**前提錯誤**，
 作廢。**「L-BFGS finetune 是否真能改善 DNS 重建」這個原始問題，修法後尚未測試** → 需重跑 EXP-275（lr=1.0）才有答案。
 
-**下一步（待使用者決定）**: 用修法後程式碼重跑 EXP-275（phase2 lr=1.0），首次真正測試 L-BFGS finetune 效果。
+### 最終評估結果（2026-06-01，job 3821，真實 summary.json）
+
+**phase2 解凍確認 ✅**：l_data 首步 1.33e-6（vs 舊凍結值 5.94e-4，低 446×），正常單調下降。fix 生效。
+
+**DNS 評估（皆 seed=42 final.pt，`evaluate_deeponet_cfc.py` 真實輸出）**:
+
+| 指標 | EXP-271 baseline | EXP-275 (lr=1.0) | Δ |
+|---|---|---|---|
+| KE rel-err | 4.692% | 4.886% | **+0.19pp ↑** |
+| u rel-L2 | 15.33% | 15.18% | −0.15pp |
+| v rel-L2 | 18.11% | 17.84% | −0.27pp |
+| ω rel-L2 | 42.36% | 41.38% | −0.98pp |
+| Ens rel-err | 23.29% | 22.66% | −0.63pp |
+| **div ratio** | **0.36%** | **0.85%** | **+0.48pp ↑** |
+| k_f amp ratio | 98.64% | 98.99% | +0.35pp |
+
+**結論（negative result）**:
+1. **fix 本身正確**：phase2 解凍，L-BFGS 真正在更新權重（l_data 從 1.33e-6→1.12e-7）。
+2. **DNS 指標無系統性改善**：KE 微差（+0.19pp）、div 升（+0.48pp 但仍 < DNS floor 1.04%）、
+   場量（u/v/ω/Ens）微好但全落在單 seed noise（σ≈0.06pp）內 → 統計不可區分。
+3. **根本結論**：L-BFGS finetune 的 training loss 能繼續降，但**不轉化為 DNS 重建改善**。
+   瓶頸仍在 K=100 sensor 的資訊論上限，不是優化器能力。EXP-274 的「neutral」結論
+   雖然來自 no-op（bug），但結論方向**偶然正確**——無論 L-BFGS 是否真在優化，DNS 指標都不動。
+4. **phase2 finetune 路線整體放棄**。`lbfgs_finetune_steps` 預設 0（停用）；
+   `lbfgs_finetune_lr=1.0` 的 fix 保留（正確化 config），但 feature 本身不採用。
 
 ---
 
@@ -1255,3 +1296,60 @@ freq≥1000 才穩的機制）。phase2 逐步 l_data 軌跡證實：5000 步在
 - (a) l_data 仍鋸齒不降 → curvature 假設錯，失效另有原因（y_t 已最優 / 無可榨空間）
 - (b) l_data 單調降但 DNS KE/div 退步 → 過擬合固定 collocation（救優化傷泛化）→ phase2 路線不可行
 - (c) l_data 單調降且 DNS 指標改善 → fixed batch 為正確修法，EXP-274 確為設計錯配
+
+---
+
+## EXP-cosdiag / EXP-pcgrad — PCGrad gradient surgery 與 GradNorm 協作探索（**NEUTRAL，保留 optional flag 不納主線**）
+
+**日期**: 2026-06-01 ｜ **狀態**: ✅ 已評估（jobs 3748/3770 訓練 + 3788/3789 eval）
+**Config**: `configs/exp_cosdiag_b3_dnspivot.toml`（診斷）、`configs/exp_pcgrad_b3_dnspivot.toml`（ablation）
+**基底**: EXP-094（B3, 4-task GradNorm + AL, DNS-pivot K=100, seed=2）。**唯一變因 = `use_pcgrad` False→True**。
+
+**Why**: 評估 PCGrad（Yu et al. 2020, gradient surgery）是否值得與既有 GradNorm 整合。
+兩者理論正交：GradNorm 調梯度**大小**（loss 權重），PCGrad 調梯度**方向**（投影掉衝突分量）。
+
+### 步驟 1：cosine 前置診斷（先證明衝突是否存在，再決定要不要做 PCGrad）
+
+新增 `gradient_cosine_diagnostic`（`losses.py`，沿用 GradNorm trunk_out 參考層，純觀測不改 `.grad`），
+每 50 步量 data vs physics 梯度 cosine。
+
+| 指標 | mean | min | max | neg_frac |
+|---|---|---|---|---|
+| `cos(data, phys)` | **−0.0025** | −0.333 | +0.195 | 0.48 |
+| `cos(data, cont)` | −0.0035 | −0.169 | +0.134 | 0.53 |
+
+→ **data/physics 梯度大致正交、非系統性對抗**（mean≈0、neg_frac≈隨機 0.5）。
+GradNorm + AL 已吸收張力。標準 PCGrad 動機（持續衝突）**不成立** → 預期增益微弱。
+
+### 步驟 2：PCGrad 2-group 對稱投影（即使診斷不看好，仍實作量化驗證）
+
+`pcgrad_two_group_backward`（`losses.py`）：data group vs physics group（ns_u+ns_v+cont 合併），
+cos<0 時投影掉互相抵銷分量，取代 `l_total.backward()`；AL/BC 不進投影（解耦）。
+`use_pcgrad` config flag（需 use_gradnorm）。單元測試 6 passed。
+
+> ⚠️ **過程教訓（已修正）**: 首版 commit `a5c36fa` 漏接主迴圈 backward 分支（取代 Edit 失敗未察覺），
+> 導致 job 3761 仍走標準 backward、與 EXP-cosdiag **位元相同**。`5396b43` 修正後 job 3770 才真正投影
+> （wall-clock 1.65× + 軌跡分歧確認）。**教訓：結構性 Edit 後必須驗證目標呼叫實際出現在程式碼（grep 計數），compile pass 不足以證明（半套碼也能編譯）。**
+
+### DNS eval 對照（jobs 3788/3789，evaluate_deeponet_cfc，同 evaluator/DNS/sensor）
+
+| 指標（↓ 越低越好）| pcgrad | cosdiag (標準 backward) | Δ |
+|---|---|---|---|
+| **KE rel-err (mean)** | **9.69 %** | 9.84 % | −0.15 pp |
+| KE rel-err (val) | 8.96 % | 9.16 % | −0.20 pp |
+| sensor MSE @K（工程主指標）| 0.003134 | 0.003178 | −1.4 % |
+| div L2 | 0.0668 | 0.0674 | −0.9 % |
+| 低頻 band rel-err | 6.56 % | 6.71 % | −0.15 pp |
+| u/v/ω rel-L2 | 0.201/0.240/0.518 | 0.202/0.242/0.520 | ≈ 持平 |
+| wall-clock | 1:49 | 1:06 | **1.65×** |
+
+**結論**: PCGrad 全面**微幅**優於 baseline（KE −0.15pp、sensor −1.4%），方向一致為正、無傷 main message，
+但 **幅度（0.15pp）≪ seed 間變異（EXP-094 multiseed KE std ~1–2pp）→ 單 seed 不可宣稱顯著**。
+與 cosine 診斷自洽：cos≈0 → 投影僅偶發生效 → 增益必然微弱。**成本 1.65× 換雜訊級改善，不值得納主線。**
+
+**決定**: `use_pcgrad` 保留為 optional flag（預設 false）。程式碼留存無害（有測試 + cosine 診斷佐證為何不開），
+作為乾淨 ablation 證據：「試過 gradient surgery，診斷顯示 data/physics 無系統性衝突，實測確認增益雜訊級」。
+
+**⚠️ Open question（未解，待判讀）**: 「PCGrad 本質無效」vs「我們的設定壓抑了 PCGrad」尚無法區分。
+本實驗只證明「在當前 setup（GradNorm+AL 已平衡 + 單 seed + trunk_out 量衝突 + 對稱投影）下無顯著增益」。
+若要分離方法本質，需控制下列混淆變因（見 §13 Open Questions）。
