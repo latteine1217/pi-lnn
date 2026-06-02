@@ -1,0 +1,129 @@
+# configs/exp_cylinder_044_random_collo1024_pcgrad_liquid_tau.toml
+# CEXP-044 = CEXP-042 + cfc_input_dependent_tau = true（liquid time-constant）
+#
+# 設計目的：
+#   CEXP-042 基礎（random + collo1024 + PCGrad，KE 174%）加入 liquid tau。
+#   Cylinder wake 流場存在多尺度動態：
+#     - near-body：快速渦流剝離（短 τ）
+#     - far wake：緩慢對流/耗散（長 τ）
+#   Static τ（CEXP-042）對所有 sensor token 使用相同時間尺度；
+#   liquid τ 讓 CfC 依輸入 (x,h) 動態調制 τ，理論上能更好捕捉多尺度。
+#
+# Liquid τ 機制（blocks.py CfCCell）：
+#   log τ = log_tau_a + tau_mod_scale · tanh(time_a(xh))
+#   time_a zero-init → 啟動時調制 = 0，τ 等於 static，
+#   梯度啟動後逐漸偏離→ adaptive。tanh 保證 τ 有界（≠ exp 梯度爆炸）。
+#   tau_mod_scale = 2.0 → τ 動態範圍：[τ₀·e^-2, τ₀·e^+2]（±2 log-unit，約 7× span）
+#
+# Falsifiability：
+#   KE < 174%（CEXP-042）→ liquid τ 確實幫助捕捉 cylinder 多尺度
+#   KE ≈ 174%            → liquid τ NEUTRAL（random sensor 資訊才是瓶頸）
+#   KE > 174%            → liquid τ 在 random base 下有害（over-adaptation？）
+#
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_random_K100_cylinder_Re10031_seed42.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_random_K100_cylinder_Re10031_seed42_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# 空間編碼
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true   # cylinder 必要：u_std~0.15，黏性項否則被壓掉
+
+# 時間
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# 模型容量（CEXP-042 相同）
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# CfC 時間常數（本次唯一架構變因）
+cfc_input_dependent_tau = true   # liquid time-constant：τ 由 (x,h) 動態調制
+cfc_tau_mod_scale = 2.0          # tanh 調制幅度：±2 log-unit（預設值）
+cfc_log_tau_min = -1.0           # 靜態起點下界（預設值，保持與 CEXP-042 一致）
+cfc_log_tau_max = 1.0            # 靜態起點上界（預設值）
+
+# Physics loss
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# Inflow BC loss（CEXP-042 相同）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# GradNorm（CEXP-042 相同）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# PCGrad（CEXP-042 相同）
+use_pcgrad = true
+
+# Time marching（CEXP-042 相同）
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+# Optimizer（CEXP-042 相同）
+iterations = 10000
+num_physics_points = 1024
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp044-random-collo1024-pcgrad-liquid-tau"
