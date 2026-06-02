@@ -1,0 +1,93 @@
+# configs/exp_pcgradonly_b3_dnspivot.toml
+# What: PCGrad 變因 1 分離實驗的「PCGrad-only」（無 GradNorm / 無 AL / PCGrad 投影）。
+#       與 exp_pcgradonly_b3_dnspivot.toml 唯一差 use_pcgrad（此檔 true）。
+#
+# Why: EXP-pcgrad（PCGrad + GradNorm + AL）NEUTRAL，無法分離「PCGrad 本質」vs「GradNorm/AL
+#      已吸收衝突」。本組關掉 GradNorm/AL，用固定 weight，讓 PCGrad 單獨上場：
+#        - PCGrad-only 顯著贏此 baseline → PCGrad 本質有效，先前 NEUTRAL = 設定壓抑（變因 1 成立）
+#        - PCGrad-only 也沒贏       → PCGrad 在此問題本質無效
+#
+# 固定 weight（近似 EXP-094 GradNorm 收斂值 ns≈cont≈0.1-0.12 相對 data=1）：
+#   physics_loss_weight = 0.1, continuity_weight = 1.0（→ l_physics = l_ns + 1.0*l_cont, ×0.1）
+# 架構/資料/seed 與 EXP-094 完全一致。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = [
+  "data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy",
+]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+
+# 架構與 EXP-094 完全一致
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Loss weights（固定，無 GradNorm/AL 動態）
+data_loss_weight = 1.0
+physics_loss_weight = 0.1
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+
+physics_collocation_strategy = "random"
+
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+
+iterations = 10000
+num_physics_points = 64
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+# GradNorm / AL 全關（變因 1 分離核心）
+use_gradnorm = false
+use_augmented_lagrangian = false
+
+# PCGrad 開（此檔為 PCGrad-only 處理組）
+use_pcgrad = true
+cosine_diag_freq = 50
+
+checkpoint_period = 500
+device = "mps"
+use_sensor_physics = false
+
+artifacts_dir = "artifacts/kolmogorov/exp_pcgradonly_b3_dnspivot"
+
+seed = 2

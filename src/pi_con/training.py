@@ -433,10 +433,13 @@ def train_picon_kolmogorov(
         list(net.query_decoder.trunk_out.parameters()) if cos_diag_freq > 0 else []
     )
     # PCGrad 2-group 對稱 gradient surgery（取代 l_total.backward）。
-    # 僅在 use_gradnorm + phys_active 時生效；否則退回標準路徑。
+    # 兩種模式：
+    #   (A) use_gradnorm=True：對 GradNorm 加權後梯度投影（主路徑，EXP-pcgrad）。
+    #   (B) use_gradnorm=False：PCGrad-only ablation（變因 1 分離；data/physics 用固定 weight，
+    #       不可同時開 AL，否則 physics group 定義含 AL dual penalty 動態，污染對照）。
     use_pcgrad = bool(args.get("use_pcgrad", False))
-    if use_pcgrad and not use_gradnorm:
-        raise ValueError("use_pcgrad=True 需 use_gradnorm=True（PCGrad 對 GradNorm 加權後梯度投影）")
+    if use_pcgrad and not use_gradnorm and bool(args.get("use_augmented_lagrangian", False)):
+        raise ValueError("PCGrad-only（use_gradnorm=False）不可同時開 AL — 否則 physics group 含 AL 動態，污染分離對照")
 
     # AL setup（spec v4 §3 / §4；EXP-242 系列：multi-constraint）
     # `al_multipliers: dict[name, AL]` 支援多 constraint 共用 hyperparams (v1)。
@@ -1494,6 +1497,21 @@ def train_picon_kolmogorov(
                     l_total.backward()
                     torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                     optimizer.step()
+            elif use_pcgrad and int(args["num_physics_points"]) > 0:
+                # PCGrad-only ablation（變因 1 分離，無 GradNorm / 無 AL）：
+                # 固定 weight 組 data group vs physics group，cos<0 時對稱投影。
+                # BC（若有）不進投影，由 extra_loss accumulate。
+                _data_loss = args["data_loss_weight"] * l_data
+                _phys_loss = phys_weight * l_physics
+                _extra = _bc_weight * l_bc_total if _bc_weight > 0.0 else None
+                pc_cos = pcgrad_two_group_backward(
+                    _data_loss, _phys_loss, list(net.parameters()), extra_loss=_extra,
+                )
+                l_total = (
+                    _data_loss + _phys_loss + (_extra if _extra is not None else 0.0)
+                ).detach()
+                torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
+                optimizer.step()
             else:
                 # 非 GradNorm 路徑（包含 EXP-070 純 AL）
                 if al_term is not None:
