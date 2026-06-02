@@ -1,0 +1,105 @@
+# configs/exp_276_lbfgs_fixed_data_only.toml
+# What: EXP-276 — phase2 L-BFGS「固定 data + 重採 physics」（修正 EXP-275 過擬合問題）
+# Why: EXP-275（fixed_data + fixed_phys）發現「固定 physics collocation 導致代價轉移」——
+#      l_cont 在 1024 固定點降 86%，但全域 div_ratio 反而從 0.36% 惡化到 0.85%。
+#      根因：3M param 模型在 1024 固定點滿足 NS，可以在其他地方推高 div（過擬合）。
+#
+# 設計（EXP-276）：
+#   - lbfgs_finetune_fixed_data=True：sensor query batch 固定（data loss 一致，curvature history 有效）
+#   - lbfgs_finetune_fixed_phys=False：physics collocation 每步重採（真實覆蓋 [0,1]² × [0,5]，
+#     與 phase1 隨機採樣精神一致，防止物理約束集中在固定點）
+#
+# Hypothesis（SCIENTIFIC_HYPOTHESIS_PROTOCOL）:
+#   - 預期解決: physics collocation 每步重採 → 物理約束真正作用在整個域 → 全域 div 不惡化
+#   - Expected_Change: 全域 div_ratio ≤ EXP-271 baseline (0.36%)；
+#     KE rel-err 與 EXP-271 (4.69%) 持平或改善
+#   - Falsifiability:
+#     (a) div_ratio 仍惡化 → 問題不是 fixed_phys，而是 L-BFGS 在深收斂點本身有害
+#     (b) div 改善但 KE 退步 → data fixed 但 physics 重採導致 data/physics 目標衝突
+#     (c) 兩者皆改善或持平 → 「固定 data + 重採 physics」為 L-BFGS finetune 的正確組合
+#
+# 嚴格單變因對照（vs EXP-275）：
+#   - lbfgs_finetune_fixed_phys: True → False（唯一改動）
+#   - 其餘（lbfgs_finetune_fixed_data=True, steps=5000, max_iter=20, lr=1.0, lr=1.0,
+#     history=10, al_start_step=10000, freq=500, phase1 全部設定, seed=42）全 byte-identical
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 500
+al_start_step = 10000
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+lbfgs_finetune_steps = 5000
+lbfgs_finetune_fixed_data = true    # data batch 固定（curvature history 有效）
+lbfgs_finetune_fixed_phys = false   # EXP-276 唯一變因：physics 每步重採（全域覆蓋）
+lbfgs_finetune_fixed_batch = false  # 明示舊旗標 = False，不 override 上方設定
+lbfgs_finetune_lr = 1.0
+lbfgs_max_iter = 20
+lbfgs_history_size = 10
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp276-lbfgs-fixed-data-only"

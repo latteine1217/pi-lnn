@@ -221,3 +221,56 @@ def test_phase2_lbfgs_lr_configurable(tmp_path, monkeypatch):
     })
     lr = _capture_phase2_lbfgs_lr(monkeypatch, cfg)
     assert lr == pytest.approx(0.5), f"lbfgs_finetune_lr 未生效，實得 {lr}"
+
+
+def test_fixed_data_resample_phys(tmp_path):
+    """lbfgs_finetune_fixed_data=True + lbfgs_finetune_fixed_phys=False：
+    data batch 固定（同批 sensor query）、physics 每步重採（不同 collocation）。
+
+    驗證 physics collocation 跨步不同（隨機重採），data batch 跨步相同（固定）。
+    """
+    import torch
+
+    sampled_phys: list[str] = []
+    sampled_data: list[str] = []
+
+    # 攔截 sample_physics_points 和 sample_sensor_batch
+    import kolmogorov_dataset as kd
+
+    _orig_phys = kd.KolmogorovDataset.sample_physics_points
+    _orig_data = kd.KolmogorovDataset.sample_sensor_batch
+
+    def spy_phys(self, rng, n, t_max=None, strategy="random"):
+        xy, t = _orig_phys(self, rng, n, t_max=t_max, strategy=strategy)
+        sampled_phys.append(str(xy[:3].round(4).tolist()))
+        return xy, t
+
+    def spy_data(self, rng, n, t_max=None):
+        xy, tq, c, ref = _orig_data(self, rng, n, t_max=t_max)
+        sampled_data.append(str(xy[:3].round(4).tolist()))
+        return xy, tq, c, ref
+
+    kd.KolmogorovDataset.sample_physics_points = spy_phys
+    kd.KolmogorovDataset.sample_sensor_batch = spy_data
+    try:
+        cfg = _base_cfg(tmp_path)
+        cfg.update({
+            "iterations": 3,
+            "al_start_step": 0,
+            "lbfgs_finetune_steps": 3,
+            "lbfgs_max_iter": 2,
+            "lbfgs_finetune_fixed_data": True,
+            "lbfgs_finetune_fixed_phys": False,
+        })
+        train_picon_kolmogorov(cfg, log_fn=None)
+    finally:
+        kd.KolmogorovDataset.sample_physics_points = _orig_phys
+        kd.KolmogorovDataset.sample_sensor_batch = _orig_data
+
+    # phase2 的 data 採樣：只在第一步採一次（共 1 次 phase2 data 採樣）
+    # phase1 有 3 步，所以 sampled_data[:3] 是 phase1 的，剩下是 phase2 的
+    phase2_data = sampled_data[3:]
+    phase2_phys = sampled_phys[3:]
+    assert len(set(phase2_data)) == 1, "fixed_data=True: data batch 應全步相同"
+    assert len(phase2_phys) >= 2  # 至少有 2 步 physics 採樣
+    assert len(set(phase2_phys)) > 1, "fixed_phys=False: physics 應每步重採（不同）"
