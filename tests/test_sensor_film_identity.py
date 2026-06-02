@@ -49,6 +49,18 @@ def test_film_3n_batch_repeats_correctly():
     assert torch.allclose(out, feat, atol=1e-6)
 
 
+def test_film_dynamic_repeat_matches_explicit():
+    """forward path 中 n_repeat 動態計算（trunk/h 比值）應與顯式傳入一致。"""
+    d = _mk(True, False)
+    feat = torch.randn(10, 64)  # 2N, N=5
+    h = torch.randn(5, 64)
+    out_explicit = d._apply_sensor_film(feat, h, None, n_repeat=2)
+    # 動態版：trunk_feat.shape[0] // h.shape[0] = 2
+    n_repeat_dyn = feat.shape[0] // h.shape[0]
+    out_dyn = d._apply_sensor_film(feat, h, None, n_repeat=n_repeat_dyn)
+    assert torch.allclose(out_explicit, out_dyn, atol=1e-7)
+
+
 def test_film_geometry_requires_distance():
     d = _mk(True, True)
     feat = torch.randn(5, 64)

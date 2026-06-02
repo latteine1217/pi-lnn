@@ -549,7 +549,8 @@ class DeepONetCfCDecoder(nn.Module):
         else:
             for block in self.trunk_blocks:
                 trunk_feat = block(trunk_feat)
-        trunk_feat = self._apply_sensor_film(trunk_feat, h_branch_tokens, body_distance, n_repeat=1)
+        _n_repeat_fwd = trunk_feat.shape[0] // h_branch_tokens.shape[0]   # 動態：N→1, 2N→2, 3N→3
+        trunk_feat = self._apply_sensor_film(trunk_feat, h_branch_tokens, body_distance, n_repeat=_n_repeat_fwd)
         trunk_feat = self._apply_trunk_geo_context(trunk_feat, xy)
 
         trunk_basis = self.trunk_out(trunk_feat).view(-1, 3, self.rank)
