@@ -107,6 +107,40 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 
 **關鍵分離實驗**：固定架構容量做 **K-scaling（K ∈ {100, 200, 400}）**。中高頻隨 K 改善 → 資訊上限；不隨 K 改善 → 架構 spectral bias。目前本專案論述把兩者混在一起，此實驗可分離歸因。
 
+### [SECTION 4.1] 實測結果（EXP-280~285，2026-06-01，jobs 3805~3810/3817）
+
+**訓練**：lab-server r740 RTX 3090，10k steps，~1.1hr/job；**eval**：`evaluate_deeponet_cfc.py`，DNS offline benchmark。
+
+| EXP | 變動 | KE rel% | band_low% | band_mid% | band_high% | div_l2 |
+|---|---|---|---|---|---|---|
+| **094（歷史 B3，K=100 seed=2）** | baseline | **9.4%** | — | — | — | — |
+| 280 | 本次 baseline（複製 EXP-094）| 9.84 | 6.71 | 83.1 | ≫100 | 0.0674 |
+| 281 | **width 128（↓）** | 11.18 | 8.05 | 84.0 | ≫100 | 0.0702 |
+| 282 | **width 512（↑）** | **9.44** | **6.36** | **81.4** | ≫100 | **0.0644** |
+| 283 | **rank 128（↓）** | 9.64 | 6.53 | 82.7 | ≫100 | 0.0666 |
+| 284 | **rank 512（↑）** | 9.68 | 6.56 | 82.8 | ≫100 | 0.0676 |
+| **285** | **liquid τ（↑）** | **10.23** | **7.13** | **83.1** | ≫100 | 0.0679 |
+
+> band_high ≫100% 為 K=100 Nyquist ceiling 正常現象（sensor k_max≈5.64，高頻資訊論硬上限）。
+
+#### 判讀（對照 §4 判讀表）
+
+**width 軸**：128 退步 1.34pp，512 改善 0.40pp → 256 **接近 plateau 下界**，再往上邊際效益極小。不是主要瓶頸。
+
+**rank 軸**：128/256/512 三點 KE 差距 <0.25pp → **已達完全 plateau**。改 rank 無效，符合 separable DeepONet「大 p+r 退化」預警（§3.2）。
+
+**liquid τ（exp_285）**：KE 10.23% > baseline 280 的 9.84%，**略退步**。band_low 7.13% vs 6.71% 也退步。§1 修法的 falsification：input-dependent τ 在此設定（10k steps、zero-init time_a）無收益。可能原因：time_a zero-init 導致前期梯度極小、10k steps 不足讓液態 τ 學到有效調制。若要公平測試需要更多 steps 或 non-zero init。
+
+**整體判讀**：全部 6 個 KE 落在 **9.4~11.2% 的 1.8pp 窄區間**，三個旋鈕改善幅度均 ≤1pp。
+
+→ 符合判讀表第三行：**metric plateau 且貼近 K=100 Nyquist ceiling（理論最佳 7.77%）→ 瓶頸是資訊論硬上限，改架構已無顯著空間。**
+
+#### 結論與下一步
+
+- **不再在 width/rank/liquid τ 方向投資**（數據明確 plateau）。
+- **K-scaling 是唯一有文獻支援的突破路徑**（K: 100→200→400，對應 EXP-269/270 系列）。
+- liquid τ 若要深入測試：20k steps + non-zero time_a init，才能與 10k zero-init 做公平比較。
+
 ---
 
 ## [SECTION 5] 被駁回的主張與 Open Questions（誠實標註）

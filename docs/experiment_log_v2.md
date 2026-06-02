@@ -1365,3 +1365,45 @@ cos<0 時投影掉互相抵銷分量，取代 `l_total.backward()`；AL/BC 不�
 **⚠️ Open question（未解，待判讀）**: 「PCGrad 本質無效」vs「我們的設定壓抑了 PCGrad」尚無法區分。
 本實驗只證明「在當前 setup（GradNorm+AL 已平衡 + 單 seed + trunk_out 量衝突 + 對稱投影）下無顯著增益」。
 若要分離方法本質，需控制下列混淆變因（見 §13 Open Questions）。
+
+---
+
+## EXP-280~285 — CfC-DeepONet 容量診斷 sweep（**CONCLUDED：資訊論硬上限，非架構瓶頸**）
+
+**日期**: 2026-06-01 ｜ **狀態**: ✅ 已評估（jobs 3805~3810 train + job 3817 eval）
+**Config**: `configs/generated/exp_280~285_cap_*.toml`（generator: `scripts/sweep_capacity.py`）
+**基底**: EXP-094（B3, 4-task GradNorm + AL, DNS-pivot K=100, seed=2, KE 9.4%）。
+**動機**: deep-research 發現本專案把 CfC liquid time-constant 凍結成 static 參數（§1 falsification 目標），同時診斷 width/rank 容量是否已飽和。
+
+### Sweep 矩陣
+
+| EXP | 變動 | train job | eval job |
+|---|---|---|---|
+| 280 | baseline（d256/r256/static τ）| 3805 | 3817 |
+| 281 | d_model 128（width↓）| 3806 | 3817 |
+| 282 | d_model 512（width↑）| 3807 | 3817 |
+| 283 | operator_rank 128（rank↓）| 3808 | 3817 |
+| 284 | operator_rank 512（rank↑）| 3809 | 3817 |
+| 285 | cfc_input_dependent_tau=true（liquid τ）| 3810 | 3817 |
+
+### DNS offline benchmark（evaluate_deeponet_cfc.py）
+
+| EXP | KE rel% | band_low% | band_mid% | div_l2 |
+|---|---|---|---|---|
+| **094（歷史基準）** | **9.4** | — | — | — |
+| 280 baseline | 9.84 | 6.71 | 83.1 | 0.0674 |
+| 281 width128 | 11.18 | 8.05 | 84.0 | 0.0702 |
+| 282 width512 | **9.44** | **6.36** | **81.4** | **0.0644** |
+| 283 rank128 | 9.64 | 6.53 | 82.7 | 0.0666 |
+| 284 rank512 | 9.68 | 6.56 | 82.8 | 0.0676 |
+| **285 liquid τ** | 10.23 | 7.13 | 83.1 | 0.0679 |
+
+### 結論
+
+**width 軸**：128 退步（11.18%）、512 微改善（9.44%），256→512 邊際效益 0.4pp，接近 plateau。
+**rank 軸**：128/256/512 差距 <0.25pp → **完全 plateau**，改 rank 無意義。
+**liquid τ（exp_285）**：KE 10.23% 比 baseline **略退步** 0.4pp → §1 修法在 10k steps / zero-init 下的 falsification。非長期否定 liquid τ 概念，但在此設定無收益。
+**整體**：全部落在 9.4~11.2% 的 1.8pp 窄區間 → **metric plateau 且貼近 K=100 Nyquist ceiling（理論最佳 7.77%）→ 瓶頸是資訊論硬上限，不是架構容量**。
+
+**決定**：不再在 width/rank/liquid τ 方向投資。突破路徑為 K-scaling（EXP-269/270 系列）。
+詳見 `docs/research/2026-06-01-cfc-capacity-study.md §4.1`。
