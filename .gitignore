@@ -35,6 +35,10 @@ wandb/
 # Editor / local settings
 .claude/
 
+# Secrets (local only — never commit)
+.env
+*.token
+
 # Claude / agent instructions (local only)
 AGENTS.md
 CLAUDE.md

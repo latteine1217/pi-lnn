@@ -72,6 +72,85 @@ def unsteady_ns_residuals(
     return mom_u, mom_v, cont
 
 
+def channel_ns_residuals(
+    uvwp_fn: Callable,
+    xyzt: torch.Tensor,
+    re: float,
+    body_force_x: float = 0.0,
+    Lx: float = 1.0,
+    Ly: float = 1.0,
+    Lz: float = 1.0,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """What: 3D incompressible NS（channel flow）的 momentum(u,v,w) 與 continuity 殘差。
+
+    Why: channel 是首個 3D + wall-bounded case。相較 2D `unsteady_ns_residuals`，
+         多 w 分量、z 方向梯度、z 方向二階黏性，continuity 加 dw_dz。
+         Forcing 改為 constant streamwise body force（取代 mean dP/dx，對應 Lethe
+         flow-control 維持 U_b），物理值 body_force_x = u_τ²/h。
+         不改既有 2D 函數 → Kolmogorov/Cylinder zero regression。
+
+    Coordinate chain rule (Lx, Ly, Lz):
+        xyzt 正規化到 [0,1]，output 為物理 m/s。
+        d/dx_phys = d/dx_norm / Lx；d²/dx²_phys = d²/dx²_norm / Lx²（y,z 同理）。
+        channel full domain: Lx=8π, Ly=2, Lz=3π。
+
+    Args:
+        uvwp_fn: callable，xyzt[N,4] -> [N,4]（u,v,w,p，物理量級）。
+        xyzt:    [N,4] = (x,y,z,t) normalized，requires_grad=True。
+        re:      Reynolds number，ν = 1/re。
+        body_force_x: constant streamwise driving force（= u_τ²/h）。
+        Lx,Ly,Lz: 物理域長度，chain-rule 尺度因子。
+
+    Returns:
+        (mom_u, mom_v, mom_w, cont)，各 [N,1]，物理量級。
+    """
+    uvwp = uvwp_fn(xyzt)                                   # [N, 4]
+    u = uvwp[:, 0:1]
+    v = uvwp[:, 1:2]
+    w = uvwp[:, 2:3]
+    p = uvwp[:, 3:4]
+    u_g = _grad(u, xyzt)
+    v_g = _grad(v, xyzt)
+    w_g = _grad(w, xyzt)
+    p_g = _grad(p, xyzt)
+    # 一階 normalized（index 0=x, 1=y, 2=z, 3=t）
+    du_dx_n, du_dy_n, du_dz_n, du_dt = u_g[:, 0:1], u_g[:, 1:2], u_g[:, 2:3], u_g[:, 3:4]
+    dv_dx_n, dv_dy_n, dv_dz_n, dv_dt = v_g[:, 0:1], v_g[:, 1:2], v_g[:, 2:3], v_g[:, 3:4]
+    dw_dx_n, dw_dy_n, dw_dz_n, dw_dt = w_g[:, 0:1], w_g[:, 1:2], w_g[:, 2:3], w_g[:, 3:4]
+    dp_dx_n, dp_dy_n, dp_dz_n = p_g[:, 0:1], p_g[:, 1:2], p_g[:, 2:3]
+    # 二階 normalized（沿各自方向）
+    du_dx2_n = _grad(du_dx_n, xyzt)[:, 0:1]
+    du_dy2_n = _grad(du_dy_n, xyzt)[:, 1:2]
+    du_dz2_n = _grad(du_dz_n, xyzt)[:, 2:3]
+    dv_dx2_n = _grad(dv_dx_n, xyzt)[:, 0:1]
+    dv_dy2_n = _grad(dv_dy_n, xyzt)[:, 1:2]
+    dv_dz2_n = _grad(dv_dz_n, xyzt)[:, 2:3]
+    dw_dx2_n = _grad(dw_dx_n, xyzt)[:, 0:1]
+    dw_dy2_n = _grad(dw_dy_n, xyzt)[:, 1:2]
+    dw_dz2_n = _grad(dw_dz_n, xyzt)[:, 2:3]
+    sx, sy, sz = float(Lx), float(Ly), float(Lz)
+    # chain rule → 物理梯度
+    du_dx, du_dy, du_dz = du_dx_n / sx, du_dy_n / sy, du_dz_n / sz
+    dv_dx, dv_dy, dv_dz = dv_dx_n / sx, dv_dy_n / sy, dv_dz_n / sz
+    dw_dx, dw_dy, dw_dz = dw_dx_n / sx, dw_dy_n / sy, dw_dz_n / sz
+    dp_dx, dp_dy, dp_dz = dp_dx_n / sx, dp_dy_n / sy, dp_dz_n / sz
+    du_dx2, du_dy2, du_dz2 = du_dx2_n / sx ** 2, du_dy2_n / sy ** 2, du_dz2_n / sz ** 2
+    dv_dx2, dv_dy2, dv_dz2 = dv_dx2_n / sx ** 2, dv_dy2_n / sy ** 2, dv_dz2_n / sz ** 2
+    dw_dx2, dw_dy2, dw_dz2 = dw_dx2_n / sx ** 2, dw_dy2_n / sy ** 2, dw_dz2_n / sz ** 2
+    nu = 1.0 / float(re)
+    lap_u = du_dx2 + du_dy2 + du_dz2
+    lap_v = dv_dx2 + dv_dy2 + dv_dz2
+    lap_w = dw_dx2 + dw_dy2 + dw_dz2
+    adv_u = u * du_dx + v * du_dy + w * du_dz
+    adv_v = u * dv_dx + v * dv_dy + w * dv_dz
+    adv_w = u * dw_dx + v * dw_dy + w * dw_dz
+    mom_u = du_dt + adv_u + dp_dx - nu * lap_u - body_force_x
+    mom_v = dv_dt + adv_v + dp_dy - nu * lap_v
+    mom_w = dw_dt + adv_w + dp_dz - nu * lap_w
+    cont = du_dx + dv_dy + dw_dz
+    return mom_u, mom_v, mom_w, cont
+
+
 def pressure_poisson_residual(
     uvp_fn: Callable,
     xyt: torch.Tensor,

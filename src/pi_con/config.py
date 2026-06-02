@@ -168,6 +168,12 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                                           # 改 iterations 不會 implicit 改 warmup。
     "domain_length": 1.0,
     "use_periodic_domain": True,
+    # --- 3D spatial / channel flow 支援（2D 預設向後相容）---
+    "num_spatial_dims": 2,           # 空間維度：2 (Kolmogorov/Cylinder) 或 3 (channel)
+    "num_velocity_components": 3,    # decoder output 分量數：3 (u,v,p) 或 4 (u,v,w,p)
+    "Lz": 1.0,                       # z 域長度，NS chain-rule 用（僅 3D channel）
+    "periodic_axes": None,           # per-axis 週期：None=沿用 use_periodic_domain 對所有軸；
+                                     # list 如 [0,2]=只 x,z 週期（channel y 壁面非週期）
     # NS residual 路徑是否反正規化 model output 到物理量級。
     # True  → 用 dataset.observed_channel_mean/std 反算，與物理 ν=1/Re commensurate；
     #         cylinder 主線需要（u_std~0.15，黏性項 ν∇²u 否則被壓掉）。
