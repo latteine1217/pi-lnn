@@ -382,11 +382,19 @@ def make_picon_model_fn(
     net_device = next(iter(net.parameters())).device
     if h_states is None or s_time is None:
         h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
-    # Stage 2: body_distance_fn 對 hard BC (output gate) 或 SDF input feature (trunk concat) 都需要。
-    _need_bd = bool(getattr(net, "use_hard_body_bc", False)) or bool(getattr(net, "use_body_distance_feature", False))
+    # body_distance_fn 對以下三種情況都需要：
+    #   1. use_hard_body_bc=True：output gate = (φ/scale).clamp(0,1)
+    #   2. use_body_distance_feature=True：trunk input concat raw φ
+    #   3. film_use_geometry=True（B3-b）：FiLM conditioning 包含 body_distance
+    _need_bd = (
+        bool(getattr(net, "use_hard_body_bc", False))
+        or bool(getattr(net, "use_body_distance_feature", False))
+        or bool(getattr(net.query_decoder, "film_use_geometry", False))
+    )
     if _need_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 或 use_body_distance_feature=True 但 make_picon_model_fn() 沒收到 body_distance_fn"
+            "model use_hard_body_bc/use_body_distance_feature/film_use_geometry=True 但 "
+            "make_picon_model_fn() 沒收到 body_distance_fn"
         )
 
     def model_fn(xyt: torch.Tensor, c: int) -> torch.Tensor:
@@ -422,10 +430,15 @@ def make_picon_model_fn_uvp(
     net_device = next(iter(net.parameters())).device
     if h_states is None or s_time is None:
         h_states, s_time = net.encode(sensor_vals, sensor_pos, re_norm, sensor_time)
-    _need_bd = bool(getattr(net, "use_hard_body_bc", False)) or bool(getattr(net, "use_body_distance_feature", False))
+    _need_bd = (
+        bool(getattr(net, "use_hard_body_bc", False))
+        or bool(getattr(net, "use_body_distance_feature", False))
+        or bool(getattr(net.query_decoder, "film_use_geometry", False))
+    )
     if _need_bd and body_distance_fn is None:
         raise ValueError(
-            "model use_hard_body_bc=True 或 use_body_distance_feature=True 但 make_picon_model_fn_uvp() 沒收到 body_distance_fn"
+            "model use_hard_body_bc/use_body_distance_feature/film_use_geometry=True 但 "
+            "make_picon_model_fn_uvp() 沒收到 body_distance_fn"
         )
 
     def model_fn_uvp(xyt: torch.Tensor) -> torch.Tensor:
