@@ -1078,7 +1078,9 @@ Decision gates 評估:
 | Classical interpolation re-benchmark vs EXP-245 20k | 目前 squeeze report 對比 EXP-080 legacy 10.68%；新 baseline 5.71% 下 Pareto trade 重算 | 待開工（paper polish 用）|
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論（傾向維持獨立 v2）|
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
-| **PCGrad: 方法本質無效 vs 我們的設定壓抑** | EXP-pcgrad NEUTRAL (KE −0.15pp, 雜訊級) — 但有 4 個混淆變因未控制 | 待判讀（見下方分離設計）|
+| **PCGrad: 方法本質無效 vs 我們的設定壓抑** | **已分離（變因 1）**：PCGrad-only KE −0.11pp（單 seed 雜訊級），cos≈0 為本質特徵 → 結論：data/physics 正交是本質，非 GN/AL 壓抑 | ✅ 2026-06-02 |
+| **EXP-281/282/283 對等 ablation（B0/B1/B2 × n=5 @ 20k）** | **已提交排隊**（slurm job 3866–3880, r740）。補 Table 4.6 training-budget 對等性：原 B0/B1/B2 = 10k×single seed vs B3(EXP-245) = 20k×n=5，加 `time_marching_warmup_steps=2000` 對齊 fixed-step warmup。結果待跑完 eval → 補表並判讀 cross-attn/CfC 主效應 | 🔄 SUBMITTED 2026-06-03 |
+| **Paper 圖補強 #3–#6**（mean profile / temporal / dissipation / opt-diagnostics） | **已完成**（seed42 fields eval）：mean ⟨u⟩(y) rel-L2 **1.55%**、Reynolds ⟨u'v'⟩(y) rel-L2 **8.61%**、enstrophy/dissipation deficit **26.4%**(t≥1)、time decorr τ_1/e DNS **0.375s** vs PI-CON **0.400s**、AL λ_cont 單調→**0.39**。圖存 `thesis/figures/results/{mean_profile_reynolds,temporal_consistency,dissipation_budget,optimization_diagnostics}.pdf` | ✅ 2026-06-03 |
 
 ### PCGrad NEUTRAL 結果的混淆變因（要分離「方法 vs 設定」需逐一控制）
 
@@ -1362,9 +1364,18 @@ cos<0 時投影掉互相抵銷分量，取代 `l_total.backward()`；AL/BC 不�
 **決定**: `use_pcgrad` 保留為 optional flag（預設 false）。程式碼留存無害（有測試 + cosine 診斷佐證為何不開），
 作為乾淨 ablation 證據：「試過 gradient surgery，診斷顯示 data/physics 無系統性衝突，實測確認增益雜訊級」。
 
-**⚠️ Open question（未解，待判讀）**: 「PCGrad 本質無效」vs「我們的設定壓抑了 PCGrad」尚無法區分。
-本實驗只證明「在當前 setup（GradNorm+AL 已平衡 + 單 seed + trunk_out 量衝突 + 對稱投影）下無顯著增益」。
-若要分離方法本質，需控制下列混淆變因（見 §13 Open Questions）。
+**✅ 變因 1 分離結論（EXP-pcgradonly / EXP-fixedwbaseline, jobs 3835/3836/3843/3844, 2026-06-02）**:
+
+| 指標 | fixedwbaseline（無GN/AL/PCGrad）| pcgradonly（無GN/AL，純PCGrad）| Δ |
+|---|---|---|---|
+| KE rel-err | 8.06% | **7.95%** | −0.11pp |
+| sensor MSE | 0.001601 | **0.001566** | −2.2% |
+| cos neg_frac（全程）| 0.475 | 0.505 | ≈ 同（兩者均≈隨機） |
+
+→ PCGrad-only 增益 0.11pp，與 GN+AL 疊加時的 0.15pp 量級相同 → **移除 GN/AL 後 PCGrad 增益未顯著放大**。
+且兩組 cos neg_frac 均為 ~0.50（= 隨機），表示 cos≈0 是本質特徵，非 GN/AL 吸收後才成立。
+
+**修正判斷**：原先「GN/AL 壓抑 PCGrad」假說部分成立但無法確認。更可能是 **data/physics 梯度正交是此問題的本質**（K=100 欠定系統中，兩組梯度在共享 backbone 上天然接近正交），PCGrad 的投影不論 GN/AL 存否效益均微弱。若要 paper-grade 結論需 n≥3 seed，但成本不符優先度。**決定維持：保留 optional flag，不納主線。**
 
 ---
 
