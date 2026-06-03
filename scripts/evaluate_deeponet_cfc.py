@@ -13,7 +13,6 @@ from typing import Any
 import matplotlib
 matplotlib.use("Agg")
 import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import matplotlib.pyplot as plt
@@ -105,6 +104,14 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Dump per-time-step arrays (KE, divergence ratio, u/v error, kf amp/phase, "
             "band errors) as series.npz inside output_dir for multi-seed envelope aggregation."
+        ),
+    )
+    parser.add_argument(
+        "--export_fields",
+        action="store_true",
+        help=(
+            "額外存全場 (u,v,omega)[t,x,y] pred+ref 與 grid 至 fields.npz，"
+            "供 mean-profile / Reynolds-stress / 時間頻譜後處理（不影響 series.npz）。"
         ),
     )
     return parser.parse_args()
@@ -582,9 +589,9 @@ def plot_energy_spectrum(
     """
     mask_ref = e_ref > 0.0
     mask_pred = e_pred > 0.0
-    fig, ax = plt.subplots(figsize=(3.6, 2.8), constrained_layout=True)
-    ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#1f77b4", linestyle="-", label="DNS")
-    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#d62728", linestyle="--", label="PI-CON")
+    fig, ax = plt.subplots(figsize=(5.5, 2.8), constrained_layout=True)
+    ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#000000", linestyle="-", label="DNS")
+    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#D55E00", linestyle="--", label="PI-CON")
 
     # k^(-5/3) Kolmogorov 慣性區參考線（anchor 在 k_forcing 對應的 DNS 能量上）
     k_grid_all = k_ref[mask_ref]
@@ -599,13 +606,14 @@ def plot_energy_spectrum(
     ax.axvline(k_forcing, color="black", linestyle="-.", linewidth=0.8,
                label=f"$k_f={k_forcing:.0f}$")
     if k_sensor_nyquist is not None and k_sensor_nyquist > 0:
-        ax.axvline(k_sensor_nyquist, color="#2ca02c", linestyle="--", linewidth=0.9,
+        ax.axvline(k_sensor_nyquist, color="#009E73", linestyle="--", linewidth=0.9,
                    label=fr"$k_{{\max}}\!\approx\!{k_sensor_nyquist:.2f}$")
     ax.set_xlabel(r"Wavenumber $k$ [1/m]")
     ax.set_ylabel(r"Energy $E(k)$ [m$^3$/s$^2$]")
     ax.grid(True, which="both", alpha=0.25)
-    ax.legend(loc="best", fontsize=7)
+    ax.legend(loc="best")
     fig.savefig(output_path)
+    fig.savefig(output_path.with_suffix(".pdf"))
     plt.close(fig)
 
 
@@ -781,9 +789,9 @@ def main() -> None:
         _sf_mode = checkpoint_payload.get("schedulefree_mode", None)
         if _sf_mode == "train":
             print(
-                f"  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
-                f"\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
-                f"\n         若要 best inference 結果，請改用 .../picon_kolmogorov_final.pt"
+                "  [WARN] checkpoint 含 schedulefree_mode='train' (x_t, 給 resume 用)；"
+                "\n         inference quality 比 final.pt (y_t, eval mode) 差 5-30%。"
+                "\n         若要 best inference 結果，請改用 .../picon_kolmogorov_final.pt"
             )
     state = extract_model_state(checkpoint_payload)
     load_model_weights_strict(model, state)
@@ -1282,6 +1290,23 @@ def main() -> None:
             band_high=band_rel_err_series["high"],
         )
         print(f"[export_arrays] wrote {output_dir / 'series.npz'}")
+
+    # 全場時空陣列（pred + ref），供 mean-profile / Reynolds-stress / 時間頻譜後處理。
+    # 與 series.npz 分檔，避免膨脹既有多 seed 聚合流程。
+    if args.export_fields:
+        np.savez_compressed(
+            output_dir / "fields.npz",
+            time=sensor_time,
+            x_grid=x_g,
+            y_grid=y_g,
+            u_pred=u_pred_arr,
+            v_pred=v_pred_arr,
+            omega_pred=omega_pred_arr,
+            u_ref=u_ref_arr,
+            v_ref=v_ref_arr,
+            omega_ref=omega_ref_arr,
+        )
+        print(f"[export_fields] wrote {output_dir / 'fields.npz'}")
 
     assert k_ref is not None and e_ref is not None and k_pred is not None and e_pred is not None
     t_last = float(sensor_time[-1])
