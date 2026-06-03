@@ -135,11 +135,12 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-036** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + RAR collocation**（physics_collocation_strategy random→rar, freq=1000） | **97.89 %** ❌ | **1.979** | 29.38 | 22.34 | 10k | ❌ **SOAP+RAR 非互換在 cylinder 重演**（CLAUDE.md EXP-053）：L_phys 爆漲（step1000=52.7→step2000=123→step10000=103），GradNorm 把 w_ns_u 壓到 0.006 仍救不回；KE 3.54%→97.9%（28× 惡化），div 22.34（baseline 1.14 的 20×）。freq=1000 在 cylinder 仍不夠（EXP-054 的 ≥1000 下限是 Kolmogorov 均勻格驗證，cylinder 非均勻格更敏感）|
 | **CEXP-037** | `NEGATIVE_RESULT` | Re=10031, **hard BC + 固定權重（no GradNorm）+ bc_body=0** | **283.17 %** ❌ | **3.832** | 17.33 | 6.06 | 10k | ❌ **關掉 GradNorm 仍失敗**：CEXP-016（hard BC+GradNorm）111.6% → CEXP-037（hard BC+固定權重）**283%（反更糟 2.5×）**。**推翻 Finding #6 單一歸因**：GradNorm 不是 hard BC 失敗的唯一元兇；訓練 L_phys 看似穩定（step10000=0.025）但 eval over-predict 3.83× → hard BC gate 本身在 sparse-sensor 下造成 over-energy（同 Finding #8 機制：body 區無 sensor，gate 壓 NN_u → wake 過度補償）|
 | **CEXP-038** | `NEGATIVE_RESULT` | Re=10031, **Zhu soft body penalty α=10（bc_body_weight=100, no gate, no GradNorm）** | **684.16 %** ❌❌❌ | **7.841** | 47.26 | 14.11 | 10k | ❌ **提高 α 反而最糟**：soft body penalty α_eff 0.1→10（Zhu 2025 值）→ KE 從 CEXP-002 3.54% 爆到 684%（over-predict 7.84×，比 CEXP-037 hard gate 283% 更慘）。**推翻 Zhu 單純調 α 的歸因**：在 sparse wake-only sensor 下，加重 body penalty 只是把 over-energy 推得更高（body 強制 u=0 + 無 sensor 校正 → NN 在 wake 補償更兇）。確認 Finding #8 才是根本——body 區無 sensor 是結構問題，非 penalty 強度問題。L_phys 訓練穩定（step10000=0.04）但 eval 災難。|
-| **CEXP-039** | `PENDING_EVAL` | Re=10031, **Sensor-conditioned FiLM（B3-a）**（`use_sensor_film=true`，no geo，CEXP-002 base） | — | — | — | — | 10k | job 3846 訓練中（重提，之前 3827 因 arrow path 未 sed 失敗） |
-| **CEXP-040** | `PENDING_EVAL` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | — | — | — | — | 10k | job 3847 訓練中（重提，之前 3828 因 arrow path 未 sed 失敗） |
+| **CEXP-039** | `NEGATIVE_RESULT` | Re=10031, **Sensor-conditioned FiLM（B3-a）**（`use_sensor_film=true`，no geo，CEXP-002 QR base） | **185.93 %** ❌❌ | **2.859** | 13.41 | 5.55 | 10k | ❌ FiLM 使 QR baseline 3.54%→185.93%（52×退步）。但 ω RMSE=13.41 較其他失敗實驗低（CEXP-041:83.95, CEXP-042:68.62）= 渦場結構部分保留但能量過高。ke_pred/ref 2.86×；FiLM 調制讓模型在 wake 能量上過度補償 |
+| **CEXP-040** | `PENDING_RUN` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | — | — | — | — | 10k | job 3884 訓練中（第三次提交，前兩次：arrow path bug → operator.py _need_bd 漏 film_use_geometry → 均修正） |
 | **CEXP-041** | `NEGATIVE_RESULT` | Re=10031, **random sensor placement K=100 seed=42**（CEXP-002 base，唯一變數：QR-pivot → random） | **251.21 %** ❌❌❌ | **3.513** | 83.95 | 37.47 | 10k | ❌ **資訊論失敗**（非 over-energy 機制）：random sensor 對 wake modes 覆蓋稀疏 → wake 渦街直接消失，KE over-predict 3.51×。無剪切環（不同於 CEXP-037/038）。div 37.47 = 37× baseline（physics 全程未被有效校正）。**修正 Finding #8**：體覆蓋 vs QR 信息效率，後者才是關鍵 |
 | **CEXP-042** | `NEGATIVE_RESULT` | Re=10031, **random placement + collo 1024 + PCGrad**（CEXP-041 + `num_physics_points 64→1024` + `use_pcgrad=true`） | **174.45 %** ❌❌ | **2.744** | 68.62 | 12.61 | 10k | ❌ 仍失敗但相對 CEXP-041 改善：KE 251%→174%（−76pp）；div 37.47→12.61（66% 改善）。**PCGrad 全程負 cos**（data vs physics 持續衝突），gradient surgery 有效（不是 neutral）。但 174% 仍 49× baseline（3.54%），random sensor 資訊論瓶頸未解 |
 | **CEXP-043** | `NEGATIVE_RESULT` | Re=10031, **QR-pivot + collo 1024 + PCGrad**（CEXP-002 base + `num_physics_points 64→1024` + `use_pcgrad=true`） | **309.38 %** ❌❌ | **4.093** | 34.25 | 5.78 | 10k | ❌ PCGrad 使 CEXP-030（610%）減半→309%，但仍失敗 87×。div 5.78（physics enforcement 更強）；KE 反比 random 版 CEXP-042（174%）更差——QR wake-only supervision + collo1024 形成更強 spurious attractor，PCGrad 僅部分壓制。paradox：div 更好（5.78 < 12.61）但 KE 更差（309% > 174%）= QR ill-posedness 比 random 更深 |
+| **CEXP-044** | `NEGATIVE_RESULT` | Re=10031, **random+collo1024+PCGrad+liquid tau**（CEXP-042 + `cfc_input_dependent_tau=true`） | **141.67 %** ❌❌ | **2.416** | 60.20 | 10.10 | 10k | ❌ 仍失敗但 liquid tau 改善 CEXP-042 全指標：KE 174%→142%（−33pp），ω 68.6→60.2，div 12.6→10.1。一致性改善 = liquid τ 確實幫助 random sensor 下的多尺度動態。但 142% 仍 40× baseline（3.54%），random sensor 資訊論瓶頸未解 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -722,6 +723,24 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 ---
 
 ## 變更紀錄
+
+- **2026-06-03 CEXP-044 random+collo1024+PCGrad+liquid tau（❌ 失敗 KE 142%，liquid tau 改善 CEXP-042 全指標）**:
+  - CEXP-042（random+collo1024+PCGrad）衍生，唯一架構變因：`cfc_input_dependent_tau=true`。SLURM job 3860，CPU eval。
+  - **實測（summary.json 確認）：KE 141.67%（late 141.07%），ke_pred/ref 2.416×，omega 60.20，div 10.10，u_rmse 0.4719，v_rmse 0.1174。**
+  - **Liquid tau 有效（全指標一致改善）**：vs CEXP-042：KE 174%→142%（−33pp），ω 68.6→60.2，div 12.6→10.1。三個指標同步改善，說明 liquid τ 的 adaptive timescale 確實幫助 random sensor 配置下的多尺度流場動態捕捉。
+  - 但仍失敗 40× baseline（3.54%）；random sensor 資訊論瓶頸根本未解。
+  - **累計 collo+PCGrad+liquid_tau 鏈效應（random 基礎）**：collo1024 使 div 改善（37→12），PCGrad 使 KE 改善（251→174），liquid tau 再改善（174→142）。三者疊加累計 KE 251%→142%（-109pp）、div 37→10。每一個加法都有增量，但仍遠離 QR baseline（3.54%）。
+  - 流程：job 3860 完成 → 確認 final.pt → 重 sed arrow path（git stash drop 重置） → CPU eval → find nested summary.json → 讀取確認 → 寫 log。
+
+- **2026-06-03 CEXP-039 FiLM B3-a（❌ KE 185.93%，FiLM 使 QR baseline 退步 52×）**:
+  - CEXP-002（QR baseline）衍生，唯一變因：`use_sensor_film=true`（no geo）。SLURM job 3861，CPU eval。
+  - **實測（summary.json 確認）：KE 185.93%（late 184.75%），ke_pred/ref 2.859×，omega 13.41，div 5.55，u_rmse 0.3589，v_rmse 0.1191。**
+  - **FiLM 嚴重損害 QR baseline**：CEXP-002（QR, no FiLM）3.54% → CEXP-039（QR + FiLM）185.93%（52× 退步）。
+  - **[注意] ω RMSE=13.41 明顯優於其他失敗實驗**（CEXP-041:83.95, CEXP-042:68.62）：渦場空間結構部分正確（模型學到了 wake 的位置/形狀），但能量整體過高（ke_pred/ref 2.86×）。div 5.55 也接近 CEXP-043 的 5.78（物理 enforcement 中等）。
+  - **失敗機制假設**：FiLM 用 sensor hidden states（mean over K）調制 trunk features。QR sensor 集中 wake → sensor hidden state 反映 wake 高能量狀態 → FiLM 把這個高能量信號注入全域 trunk → model 在上游/body 區域也過度激活。本質仍是「sensor context 資訊不均勻導致全域 over-energy」，與 Finding #8/9 一脈相承。
+  - CEXP-040（FiLM+geo, B3-b）job 3884 仍在訓練中（多次 bug 修復後第三次提交）。
+  - 流程：job 3861 COMPLETED → 重 sed arrow path → CPU eval → 讀 summary.json → 寫 log。
+  - **兩個 bug 順序修復**：(1) decoder.py 3D h_branch_tokens mean-pool（commit f9c7ad5），(2) operator.py _need_bd 漏 film_use_geometry（commit 44046f0）。
 
 - **2026-06-02 CEXP-043 QR-pivot + collo1024 + PCGrad（❌ 失敗 KE 309%，PCGrad 使 CEXP-030 610%→309%）**:
   - CEXP-043 = CEXP-002（QR-pivot baseline）+ `num_physics_points 64→1024` + `use_pcgrad=true`。SLURM job 3853（elapsed 2h09m），CPU eval。
