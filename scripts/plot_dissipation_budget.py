@@ -38,7 +38,9 @@ def main() -> None:
     z_deficit_all = (1.0 - Z_pred.mean() / Z_dns.mean()) * 100.0
 
     apply_journal_rcparams()
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(7.0, 2.8))
+    # 單 panel：enstrophy Z(t)（左軸）；dissipation ε=2νZ 僅為常數倍率，
+    # 用右側 twin 軸提供換算刻度，不重畫同形曲線（避免左右兩 panel 冗餘）。
+    fig, ax1 = plt.subplots(figsize=(5.2, 3.0))
 
     ax1.plot(t, Z_dns, color=DNS_C, lw=1.4, label="DNS")
     ax1.plot(t, Z_pred, color=PRED_C, ls="--", lw=1.4, label="PI-CON")
@@ -47,12 +49,11 @@ def main() -> None:
     ax1.set_xlim(0, 5)
     ax1.legend(frameon=True, fontsize=8)
 
-    ax2.plot(t, eps_dns, color=DNS_C, lw=1.4, label="DNS")
-    ax2.plot(t, eps_pred, color=PRED_C, ls="--", lw=1.4, label="PI-CON")
-    ax2.set_xlabel(r"$t$ [s]")
-    ax2.set_ylabel(r"dissipation $\varepsilon(t)=2\nu\mathcal{Z}$ [m$^2$/s$^3$]")
-    ax2.set_xlim(0, 5)
-    ax2.legend(frameon=True, fontsize=8)
+    # twin 右軸：dissipation ε = 2νZ（純刻度換算）
+    axr = ax1.twinx()
+    lo, hi = ax1.get_ylim()
+    axr.set_ylim(2 * NU * lo, 2 * NU * hi)
+    axr.set_ylabel(r"dissipation $\varepsilon=2\nu\mathcal{Z}$ [m$^2$/s$^3$]")
 
     fig.tight_layout()
     for ext in ("pdf", "png"):
