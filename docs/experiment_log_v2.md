@@ -1079,7 +1079,7 @@ Decision gates 評估:
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論（傾向維持獨立 v2）|
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
 | **PCGrad: 方法本質無效 vs 我們的設定壓抑** | **已分離（變因 1）**：PCGrad-only KE −0.11pp（單 seed 雜訊級），cos≈0 為本質特徵 → 結論：data/physics 正交是本質，非 GN/AL 壓抑 | ✅ 2026-06-02 |
-| **EXP-281/282/283 對等 ablation（B0/B1/B2 × n=5 @ 20k）** | **已提交排隊**（slurm job 3866–3880, r740）。補 Table 4.6 training-budget 對等性：原 B0/B1/B2 = 10k×single seed vs B3(EXP-245) = 20k×n=5，加 `time_marching_warmup_steps=2000` 對齊 fixed-step warmup。結果待跑完 eval → 補表並判讀 cross-attn/CfC 主效應 | 🔄 SUBMITTED 2026-06-03 |
+| **EXP-281/282/283 對等 ablation（B0/B1/B2 × n=5 @ 20k）** | **已完成**（train job 3866–3880；eval r740 job 3898）。KE%：B0 **8.23±0.22** / B1 **9.23±0.51** / B2 **7.03±0.14** / B3 **5.71±0.11**。對等預算下排序 B3≺B2≺B0≺B1（與 legacy 64-collo 一致，B0≺B1 再現）。Welch B3 vs B0 −2.53pp (t=22.9, p=3.0e-7, d=14.5) / vs B1 −3.52 (p=5.5e-5) / vs B2 −1.32 (p=2.4e-7)。2×2 reference-cell 分解（B0 baseline, 加和成立）：cross-attn −1.21 / CfC +0.99 / interaction −2.31 pp → **cross-attn dominant，CfC 單獨增誤差、僅與 cross-attn 協同有效**。已填 Table 4.6 + §4.1 significance + §4.4.2 ranking（移除 legacy log ref / open-follow-up） | ✅ 2026-06-04 |
 | **Paper 圖補強 #3–#6**（mean profile / temporal / dissipation / opt-diagnostics） | **已完成**（seed42 fields eval）：mean ⟨u⟩(y) rel-L2 **1.55%**、Reynolds ⟨u'v'⟩(y) rel-L2 **8.61%**、enstrophy/dissipation deficit **26.4%**(t≥1)、time decorr τ_1/e DNS **0.375s** vs PI-CON **0.400s**、AL λ_cont 單調→**0.39**。圖存 `thesis/figures/results/{mean_profile_reynolds,temporal_consistency,dissipation_budget,optimization_diagnostics}.pdf` | ✅ 2026-06-03 |
 
 ### PCGrad NEUTRAL 結果的混淆變因（要分離「方法 vs 設定」需逐一控制）
