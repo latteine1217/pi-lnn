@@ -412,7 +412,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 - Sensor: `data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.{json,npz}`（DNS QR-pivot oracle）
 - Architecture / collocation / iter / seeds: **完全對齊 EXP-245** — B3 1-head cross-attn, 1024 collo, 20k iter, seeds 42/1/2/3/4
 - Artifacts: `artifacts/kolmogorov/deeponet-cfc-re10000-exp271{,b,c,d,e}-b3-dns-pivot-*-20k/`
-- Eval: `artifacts/_lab_rsync/eval_271_seed{a,b,c,d,e}/summary.json`（rsync 2026-05-29）
+- Eval: `artifacts/lab/eval_271_seed{a,b,c,d,e}/summary.json`（rsync 2026-05-29；`_lab_rsync` → `lab` 重命名 2026-06-09）
 - Slurm: jobs 3696/3707~3710 train + 3713/3715/3717~3719 eval, acmt20 (RTX 3090)
 
 ### EXP-271 n=5 multi-seed metrics
@@ -441,6 +441,41 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 3. **gap 量級對比**：random placement KE ~59 % → 兩種 well-formed placement 都壓到 4.7–5.7 %；DNS↔LES 之間僅 1 pp 量級差異，placement strategy 的「演算法選擇」遠不如「有沒有 well-formed placement」重要。
 4. **div_ratio**: EXP-271 0.36 % vs EXP-245 0.39 %（已降級為 diagnostic，見 §9.4，**不寫 sub-DNS**）。
 5. **Paper claim（§Results）**: 「LES-derived placement 與 DNS oracle 互有取捨（DNS 贏整體能量、LES 贏逐點），LES 競爭力足且無需 DNS 全場 → REAL_WORLD_PIPELINE 工程可遷移。」
+
+---
+
+## 4.4 DNS-init LES placement diagnostic（EXP-296/297, 2026-06-22）
+
+> ⚠️ **Research-only / engineering non-transferable**：dns-init LES 需 DNS 初始條件種 LES，違反「現場無 DNS」。僅作診斷。對照圖在 `diagnostics/placement_vs_ke_comparison.{pdf,png}`。
+> **2026-06-24 已放論文**：作為 §4 Sensor Placement Analysis 的 `tab:placement_dnsinit` + 「Field alignment does not improve placement」段落，論證「為何選 T=50 random-IC 而非場更對齊的 t=5 dns-init」（單 seed=42 表，明標 diagnostic / non-deployable）。
+
+> **目的**: 測「用 DNS 種 LES 起跑（dns-init）做 QR-pivot 取點」是否優於 random-IC 的 LES_T50。對照 EXP-245(T50)、EXP-271(DNS oracle)、EXP-266(random)。同 config（B3 / 1024 collo / 20k / seed=42），唯一差 sensor 來源；`t_spinup=0`（dns-init 起點已湍流、無 spin-up 要丟）。取點 LES：EXP-296 = `N256_T30_dns_init`（buggy-solver，placement sign/reflection-invariant）；EXP-297 = `N256_T5_dns_init_FIXED`。Sensor gen `generate_sensors_qrpivot_from_les.py`，axis convention test 7/7 PASS。三組取點互不相同（median NN ~0.04，<5/100 在 3 cells 內）。
+
+### 結果（seed=42 單 seed，eval job 4348）
+
+| Placement | POD 窗口 | KE rel-err | ω rel-L2 | div ratio |
+|---|---|---|---|---|
+| DNS oracle (EXP-271_a) | — | **4.69 %** | — | — |
+| LES T=50 random-IC (EXP-245_a) | ~22 τ | **5.90 %** | — | — |
+| LES t=30 dns-init (EXP-296) | ~15 τ | **7.79 %** | 45.8 % | 0.38 % |
+| random uniform (EXP-266, n=5) | — | **7.95 ± 0.68 %** | — | — |
+| LES t=5 dns-init (EXP-297) | ~2.5 τ | **9.12 %** | 49.1 % | 0.36 % |
+
+（EXP-296 train/val KE 7.57/8.65 %；EXP-297 train/val 8.92/9.90 %）
+
+### Findings
+
+1. **DNS-seeding 不幫反害**：兩個 dns-init 都比 random-IC T50（5.90 %）差。「用真值種 LES → 取點更準」直覺錯誤。
+2. **統計收斂（POD 窗口 turnover 數）主導**，單調：t=50 (5.90) > t=30 (7.79) > t=5 (9.12)。
+3. **t=5 dns-init（9.12 %）比 random uniform（7.95 %）還差** → 收斂不足的 LES POD 比「完全不用 LES」更糟。
+4. **機制**：dns-init LES 從 DNS IC 起跑會卸掉撐不住的小尺度能量（DNS→LES spin-down transient，enstrophy 88→10），`t_spinup=0` 保留此過渡 → POD 反映瞬態而非吸引子統計；窗口越短（t=5 全是 transient）越差。
+5. **對主訊息的支撐**：正面驗證 §3.3「LES 須跑夠長讓 leading POD modes 統計收斂（T_end=50）」的設計；DNS-free random-IC T50 為 sweet spot，DNS-seeding 無益。
+
+### Artifacts
+- Config: `configs/exp_296_b3_les_dnsinit.toml`, `configs/exp_297_b3_les_t5dnsinit.toml`
+- Sensor: `data/kolmogorov_sensors/re10000/sensors_qrpivot_les_n256_T{30,5}dnsinit.{json,npz}`（axis test registered）
+- Checkpoint (lab-server): `artifacts/kolmogorov/deeponet-cfc-re10000-exp29{6,7}-*-20k/picon_kolmogorov_final.pt`
+- Figure: `diagnostics/placement_vs_ke_comparison.{pdf,png}`（**非 thesis**）
 
 ---
 
@@ -1418,3 +1453,90 @@ cos<0 時投影掉互相抵銷分量，取代 `l_total.backward()`；AL/BC 不�
 
 **決定**：不再在 width/rank/liquid τ 方向投資。突破路徑為 K-scaling（EXP-269/270 系列）。
 詳見 `docs/research/2026-06-01-cfc-capacity-study.md §4.1`。
+
+---
+
+## EXP-290~295 — Thesis refresh reruns for final PI-CON protocol（EVALUATED）
+
+**日期**: 2026-06-06 ｜ **狀態**: ✅ evaluated 2026-06-10
+
+**目的**: 取代 thesis appendix / diagnostic 中仍屬舊 protocol 的重要數據。所有 neural training config 由 `configs/stable/exp_245.toml` 派生，固定為 final PI-CON protocol:
+LES_T50 sensors, $K=100$, 1024 collocation, 20k iterations, CUDA, same B3 architecture.
+
+**Slurm resource contract**: `scripts/slurm/train_exp.sbatch.tmpl` via `scripts/slurm/submit_thesis_refresh_r740.sh`.
+Each training job uses `partition=r740`, `gpu=1`, `cpus=8`, `mem=48G` (half-node style resource allocation for r740/acmt20).
+
+| Group | Purpose | Configs | Job IDs | Thesis role |
+|---|---|---|---|---|
+| EXP-290 | Sensor noise robustness, n=5 for 1/3/5/10% per-channel std-relative noise | `configs/stable/exp_290_noise{01,03,05,10}_{a,b,c,d,e}.toml` | 3991-4010 | Refresh Chapter 4 noise robustness success criterion |
+| EXP-291 | Continuity-AL rho sweep under final protocol; EXP-245 remains rho=0.1 reference | `configs/stable/exp_291_rho{003,03,1}.toml` | 4011-4013 | Appendix diagnostic only |
+| EXP-292 | Multi-constraint AL under final protocol | `configs/stable/exp_292_{cont_pure_al,full_physics_pure_al,ns_pure_al_cont_double,full_double}.toml` | 4014-4017 | Appendix diagnostic / negative result refresh |
+| EXP-293 | Forcing identifiability under final protocol | `configs/stable/exp_293_{learn_kf,learn_A,learn_both}.toml` | 4018-4020 | Appendix diagnostic / negative result refresh |
+| EXP-294 | Filtering vs smoothing; EXP-245 remains filtering reference | `configs/stable/exp_294_smoothing_bidir.toml` | 4021 | Appendix diagnostic refresh |
+| EXP-295 | Classical interpolation squeeze refresh | `scripts/slurm/baseline_squeeze_r740.sbatch` | 4022 | Analysis job, not neural training |
+
+**Queue snapshot at submit**: job 3991 running on `acmt20`; jobs 3992-4022 pending in `r740`.
+
+**Completion audit (2026-06-08)**:
+- Jobs 3991-4014 and 4016-4021 completed successfully (`ExitCode=0:0`).
+- Job 4015 (`EXP-292 full_physics_pure_al`) failed at config setup before training:
+  `use_gradnorm=false` with `gradnorm_tasks=[]` and `gradnorm_init_weights=[]` passed config validation but failed training-side GradNorm setup length inference.
+  Fix: keep `gradnorm_tasks=[]` but set dummy `gradnorm_init_weights=[1.0, 0.057, 0.057, 0.01]`; GradNorm remains off.
+  Rerun submitted as job 4029 (`exp_292_full_physics_pure_al_rerun`).
+- Job 4022 (`EXP-295 baseline_squeeze`) failed after printing metrics because `artifacts/under_determined_proof/` did not exist before writing JSON.
+  Fix: `scripts/baseline_squeeze.py` now calls `OUT_DIR.mkdir(parents=True, exist_ok=True)` before writing `baseline_squeeze.json`.
+  Rerun submitted as job 4030.
+- DNS evaluator for all EXP-290~294 checkpoints submitted as job 4031 with dependency `afterok:4029`.
+
+**Validation before submit**:
+- Local and remote config semantic validation passed for all 31 `exp_29*.toml` files with `pi_con.config._validate_al_config`.
+- Dry-run generated sbatch contained `#SBATCH --partition=r740`, `#SBATCH --cpus-per-task=8`, `#SBATCH --gres=gpu:1`, `#SBATCH --mem=48G`.
+- `EXP-292 full_physics_pure_al` explicitly clears `gradnorm_tasks=[]` because current validator checks AL/GN overlap even when `use_gradnorm=false`.
+
+**Interpretation guardrails**:
+- EXP-291/292/293/294 are diagnostic / appendix refreshes unless multi-seed evidence later justifies main-text promotion.
+- EXP-293 must be judged by learned $A,k_f$ and reconstruction metrics jointly; good KE alone does not certify forcing identifiability.
+- EXP-295 is a classical analysis refresh and should not be described as a training run.
+
+**Final completion audit (2026-06-10)**:
+- Rerun jobs 4029 (`EXP-292 full_physics_pure_al`) and 4030 (`EXP-295 baseline_squeeze`) completed successfully (`ExitCode=0:0`).
+- Evaluator job 4031 completed successfully (`ExitCode=0:0`) and produced 31 `summary.json` + 31 `series.npz` under `artifacts/eval_thesis_refresh/`.
+- New stderr files for reruns/evaluator are empty. The only non-empty stderr files are the superseded failed jobs 4015 and 4022.
+- All 31 training `metrics.jsonl` files have finite final entries; no NaN/Inf detected.
+
+### EXP-290 noise robustness, final protocol, n=5
+
+| Noise | n | KE mean % | KE std % | u L2 % | v L2 % | omega L2 % | div ratio % |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 1% | 5 | 5.745 | 0.082 | 13.660 | 17.574 | 41.781 | 0.396 |
+| 3% | 5 | 5.807 | 0.030 | 13.737 | 17.704 | 41.998 | 0.404 |
+| 5% | 5 | 5.916 | 0.083 | 13.901 | 17.919 | 42.320 | 0.417 |
+| 10% | 5 | 6.080 | 0.208 | 14.494 | 18.769 | 43.467 | 0.459 |
+
+**Interpretation**: training is normal. Noise degradation is monotone in the aggregate; 10% noise remains below the 10% KE engineering threshold but clearly worsens pointwise/vorticity/divergence metrics. This replaces the old single-seed 10k noise table.
+
+### EXP-291/292/293/294 diagnostic refresh
+
+| EXP | KE % | u L2 % | v L2 % | omega L2 % | div ratio % | Key note |
+|---|---:|---:|---:|---:|---:|---|
+| 291 rho=0.03 | 5.882 | 13.401 | 17.235 | 41.112 | 0.454 | lower rho improves pointwise but weakens div |
+| 291 rho=0.3 | 5.931 | 13.958 | 18.111 | 42.646 | 0.331 | stronger rho lowers div, worsens field metrics |
+| 291 rho=1.0 | 6.119 | 14.358 | 18.698 | 43.694 | 0.280 | strongest div, clearest accuracy cost |
+| 292 cont pure AL | 5.745 | 13.376 | 17.195 | 40.991 | 0.572 | good field metrics, weaker div |
+| 292 full physics pure AL | 5.535 | 13.314 | 17.048 | 40.731 | 0.563 | no collapse; old anti-pattern claim does not transfer cleanly |
+| 292 NS pure AL + cont double | 5.469 | 13.465 | 17.346 | 41.374 | 0.385 | best KE in this diagnostic group |
+| 292 full double | 6.307 | 13.848 | 18.046 | 42.458 | 0.394 | worst KE in group |
+| 293 learn A | 5.758 | 13.554 | 17.541 | 41.661 | 0.389 | learned A=0.00136, not truth |
+| 293 learn kf | 5.849 | 13.572 | 17.378 | 41.595 | 0.393 | learned kf=0.00908, not truth |
+| 293 learn both | 5.742 | 13.569 | 17.441 | 41.638 | 0.385 | learned A=0.000988, kf=0.00988; forcing not identifiable |
+| 294 smoothing bidir | 5.741 | 13.579 | 17.277 | 41.399 | 0.387 | no failure under final protocol; comparable to filtering baseline |
+
+**Interpretation**:
+- EXP-291 behaves normally as a rho trade-off: higher rho lowers divergence but costs reconstruction.
+- EXP-292 no longer supports the older blanket statement "NS-AL is anti-pattern" under final 20k/1024/LES protocol. Treat it as refreshed appendix diagnostic, not as Chapter 4 main claim unless rerun multi-seed.
+- EXP-293 confirms the important negative result: reconstruction remains good while learned forcing parameters are wrong by orders of magnitude, so sparse-sensor PI-CON reconstruction does not certify forcing identifiability.
+- EXP-294 indicates smoothing/bidirectional mode is not unstable under the final protocol; older filtering-vs-smoothing table should be replaced or softened.
+
+### EXP-295 classical squeeze refresh
+
+`artifacts/under_determined_proof/baseline_squeeze.json` was regenerated successfully. Classical interpolation remains KE-misleading: several methods have competitive KE but much worse pointwise/vorticity errors than PI-CON. The RBF Gaussian epsilon sweep also shows extreme sensitivity to interpolation hyperparameters, so only carefully labelled classical baselines should be reported.

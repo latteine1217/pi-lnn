@@ -15,14 +15,19 @@ Compare on KE, u/v rel-L2, vorticity rel-L2, ek_ratio.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
 from scipy.interpolate import RBFInterpolator
 
-SENSOR_JSON = Path("data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json")
+# Sensor placement / output dir overridable via env (default = legacy DNS QR-pivot, 不破壞既有行為)。
+# 用 BASELINE_SENSOR_JSON 指向 LES_T50 placement 即可做 EXP-245 same-sensor 公平比較。
+SENSOR_JSON = Path(os.environ.get(
+    "BASELINE_SENSOR_JSON",
+    "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json"))
 DNS_PATH = Path("data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy")
-OUT_DIR = Path("artifacts/under_determined_proof")
+OUT_DIR = Path(os.environ.get("BASELINE_OUT_DIR", "artifacts/under_determined_proof"))
 
 # Load
 dns = np.load(DNS_PATH, allow_pickle=True).item()
@@ -127,7 +132,98 @@ def idw_reconstruct(p=2.0):
     return u_out, v_out
 
 
-# === Baseline 5: Trigonometric div-free LSQ ===
+# === Baseline 5b: Dedup + Tikhonov-regularized div-free Trig LSQ ===
+# Replaces the legacy `divfree_trig_lsq_reconstruct` (which enumerated both k and -k modes,
+# producing a 2M-column matrix with rank ≤ M — i.e. a 196-dim redundant null-space at k_max=8
+# that explodes under `rcond=None`). The dedup version below enumerates ONE representative per
+# {k, -k} Hermitian pair (half-plane: kx > 0, or kx==0 and ky > 0), keeps both cos and sin
+# amplitudes per mode → exactly M = 80/196/440 real DOFs for k_max ∈ {5, 8, 12}. With optional
+# Tikhonov ridge (`ridge_alpha`) the borderline (k_max=8) and under-determined (k_max=12)
+# regimes can be regularized and compared fairly.
+def divfree_trig_lsq_dedup_reconstruct(k_max=5, ridge_alpha=0.0, verbose=False):
+    """Half-plane (Hermitian-deduped) div-free Fourier LSQ with optional ridge.
+
+    Stream-function basis:  ψ = Σ_q (a_q cos(2π k·x) + b_q sin(2π k·x))   over half-plane modes.
+    Velocity:               u = ∂ψ/∂y,  v = −∂ψ/∂x  (incompressible by construction).
+    """
+    # Half-plane enumeration: kx > 0, OR (kx == 0 AND ky > 0)
+    mode_indices = []
+    for kx in range(-k_max, k_max + 1):
+        for ky in range(-k_max, k_max + 1):
+            if kx == 0 and ky == 0:
+                continue
+            if kx ** 2 + ky ** 2 > k_max ** 2:
+                continue
+            if kx > 0 or (kx == 0 and ky > 0):
+                mode_indices.append((kx, ky))
+    M_modes = len(mode_indices)
+    M_dof = 2 * M_modes  # cos (a_q) + sin (b_q) amplitude per mode
+
+    two_pi = 2.0 * np.pi
+    modes = np.asarray(mode_indices, dtype=np.float64)   # (M_modes, 2)
+    kx_arr = modes[:, 0]; ky_arr = modes[:, 1]
+
+    # Vectorized A construction: (2K, M_dof) — sensor rows interleave (u, v)
+    # phase_sensor[m, q] = 2π (kx_q · x_m + ky_q · y_m)
+    phase_s = two_pi * (sensor_pos @ modes.T)            # (K, M_modes)
+    cos_s = np.cos(phase_s); sin_s = np.sin(phase_s)
+    A = np.zeros((2 * K, M_dof))
+    A[0::2, 0::2] = -ky_arr[None, :] * sin_s             # u-row, a (cos) coef
+    A[0::2, 1::2] =  ky_arr[None, :] * cos_s             # u-row, b (sin) coef
+    A[1::2, 0::2] =  kx_arr[None, :] * sin_s             # v-row, a (cos) coef
+    A[1::2, 1::2] = -kx_arr[None, :] * cos_s             # v-row, b (sin) coef
+
+    # Diagnostic: condition number on this sensor placement
+    if verbose:
+        s = np.linalg.svd(A, compute_uv=False)
+        kappa = s[0] / max(s[-1], 1e-30)
+        print(f"    dedup k≤{k_max}:  M_dof={M_dof}  shape={A.shape}  "
+              f"cond(A)={kappa:.2e}  s_min={s[-1]:.2e}  s_max={s[0]:.2e}",
+              flush=True)
+
+    # Vectorized reconstruction basis at full grid
+    grid_xy = np.stack([XG.flatten(), YG.flatten()], axis=-1)  # (N², 2)
+    phase_g = two_pi * (grid_xy @ modes.T)               # (N², M_modes)
+    cos_g = np.cos(phase_g); sin_g = np.sin(phase_g)
+    u_basis = np.zeros((N * N, M_dof))
+    v_basis = np.zeros((N * N, M_dof))
+    u_basis[:, 0::2] = -ky_arr[None, :] * sin_g
+    u_basis[:, 1::2] =  ky_arr[None, :] * cos_g
+    v_basis[:, 0::2] =  kx_arr[None, :] * sin_g
+    v_basis[:, 1::2] = -kx_arr[None, :] * cos_g
+
+    u_out = np.zeros_like(u_dns); v_out = np.zeros_like(v_dns)
+
+    # Solver: Tikhonov-regularized LSQ when ridge_alpha > 0; otherwise plain LSQ.
+    # Tikhonov:  (AᵀA + α I) coef = Aᵀ b   →  uses Cholesky once for all snapshots.
+    if ridge_alpha > 0:
+        AtA = A.T @ A + ridge_alpha * np.eye(M_dof)
+        L_chol = np.linalg.cholesky(AtA)
+        for t in range(T):
+            u_vals = sample_at_sensors(u_dns[t])
+            v_vals = sample_at_sensors(v_dns[t])
+            b = np.empty(2 * K)
+            b[0::2] = u_vals
+            b[1::2] = v_vals
+            rhs = A.T @ b
+            y = np.linalg.solve(L_chol, rhs)
+            coef = np.linalg.solve(L_chol.T, y)
+            u_out[t] = (u_basis @ coef).reshape(N, N)
+            v_out[t] = (v_basis @ coef).reshape(N, N)
+    else:
+        for t in range(T):
+            u_vals = sample_at_sensors(u_dns[t])
+            v_vals = sample_at_sensors(v_dns[t])
+            b = np.empty(2 * K)
+            b[0::2] = u_vals
+            b[1::2] = v_vals
+            coef, *_ = np.linalg.lstsq(A, b, rcond=None)
+            u_out[t] = (u_basis @ coef).reshape(N, N)
+            v_out[t] = (v_basis @ coef).reshape(N, N)
+    return u_out, v_out, M_dof
+
+
+# === Baseline 5 (legacy): Trigonometric div-free LSQ ===
 def divfree_trig_lsq_reconstruct(k_max=5):
     """Reconstruct via div-free Fourier basis (stream-function ψ) least-squares.
 
@@ -195,7 +291,7 @@ def divfree_trig_lsq_reconstruct(k_max=5):
 # === Run all baselines ===
 results = {}
 
-print("Running RBF Gaussian (ε=10)...")
+print("Running RBF Gaussian (ε=10)...", flush=True)
 u_p, v_p = rbf_reconstruct("gaussian", epsilon=10.0)
 omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
 omega_d = np.array([compute_vorticity(u_dns[t], v_dns[t]) for t in range(T)])
@@ -218,7 +314,7 @@ results["RBF Multiquadric"] = {
     "dns_access": False,
 }
 
-print("Running RBF Thin-plate-spline...")
+print("Running RBF Thin-plate-spline...", flush=True)
 u_p, v_p = rbf_reconstruct("thin_plate_spline")
 omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
 results["RBF Thin-plate-spline"] = {
@@ -229,7 +325,7 @@ results["RBF Thin-plate-spline"] = {
     "dns_access": False,
 }
 
-print("Running IDW p=2...")
+print("Running IDW p=2...", flush=True)
 u_p, v_p = idw_reconstruct(p=2.0)
 omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
 results["IDW p=2"] = {
@@ -240,38 +336,88 @@ results["IDW p=2"] = {
     "dns_access": False,
 }
 
+# --- Legacy (over-complete 2M) — only k_max=5 as regression check.
+#     k_max ∈ {8, 12} are known to blow up with `rcond=None` on the 2M-redundant matrix
+#     (see thesis/baseline_comparison_report.md note 138, 2026-05-28 audit). The dedup
+#     variants below are the correct apples-to-apples comparison.
+print("Running Div-free trig LSQ (legacy 2M parameterization) k_max=5 (regression check)...", flush=True)
+u_p, v_p, M_modes = divfree_trig_lsq_reconstruct(k_max=5)
+omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
+name = f"Div-free trig LSQ k≤5 ({M_modes} modes, legacy 2M)"
+results[name] = {
+    "ke": ke_rel_err(u_p, v_p, u_dns, v_dns, all_idx),
+    "u_l2": rel_l2_per_snapshot(u_p, u_dns, all_idx),
+    "v_l2": rel_l2_per_snapshot(v_p, v_dns, all_idx),
+    "omega_l2": rel_l2_per_snapshot(omega_p, omega_d, all_idx),
+    "dns_access": False,
+    "num_modes": M_modes,
+    "parameterization": "legacy_2M_rank_deficient",
+}
+
+# --- Dedup (M DOFs, Hermitian-correct) + ridge variants ---
 for k_max in [5, 8, 12]:
-    print(f"Running Div-free trig LSQ k_max={k_max}...")
-    u_p, v_p, M_modes = divfree_trig_lsq_reconstruct(k_max=k_max)
+    for ridge_alpha in [0.0, 1e-3]:
+        tag = f"ridge={ridge_alpha:.0e}" if ridge_alpha > 0 else "no ridge"
+        print(f"Running Div-free trig LSQ (dedup) k_max={k_max}  {tag}...")
+        u_p, v_p, M_dof = divfree_trig_lsq_dedup_reconstruct(
+            k_max=k_max, ridge_alpha=ridge_alpha, verbose=(ridge_alpha == 0.0)
+        )
+        omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
+        name = f"Div-free trig LSQ k≤{k_max} dedup ({M_dof} DOF, {tag})"
+        results[name] = {
+            "ke": ke_rel_err(u_p, v_p, u_dns, v_dns, all_idx),
+            "u_l2": rel_l2_per_snapshot(u_p, u_dns, all_idx),
+            "v_l2": rel_l2_per_snapshot(v_p, v_dns, all_idx),
+            "omega_l2": rel_l2_per_snapshot(omega_p, omega_d, all_idx),
+            "dns_access": False,
+            "num_dof": M_dof,
+            "parameterization": "dedup_half_plane",
+            "ridge_alpha": ridge_alpha,
+        }
+
+# --- RBF Gaussian epsilon sweep (P3 audit response) ---
+# Audit (2026-05-28) flagged that ε=10 is a narrow-kernel choice (~1 sensor spacing).
+# A reviewer can challenge this single hyper-parameter; sweep validates the choice.
+print("Running RBF Gaussian epsilon sweep...", flush=True)
+for eps in [1.0, 3.0, 5.0, 20.0]:
+    print(f"  RBF Gaussian (ε={eps})...")
+    u_p, v_p = rbf_reconstruct("gaussian", epsilon=eps)
     omega_p = np.array([compute_vorticity(u_p[t], v_p[t]) for t in range(T)])
-    name = f"Div-free trig LSQ k≤{k_max} ({M_modes} modes)"
-    results[name] = {
+    results[f"RBF Gaussian (ε={eps})"] = {
         "ke": ke_rel_err(u_p, v_p, u_dns, v_dns, all_idx),
         "u_l2": rel_l2_per_snapshot(u_p, u_dns, all_idx),
         "v_l2": rel_l2_per_snapshot(v_p, v_dns, all_idx),
         "omega_l2": rel_l2_per_snapshot(omega_p, omega_d, all_idx),
         "dns_access": False,
-        "num_modes": M_modes,
+        "epsilon": eps,
     }
 
 # === Final summary ===
-print(f"\n{'='*100}")
+print(f"\n{'='*100}", flush=True)
 print(f"BASELINE SQUEEZE COMPARISON (K={K}, T={T})")
-print(f"{'='*100}\n")
-print(f"{'Method':<40} | {'KE%':>7} | {'u_L2%':>7} | {'v_L2%':>7} | {'ω_L2%':>7} | {'DNS?':>5}")
-print("-" * 95)
+print(f"{'='*100}\n", flush=True)
+print(f"{'Method':<40} | {'KE%':>7} | {'u_L2%':>7} | {'v_L2%':>7} | {'ω_L2%':>7} | {'DNS?':>5}", flush=True)
+print("-" * 95, flush=True)
 print(f"{'EXP-080 (our PINN)':<40} | {10.68:>6.2f}% | {17.0:>6.2f}% | {20.2:>6.2f}% | {47.6:>6.2f}% | {'No':>5}")
 for name, m in results.items():
-    print(f"{name:<40} | {m['ke']*100:>6.2f}% | {m['u_l2']*100:>6.2f}% | {m['v_l2']*100:>6.2f}% | {m['omega_l2']*100:>6.2f}% | {'No' if not m['dns_access'] else 'YES':>5}")
-print(f"{'(reference) Gappy POD r=100 (cheat)':<40} | {0.12:>6.2f}% | {0.85:>6.2f}% | {0.85:>6.2f}% | {'—':>6} | {'YES':>5}")
+    print(f"{name:<40} | {m['ke']*100:>6.2f}% | {m['u_l2']*100:>6.2f}% | {m['v_l2']*100:>6.2f}% | {m['omega_l2']*100:>6.2f}% | {'No' if not m['dns_access'] else 'YES':>5}", flush=True)
+print(f"{'(reference) Gappy POD r=100 (val-only)':<40} | {0.23:>6.2f}% | {1.70:>6.2f}% | {2.90:>6.2f}% | {'—':>6} | {'YES':>5}")
 
 # Save
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 summary = {
     "K": int(K),
     "EXP_080": {"ke": 0.1068, "u_l2": 0.170, "v_l2": 0.202, "omega_l2": 0.476},
     **{name: m for name, m in results.items()},
-    "Gappy_POD_r100_cheat": {"ke": 0.0012, "u_l2": 0.0085, "v_l2": 0.0085, "dns_access": True},
+    # Gappy POD r=100 reference — VAL-ONLY (n=41 held-out snapshots).
+    # Replaces 2026-05-12 train+val-mixed numbers (0.0012 / 0.0085) which were
+    # leakage-contaminated; honest val ceiling is ~2× higher (see baseline_comparison.py rerun
+    # 2026-05-28 and thesis/baseline_comparison_report.md §5.4).
+    "Gappy_POD_r100_val_only": {
+        "ke": 0.00229, "u_l2": 0.01703, "v_l2": 0.02899, "dns_access": True,
+        "leakage_status": "val-only honest ceiling (train_mean and SVD trained on 160 train snaps)",
+    },
 }
 with open(OUT_DIR / "baseline_squeeze.json", "w") as f:
     json.dump(summary, f, indent=2)
-print(f"\nSaved: {OUT_DIR}/baseline_squeeze.json")
+print(f"\nSaved: {OUT_DIR}/baseline_squeeze.json", flush=True)
