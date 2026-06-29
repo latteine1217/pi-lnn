@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp089-b1-cfc-no-crossattn"
+artifacts_dir = "artifacts/kolmogorov/stable/exp089-b1-cfc-no-crossattn"
 
 # EXP-089: B1 architectural ablation — CfC encoder + DeepONet trunk + mean-pool readout
 # Disables cross-attention; replaces with mean over K sensor tokens at query time.

@@ -1,0 +1,96 @@
+# configs/exp_272_b3_les_T50_rar1000.toml
+# What: EXP-272 — EXP-245 完全對齊 config + RAR (rar_update_freq=1000) ablation
+# Why: EXP-245 使用 physics_collocation_strategy="random" (ng_resample_freq=50 default)；
+#      EXP-054 (舊架構 64 collo) 顯示 RAR freq=1000 可帶來 -2.2 pp (KE 21.8→19.6%)，
+#      但當時無 GradNorm / AL / 1024 collo。
+#      本實驗驗證「RAR 在現行 1024 collo + GradNorm + AL 架構下是否仍有益」。
+#      Single seed (seed=42) 對比 EXP-245_a (seed=42, KE 5.90%) 即可回答方向性問題。
+#
+# 派生 from EXP-245 (configs/stable/exp_245.toml), 唯一改動:
+#   - physics_collocation_strategy: "random" → "rar"
+#   - rar_update_freq: (default 50) → 1000   (必要！freq=50 已知 SOAP 不穩定)
+#   - artifacts_dir: exp245* → exp272*
+#   - seed: 42 (同 EXP-245_a，便於 1-to-1 比較)
+#   - 其餘 (LES_T50 sensor, 1024 collo, 20k, B3, optimizer, GradNorm, AL) 全 byte-identical
+#
+# Hypothesis: RAR 偏向高殘差區域採樣，可能改善高梯度時刻的 physics residual 收斂。
+# Falsifiability: 若 KE >= 5.90% 或 L_phys 出現 spike，則 RAR 在當前架構無效/有害。
+# Expected: KE 落在 5.0~5.7% (marginal gain, ≤ +0.9 pp vs EXP-245_a)
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+# --- RAR 設定（與 EXP-245 唯一差異）---
+physics_collocation_strategy = "rar"
+rar_update_freq = 1000          # SOAP 穩定下限（< 1000 已知 SOAP preconditioner 失效）
+rar_pool_multiplier = 10        # pool = 1024 * 10 = 10240 候選點
+rar_exploration_ratio = 0.2     # 20% 隨機點防 mode collapse
+# --- 以下與 EXP-245 byte-identical ---
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp272-b3-les-T50-rar1000-20k"

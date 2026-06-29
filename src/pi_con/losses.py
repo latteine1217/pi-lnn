@@ -356,3 +356,98 @@ def observed_channel_prediction(
     mean_vec = observed_channel_mean[c_obs]
     std_vec = observed_channel_std[c_obs]
     return (raw_pred - mean_vec) / std_vec
+
+
+class WakeAmplitudePrior:
+    """Wake-amplitude envelope prior — sensor-derived 單側能量上界（工程可遷移）。
+
+    What:
+        從 K 個 wake sensor 的 (u, v) 時序計算每點能量包絡 E_k = p_quantile_t(u²+v²)，
+        在 wake-local 區域對重建場施加單側上界懲罰：
+            L = mean_{x∈Ω_wake, t}[ max(0, e_θ(x,t) − γ·Ê_obs(x))² ]
+        其中 e_θ = u_θ²+v_θ²（物理單位），Ê_obs(x) 為 sensor envelope 的高斯加權內插。
+
+    Why（codex 辯論 Round 2 共識 + CEXP-045 pre-check）:
+        cylinder 所有失敗的共同 failure mode 是 over-energy（ke_pred/ref 2–7×），
+        且與 divergence 正交（CEXP-043 div 低 KE 仍爆）。唯一直擊 over-energy 的
+        no-new-sensor lever 是「直接約束能量尺度」。本 prior 用單側上界：
+          - 不獎勵低能量（不會 trivial collapse → mean-flow；data loss 仍逼真實振幅）
+          - 不新增 pointwise BC、不碰 body、不強化 NS、不用 DNS full field
+          - envelope 只用 K=100 sensor 觀測值 → 工程可遷移
+
+    工程可遷移性:
+        所有量（per-sensor envelope、sensor 位置、bandwidth）只來自 sensor u,v 時序，
+        無 DNS 全場。符合 ENGINEERING_VISION（現場只有稀疏 sensor + PDE）。
+
+    單位協定:
+        ds.sensor_vals 已正規化（zero-mean/unit-std）；uvp_fn（use_physics_denormalization=true）
+        回傳物理 (u,v)。故 envelope 必須先反正規化 sensor_vals 回物理：
+        u_phys = u_norm·std + mean，才能與 e_θ 同尺度比較。
+    """
+
+    def __init__(
+        self,
+        sensor_vals: torch.Tensor,   # [K, T, C] normalized
+        sensor_pos: torch.Tensor,    # [K, 2] normalized domain coords
+        u_idx: int,
+        v_idx: int,
+        u_mean: float, u_std: float,
+        v_mean: float, v_std: float,
+        percentile: float = 0.95,
+        gamma: float = 1.5,
+        radius_scale: float = 2.0,
+        sigma_scale: float = 1.0,
+        device: torch.device | None = None,
+    ) -> None:
+        dev = device if device is not None else sensor_pos.device
+        self.pos = sensor_pos.to(dev)            # [K, 2]
+        self.gamma = float(gamma)
+
+        # 反正規化回物理單位後計算 per-sensor 能量包絡
+        u_phys = sensor_vals[:, :, u_idx] * u_std + u_mean   # [K, T]
+        v_phys = sensor_vals[:, :, v_idx] * v_std + v_mean   # [K, T]
+        e = (u_phys ** 2 + v_phys ** 2).to(dev)              # [K, T]
+        # p_quantile over time：保留 shedding peak，不退化成 mean-flow envelope
+        self.E = torch.quantile(e, float(percentile), dim=1)  # [K]
+
+        # sensor 間 median nearest-neighbor distance → bandwidth / region radius
+        D = torch.cdist(self.pos, self.pos)       # [K, K]
+        D.fill_diagonal_(float("inf"))
+        nn_dist = D.min(dim=1).values             # [K]
+        nn_med = nn_dist.median().clamp(min=1e-6)
+        self.sigma = float(sigma_scale) * nn_med
+        self.radius = float(radius_scale) * nn_med
+
+    def sample_points(self, rng, n: int, t_lo: float, t_hi: float,
+                      device: torch.device) -> torch.Tensor:
+        """在 sensor 周圍 σ-jitter 取 n 個 wake-local collocation 點 [n, 3]=(x,y,t)。
+
+        Why jitter-around-sensor 而非 uniform+mask：保證點落在 Ω_wake（sensor 覆蓋區），
+        避免外推到 inlet/body/outlet（重演 BC/sensor 衝突）。
+        """
+        K = self.pos.shape[0]
+        idx = rng.integers(0, K, size=n)
+        base = self.pos[idx]                                          # [n, 2]
+        jitter = torch.tensor(
+            rng.normal(0.0, float(self.sigma), size=(n, 2)),
+            dtype=torch.float32, device=device,
+        )
+        xy = (base.to(device) + jitter).clamp(0.0, 1.0)
+        t = torch.tensor(
+            rng.uniform(t_lo, t_hi, size=(n,)), dtype=torch.float32, device=device
+        )
+        return torch.cat([xy, t[:, None]], dim=1)
+
+    def _env_obs(self, xy: torch.Tensor) -> torch.Tensor:
+        """高斯加權內插 sensor envelope → Ê_obs(x) [N]。"""
+        d2 = torch.cdist(xy, self.pos) ** 2                          # [N, K]
+        w = torch.softmax(-d2 / (2.0 * self.sigma ** 2), dim=1)      # [N, K]
+        return (w * self.E[None, :]).sum(dim=1)                      # [N]
+
+    def cap_loss(self, uvp_fn, xyt: torch.Tensor) -> torch.Tensor:
+        """單側上界懲罰 mean(relu(e_θ − γ·Ê_obs)²)。uvp_fn 回傳物理 [N,3]。"""
+        uvp = uvp_fn(xyt)
+        e_theta = uvp[:, 0] ** 2 + uvp[:, 1] ** 2                    # [N] physical
+        cap = self.gamma * self._env_obs(xyt[:, :2])                 # [N]
+        excess = torch.relu(e_theta - cap)
+        return torch.mean(excess ** 2)

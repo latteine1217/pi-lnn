@@ -33,6 +33,9 @@ SENSOR_FILES = [
     "sensors_qrpivot_K100_N256_t0-5_si100_lesinformed",
     "sensors_qrpivot_K100_N256_t0-5_si100_les_n256",
     "sensors_qrpivot_K100_N256_t0-5_si100_les_n256_T50standalone",
+    "sensors_qrpivot_les_n256_T30dnsinit",  # EXP-296 DNS-init LES placement (research-only)
+    "sensors_qrpivot_les_n256_T5dnsinit",   # EXP-297 t=5 DNS-init LES placement (research-only)
+    "sensors_spacefill_K100_N256_t0-5_si100",  # EXP-298 FPS coverage-optimal placement (DNS-free)
 ]
 
 

@@ -43,7 +43,7 @@ run_one () {
   local exp_id="$1"      # e.g. 097
   local variant="$2"     # e.g. b3-seed3
   local config="$3"      # e.g. configs/exp_097_b3_seed3.toml
-  local artifact_dir="artifacts/kolmogorov/deeponet-cfc-re10000-exp${exp_id}-${variant}"
+  local artifact_dir="artifacts/kolmogorov/stable/exp${exp_id}-${variant}"
   local final_pt="$artifact_dir/picon_kolmogorov_final.pt"
   local eval_dir="$artifact_dir/deeponet-cfc-eval"
   local summary="$eval_dir/summary.json"

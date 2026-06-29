@@ -81,4 +81,4 @@ use_vanilla_deeponet = true
 vanilla_deeponet_K_sensors = 100
 vanilla_deeponet_num_branch_layers = 3
 vanilla_deeponet_num_trunk_layers = 3
-artifacts_dir = "artifacts/kolmogorov/deeponet-re10000-exp281c-b0-les-T50-20k-seed2"
+artifacts_dir = "artifacts/kolmogorov/equal_budget/exp281c-b0-les-T50-20k-seed2"

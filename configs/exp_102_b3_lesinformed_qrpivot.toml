@@ -109,7 +109,7 @@ checkpoint_period = 500
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp102-b3-lesinformed-seed2"
+artifacts_dir = "artifacts/kolmogorov/stable/exp102-b3-lesinformed-seed2"
 
 # EXP-102: LES-informed QR-pivot (engineering pipeline), seed=2 to match EXP-094 baseline
 seed = 2

@@ -1,0 +1,92 @@
+# configs/exp_271_b3_dns_pivot.toml
+# What: EXP-271 — B3 (full architecture) + DNS QR-pivot sensor + 20k + collo 1024 (對齊 EXP-245 的 oracle reference)
+# Why: EXP-245_a~e 為 LES_T50 工程可遷移 baseline (n=5, KE 5.71 ± 0.11%)；
+#      其 oracle 對照組 EXP-241_b 是 single seed (collo 1024 single seed, KE 5.97%)，
+#      與 EXP-245 (n=5) 統計 power 不對齊，審查 (GPT 5.5 P1 #3) 指出無法宣稱
+#      「LES placement no measurable engineering penalty」。
+#      EXP-271_a~e 補上 oracle multi-seed n=5，與 EXP-245 byte-identical 除以下三項：
+#        - sensor source: LES_T50 → DNS QR-pivot (oracle)
+#        - artifacts_dir: exp245* → exp271*
+#        - 其餘 (collo 1024, 20k iter, B3 arch, optimizer, GradNorm, AL) 全 byte-identical
+#
+# 派生 from EXP-245 (= exp_245_b3_les_T50.toml), 唯一改動:
+#   - sensor_jsons / sensor_npzs → DNS QR-pivot (= sensors_qrpivot_K100_N256_t0-5_si100.{json,npz})
+#   - artifacts_dir → exp271
+#
+# Sensor source note:
+#   - DNS QR-pivot sensor 用 unversioned correct script 在 DNS full field 上做 QR-pivoting (2026-04-06)
+#   - axis convention 已通過 tests/test_sensor_axis_convention.py 驗證
+#   - **此 sensor source 為 oracle reference, 工程不可遷移 (假設現場有 DNS)**, 對 paper §LES placement claim 提供 fair n=5 對照
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp271-b3-dns-pivot-20k"

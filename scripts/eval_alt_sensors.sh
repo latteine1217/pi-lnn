@@ -20,8 +20,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 BASE_CONFIG="configs/exp_094_b3_seed2.toml"
-CHECKPOINT="artifacts/kolmogorov/deeponet-cfc-re10000-exp094-b3-seed2/picon_kolmogorov_final.pt"
-ALT_OUT_ROOT="artifacts/kolmogorov/deeponet-cfc-re10000-exp094-b3-seed2/alt_sensor_eval"
+CHECKPOINT="artifacts/kolmogorov/stable/exp094-b3-seed2/picon_kolmogorov_final.pt"
+ALT_OUT_ROOT="artifacts/kolmogorov/stable/exp094-b3-seed2/alt_sensor_eval"
 mkdir -p "$ALT_OUT_ROOT"
 
 ALT_METRICS_TSV="$ALT_OUT_ROOT/metrics.tsv"

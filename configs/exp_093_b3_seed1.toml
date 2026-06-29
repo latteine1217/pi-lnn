@@ -110,7 +110,7 @@ checkpoint_period = 500
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp093-b3-seed1"
+artifacts_dir = "artifacts/kolmogorov/stable/exp093-b3-seed1"
 
 # EXP-093: B3 multi-seed reproducibility (seed=1)
 seed = 1

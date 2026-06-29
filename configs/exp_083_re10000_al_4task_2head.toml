@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp083-al-4task-2head"
+artifacts_dir = "artifacts/kolmogorov/legacy/exp083-al-4task-2head"
 
 # EXP-083: 在 sweet spot ρ=0.1 上 pivot 到 decoder cross-attention multi-head (2 head)。
 # Hypothesis: 2-head 學 2 個 sub-attention pattern → 改善 sensor fusion → KE 略改善 + ek_ratio 提升。

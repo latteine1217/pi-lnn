@@ -22,7 +22,7 @@ def arch_of(eid: str) -> str:
 def main() -> None:
     groups: dict[str, list] = {"B0 (281)": [], "B1 (282)": [], "B2 (283)": []}
     for eid in SPECS:
-        p = ROOT / f"artifacts/eval_{eid}/series.npz"
+        p = ROOT / f"artifacts/kolmogorov/equal_budget/eval/eval_{eid}/series.npz"
         if not p.exists():
             print(f"[missing] eval_{eid}/series.npz")
             continue

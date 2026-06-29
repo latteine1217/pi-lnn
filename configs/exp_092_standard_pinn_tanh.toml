@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp092-standard-pinn-tanh"
+artifacts_dir = "artifacts/kolmogorov/stable/exp092-standard-pinn-tanh"
 
 # EXP-092: Standard PINN baseline (Wang 2021 style)
 # (x, y, t) -> MLP 6x512 -> (u, v, p). No operator framework, sensor only in loss.

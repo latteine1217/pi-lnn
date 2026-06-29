@@ -106,4 +106,4 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp077-al-gradnorm-cap-init"
+artifacts_dir = "artifacts/kolmogorov/legacy/exp077-al-gradnorm-cap-init"

@@ -92,4 +92,4 @@ checkpoint_period = 2500
 seed = 42
 device = "mps"
 use_sensor_physics = false
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re1000000-exp268-T50-K200-xl-50k"
+artifacts_dir = "artifacts/kolmogorov/stable/exp268-T50-K200-xl-50k"

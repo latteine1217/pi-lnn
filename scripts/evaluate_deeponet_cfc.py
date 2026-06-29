@@ -593,15 +593,16 @@ def plot_energy_spectrum(
     ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#000000", linestyle="-", label="DNS")
     ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#D55E00", linestyle="--", label="PI-CON")
 
-    # k^(-5/3) Kolmogorov 慣性區參考線（anchor 在 k_forcing 對應的 DNS 能量上）
+    # k^(-3) 2D 正向 enstrophy-cascade 參考線（k>k_f；Kraichnan）。
+    # 不是 k^(-5/3)：後者是 k<k_f 的 inverse energy cascade。anchor 在 k_forcing。
     k_grid_all = k_ref[mask_ref]
     if k_grid_all.size:
         anchor_idx = int(np.argmin(np.abs(k_grid_all - max(k_forcing, 1.0))))
         anchor_k = float(k_grid_all[anchor_idx])
         anchor_e = float(e_ref[mask_ref][anchor_idx])
-        k53 = k_grid_all[k_grid_all >= anchor_k]
-        ax.loglog(k53, anchor_e * (k53 / anchor_k) ** (-5.0 / 3.0),
-                  color="gray", linestyle=":", linewidth=0.9, label=r"$k^{-5/3}$")
+        k_tail = k_grid_all[k_grid_all >= anchor_k]
+        ax.loglog(k_tail, anchor_e * (k_tail / anchor_k) ** (-3.0),
+                  color="gray", linestyle=":", linewidth=0.9, label=r"$k^{-3}$")
 
     ax.axvline(k_forcing, color="black", linestyle="-.", linewidth=0.8,
                label=f"$k_f={k_forcing:.0f}$")

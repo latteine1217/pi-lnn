@@ -227,6 +227,14 @@ DEFAULT_PICON_ARGS: dict[str, Any] = {
                               # α_eff = bc_loss_weight × bc_body_weight。預設 1.0 向後相容。
     "bc_slip_n_points": 0,    # top/bottom slip BC (y=0,y=1) 採樣點數；0 = 停用
     "bc_outlet_n_points": 0,  # cylinder outlet (x=1) ∂u/∂x≈0 BC 採樣點數；0 = 停用
+    # ── Wake-amplitude envelope prior（CEXP-046；codex 辯論 Round 2 共識）─────────
+    # sensor-derived 單側能量上界，直擊 over-energy failure mode（工程可遷移，無 DNS）。
+    "wake_amplitude_prior_weight": 0.0,   # 固定弱權重；0 = 停用（預設）。建議 1e-3~1e-4
+    "wake_amplitude_gamma": 1.5,          # 上界 margin：cap = γ·Ê_obs；1.25~1.5
+    "wake_amplitude_percentile": 0.95,    # per-sensor envelope 取時間 p-quantile（保留 shedding peak）
+    "wake_amplitude_radius_scale": 2.0,   # Ω_wake region radius = scale × median sensor NN distance
+    "wake_amplitude_sigma_scale": 1.0,    # 高斯內插 bandwidth = scale × median sensor NN distance
+    "wake_amplitude_n_points": 256,       # 每 step wake-local collocation 取樣點數
     "use_hard_body_bc": False,           # cylinder hard body BC（Sukumar 2022 風格）：
                                           # u = (φ/scale).clamp(0,1) · NN，物理保證 body 內 u=v=0。
                                           # 取代有 detach bug 的 distance-as-input feature。

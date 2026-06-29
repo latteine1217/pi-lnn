@@ -136,11 +136,15 @@ CEXP-013 (small capacity) ke_pred/ke_ref = **0.54** → trivial mean-flow collap
 | **CEXP-037** | `NEGATIVE_RESULT` | Re=10031, **hard BC + 固定權重（no GradNorm）+ bc_body=0** | **283.17 %** ❌ | **3.832** | 17.33 | 6.06 | 10k | ❌ **關掉 GradNorm 仍失敗**：CEXP-016（hard BC+GradNorm）111.6% → CEXP-037（hard BC+固定權重）**283%（反更糟 2.5×）**。**推翻 Finding #6 單一歸因**：GradNorm 不是 hard BC 失敗的唯一元兇；訓練 L_phys 看似穩定（step10000=0.025）但 eval over-predict 3.83× → hard BC gate 本身在 sparse-sensor 下造成 over-energy（同 Finding #8 機制：body 區無 sensor，gate 壓 NN_u → wake 過度補償）|
 | **CEXP-038** | `NEGATIVE_RESULT` | Re=10031, **Zhu soft body penalty α=10（bc_body_weight=100, no gate, no GradNorm）** | **684.16 %** ❌❌❌ | **7.841** | 47.26 | 14.11 | 10k | ❌ **提高 α 反而最糟**：soft body penalty α_eff 0.1→10（Zhu 2025 值）→ KE 從 CEXP-002 3.54% 爆到 684%（over-predict 7.84×，比 CEXP-037 hard gate 283% 更慘）。**推翻 Zhu 單純調 α 的歸因**：在 sparse wake-only sensor 下，加重 body penalty 只是把 over-energy 推得更高（body 強制 u=0 + 無 sensor 校正 → NN 在 wake 補償更兇）。確認 Finding #8 才是根本——body 區無 sensor 是結構問題，非 penalty 強度問題。L_phys 訓練穩定（step10000=0.04）但 eval 災難。|
 | **CEXP-039** | `NEGATIVE_RESULT` | Re=10031, **Sensor-conditioned FiLM（B3-a）**（`use_sensor_film=true`，no geo，CEXP-002 QR base） | **185.93 %** ❌❌ | **2.859** | 13.41 | 5.55 | 10k | ❌ FiLM 使 QR baseline 3.54%→185.93%（52×退步）。但 ω RMSE=13.41 較其他失敗實驗低（CEXP-041:83.95, CEXP-042:68.62）= 渦場結構部分保留但能量過高。ke_pred/ref 2.86×；FiLM 調制讓模型在 wake 能量上過度補償 |
-| **CEXP-040** | `PENDING_RUN` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | — | — | — | — | 10k | job 3884 訓練中（第三次提交，前兩次：arrow path bug → operator.py _need_bd 漏 film_use_geometry → 均修正） |
+| **CEXP-040** | `NEGATIVE_RESULT` | Re=10031, **Sensor-conditioned FiLM + body_distance（B3-b）**（`use_sensor_film=true, film_use_geometry=true`） | **187.16 %** ❌❌ | **2.892** | 13.66 | 5.40 | 10k | ❌ FiLM + geometry conditioning 與 FiLM-only (CEXP-039 185.93%) 幾乎無差異（+1.2pp）；body_distance 特徵無法改善 FiLM over-energy 機制；確認 FiLM 在 QR base 下的失效與 geometry feature 無關 |
 | **CEXP-041** | `NEGATIVE_RESULT` | Re=10031, **random sensor placement K=100 seed=42**（CEXP-002 base，唯一變數：QR-pivot → random） | **251.21 %** ❌❌❌ | **3.513** | 83.95 | 37.47 | 10k | ❌ **資訊論失敗**（非 over-energy 機制）：random sensor 對 wake modes 覆蓋稀疏 → wake 渦街直接消失，KE over-predict 3.51×。無剪切環（不同於 CEXP-037/038）。div 37.47 = 37× baseline（physics 全程未被有效校正）。**修正 Finding #8**：體覆蓋 vs QR 信息效率，後者才是關鍵 |
 | **CEXP-042** | `NEGATIVE_RESULT` | Re=10031, **random placement + collo 1024 + PCGrad**（CEXP-041 + `num_physics_points 64→1024` + `use_pcgrad=true`） | **174.45 %** ❌❌ | **2.744** | 68.62 | 12.61 | 10k | ❌ 仍失敗但相對 CEXP-041 改善：KE 251%→174%（−76pp）；div 37.47→12.61（66% 改善）。**PCGrad 全程負 cos**（data vs physics 持續衝突），gradient surgery 有效（不是 neutral）。但 174% 仍 49× baseline（3.54%），random sensor 資訊論瓶頸未解 |
 | **CEXP-043** | `NEGATIVE_RESULT` | Re=10031, **QR-pivot + collo 1024 + PCGrad**（CEXP-002 base + `num_physics_points 64→1024` + `use_pcgrad=true`） | **309.38 %** ❌❌ | **4.093** | 34.25 | 5.78 | 10k | ❌ PCGrad 使 CEXP-030（610%）減半→309%，但仍失敗 87×。div 5.78（physics enforcement 更強）；KE 反比 random 版 CEXP-042（174%）更差——QR wake-only supervision + collo1024 形成更強 spurious attractor，PCGrad 僅部分壓制。paradox：div 更好（5.78 < 12.61）但 KE 更差（309% > 174%）= QR ill-posedness 比 random 更深 |
 | **CEXP-044** | `NEGATIVE_RESULT` | Re=10031, **random+collo1024+PCGrad+liquid tau**（CEXP-042 + `cfc_input_dependent_tau=true`） | **141.67 %** ❌❌ | **2.416** | 60.20 | 10.10 | 10k | ❌ 仍失敗但 liquid tau 改善 CEXP-042 全指標：KE 174%→142%（−33pp），ω 68.6→60.2，div 12.6→10.1。一致性改善 = liquid τ 確實幫助 random sensor 下的多尺度動態。但 142% 仍 40× baseline（3.54%），random sensor 資訊論瓶頸未解 |
+| **CEXP-045a** | `NEGATIVE_RESULT` | Re=10031, **95 QR wake + 5 body-ring shear sensor + 保留 body BC**（codex 辯論 Rec#2；A/B 之 A，bc_body=64） | **659.52 %** ❌❌❌ | **7.595** | 38.77 | 10.65 | 10k | ❌❌ 最慘——保留 body BC + body-ring shear sensor = **雙約束災難**（Finding #8 確認）。swap 5 wake QR → 5 body-ring shear，再疊 body BC，KE 從 baseline 3.54% 爆到 659%（186×）。over-predict 7.6×。比 045b（去 BC, 226%）糟 3×，證實 body-ring sensor 與 body BC 在 near-body 競爭 |
+| **CEXP-045b** | `NEGATIVE_RESULT` | Re=10031, **95 QR wake + 5 body-ring shear sensor + 移除 body BC**（A/B 之 B，bc_body=0） | **225.89 %** ❌❌ | **3.259** | 14.35 | 5.63 | 10k | ❌ 仍災難但優於 045a：去 body BC 後 KE 659%→226%（雙約束消一個）。但 226% 仍 64× baseline → body-ring shear sensor **無法取代 body BC**。根因：body 環格點貼壁面（速度小、剪切大），本質接近 zero anchor 非 velocity-rich 動態信號，又耗 5 wake QR。辯論「觀測分離剪切層解 over-energy」假設**證偽**。見 Finding #10 |
+| **CEXP-046** | `NEGATIVE_RESULT` | Re=10031, **CEXP-030（collo1024）+ wake-amplitude prior**（codex 辯論 Round 2；rescue test） | **663.87 %** ❌❌❌ | **7.638** | 46.63 | 7.25 | 10k | ❌ prior **沒 rescue**：collo1024+prior 663% ≈ CEXP-030（610% 無 prior），甚至略差。over-energy 未被壓制。見 Finding #11 |
+| **CEXP-047** | `NEGATIVE_RESULT` | Re=10031, **CEXP-002 + wake-amplitude prior**（neutrality check） | **462.51 %** ❌❌❌ | **5.625** | 38.42 | 11.67 | 10k | ❌❌❌ **neutrality check 災難性失敗**：把 prior 加到 working baseline（3.54%）→ 爆到 462%（130× 退步）。**證偽 codex「弱、不 binding、安全」設計主張**——prior 主動傷害 winner。診斷假設：sparse sensor 內插 envelope 在 sensor 之間低估真實能量 → cap 太緊懲罰正確能量 → 補償式 over-energy（Finding #9 再現）。見 Finding #11 |
 | **CEXP-016** | `NEGATIVE_RESULT` | Re=10031, **hard body BC + baseline 對齊**（CEXP-010-fair single-var）| **111.6 %** ❌ | **2.12** | 12.62 | 6.93 | 10k | **Catastrophic over-predict 2.12×**, w_ns_u GradNorm 推 209× → Stage 1 diagnostic 起點 |
 | **CEXP-017** | `NEGATIVE_RESULT` | Re=10031, hard BC + **5-task GradNorm** (H1) | **303.6 %** ❌❌❌ | **4.04** | 19.30 | 6.50 | 10k | **❌ H1-C falsified**：5-task GradNorm 反讓 catastrophic 推 3× (w_bc 19.5+w_ns_u 3.82) |
 | **CEXP-018** | `NEGATIVE_RESULT` | Re=10031, hard BC + **body_aware sampling** (H2) | 106.3 % ❌ | 2.06 | 11.90 | 6.27 | 10k | **❌ H2-C falsified**：body_aware ≈ CEXP-016（no improvement） |
@@ -383,6 +387,58 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
 > "In sparse-sensor reconstruction of open-domain flows, increasing PDE collocation density degrades accuracy: with sensors confined to the wake, the NS system is underdetermined, and strong physics enforcement drives the solution onto a spurious NS-consistent manifold whose energy is wrong by 7×, despite low training data- and physics-losses. The accuracy of the working configuration depends on physics acting as weak regularization, not a dominant field-shaping constraint."
 
 **統一視角（Findings #8 + #9 合起來）**：CEXP-002 的成功來自一個微妙平衡——(a) 每個區域恰好一個 velocity supervision（Finding #8），(b) physics 弱到只當正則化、由 data 主導內插（Finding #9）。**任何強化 physics（加 collo）或弄亂 supervision（sensor/BC 衝突）的動作都破壞此平衡。**
+
+### Finding 10 — Body-ring shear sensor 無法解 over-energy；速度-貧乏的壁面環格點 ≈ zero anchor（CEXP-045a/b, 2026-06-09）
+
+**動機**：codex 辯論（grill-me-codex）共識認為所有 geometry-awareness 失敗的根因是「wake 生成源（separation shear layer）從未被觀測」，建議用 near-wall dynamic sensor 觀測分離剪切層。CEXP-045 A/B 直接測此假設。
+
+**設計**：95 QR wake + 5 body-ring 最大剪切 sensor（K=100 固定）。A/B 唯一變因 = body BC：
+- CEXP-045a：bc_body=64 保留（測 shear + BC 共存）
+- CEXP-045b：bc_body=0 移除（測 shear 取代 BC）
+
+| Metric | CEXP-002 baseline | CEXP-045a（+BC） | CEXP-045b（−BC） |
+|---|---|---|---|
+| KE rel-err mean | **3.54 %** | **659.52 %** ❌❌❌ | **225.89 %** ❌❌ |
+| ke_pred/ke_ref | 1.01 | 7.595 | 3.259 |
+| ω RMSE | 2.14 | 38.77 | 14.35 |
+| div L2 | 1.14 | 10.65 | 5.63 |
+
+**兩個結論（皆 falsify 辯論假設）**：
+
+1. **Body-ring shear sensor + body BC = 雙約束災難（Finding #8 再確認）**：045a（保留 BC）659% 比 045b（去 BC）226% 糟 3×。body-ring 格點與 body BC 在 near-body 同一空間競爭，正是 Finding #8 的「雙約束崩潰」。實作前已標記此風險，結果確認。
+
+2. **辯論「觀測分離剪切層解 over-energy」假設證偽**：即使去掉 body BC（045b 消除雙約束），226% 仍是 baseline 64×。根因——**body 環格點貼著 no-slip 壁面，速度量級小（雖然剪切 |∇u| 大）**，本質接近 codex Round 1 自己警告的「body-adjacent zero anchor ≈ body BC 冗余」，而非 velocity-rich 的動態信號。同時 swap 掉 5 個 wake QR 降低 wake mode 覆蓋。淨效果有害。
+
+**修正方向（未驗證）**：真正的 separation shear layer（velocity-rich）在 body 環**外**數格（邊界層已發展、速度非零處），不在貼壁的 1-cell ring。若要重測辯論假設，shear sensor 應放在「離 body 數格、|u| 非零且 |∇u| 大」的 annulus，而非 binary_dilation(iterations=1) 的貼壁環。但這是 follow-up，當前 CEXP-045 已乾淨證明「貼壁環 max-shear 選點」此具體實作失敗。
+
+**對主線的意涵**：CEXP-002（純 QR wake + body BC，3.54%）仍是唯一 working baseline。sensor augmentation 路線（無論 random CEXP-041、hybrid CEXP-028、body-ring shear CEXP-045）全部退步——再次強化 Finding #8 修正版：**QR wake-mode 資訊效率 + 每區恰好一約束，是 cylinder 成功的根本，任何破壞此結構的 sensor 操作都崩潰**。
+
+### Finding 11 — Wake-amplitude energy prior 不只無效，反而傷害 winner（CEXP-046/047, 2026-06-10）
+
+**動機**：codex 辯論（grill-me-codex, 2 rounds）窮盡式判定 sensor/geometry/physics 三家族已耗盡，唯一直擊 over-energy（Finding #9）的 no-new-sensor lever = sensor-derived 單側能量上界（工程可遷移，無 DNS）。codex 給出具體 loss：`L = mean(relu(e_θ − γ·Ê_obs)²)`，Ê_obs = sensor p95 envelope 高斯內插，宣稱「弱、單側、不獎勵低能量、不 binding 於正確解 → 安全」。CEXP-045 pre-check 確認 over-energy 落 wake 覆蓋區，放行實作。
+
+**設計**：A/B。CEXP-046 = CEXP-030（collo1024, 610% 純 over-energy）+ prior（rescue test）；CEXP-047 = CEXP-002（3.54% winner）+ prior（neutrality check）。prior 超參相同（weight=1e-3, γ=1.5, p95, n=256）。
+
+| Metric | CEXP-002 | CEXP-030（collo1024） | CEXP-046（+prior） | CEXP-047（CEXP-002+prior） |
+|---|---|---|---|---|
+| KE rel-err mean | **3.54 %** | 610 % | **663.87 %** ❌ | **462.51 %** ❌❌❌ |
+| ke_pred/ke_ref | 1.01 | ~7.1 | 7.638 | 5.625 |
+| ω RMSE | 2.14 | 47.79 | 46.63 | 38.42 |
+
+**兩個結論（prior 設計被證偽）**：
+
+1. **prior 沒 rescue（CEXP-046）**：collo1024+prior 663% ≈ CEXP-030 610%，無改善甚至略差。弱 cap 無法馴服 physics-induced over-energy。
+
+2. **prior 主動傷害 winner（CEXP-047，最關鍵）**：把 prior 加到能量已正確的 CEXP-002（3.54%）→ 災難性爆到 462%（130× 退步）。**直接證偽 codex「弱、單側、不 binding、安全」的核心主張**——prior 不是中性保險，它把一個 working solution 推進 over-energy failure basin。
+
+**診斷假設（未確證，需後續驗證）**：
+- sparse K=100 sensor 高斯內插的 `Ê_obs` 在 sensor **之間**的區域（兩 sensor 間的渦核）會**低估**真實局部能量 → cap = γ·Ê_obs 太緊 → 懲罰到**正確**的高能量結構 → 模型為同時 fit sensor data 與過緊 cap，在別處扭曲補償 → over-energy。
+- 量級證據：cap_loss binding 時 ~0.1–100，L_data ~1e-3 → weight 1e-3 下 prior gradient 仍可主導，輕易把解推離 basin。
+- 本質仍是 **Finding #9**：稀疏 sensor 連「能量上界」都無法可靠界定；任何把稀疏觀測外插成全域約束的嘗試（無論 supervision、physics、或 envelope cap）都在 underdetermined 系統觸發 spurious over-energy。
+
+**對辯論結論的意涵**：codex Round 2 的「能量軸 prior 是唯一剩餘 lever」在「sensor-derived envelope cap」這個具體形式下**被證偽**。剩餘可能（未測）：(a) envelope 改用「全域 integral KE 上界」而非逐點空間 cap（避免內插不可靠）；(b) flux integral balance。但 CEXP-047 的災難暗示**任何依賴稀疏 sensor 外插的能量約束都危險**。當前最理性動作：停止 prior 路線，將 cylinder 寫成 failure-boundary characterization（Path B）。
+
+**程式碼狀態**：`WakeAmplitudePrior`（[`src/pi_con/losses.py`](../src/pi_con/losses.py)）+ config keys + [`tests/test_wake_amplitude_prior.py`](../tests/test_wake_amplitude_prior.py)（5 tests pass）保留為 infrastructure，但預設 `wake_amplitude_prior_weight=0`（停用）。實作正確（單側性、梯度、物理單位均驗證），失敗是設計層級非實作 bug。
 
 ---
 
@@ -738,9 +794,14 @@ w_ns_u 只到 0.65（CEXP-016 hard BC 系列才是 ~2.0 爆炸）。training los
   - **FiLM 嚴重損害 QR baseline**：CEXP-002（QR, no FiLM）3.54% → CEXP-039（QR + FiLM）185.93%（52× 退步）。
   - **[注意] ω RMSE=13.41 明顯優於其他失敗實驗**（CEXP-041:83.95, CEXP-042:68.62）：渦場空間結構部分正確（模型學到了 wake 的位置/形狀），但能量整體過高（ke_pred/ref 2.86×）。div 5.55 也接近 CEXP-043 的 5.78（物理 enforcement 中等）。
   - **失敗機制假設**：FiLM 用 sensor hidden states（mean over K）調制 trunk features。QR sensor 集中 wake → sensor hidden state 反映 wake 高能量狀態 → FiLM 把這個高能量信號注入全域 trunk → model 在上游/body 區域也過度激活。本質仍是「sensor context 資訊不均勻導致全域 over-energy」，與 Finding #8/9 一脈相承。
-  - CEXP-040（FiLM+geo, B3-b）job 3884 仍在訓練中（多次 bug 修復後第三次提交）。
   - 流程：job 3861 COMPLETED → 重 sed arrow path → CPU eval → 讀 summary.json → 寫 log。
   - **兩個 bug 順序修復**：(1) decoder.py 3D h_branch_tokens mean-pool（commit f9c7ad5），(2) operator.py _need_bd 漏 film_use_geometry（commit 44046f0）。
+
+- **2026-06-09 CEXP-040 FiLM B3-b（❌ KE 187.16%，body_distance geo feature 無效）**:
+  - CEXP-039 衍生，唯一變因：`film_use_geometry=true`（加 body_distance conditioning）。SLURM job 3884（elapsed 1h41m），已有 summary.json。
+  - **實測（summary.json 確認）：KE 187.16%（late），ke_pred/ref 2.892×，omega 13.66，div 5.40，u_rmse 0.362，v_rmse 0.116。**
+  - **body_distance geo feature 幾乎無效**：vs CEXP-039（no geo）：KE +1.2pp（185.93%→187.16%），ω +0.25（13.41→13.66），div −0.15（5.55→5.40）。全三指標差異在噪音量級，body_distance conditioning 對 FiLM over-energy 機制沒有糾正作用。
+  - **結論**：FiLM 在 QR base 下的失效與 geometry feature 無關。sensor hidden state 的高能量偏差（wake 集中）是根本，加 body_distance 不能中和 wake 信號造成的全域 over-activation。FiLM 路線確認失效，不再追進。
 
 - **2026-06-02 CEXP-043 QR-pivot + collo1024 + PCGrad（❌ 失敗 KE 309%，PCGrad 使 CEXP-030 610%→309%）**:
   - CEXP-043 = CEXP-002（QR-pivot baseline）+ `num_physics_points 64→1024` + `use_pcgrad=true`。SLURM job 3853（elapsed 2h09m），CPU eval。

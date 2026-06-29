@@ -4,7 +4,7 @@ What: 從 B3 (EXP-245) metrics.jsonl(20000 步) 畫三聯圖，直接證明訓�
       動態平衡四個 task、AL dual λ 隨 continuity 違反成長（constraint active）。
 Why : 方法強調 stiff multi-task + AL + GradNorm + SOAP，但論文無任何收斂圖；AL λ 軌跡是
       「continuity constraint 主動」的直接證據（取代僅以最終 div ratio 0.39% 間接佐證）。
-資料: artifacts/_lab_rsync/exp245_b3_seed42/metrics.jsonl。
+資料: artifacts/lab/exp245_b3_seed42/metrics.jsonl。
 """
 import json
 import pathlib
@@ -17,7 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
 
-METRICS = ROOT / "artifacts/_lab_rsync/exp245_b3_seed42/metrics.jsonl"
+METRICS = ROOT / "artifacts/lab/exp245_b3_seed42/metrics.jsonl"
 OUTDIR = ROOT / "thesis/figures/results"
 OUTDIR.mkdir(parents=True, exist_ok=True)
 

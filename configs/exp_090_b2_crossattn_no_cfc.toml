@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp090-b2-crossattn-no-cfc"
+artifacts_dir = "artifacts/kolmogorov/stable/exp090-b2-crossattn-no-cfc"
 
 # EXP-090: B2 architectural ablation — disable CfC (num_temporal_cfc_layers=0)
 # Keeps spatial encoder + token attention + cross-attention. No CfC temporal dynamics.

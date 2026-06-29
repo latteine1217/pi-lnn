@@ -1,0 +1,126 @@
+# configs/exp_cylinder_046_collo1024_wakeprior.toml
+# CEXP-046: CEXP-030（CEXP-002 + collo1024, 610% 純 over-energy）+ wake-amplitude prior
+#
+# 來源：codex 辯論 Round 2 共識 + CEXP-045 pre-check。所有 cylinder 失敗共同 failure mode
+#       是 over-energy（ke_pred/ref 2–7×），與 divergence 正交（Finding #9）。唯一直擊
+#       over-energy 的 no-new-sensor lever = sensor-derived 單側能量上界（工程可遷移）。
+#
+# 設計（rescue test）：base = CEXP-030（optimal QR sensor + collo1024 → 純 physics-induced
+#       over-energy 610%）。唯一變因 vs CEXP-030 = 加 wake-amplitude prior。
+#       若 prior 把 610% 壓回接近 3.54% → 強正面（弱 cap 能馴服 over-energy）；
+#       若壓不下 → 乾淨證偽 prior。
+#
+# Pre-check（CEXP-045 error field）確認：over-energy 由 u 主導、落在 wake 覆蓋區、是
+#       「沒做出 wake 速度虧損」的廣域抬升 → sensor envelope 低值上界對症。
+#
+# Hypothesis: 單側能量上界把 unsensed wake 區的補償式爆能量拉回 sensor-observed envelope。
+# Expected_Change: ke_pred/ref 610%→大幅下降；ω/sensor MSE 不退步。
+# Falsifiability: 若 KE 仍 >100% 或 ω/sensor MSE 退步（KE 降但場更差）→ prior 只修 amplitude
+#       不修 phase（codex caveat），或 over-energy 主體在 sensor hull 外（pre-check 盲點）。
+#
+[train]
+dataset_type = "cylinder"
+
+sensor_jsons = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031.json",
+]
+sensor_npzs = [
+  "data/cylinder_sensors/sensors_qrpivot_K100_cylinder_Re10031_values.npz",
+]
+arrow_shards = [
+  "/Users/latteine/Documents/coding/RealPDEBench/data/realpdebench/cylinder/hf_dataset/numerical/data-00000-of-00092.arrow",
+]
+re_values = [10031.0]
+observed_sensor_channels = ["u", "v"]
+sensor_subsample = 20
+
+# 空間編碼
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_periodic_domain = false
+use_physics_denormalization = true
+
+# 時間
+use_temporal_anchor = true
+T_total = 20.0
+temporal_anchor_harmonics = 2
+
+# 模型容量（與 CEXP-002 baseline 相同）
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+
+# Physics loss
+domain_length = 1.0
+kolmogorov_k_f = 0.0
+kolmogorov_A = 0.0
+
+data_loss_weight = 1.0
+physics_loss_weight = 0.01
+physics_loss_warmup_steps = 0
+physics_loss_ramp_steps = 0
+continuity_weight = 1.0
+poisson_loss_weight = 0.0
+
+# Inflow / body / slip BC loss（與 CEXP-002 相同）
+bc_loss_weight = 0.1
+bc_inflow_u = 0.33
+bc_n_points = 64
+bc_body_n_points = 64
+bc_slip_n_points = 32
+
+# Wake-amplitude envelope prior（本實驗核心，vs CEXP-030 唯一新增 + collo1024）
+wake_amplitude_prior_weight = 1e-3   # 固定弱權重
+wake_amplitude_gamma = 1.5           # cap = 1.5 × Ê_obs
+wake_amplitude_percentile = 0.95     # per-sensor p95 envelope
+wake_amplitude_radius_scale = 2.0
+wake_amplitude_sigma_scale = 1.0
+wake_amplitude_n_points = 256
+
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+
+# GradNorm（與 CEXP-002 相同）
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_init_weights = [1.0, 0.01, 0.01, 0.01]
+
+# Time marching（與 CEXP-002 相同）
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+
+# Optimizer（與 CEXP-002 相同，除 num_physics_points 64→1024）
+iterations = 10000
+num_physics_points = 1024
+learning_rate = 1e-3
+weight_decay = 0.0
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+
+use_sensor_physics = false
+num_sensor_physics_time_samples = 1
+sensor_physics_start_step = 1000
+
+checkpoint_period = 500
+seed = 42
+device = "cuda"
+
+artifacts_dir = "artifacts/cylinder/deeponet-cfc-cylinder-exp046-collo1024-wakeprior"

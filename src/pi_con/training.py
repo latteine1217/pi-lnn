@@ -19,6 +19,7 @@ from pi_con.config import DEFAULT_PICON_ARGS, load_picon_config
 from pi_con.losses import (
     AugmentedLagrangianMultiplier,
     GradNormWeights,
+    WakeAmplitudePrior,
     _gradnorm_step,
     gradient_cosine_diagnostic,
     observed_channel_prediction,
@@ -115,6 +116,33 @@ def train_picon_kolmogorov(
         torch.tensor(ds.observed_channel_std, dtype=torch.float32, device=device)
         for ds in datasets
     ]
+
+    # ── Wake-amplitude envelope prior（CEXP-046；codex 辯論 Round 2 共識）────────
+    # sensor-derived 單側能量上界，直擊 cylinder over-energy failure mode。
+    # 僅 cylinder + weight>0 時啟用；envelope 用物理單位（反正規化 sensor_vals）。
+    _wake_weight = float(args.get("wake_amplitude_prior_weight", 0.0))
+    wake_priors: list = []
+    if _wake_weight > 0.0 and str(args.get("dataset_type", "")) == "cylinder":
+        for i, ds in enumerate(datasets):
+            _u_idx = ds.observed_channel_names.index("u")
+            _v_idx = ds.observed_channel_names.index("v")
+            wake_priors.append(WakeAmplitudePrior(
+                sensor_vals=torch.tensor(ds.sensor_vals, dtype=torch.float32, device=device),
+                sensor_pos=sensor_pos_list[i],
+                u_idx=_u_idx, v_idx=_v_idx,
+                u_mean=float(ds.observed_channel_mean[_u_idx]),
+                u_std=float(ds.observed_channel_std[_u_idx]),
+                v_mean=float(ds.observed_channel_mean[_v_idx]),
+                v_std=float(ds.observed_channel_std[_v_idx]),
+                percentile=float(args.get("wake_amplitude_percentile", 0.95)),
+                gamma=float(args.get("wake_amplitude_gamma", 1.5)),
+                radius_scale=float(args.get("wake_amplitude_radius_scale", 2.0)),
+                sigma_scale=float(args.get("wake_amplitude_sigma_scale", 1.0)),
+                device=device,
+            ))
+        print(f"  wake_amplitude_prior: enabled, weight={_wake_weight:.1e}, "
+              f"γ={float(args.get('wake_amplitude_gamma', 1.5))}, "
+              f"{len(wake_priors)} dataset(s)")
 
     # T_total mismatch 檢查：避免 config 與 dataset 不同步導致 temporal_phase_anchor
     # 相位 alias（silent 行為錯，無 runtime error）。
@@ -1126,6 +1154,7 @@ def train_picon_kolmogorov(
                 l_ns_total = torch.zeros(1, device=device)
                 l_cont_total = torch.zeros(1, device=device)
                 l_poisson_total = torch.zeros(1, device=device)
+                l_wake_total = torch.zeros(1, device=device)
                 phys_strategy = str(args.get("physics_collocation_strategy", "random"))
                 phys_normalize = bool(args.get("physics_residual_normalize", False))
                 _use_sensor_phys = bool(args.get("use_sensor_physics", False))
@@ -1218,6 +1247,18 @@ def train_picon_kolmogorov(
                     if poisson_weight > 0.0:
                         poisson_res = pressure_poisson_residual(uvp_fn, xyt, Lx=ds.Lx, Ly=ds.Ly)
                         l_poisson_total = l_poisson_total + torch.mean(poisson_res ** 2)
+                    # Wake-amplitude envelope prior（CEXP-046）：sensor-derived 單側能量上界。
+                    # 用 uvp_fn（物理單位）在 sensor 周圍 wake-local 取樣點施加 cap，
+                    # 直擊 over-energy failure mode（Finding #9）。只 forward，無空間導數。
+                    if wake_priors:
+                        _wp = wake_priors[i]
+                        _t_lo_wp = float(ds.sensor_time[0])
+                        _t_hi_wp = float(t_max) if t_max is not None else float(ds.sensor_time[-1])
+                        _xyt_wp = _wp.sample_points(
+                            rng, int(args.get("wake_amplitude_n_points", 256)),
+                            _t_lo_wp, _t_hi_wp, device,
+                        )
+                        l_wake_total = l_wake_total + _wp.cap_loss(uvp_fn, _xyt_wp)
                 # ── Boundary BC loss（cylinder only）─────────────────────────
                 # 物理 BC（依 Lily-Pad solver setBC()，非週期 open flow）：
                 #   inflow (x=0): Dirichlet u=u_inf, v=0
@@ -1365,6 +1406,7 @@ def train_picon_kolmogorov(
                 l_ns_total = l_ns_u_total + l_ns_v_total
                 l_cont_total = l_cont_total / num_re
                 l_poisson_total = l_poisson_total / num_re
+                l_wake_total = l_wake_total / num_re
                 l_physics = (
                     l_ns_total
                     + args["continuity_weight"] * l_cont_total
@@ -1376,7 +1418,11 @@ def train_picon_kolmogorov(
                 l_ns_total = torch.zeros(1, device=device)
                 l_cont_total = torch.zeros(1, device=device)
                 l_bc_total   = torch.zeros(1, device=device)
+                l_wake_total = torch.zeros(1, device=device)
                 l_physics = torch.zeros(1, device=device)
+            # Wake-amplitude prior 固定弱權重 extra（disabled 時 zeros → no-op）。
+            # 比照 BC：不進 GradNorm，加在各 backward path 的 l_total。
+            _wake_extra = _wake_weight * l_wake_total
 
             # AL term（spec v4 §4 + EXP-242 multi-constraint）：sum over constraints
             # 注意：l_cont_total 在 AL 模式下強制為 random-collocation 單一 mean
@@ -1465,6 +1511,8 @@ def train_picon_kolmogorov(
                         _extra = _bc_weight * l_bc_total
                     if al_term is not None:
                         _extra = al_term if _extra is None else _extra + al_term
+                    if _wake_weight > 0.0:
+                        _extra = _wake_extra if _extra is None else _extra + _wake_extra
                     pc_cos = pcgrad_two_group_backward(
                         _data_loss, _phys_loss, list(net.parameters()), extra_loss=_extra,
                     )
@@ -1493,6 +1541,9 @@ def train_picon_kolmogorov(
                     # AL term：固定 weight = 1，AL 與 GradNorm 完全解耦（spec v4 §5）
                     if al_term is not None:
                         l_total = l_total + al_term
+                    # Wake-amplitude prior：固定弱權重，不進 GradNorm（CEXP-046）
+                    if _wake_weight > 0.0:
+                        l_total = l_total + _wake_extra
 
                     l_total.backward()
                     torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
@@ -1504,6 +1555,8 @@ def train_picon_kolmogorov(
                 _data_loss = args["data_loss_weight"] * l_data
                 _phys_loss = phys_weight * l_physics
                 _extra = _bc_weight * l_bc_total if _bc_weight > 0.0 else None
+                if _wake_weight > 0.0:
+                    _extra = _wake_extra if _extra is None else _extra + _wake_extra
                 pc_cos = pcgrad_two_group_backward(
                     _data_loss, _phys_loss, list(net.parameters()), extra_loss=_extra,
                 )
@@ -1529,6 +1582,8 @@ def train_picon_kolmogorov(
                         + phys_weight * l_physics
                         + _bc_weight * l_bc_total
                     )
+                if _wake_weight > 0.0:
+                    l_total = l_total + _wake_extra
                 l_total.backward()
                 torch.nn.utils.clip_grad_norm_(net.parameters(), float(args["max_grad_norm"]))
                 optimizer.step()

@@ -94,4 +94,4 @@ checkpoint_period = 500
 seed = 42
 device = "mps"
 use_sensor_physics = false
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp274-al-delay-lbfgs"
+artifacts_dir = "artifacts/kolmogorov/legacy/exp274-al-delay-lbfgs"

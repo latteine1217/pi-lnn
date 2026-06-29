@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp087-al-4task-mmlp"
+artifacts_dir = "artifacts/kolmogorov/legacy/exp087-al-4task-mmlp"
 
 # EXP-087: K=100 baseline + Modified MLP trunk gating (Wang 2021)
 # Hypothesis: U/V gating preserves raw Fourier features; expect KE 9-10% (improve 0.5-1.5pp)

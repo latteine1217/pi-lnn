@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp088-vanilla-deeponet"
+artifacts_dir = "artifacts/kolmogorov/stable/exp088-vanilla-deeponet"
 
 # EXP-088: Vanilla DeepONet baseline (B0 architectural ablation)
 # MLP branch (sensor_at_tq) + MLP trunk + inner product readout

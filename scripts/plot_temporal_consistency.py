@@ -63,6 +63,13 @@ def main() -> None:
 
     ax1.plot(t, u_dns_pt, color=DNS_C, lw=1.4, label="DNS")
     ax1.plot(t, u_pred_pt, color=PRED_C, ls="--", lw=1.4, label="PI-CON")
+    # same-IC forward LES at the same probe (diagnostic reference, not part of the
+    # reconstruction): tracks the DNS for ~1 eddy turnover then diverges.
+    les_probe = ROOT / "diagnostics/les_probe_center.npz"
+    if les_probe.exists():
+        d_les = np.load(les_probe)
+        u_les_pt = np.interp(t, d_les["t"], d_les["u_probe"])
+        ax1.plot(t, u_les_pt, color="#0072B2", ls=":", lw=1.2, label="LES (same IC)")
     ax1.set_xlabel(r"$t$ [s]")
     ax1.set_ylabel(r"$u(\mathbf{x}_0, t)$ [m/s]")
     ax1.set_title(rf"(a) Probe trace at $\mathbf{{x}}_0=(0.5,0.5)$", fontsize=9)

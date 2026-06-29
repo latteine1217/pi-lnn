@@ -15,7 +15,7 @@ Why:
 Usage:
     PYTORCH_ENABLE_MPS_FALLBACK=1 uv run python scripts/benchmark_inference.py \
         --config configs/exp_094_b3_seed2.toml \
-        --checkpoint artifacts/kolmogorov/deeponet-cfc-re10000-exp094-b3-seed2/picon_kolmogorov_final.pt \
+        --checkpoint artifacts/kolmogorov/stable/exp094-b3-seed2/picon_kolmogorov_final.pt \
         --device mps \
         --output-json artifacts/benchmark_inference_exp094.json
 """

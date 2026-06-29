@@ -126,6 +126,14 @@ print(f"  RBF u rel-L2: {u_l2_rbf:.4%},  v rel-L2: {v_l2_rbf:.4%}")
 
 
 # === Baseline 2: Gappy POD (UPPER BOUND: uses DNS basis) ===
+# NB (2026-05-28 audit fix): previous version reported the all-snapshot metric
+# `compute_pointwise_l2(..., np.arange(T))` which mixes 160 train + 41 val snapshots.
+# Since the POD basis is fit on those exact 160 train snapshots, the all-snapshot u_L2
+# is dominated by near-perfect in-sample reconstruction → published numbers
+# (e.g. u_L2 0.85% at r=100) are train-set-contaminated. The honest engineering ceiling
+# is the val-only metric. This version reports train/val/all separately and SAVES them.
+# Also: field_mean must be computed from train_indices only — otherwise it leaks val info
+# into the SVD centering.
 print(f"\n=== Baseline 2: Gappy POD (DNS-trained basis, NOT engineering-transferable) ===")
 # Combine u, v: stack as [T, 2*N²]
 field_dns = np.concatenate([
@@ -133,51 +141,73 @@ field_dns = np.concatenate([
     v_dns.reshape(T, N*N)
 ], axis=1)  # [T, 2*N²]
 
-# Subtract time-mean
-field_mean = field_dns.mean(axis=0)
+# Subtract time-mean (TRAIN-ONLY to avoid leakage from val snapshots)
+field_mean = field_dns[train_indices].mean(axis=0)
 field_centered = field_dns - field_mean[None, :]
 
-# SVD: train POD basis from TRAIN snapshots only (still cheating but slightly fair-er)
-# Reduced SVD: only first r modes
+# SVD once on TRAIN snapshots only — basis is rank-160 within train subspace.
+# All r ∈ {50, 100, 150} truncate this same basis; recompute would be wasteful.
+print("  Computing POD basis (SVD on 160 train snapshots)...")
+U_pod, S_pod, Vt_pod = np.linalg.svd(field_centered[train_indices], full_matrices=False)
+print(f"    leading 5 singular values: {S_pod[:5]}")
+
+# Sensor sampling indices in flat [2N²] layout (u in [0, N²), v in [N², 2N²))
+sensor_indices_u = []
+sensor_indices_v = []
+for (xk, yk) in sensor_pos:
+    ix = int(np.round((xk * N) % N))
+    iy = int(np.round((yk * N) % N))
+    flat_idx = ix * N + iy
+    sensor_indices_u.append(flat_idx)
+    sensor_indices_v.append(N*N + flat_idx)
+sensor_indices = np.array(sensor_indices_u + sensor_indices_v)
+
+gappy_pod_results: dict[int, dict] = {}
 for r in [50, 100, 150]:
-    U_pod, S_pod, Vt_pod = np.linalg.svd(field_centered[train_indices], full_matrices=False)
-    # POD basis: first r columns of Vt (right singular vectors)
+    # POD basis: first r right singular vectors
     pod_basis = Vt_pod[:r]  # [r, 2*N²]
 
-    # Reconstruct each snapshot from K sensor measurements (Gappy POD)
-    # Sensor sampling: extracts u, v at K sensor positions = 2K measurements
-    sensor_indices_u = []
-    sensor_indices_v = []
-    for (xk, yk) in sensor_pos:
-        ix = int(np.round((xk * N) % N))
-        iy = int(np.round((yk * N) % N))
-        flat_idx = ix * N + iy
-        sensor_indices_u.append(flat_idx)
-        sensor_indices_v.append(N*N + flat_idx)
-    sensor_indices = np.array(sensor_indices_u + sensor_indices_v)
-
-    # Sensor sampling matrix S: [2K, 2N²]
-    # For each snapshot, sensor reading = field_centered[t][sensor_indices]
-    # Solve: pod_basis[:, sensor_indices] @ a_t = sensor_vals[t] - field_mean[sensor_indices]
-    # → a_t = least-squares solution
-
+    # Sensor-restricted basis A_sample @ a_t = y_t − mean (LSQ in r-dim coeff space)
     A_sample = pod_basis[:, sensor_indices].T  # [2K, r]
 
     u_pod = np.zeros_like(u_dns)
     v_pod = np.zeros_like(v_dns)
     for t_idx in range(T):
         sensor_vals = field_dns[t_idx, sensor_indices] - field_mean[sensor_indices]
-        # Solve A_sample @ a = sensor_vals
         a, *_ = np.linalg.lstsq(A_sample, sensor_vals, rcond=None)
-        # Reconstruct full field
         recon = pod_basis.T @ a + field_mean
         u_pod[t_idx] = recon[:N*N].reshape(N, N)
         v_pod[t_idx] = recon[N*N:].reshape(N, N)
 
-    ke_pod = compute_ke_rel_err(u_pod, v_pod, u_dns, v_dns, np.arange(T))
-    ke_pod_val = compute_ke_rel_err(u_pod, v_pod, u_dns, v_dns, val_indices)
-    u_l2_pod = compute_pointwise_l2(u_pod, u_dns, np.arange(T))
-    print(f"  Gappy POD r={r}: KE rel-err all={ke_pod:.4%} val={ke_pod_val:.4%}, u rel-L2={u_l2_pod:.4%}")
+    # Full metric set: all (legacy) / train (in-sample) / val (honest ceiling)
+    ke_all   = compute_ke_rel_err(u_pod, v_pod, u_dns, v_dns, np.arange(T))
+    ke_train = compute_ke_rel_err(u_pod, v_pod, u_dns, v_dns, train_indices)
+    ke_val   = compute_ke_rel_err(u_pod, v_pod, u_dns, v_dns, val_indices)
+    u_l2_all   = compute_pointwise_l2(u_pod, u_dns, np.arange(T))
+    u_l2_train = compute_pointwise_l2(u_pod, u_dns, train_indices)
+    u_l2_val   = compute_pointwise_l2(u_pod, u_dns, val_indices)
+    v_l2_all   = compute_pointwise_l2(v_pod, v_dns, np.arange(T))
+    v_l2_train = compute_pointwise_l2(v_pod, v_dns, train_indices)
+    v_l2_val   = compute_pointwise_l2(v_pod, v_dns, val_indices)
+
+    gappy_pod_results[r] = {
+        "ke_rel_err_all":   ke_all,
+        "ke_rel_err_train": ke_train,
+        "ke_rel_err_val":   ke_val,
+        "u_rel_l2_all":     u_l2_all,
+        "u_rel_l2_train":   u_l2_train,
+        "u_rel_l2_val":     u_l2_val,
+        "v_rel_l2_all":     v_l2_all,
+        "v_rel_l2_train":   v_l2_train,
+        "v_rel_l2_val":     v_l2_val,
+        "uses_dns":         True,
+        "leakage_status":   "train_mean_only; SVD on train snapshots only; "
+                            "val == honest out-of-sample ceiling",
+    }
+    print(f"  Gappy POD r={r}:")
+    print(f"    KE   rel-err  all={ke_all:.4%}  train={ke_train:.4%}  val={ke_val:.4%}")
+    print(f"    u L2 rel      all={u_l2_all:.4%}  train={u_l2_train:.4%}  val={u_l2_val:.4%}")
+    print(f"    v L2 rel      all={v_l2_all:.4%}  train={v_l2_train:.4%}  val={v_l2_val:.4%}")
 
 
 # === Final comparison ===
@@ -203,6 +233,15 @@ summary = {
         "uses_dns": False,
     },
     "spectral_truncation_floor": {"k4": 0.0777, "k6": 0.0262, "k8": 0.0105},
+    "gappy_pod": {
+        str(r): gappy_pod_results[r] for r in gappy_pod_results
+    },
+    "split": {
+        "train_indices": train_indices.tolist(),
+        "val_indices":   val_indices.tolist(),
+        "n_train":       int(len(train_indices)),
+        "n_val":         int(len(val_indices)),
+    },
 }
 with open(OUT_DIR / "baseline_comparison.json", "w") as f:
     json.dump(summary, f, indent=2)

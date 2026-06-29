@@ -48,25 +48,28 @@ if [ "${PENDING:-0}" -gt 0 ]; then
 fi
 echo "[OK] 無 exp_28x job 在 queue，視為全部結束。"
 
-echo "=== [2/4] lab 對 15 個 final.pt 跑 eval (--export_arrays, cuda) ==="
-ssh "$LAB" "cd ~/pi-lnn && for spec in ${SPECS[*]}; do
-    id=\${spec%%:*}; cfg=\${spec##*:};
-    adir=\$(grep '^artifacts_dir' \"\$cfg\" | sed 's/.*= *\"//; s/\".*//');
-    ckpt=\"\$adir/picon_kolmogorov_final.pt\";
-    if [ ! -f \"\$ckpt\" ]; then echo \"[WARN] 缺 checkpoint: \$ckpt (跳過)\"; continue; fi
-    echo \"--- eval EXP-\$id ---\";
-    uv run python scripts/evaluate_deeponet_cfc.py --config \"\$cfg\" \
-      --checkpoint \"\$ckpt\" --output-dir \"artifacts/eval_\$id\" \
-      --export_arrays --device cuda 2>&1 | tail -2;
-done"
-
-echo "=== [3/4] rsync series.npz 回本地 ==="
+echo "=== [2/4] rsync 15 final.pt 下來 + 本地 MPS eval ==="
+# 註：head node (acmt0) 無相容 GPU（cudaErrorNoKernelImageForDevice），compute 須走 slurm；
+#     eval 為輕量後處理，改在本地 M3 MPS 跑（與 B3 主 eval 同路徑），避免再寫 eval sbatch 排隊。
+# 不 source ~/.zshrc（zsh 語法在 set -e bash 下會中止）；直接補 uv PATH。
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+export PYTORCH_ENABLE_MPS_FALLBACK=1
 for spec in "${SPECS[@]}"; do
-  id="${spec%%:*}"
-  mkdir -p "artifacts/eval_$id"
-  rsync -avzP "$LAB:~/pi-lnn/artifacts/eval_$id/series.npz" "artifacts/eval_$id/" 2>/dev/null \
-    || echo "[WARN] rsync 失敗: eval_$id"
+  id="${spec%%:*}"; cfg="${spec##*:}"   # SPECS 已含 configs/ 前綴與 .toml 後綴
+  if [ -f "artifacts/eval_$id/series.npz" ]; then echo "[skip] eval_$id 已完成"; continue; fi
+  adir=$(grep '^artifacts_dir' "$cfg" | sed 's/.*= *"//; s/".*//')
+  mkdir -p "$adir"
+  if [ ! -f "$adir/picon_kolmogorov_final.pt" ]; then
+    rsync -azq "$LAB:~/pi-lnn/$adir/picon_kolmogorov_final.pt" "$adir/" \
+      || { echo "[WARN] rsync ckpt 失敗: $id"; continue; }
+  fi
+  echo "--- eval EXP-$id (mps) ---"
+  uv run python scripts/evaluate_deeponet_cfc.py --config "$cfg" \
+    --checkpoint "$adir/picon_kolmogorov_final.pt" --output-dir "artifacts/eval_$id" \
+    --export_arrays --device mps 2>&1 | tail -2
 done
+
+echo "=== [3/4] series.npz 已由本地 eval 直接產出（無需 rsync） ==="
 
 echo "=== [4/4] 本地彙總 per-architecture mean±std ==="
 uv run python - "${SPECS[@]}" <<'PYEOF'

@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42"
+artifacts_dir = "artifacts/kolmogorov/stable/exp101-b3-random-seed42"
 
 # EXP-101: Sensor placement ablation — uniform random vs QR-pivot baseline (EXP-080)
 # placement_seed = 42 (sensor selection), training_seed = 42 (model init)

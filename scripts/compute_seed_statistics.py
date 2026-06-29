@@ -30,15 +30,15 @@ ARTIFACT_PATHS: dict[str, dict[int, str]] = {
         42: "artifacts/eval-rerun-2026-05-09/exp080-al-4task-rho01/summary.json",
         1:  "artifacts/eval-rerun-2026-05-11/exp093-b3-seed1/summary.json",
         2:  "artifacts/eval-rerun-2026-05-12/exp094-b3-seed2/summary.json",
-        3:  "artifacts/kolmogorov/deeponet-cfc-re10000-exp097-b3-seed3/deeponet-cfc-eval/summary.json",
-        4:  "artifacts/kolmogorov/deeponet-cfc-re10000-exp098-b3-seed4/deeponet-cfc-eval/summary.json",
+        3:  "artifacts/kolmogorov/stable/exp097-b3-seed3/deeponet-cfc-eval/summary.json",
+        4:  "artifacts/kolmogorov/stable/exp098-b3-seed4/deeponet-cfc-eval/summary.json",
     },
     "B0": {  # Vanilla DeepONet (no CfC, no cross-attention, no AL)
         42: "artifacts/eval-rerun-2026-05-11/exp088-vanilla-deeponet/summary.json",
         1:  "artifacts/eval-rerun-2026-05-11/exp095-b0-seed1/summary.json",
         2:  "artifacts/eval-rerun-2026-05-12/exp096-b0-seed2/summary.json",
-        3:  "artifacts/kolmogorov/deeponet-cfc-re10000-exp099-b0-seed3/deeponet-cfc-eval/summary.json",
-        4:  "artifacts/kolmogorov/deeponet-cfc-re10000-exp100-b0-seed4/deeponet-cfc-eval/summary.json",
+        3:  "artifacts/kolmogorov/stable/exp099-b0-seed3/deeponet-cfc-eval/summary.json",
+        4:  "artifacts/kolmogorov/stable/exp100-b0-seed4/deeponet-cfc-eval/summary.json",
     },
 }
 

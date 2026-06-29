@@ -110,7 +110,7 @@ checkpoint_period = 500
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp096-b0-seed2"
+artifacts_dir = "artifacts/kolmogorov/stable/exp096-b0-seed2"
 
 # EXP-096: Vanilla DeepONet baseline (B0 architectural ablation)
 # MLP branch (sensor_at_tq) + MLP trunk + inner product readout

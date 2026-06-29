@@ -76,4 +76,4 @@ checkpoint_period = 500
 seed = 1
 device = "mps"
 use_sensor_physics = false
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp283b-b2-les-T50-20k-seed1"
+artifacts_dir = "artifacts/kolmogorov/equal_budget/exp283b-b2-les-T50-20k-seed1"

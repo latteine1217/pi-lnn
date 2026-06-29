@@ -36,7 +36,7 @@ export PYTORCH_ENABLE_MPS_FALLBACK=1
 export PYTHONUNBUFFERED=1
 
 CONFIG="configs/exp_103_b3_lesinformed_n256_qrpivot.toml"
-ARTIFACT_DIR="artifacts/kolmogorov/deeponet-cfc-re10000-exp103-b3-lesinformed-n256-seed2"
+ARTIFACT_DIR="artifacts/kolmogorov/stable/exp103-b3-lesinformed-n256-seed2"
 FINAL_PT="${ARTIFACT_DIR}/picon_kolmogorov_final.pt"
 EVAL_DIR="${ARTIFACT_DIR}/deeponet-cfc-eval"
 SUMMARY="${EVAL_DIR}/summary.json"

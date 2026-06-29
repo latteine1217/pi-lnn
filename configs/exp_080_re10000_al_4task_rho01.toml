@@ -110,4 +110,4 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp080-al-4task-rho01"
+artifacts_dir = "artifacts/kolmogorov/stable/exp080-al-4task-rho01"

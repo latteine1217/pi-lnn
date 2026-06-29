@@ -78,4 +78,4 @@ device = "mps"
 use_sensor_physics = false
 # B1 = CfC + no cross-attn
 disable_cross_attention = true
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp282e-b1-les-T50-20k-seed4"
+artifacts_dir = "artifacts/kolmogorov/equal_budget/exp282e-b1-les-T50-20k-seed4"

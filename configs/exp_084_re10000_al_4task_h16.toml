@@ -110,7 +110,7 @@ seed = 42
 device = "mps"
 use_sensor_physics = false
 
-artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp084-al-4task-h16"
+artifacts_dir = "artifacts/kolmogorov/legacy/exp084-al-4task-h16"
 
 # EXP-084: 在 sweet spot ρ=0.1 上 pivot 到 fourier_harmonics 8→16 (spatial bandwidth ↑)。
 # Hypothesis: EXP-083 揭露 ek_ratio 退步 4.2% → bandwidth 不足; harmonics↑ 直接 lever ek_ratio。
