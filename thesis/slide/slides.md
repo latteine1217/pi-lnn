@@ -1185,7 +1185,7 @@ Gap&nbsp; <b style="color:#7F1084;">−2.53 pp (−30.6 % relative)</b>,&nbsp; p
 <FooterLogos />
 
 <!--
-[Architectural ablation · 2min] 左圖：5 個架構變體的 u rel-L₂ 比較。B0 → B1 (+CfC) → B2 (+cross-attn) → B3 (both)。Standard PINN 6×512 MLP 比 B0 還差（沒有 sensor encoding 比有更糟）。右上 ANOVA：CfC −3.52pp, cross-attn −4.62pp, interaction mild +。右下 multi-seed: n=5 t-test KE p=6.0e-8（升級論文 claim 從 p<0.001 到 p<10⁻⁷）。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
+[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.21pp（dominant lever）、CfC +0.99pp（worse alone）、interaction −2.31pp、sum −2.53pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.53pp（−30.6% relative）、p=3.0×10⁻⁷。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
 -->
 
 ---
@@ -1218,7 +1218,7 @@ Gap&nbsp; <b style="color:#7F1084;">−2.53 pp (−30.6 % relative)</b>,&nbsp; p
 <div class="mt-4 text-xs" style="color:#6B7280;">
 Source · EXP-245 baseline<br/>
 B3 1-head + LES_T50 + 1024 collo<br/>
-seed = 42 · n ≥ 3 multi-seed pending
+seed = 42 (field viz) · metrics at n = 5
 </div>
 
 </div>
@@ -1294,7 +1294,7 @@ div ratio&nbsp; <b style="color:#7F1084;">0.39 ± 0.006 %</b><br/>
 <FooterLogos />
 
 <!--
-[Vorticity error interpretation · 2min] 左 metrics 兩個 Pareto 點 — KE 7.80%/10.68%, ω rel-L₂ 45%/51%, div 0.184/0.067。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②LNN 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
+[Vorticity error interpretation · 2min] 左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
 -->
 
 ---
@@ -1390,7 +1390,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <FooterLogos />
 
 <!--
-[Temporal & Spectral · 2min] u/v rel-L₂(t) 而非 KE(t)：u 跟 v 兩條分開更能看清楚通道間 anisotropy（v 比 u 高約 4 percentage points，因為 Kolmogorov forcing 在 v 方向）。Observer warm-up：t<0.5 rel-L₂ 30-40%，causal CfC memory 填滿後降到 ≲22%。E(k) 在 k>16 掉 ~10 orders → K=100 information ceiling 的 spectral 證據。div 量級 ~0.18 vs DNS reference 0.09，同階 (不可能完全為 0，DNS 自身 finite-diff 也有 ~0.09 floor)。
+[Temporal & Spectral · 2min] 三張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay 0.161→0.122 m²/s²）、velocity RMSE u/v(t)（0.16→≲0.04 m/s, |v err|<|u err|）、E(k) at t=5（low band k≤5 recovered, mid/high 在 k≈5.64 = K=100 sensor-Nyquist 掉落）。div ratio 0.39% 接近 resolved-bandwidth FD floor。
 -->
 
 ---
@@ -1958,7 +1958,7 @@ PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative
 <div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
 <div>Main baseline (LES_T50, 20 k, n=5): KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ~4 %</div>
 <div>Cross-attention the dominant lever: <b>−2.53 pp</b> vs B0 (p = 3.0×10⁻⁷)</div>
-<div>Single forward pass · setup <b>≈ 2.2×</b> cheaper than a DNS solve</div>
+<div>Single forward pass · full trajectory <b>≈20×</b> faster than DNS solve (9.7 min vs 3.27 h) · one-time setup 2.2× cheaper</div>
 </div>
 </Card>
 
@@ -2003,8 +2003,8 @@ PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative
 <!--
 [Conclusion summary · 2min] 對應三個 objectives 一一作答：
 O1 feasibility — main baseline EXP-245 (LES_T50 + 1024 collo + 20k, n=5) KE 5.71 ± 0.11% 達工程目標；EXP-271 DNS oracle fair comparison KE 4.68 ± 0.06% 但 pointwise L2 較差；EXP-290 noise n=5 證明 10% additive noise 仍 engineering-grade；inference 說法限定 sparse monitoring。
-O2 architectural gain — 2×2 ANOVA: CfC -3.52pp, cross-attn -4.62pp, synergy -1.09pp, 共 -8.14pp u-L₂ 改善；跨 3 種 placement (DNS/LES/Random) B3 領先 B0 ~8pp 穩定。
-O3 band-dependent ceiling — mid/high band 受 sensor Nyquist k_max ≈ 5.64 上限；K-scaling 是 productive path。不要把 historical physics-sampling budget sweep 當主線。
+O2 數量軸 — sensor Nyquist k_max=√(K/π)≈5.64 @K=100；K=100/200/400 → KE 5.90/2.47/1.76%，cutoff 隨 √(K/π)，budget 而非架構。
+O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placement/σ_training=6.2×；noise 到 10% 仍 engineering-grade。
 -->
 
 ---
@@ -2573,7 +2573,7 @@ Claim: AL-continuity reaches the resolved-bandwidth FD floor, not "more incompre
 <Card>
 <LabelTiny>Q6.&nbsp; Standard PINN baseline straw-man?</LabelTiny>
 <div class="mt-1 leading-snug">
-Acknowledged limitation: PINN has no set-encoder for sensor cloud.&nbsp; <b>Vanilla DeepONet (B0)</b> is the fair architectural baseline (same set-encoded input), and B3 vs B0 gap +5.5 percentage points at p = 1.4×10⁻³ isolates "operator branch + CfC + cross-attn" gain.&nbsp; PINN row is informational, not the headline claim.
+Acknowledged limitation: PINN has no set-encoder for sensor cloud.&nbsp; <b>Vanilla DeepONet (B0)</b> is the fair architectural baseline (same set-encoded input), and B3 vs B0 KE gap −2.53 percentage points at p = 3.0×10⁻⁷ isolates "operator branch + CfC + cross-attn" gain.&nbsp; PINN row is informational, not the headline claim.
 </div>
 </Card>
 
