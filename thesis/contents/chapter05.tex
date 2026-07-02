@@ -1,0 +1,60 @@
+\chapter{Conclusion}
+\label{ch:discussion_conclusion}
+
+\section{Summary}
+\label{sec:summary}
+
+This work has reconstructed turbulent flow fields from sparse point sensors without full-field DNS supervision. PI-CON (a CfC-DeepONet hybrid with a continuous-time recurrent encoder for the sensor time series, an isotropic relative-position cross-attention that maps sparse sensors to dense query points, and an Augmented-Lagrangian-style adaptive penalty on the aggregated continuity residual) meets the engineering targets on 2D Kolmogorov at $Re=10\,000$ with $K=100$ sensors. Across three placement strategies (a DNS-pivot oracle, a DNS-free LES-derived placement, and random placement), reconstruction stays engineering-grade; against the oracle the DNS-free LES placement trades slightly higher integral KE error for lower pointwise velocity error (Table~\ref{tab:main_metrics}), staying competitive without any DNS field.
+
+The three engineering success criteria of \S\ref{sec:research_questions} are met:
+\begin{itemize}
+    \item \textbf{(O1) An accurate and fast reconstructor.} The energy-dominant low-wavenumber band reaches single-digit relative error within the $10\%$ target (Fig.~\ref{fig:band_err}), with a $2\times2$ ablation confirming the architectural components under the final PI-CON protocol; once trained, the operator answers any space--time query in a single forward pass and reconstructs a full trajectory several-fold faster than re-solving the reference DNS (Table~\ref{tab:inference_cost}), though a single full-field query is not yet real-time on CPU or MPS.
+    \item \textbf{(O2) Sensor count sets the achievable resolution.} A divergence-free SVD and a $K$-scaling sweep ($K\in\{100,200,400\}$) attribute residual mid/high-band error to sensor information capacity, with the measured cutoff tracking the Nyquist-predicted ceiling, identifying sensor-density scaling as the productive direction (\S\ref{sec:info_limit}).
+    \item \textbf{(O3) Placement and noise set reliability.} Three placement strategies (DNS-oracle, DNS-free LES, random) all reach engineering-grade KE error, with placement contributing a variance source $6.2\times$ training stochasticity; additive sensor noise up to $10\%$ keeps the reconstruction engineering-grade in the noise-stress test.
+\end{itemize}
+
+\paragraph{Contributions.}
+\begin{enumerate}
+    \item \textbf{PI-CON architecture for engineering sparse-sensor reconstruction.} A CfC-DeepONet hybrid with isotropic-relpos cross-attention and Augmented-Lagrangian continuity, trained under sensor-only-with-physics supervision, attains KE MAPE $5.71 \pm 0.11\%$ ($n=5$ seeds) from $K=100$ sensors at $Re=10\,000$ (Table~\ref{tab:main_metrics}), reconstructing the field at any query point in a single pass without re-solving the governing equations. A matched $2\times2$ ablation identifies cross-attention as the dominant architectural lever and shows that CfC is useful only through its interaction with the query-conditional readout.
+    \item \textbf{A systematic sensing-configuration study.} Reconstruction quality is mapped against sensor count, placement, and noise. The sensor \emph{count} sets the achievable resolution: a divergence-free SVD quantifies the observable mode fraction at $K=100$, and a $K\in\{100,200,400\}$ sweep confirms the reconstruction bandwidth tracks the Nyquist ceiling (Table~\ref{tab:k_scaling_nyquist}). The \emph{placement} sets reliability: a DNS-pivot oracle, a DNS-free LES placement, and random placement all reach engineering grade, with placement variance $6.2\times$ larger than training stochasticity (Table~\ref{tab:placement_strategy_new}). Additive \emph{noise} up to $10\%$ leaves the reconstruction engineering-grade in the controlled noise-stress test. Sensor-density scaling, not architecture, is the productive direction for higher fidelity.
+    \item \textbf{Cross-Reynolds feasibility under a single architecture.} At $Re=10^6$ with $K=200$ sensors the same architecture--AL recipe attains KE MAPE $6.10\%$ (Table~\ref{tab:re1e6}), showing feasibility over two orders of magnitude in Reynolds number. The result is single-seed and should be treated as an extension, not a multi-seed benchmark.
+\end{enumerate}
+
+\section{Engineering Implications}
+\label{sec:engineering_impl}
+
+Five implications follow from the results (details in Chapter~\ref{ch:results}):
+
+\begin{itemize}
+    \item \textbf{Energy-dominant band suffices for engineering use.} The low-wavenumber band is reconstructed at single-digit relative error from a DNS-free LES-pivot pipeline, sufficient for KE-based control, mean-flow monitoring, and phase-locked actuation.
+    \item \textbf{Mid/high-band saturation has a quantified bound.} The near-$100\%$ relative error in higher bands tracks the sensor-information limit at the present budget (\S\ref{sec:info_limit}); $K$-scaling shows the effective reconstruction bandwidth expanding in close agreement with the Nyquist-predicted scaling. Per-band reporting thus gives actionable downstream diagnostics rather than an opaque single number.
+    \item \textbf{Active incompressibility constraint across Reynolds numbers.} The Augmented-Lagrangian continuity constraint drives the reconstruction's divergence to the finite-difference floor of its resolved bandwidth at both reported Reynolds numbers (\S\ref{sec:sub_dns_div}), with no configuration switching required. Incompressibility-sensitive downstream tasks should validate against their own tolerance, since the reconstruction is band-limited near the sensor Nyquist cutoff.
+    \item \textbf{Streaming-friendly deployment.} Filtering mode reads no future sensors and the CfC formulation decouples query rate from sensor sampling; training uses no DNS full field, so deployment requires only the sensor stream.
+    \item \textbf{Bounded sensitivity to observation noise.} Across the tested additive-noise range, KE remains below the $10\%$ engineering threshold; the sweep supports robustness to modest observation noise while leaving realistic sensor-error models open.
+\end{itemize}
+
+\section{Limitations}
+\label{sec:limitations}
+
+\begin{itemize}
+    \item \textbf{Observation noise.} The $1$--$10\%$ Gaussian noise sweep uses the final PI-CON protocol with $n=5$ seeds per noise level, but it still covers only additive per-channel Gaussian perturbations and excludes sensor-specific bias, drift, dropout, correlated channel noise, and calibration errors.
+    \item \textbf{Geometry scope.} The method is demonstrated only on a simple, obstacle-free, doubly periodic two-dimensional domain. Non-periodic, wall-bounded, or obstacle-laden geometries (cylinder wake, airfoil, internal flow), which require explicit boundary-condition handling at solid or inflow boundaries, are not demonstrated here and remain open.
+    \item \textbf{Forcing form.} A single sustained body force $f_x = A\sin(2\pi k_f y)$ is used throughout. The architecture is forcing-agnostic, but wall-driven channel flow and inflow-driven wakes/jets require case-by-case revalidation.
+    \item \textbf{Acceptance metrics.} Beyond the primary KE, $u/v$ relative $L_2$, and divergence metrics, supplemented by the mean-profile, Reynolds-shear-stress, and enstrophy/dissipation diagnostics of \S\ref{sec:visual}--\S\ref{sec:spectrum}, higher-order Reynolds-stress moments and a full turbulent-kinetic-energy budget closure are not covered.
+    \item \textbf{Per-case fitting and single-seed cross-$Re$.} PI-CON is fit once per case by design: high-Reynolds chaos makes each realisation sensitive to its conditions, so a model shared across realisations would blur them (O2, \S\ref{sec:research_questions}). This data-assimilation-style operating mode is appropriate rather than a deficiency, but cross-case and cross-Reynolds generality is not demonstrated here, and the $Re=10^6$ extension is single-seed with its seed variance unquantified. Both are addressed in \S\ref{sec:future_work}.
+    \item \textbf{CFD-rigour gaps.} The DNS passes Pope-2000 ($k_{\max}\eta=1.91$) but $T/t_{\rm eddy}=2.51$ gives a short statistical window. Internal $p$ is unsupervised (Appendix~\ref{app:pressure_limit}). The forward-CFD baseline shares the DNS attractor but phase-decorrelates by $t=5$; a 4D-Var comparison is an open follow-up (\S\ref{sec:future_work}).
+    \item \textbf{Diagnostic boundaries.} Forcing parameters ($A$, $k_f$) were not recovered at $K=100$ sensors under the tested initialisation despite accurate reconstruction (\S\ref{sec:forcing_identifiability}); structural identifiability is not established. Multi-constraint AL remains a recipe diagnostic rather than a main conclusion: the final-protocol rerun gives mixed single-seed results, so the thesis keeps the continuity-only AL recipe because it is supported by the $n=5$ main baseline (\S\ref{sec:multi_al_negative}).
+\end{itemize}
+
+\section{Future Work}
+\label{sec:future_work}
+
+Six directions follow from the limitations:
+\begin{enumerate}
+    \item \textbf{Sensor-budget scaling beyond the current curve.} Extend the $K=100/200/400$ sweep with $K=50$ and a matched training budget at $K=400$ to stress-test the agreement between Nyquist-predicted ceiling and effective reconstruction bandwidth, and to separate sensor bandwidth from compute-budget compromises.
+    \item \textbf{Cross-Reynolds multi-seed confirmation.} The $Re=10^6$ extension (Table~\ref{tab:re1e6}) is single-seed; an $n=3$ multi-seed run quantifies its seed variance against the $Re=10^4$ baseline. A higher-Reynolds test ($Re \ge 10^7$) and sensor-density scaling at $Re=10^6$ ($K=400$) extend the cross-$Re$ envelope.
+    \item \textbf{Realistic sensor-error model.} Go beyond additive Gaussian noise to bias, drift, dropout, correlated channel noise, and calibration uncertainty; assess whether sensor denoising or mean-enforced losses such as that of Mo and Magri~\cite{Mo2025PRF} are needed.
+    \item \textbf{Wall-bounded and obstacle geometries with multi-modal fusion.} Extend the reconstruction from the periodic obstacle-free domain to non-periodic, wall-bounded, and obstacle-laden flows (cylinder wake, airfoil, channel) under explicit boundary-condition losses, incorporating pressure taps or temperature sensors through an extended per-channel embedding $\mathbf{e}_c$.
+    \item \textbf{4D-Var on the forward-CFD baseline and pressure-supported reconstruction.} The forward-CFD baseline (\S\ref{sec:forward_cfd_baseline}) integrates a sensor-reconstructed IC for $T/t_{\rm eddy}=2.51$, retaining attractor statistics while losing phase. A natural follow-on conditions the forward solver on the same continuous sensor stream via a 4D-variational loop, isolating the pointwise gain from conditioning vs.\ from operator-learning representation. Separately, Appendix~\ref{app:pressure_limit} quantifies that sensor-only-with-physics supervises $(u,v)$ only and leaves $p$ outside the loss; pressure-accurate applications require a sparse pressure-tap channel or an architectural reparametrisation (pressure-Poisson decoder).
+    \item \textbf{Cross-case generalisation and the training--simulation crossover.} Train a single model on multi-Reynolds, multi-trajectory data and test whether it generalises to unseen cases, quantifying the accuracy cost of amortising per-case fitting. In regimes where one high-fidelity solve is prohibitive (3D, multi-physics, or substantially higher Reynolds number), measure whether the fixed offline training cost falls below a single forward simulation, the condition under which operator learning would undercut direct simulation end-to-end.
+\end{enumerate}

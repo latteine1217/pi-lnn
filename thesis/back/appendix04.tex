@@ -1,0 +1,32 @@
+\chapter{Pressure-Field Scope Limit}
+\label{app:pressure_limit}
+
+Per the engineering-deployable regime (\S\ref{sec:engineering_constraint}, supervision condition~1) and the channel-availability assumption (\S\ref{sec:assumptions}), the network outputs $p$ as a model-internal variable without direct supervision. The momentum residual couples $p$ to the loss only through $\nabla p$; $p$ itself carries an additive gauge ($p\to p+C(t)$ leaves the dynamics unchanged). This appendix quantifies how far the resulting internal pressure departs from the DNS reference.
+
+\paragraph{Pressure-gradient metric.}
+The physically meaningful comparison is the pressure-gradient relative $L_2$ error
+\begin{equation}
+    \mathrm{p}^{\nabla}_{\rm rel\,L_2}(t) \;=\; \frac{\big\Vert \nabla p_{\rm pred}(t) - \nabla p_{\rm DNS}(t)\big\Vert_2}{\Vert \nabla p_{\rm DNS}(t)\Vert_2},
+\end{equation}
+computed by central finite differences on the $128^2$ evaluation grid. A gauge-removed pressure-value error
+$p_{\rm rel\,L_2}^{\rm GR}(t) = \Vert p_{\rm pred}^{\rm GR}-p_{\rm DNS}^{\rm GR}\Vert_2/\Vert p_{\rm DNS}^{\rm GR}\Vert_2$
+(with $p^{\rm GR} = p - \langle p\rangle_{\Omega}$) serves as a secondary diagnostic.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Pressure-gradient (units: $\mathrm{m}/\mathrm{s}^2$) and gauge-removed pressure (units: $\mathrm{m}^2/\mathrm{s}^2$) metrics on the two reference configurations ($128^2$ evaluation grid, time-mean). Relative-error entries are dimensionless percentages.}
+    \label{tab:pressure_limit}
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabular}{lcccc}
+    \toprule
+    \textbf{Configuration} & $\mathrm{p}^{\nabla}_{\rm rel\,L_2}$ & $\Vert\nabla p\Vert_{\rm rms}^{\rm pred}$ & $\Vert\nabla p\Vert_{\rm rms}^{\rm DNS}$ & $p_{\rm rel\,L_2}^{\rm GR}$ (diag.) \\
+    \midrule
+    No-AL reference        & $112.0\%$ & $2.14$ & $7.63$ & $117.8\%$ \\
+    AL main ($\rho=0.1$)   & $111.2\%$ & $2.10$ & $7.63$ & $119.7\%$ \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Reading.}
+The two configurations give near-identical numbers: predicted $\Vert\nabla p\Vert_{\rm rms}$ is $\sim 28\%$ of the DNS reference, and $\mathrm{p}^{\nabla}_{\rm rel\,L_2}\sim 112\%$. The result is independent of the AL recipe and consistent with the stated regime: the momentum residual underdetermines $\nabla p$, since any smooth pattern partially cancelling $(\mathbf{u}\cdot\nabla)\mathbf{u}$ is admissible. The velocity field $(u,v)$ remains physically meaningful (\S\ref{sec:main_result}), with divergence driven to the band-limited finite-difference floor of its resolved scales (\S\ref{sec:sub_dns_div}) and accurate forcing-mode amplitude/phase (\S\ref{sec:spectrum}); downstream pressure reconstruction lies outside the present scope. Restoring pressure consistency requires either a sparse pressure-tap channel or an architectural reparametrization (pressure-Poisson decoder), listed as future work in \S\ref{sec:future_work}.

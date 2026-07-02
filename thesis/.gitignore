@@ -1,0 +1,28 @@
+# LaTeX build artifacts — 不入 git
+_build/
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+*.idx
+*.ilg
+*.ind
+*.nlo
+*.nls
+
+# Editor / OS
+.DS_Store
+*.swp
+*.swo

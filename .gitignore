@@ -49,8 +49,14 @@ docs/figures/
 AGENTS.md
 CLAUDE.md
 
-# Thesis (local working copy — not for GitHub)
-thesis/
+# Thesis — track LaTeX source; ignore only heavy/regenerable assets & build outputs
+thesis/slide/node_modules/
+thesis/fonts/
+thesis/slide/*.pptx
+thesis/main.*
+!thesis/main.tex
+thesis/.tmp_pdf_pages*/
 .tmp_slide_check/
 references.bib
+!thesis/back/references.bib
 texput.log

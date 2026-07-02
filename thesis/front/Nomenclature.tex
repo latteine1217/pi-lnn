@@ -1,0 +1,83 @@
+% Abbreviations and Notation — migrated from legacy main.tex (lines 83-160)
+% 註：原本以 % main.tex 已負責章節骨架（
+\noindent\textbf{Abbreviations}
+\vspace{0.5em}
+
+% \renewcommand{\arraystretch} 在 group 內設定以避免全域副作用；
+% 0.72 ≈ 1/1.8 將 NTHUthesis 的 1.8 倍行距壓回接近 1.0 倍。
+{\renewcommand{\arraystretch}{0.72}%
+% \noindent 抑制段首縮排：\textwidth 寬的 tabularx 若帶 parindent 會被推出右邊界
+% （overfull ~23pt），與下方 Notation 表的 \noindent 對齊處理。
+\noindent\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{2.8cm} >{\raggedright\arraybackslash}X@{}}
+PI-CON   & Physics-Informed Continuous-time Operator Network (this work) \\
+PINN(s)  & Physics-Informed Neural Network(s) \\
+DeepONet & Deep Operator Network \\
+FNO      & Fourier Neural Operator \\
+CfC      & Closed-form Continuous-time network \\
+LNN      & Liquid Neural Network \\
+LTC      & Liquid Time-Constant network \\
+RFF      & Random Fourier Features \\
+RWF      & Random Weight Factorization \\
+GradNorm & Gradient-Norm based loss balancing \\
+SOAP     & Shampoo with Adam in the Preconditioner's eigenbasis \\
+QRCP     & QR factorization with Column Pivoting \\
+QR-pivot & Sensor placement based on QRCP on POD modes \\
+POD      & Proper Orthogonal Decomposition \\
+DMD      & Dynamic Mode Decomposition \\
+MLP      & Multi-Layer Perceptron \\
+ANOVA    & Analysis of Variance \\
+SVD      & Singular Value Decomposition \\
+DNS      & Direct Numerical Simulation \\
+LES      & Large-Eddy Simulation \\
+RANS     & Reynolds-Averaged Navier--Stokes \\
+NS       & Navier--Stokes \\
+PDE      & Partial Differential Equation \\
+CS       & Compressed Sensing \\
+RIP      & Restricted Isometry Property \\
+CFD      & Computational Fluid Dynamics \\
+KE       & Kinetic Energy \\
+EMA      & Exponential Moving Average \\
+MAPE     & Mean Absolute Percentage Error \\
+MSE      & Mean Squared Error \\
+ETDRK4   & Exponential Time Differencing Runge--Kutta 4 \\
+\end{tabularx}}
+
+\par\addvspace{1em}
+\noindent\begin{minipage}{\textwidth}
+\textbf{Notation}\par\vspace{0.5em}
+\renewcommand{\arraystretch}{0.72}%
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}p{3.2cm} >{\raggedright\arraybackslash}X@{}}
+$\Omega$ & Spatial domain, $[0,1\,\mathrm{m}]^2$ for 2D Kolmogorov flow (periodic) \\
+$\mathbf{x} = (x,y)^T$ & Spatial coordinates (m) \\
+$t \in [0, T]$ & Time (s), with horizon $T = 5$\,s in the main experiments \\
+$\mathbf{u}(\mathbf{x},t) = (u,v)^T$ & Velocity field (m/s) \\
+$p(\mathbf{x},t)$ & Pressure field (model-internal; not data-supervised), m$^2$/s$^2$ \\
+$\omega(\mathbf{x},t)$ & 2D vorticity, $\omega = \partial_x v - \partial_y u$ (1/s; diagnostic only) \\
+$\nu$ & Kinematic viscosity, $\nu = U L / Re$ (m$^2$/s); $\nu = 10^{-4}$\,m$^2$/s at $Re=10\,000$ \\
+$Re$ & Reynolds number based on $L = 1$\,m and $U = 1$\,m/s \\
+$k_f$ & Forcing wavenumber (1/m) in Kolmogorov flow ($k_f=2$\,m$^{-1}$ in main runs) \\
+$\mathbf{f}$ & Body forcing (m/s$^2$), $\mathbf{f} = (A\sin(2\pi k_f y), 0)^T$ with $A = 0.1$\,m/s$^2$ \\
+$K$ & Number of sparse velocity sensors \\
+$\mathcal{S} = \{\mathbf{x}_k\}_{k=1}^K$ & Sensor locations \\
+$N_{\rm run} = 1024\times 1024$ & DNS solver run grid \\
+$N = 256\times 256$ & Stored DNS snapshot grid (downsampled $\times 4$; used as the training reference) \\
+$N_t$ & Number of sensor sampling time stamps \\
+$\mathbf{D}$ & Sensor observations $\{u,v\}$ at $\mathcal{S}\times\{t_n\}_{n=1}^{N_t}$ \\
+$\boldsymbol{\Psi}^{\text{branch}}, \boldsymbol{\Psi}^{\text{trunk}}$ & DeepONet branch / trunk basis vectors $\in\mathbb{R}^{3\times R}$ (\S\ref{subsec:operator_fusion}) \\
+$d_{\text{model}}$ & Hidden width of CfC encoder \& decoder in the main configuration \\
+$d_{\text{emb}}$ & Fourier embedding dimension \\
+$d_{\text{hidden}}$ & Trunk MLP hidden width \\
+$d_t$ & Time-projection embedding dim ($=16$) \\
+$R$ & DeepONet operator rank ($=d_{\text{model}}$ default) \\
+$L_s, L_a, L_t, L_q$ & Layer counts: spatial encoder / token attention / temporal CfC / trunk MLP \\
+$h_k(t) \in \mathbb{R}^d$ & CfC token state for sensor $k$ at time $t$ \\
+$\theta$ & Trainable network parameters \\
+$c \in \{0,1,2\}$ & Channel index for $(u, v, p)$ in the operator output \\
+$\sigma$ & Disambiguated locally (singular value, std, CfC sigmoid, or envelope band) \\
+$\mathcal{L}_{\text{data}}$ & Sensor-MSE loss on $u,v$ \\
+$\mathcal{L}_{\text{NS},u}, \mathcal{L}_{\text{NS},v}$ & Momentum residuals (Eulerian form) \\
+$\mathcal{L}_{\text{cont}}$ & Continuity residual $\partial_x u + \partial_y v$ \\
+$E(k)$ & Radial energy spectrum at wavenumber $k$ \\
+$\Vert\cdot\Vert_2, \Vert\cdot\Vert_\infty$ & $L_2$ and $L_\infty$ norms over the spatial grid \\
+\end{tabularx}
+\end{minipage}

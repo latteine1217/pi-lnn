@@ -1,0 +1,12 @@
+\chapter{Wavelet Sparsity Diagnostic Procedure}
+\label{app:wavelet_diag}
+
+\paragraph{Algorithm.}
+\begin{enumerate}
+    \item For each $u(t,\cdot)$, $v(t,\cdot)$: 5-level db4 2D wavelet decomposition.
+    \item Flatten and sort coefficients by absolute value.
+    \item Cumulative-energy curve $E_p = \sum_{i\le p} c_i^2 / \sum_i c_i^2$; take $p^*$ such that $E_{p^*} \ge 0.99$.
+    \item Gini coefficient $G = \frac{2\sum_i i\,c_i}{N\sum_i c_i} - \frac{N+1}{N}$ ($\{c_i\}$ in ascending $|c|$).
+\end{enumerate}
+Numerical values and the CS threshold appear in Table~\ref{tab:wavelet} and \S\ref{sec:info_limit}.
+

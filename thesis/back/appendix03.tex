@@ -1,0 +1,19 @@
+\chapter{Cylinder Wake Validation: Non-Periodic Domain Extension}
+\label{app:cylinder}
+\label{sec:cylinder_appendix}
+
+This appendix extends PI-CON to a non-periodic domain via the RealPDEBench cylinder-wake case~\cite{Hu2026RealPDEBench} at $Re\approx 10\,031$ and documents two diagnostic findings (motivation in \S\ref{sec:gap}).
+
+\paragraph{Data.}
+The flow trajectories come from the RealPDEBench cylinder scenario~\cite{Hu2026RealPDEBench}: domain $[0, 0.325]\times[0, 0.178]$ (containing the cylinder body), $T=3\,990$ frames at $\Delta t = 0.005$ s, on a non-uniform $H\times W = 128\times 256$ grid. Sensors are placed by QR-pivot ($K=100$); $T$ is reduced to $200$ frames by sensor sub-sampling (factor $20$) to match the Kolmogorov compute budget.
+
+\paragraph{Inflow BC loss (necessary on non-periodic domains).}
+A non-periodic domain cannot omit a boundary condition. Cylinder sensors concentrate in the wake ($x>0.10$), leaving the inflow region unsupervised; without the BC the reconstruction collapses. Adding an inflow BC loss
+\begin{equation}
+    \mathcal{L}_{\text{BC}} = \frac{1}{N_{\text{BC}}}\sum_{\mathbf{x}_i \in \partial\Omega_{\text{in}}} \big(\hat{u}(\mathbf{x}_i, t) - u_{\text{in}}\big)^2,
+\end{equation}
+with $u_{\text{in}}=0.33$ m/s, $N_{\text{BC}}=64$ uniformly sampled points at $x=0$, and $w_{\text{BC}}=0.1$, brings the cylinder case down to KE $3.5\%$, a $14.5\times$ improvement. With an appropriate BC, PI-CON retains engineering-usable accuracy on non-periodic domains.
+
+\paragraph{Cylinder vs.\ Kolmogorov comparison.}
+The cylinder KE error ($3.5\%$) is lower than on Kolmogorov ($5.71\%$), suggesting PI-CON reconstructs \emph{structured turbulence} (boundary layer, wake) more accurately than \emph{isotropic turbulence} (forced HIT). The observation aligns with the literature: Hanrahan et al.~\cite{Hanrahan2023} report PINNs perform substantially better on turbulent boundary layers than on HIT, because the strong spatial anisotropy of the former supplies additional structural priors.
+

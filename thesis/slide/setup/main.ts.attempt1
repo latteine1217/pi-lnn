@@ -1,0 +1,17 @@
+import { defineAppSetup } from '@slidev/types'
+import { Chart, registerables, defaults } from 'chart.js'
+
+// Register all chart.js primitives once (line, bar, scatter, log scale, ...).
+Chart.register(...registerables)
+
+// Brand defaults: navy + coral palette, sans-serif, tabular nums.
+defaults.font.family =
+  "'Inter','Helvetica Neue',Helvetica,Arial,sans-serif"
+defaults.font.size = 11
+defaults.color = '#0F2D52'
+defaults.borderColor = '#e5e7eb'
+;(defaults as any).animation = false   // keep slides snappy when navigating
+
+export default defineAppSetup(({ app, router }) => {
+  // currently nothing else app-level; placeholder for plugins later
+})

@@ -1,0 +1,6 @@
+# latexmk 設定 — thesis 強制使用 pdflatex 引擎
+# 原因：nthu_thesis.cls 依賴 \usepackage{CJKutf8} + bkaiu Type1 font，
+#       這是 pdfLaTeX-only path；改用 xelatex 會讓所有 \begin{CJK}{UTF8}{bkai}
+#       環境內的中文字元 fallback 到 lmroman 而呈現空白（封面與中文摘要消失）。
+# 副作用：禁止 latexmk -xelatex 或 -lualatex 啟動本專案的 build。
+$pdf_mode = 1;  # 1 = pdflatex

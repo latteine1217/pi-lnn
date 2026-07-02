@@ -1,0 +1,59 @@
+\chapter{Information-Ceiling and Falsifiability Diagnostics}
+\label{app:info_ceiling_diagnostics}
+
+\section{Information-Theoretic Ceiling}
+\label{sec:info_limit}
+
+Three architecture-independent diagnostics quantify the $K=100$ sensor information limit. The wavelet sparsity diagnostic (Table~\ref{tab:wavelet}) yields Gini $\approx 0.985$ for $u, v$; $99\%$ of energy concentrates in $\sim 328$ of $65\,536$ coefficients ($s/N \approx 0.5\%$). The CS bound \eqref{eq:cs_bound} then gives
+\begin{equation}
+    M \;\gtrsim\; C_0 \cdot 328 \cdot \log_2(65\,536/328) \;\in\; [2\,500, 5\,000] \quad (C_0\in[1,2]),
+\end{equation}
+so $K=100$ covers the approximation band ($\sim 196$ coefficients, $94.4\%$ energy) but lies below the CS threshold for mid/high-band detail coefficients. A 2D Fourier basis yields comparable Gini values and the same $\mathcal{O}(s\log_2 N)$ scaling. Appendix~\ref{app:wavelet_diag} gives the algorithmic procedure and $M^*=2\,506$ for $C_0=1$.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Wavelet sparsity diagnostic on $u, v$ (m/s) and vorticity $\omega$ (1/s) at $t=5$ (db4 2-D wavelet transform). Sparsity threshold $s$ is the number of coefficients carrying $99\%$ of the energy.}
+    \label{tab:wavelet}
+    \small
+    \begin{tabular}{lccc}
+    \toprule
+    \textbf{Field} & \textbf{Gini coefficient} & \textbf{99\%-energy coefficients} & \textbf{Fraction of total} \\
+    \midrule
+    $u$ & 0.983 & 326 & 0.50\% \\
+    $v$ & 0.985 & 330 & 0.50\% \\
+    $\omega$ & 0.942 & 1\,917 & 2.92\% \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Null-space dimension via sensing SVD.}
+A complementary measure quantifies how many divergence-free Fourier modes the $K=100$ sensors directly constrain. Parameterising the real 2D velocity field via its stream function $\psi$, the truncated basis at $|\mathbf{k}|\le 16$ contains $398$ Hermitian-independent modes (upper half-plane and positive real axis), giving $M = 796$ real degrees of freedom. The sensing matrix $A\in\mathbb{R}^{200\times 796}$ maps these mode coefficients to the $2K=200$ scalar sensor measurements $(u, v)$ at each QR-pivot location. SVD of $A$ for the LES-derived $K=100$ placement gives $\mathrm{rank}(A) = 200$; the smallest singular value is $\approx 497$ (well above numerical noise), confirming that the sensors jointly constrain exactly $200$ mode combinations without redundancy. The null-space fraction within the $k\le 16$ truncation is therefore
+\begin{equation}
+    \frac{M - \mathrm{rank}(A)}{M} = \frac{796 - 200}{796} = 74.9\%.
+\end{equation}
+Restricting to the divergence-free approximation band of $M=196$ modes (the largest $M < 2K$ achievable on a 2D radial wavenumber grid, corresponding to $k \lesssim 8$; distinct from the sensor Nyquist cutoff $k \le 5$) gives $\mathrm{rank}(A)=196$: every divergence-free mode below this approximation ceiling is linearly observable. Observability across this band degrades sharply in conditioning, however: the divergence-free reconstruction operator on the same placement conditions at $\kappa\approx 7$ for $k\le 5$ but $\kappa\approx 7\times 10^{2}$ ($\sigma_{\min}\approx 0.11$) for $k\le 8$, so modes near the $k\lesssim 8$ ceiling are observable yet strongly noise-amplifying. The effective reconstructable bandwidth is therefore set by conditioning and measurement noise rather than a hard observability wall, consistent with the achieved effective cutoff ($k_{\rm cut}\approx 4.7$, below) lying inside the $k\lesssim 8$ linear-observability ceiling. This shows that the QR-pivot placement saturates the usable sensor information within the low-wavenumber band, while modes above the $k\lesssim 8$ ceiling remain in the null space.
+
+A complementary spectral-truncation bound assumes perfect reconstruction up to cutoff $k_{\rm cut}$; the residual KE and $\omega$ errors are then architecture-independent (Table~\ref{tab:spectral_truncation}). The $K=100$ sensor Nyquist gives $k_{\max}^{\rm sensor} = \sqrt{K/\pi} \approx 5.64$.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Spectral-truncation lower bound: residual KE and vorticity relative error after perfect reconstruction up to cutoff $k_{\rm cut}$.}
+    \label{tab:spectral_truncation}
+    \small
+    \setlength{\tabcolsep}{8pt}
+    \begin{tabular}{ccc}
+    \toprule
+    \textbf{$k_{\rm cut}$} & \textbf{KE loss \%} & \textbf{$\omega$ rel-$L_2$ \%} \\
+    \midrule
+    4  & $7.77$ & $63.91$ \\
+    5  & $4.85$ & $57.18$ \\
+    6  & $2.62$ & $51.07$ \\
+    8  & $1.05$ & $40.98$ \\
+    16 & $0.09$ & $20.96$ \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Ceiling attribution.}
+The B3 multi-seed KE error (Table~\ref{tab:multiseed}, $5.71\%$) sits between the $k_{\rm cut}=4$ ($7.77\%$) and $k_{\rm cut}=5$ ($4.85\%$) bounds, mapping to effective cutoff $k_{\rm cut}\approx 4.7$; the vorticity error maps to $k_{\rm cut} \approx 6 \approx k_{\max}^{\rm sensor}$. The residual mid/high-band error is consistent with the sensor-information limit at this budget: reducing it requires more sensors rather than changes to architecture, optimizer, or loss (\S\ref{sec:engineering_app}).
+

@@ -1,0 +1,51 @@
+
+\begin{titlepage}
+\newgeometry{a4paper,left=2.54cm,right=3.18cm,top=3.18cm,bottom=2.54cm}  %NTHU cover page setting
+% 封面對稱用：main.tex 把 \oddsidemargin 設了 15.5pt 補裝訂邊，但封面要對稱置中，
+% 在這頁先 reset 為 0；titlepage 結束後 main.tex 的設定會自動重新生效。
+\setlength{\oddsidemargin}{0pt}
+\setlength{\evensidemargin}{0pt}
+
+ \begin{CJK*}{UTF8}{bkai}
+\begin{spacing}{1.3}
+    \begin{center}
+       \Huge
+        國\hspace{1em}立\hspace{1em}清\hspace{1em}華\hspace{1em}大\hspace{1em}學\\
+        National Tsing Hua University\\
+        \vspace{0.6cm}
+        \degreeZH~~~士~~~論~~~文\\
+        \degreeEN
+
+    \vspace{2em}  %for controlling veretical space (was 3em; reduced to fit single page)
+    \LARGE
+        \titleZH\\[0.4em]
+        % 題目超過一行時用 minipage 讓 \titleEN 自動 wrap，避免被 textbox 右邊裁切；
+        % 寬度設 0.9\textwidth 在置中對稱下視覺一致。
+        \begin{minipage}{0.9\textwidth}
+            \centering\titleEN
+        \end{minipage}\\
+    \vspace{2em} %for controlling veretical space (was 3em)
+
+   \Large
+
+%  \setlength\tabcolsep{3pt} % default: 6pt
+\renewcommand{\arraystretch}{1.3} % default value is 1.0
+      \begin{tabular}{ l }  %l: Left-aligned column.
+        系所別：~\instituteZH\\
+        Dept.~/~Grad. Inst.:\hspace{0.5em}\instituteEN\\
+        學號~ Student ID:\hspace{0.5em}\studentID\\
+        研究生~Author：\hspace{0.5em}\studentZH\hspace{0.5em}\studentEN\\
+        指導教授~Advisor：\hspace{0.5em}\advisorZH\hspace{0.5em}\advisorEN
+    \end{tabular}\\
+
+   \vfill   % was \vspace{3em}; \vfill 把日期推到頁底，避免內容塞到第二頁
+
+    中~~華~~民~~國~~\zhdigits{\yearZH}~年~~\zhdigits{\monthZH}~月\\
+    \monthEN~\yearEN
+     
+     \end{center}
+\end{spacing}
+\end{CJK*}
+\end{titlepage}
+
+

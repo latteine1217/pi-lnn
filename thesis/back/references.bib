@@ -1,0 +1,785 @@
+% references.bib --- cleaned 2026-05-08
+% Only entries actually cited in main.tex are kept; the file is grouped by topic for clarity.
+
+% =========================================================================
+% PINN Foundation and Hidden Fluid Mechanics
+% =========================================================================
+
+@article{Raissi2019JCP,
+  title = {Physics-informed neural networks: A deep learning framework for solving forward and inverse problems involving nonlinear partial differential equations},
+  author = {Raissi, Maziar and Perdikaris, Paris and Karniadakis, George Em},
+  journal = {Journal of Computational Physics},
+  volume = {378},
+  pages = {686--707},
+  year = {2019},
+  doi = {10.1016/j.jcp.2018.10.045},
+  abstract = {We introduce physics-informed neural networks – neural networks that are trained to solve supervised learning tasks while respecting any given laws of physics described by general nonlinear partial differential equations. In this work, we present our developments in the context of solving two main classes of problems: data-driven solution and data-driven discovery of partial differential equations. Depending on the nature and arrangement of the available data, we devise two distinct types of algorithms, namely continuous time and discrete time models. The first type of models forms a new family of data-efficient spatio-temporal function approximators, while the latter type allows the use of arbitrarily accurate implicit Runge–Kutta time stepping schemes with unlimited number of stages. The effectiveness of the proposed framework is demonstrated through a collection of classical problems in fluids, quantum mechanics, reaction–diffusion systems, and the propagation of nonlinear shallow-water waves.}
+}
+
+@article{Cai2021PINNFluid,
+  title={Physics-informed neural networks (PINNs) for fluid mechanics: A review},
+  author={Cai, Shengze and Mao, Zhiping and Wang, Zhicheng and Yin, Minglang and Karniadakis, George Em},
+  journal={Acta Mechanica Sinica},
+  volume={37},
+  number={3},
+  pages={374--393},
+  year={2021},
+  publisher={Springer},
+  doi={10.1007/s10409-021-01148-1}
+}
+
+@article{Raissi2020Science,
+  title = {Hidden fluid mechanics: Learning velocity and pressure fields from flow visualizations},
+  author = {Raissi, Maziar and Yazdani, Alireza and Karniadakis, George Em},
+  journal = {Science},
+  volume = {367},
+  number = {6481},
+  pages = {1026--1030},
+  year = {2020},
+  doi = {10.1126/science.aaw4741},
+  abstract = {For centuries, flow visualization has been the art of making fluid motion visible in physical and biological systems. Although such flow patterns can be, in principle, described by the Navier-Stokes equations, extracting the velocity and pressure fields directly from the images is challenging. We addressed this problem by developing hidden fluid mechanics (HFM), a physics-informed deep-learning framework capable of encoding the Navier-Stokes equations into the neural networks while being agnostic to the geometry or the initial and boundary conditions. We demonstrate HFM for several physical and biomedical problems by extracting quantitative information for which direct measurements may not be possible. HFM is robust to low resolution and substantial noise in the observation data, which is important for potential applications.}
+}
+
+@article{Karniadakis2021NRP,
+  title = {Physics-informed machine learning},
+  author = {Karniadakis, George Em and Kevrekidis, Ioannis G. and Lu, Lu and Perdikaris, Paris and Wang, Sifan and Yang, Liu},
+  journal = {Nature Reviews Physics},
+  volume = {3},
+  number = {6},
+  pages = {422--440},
+  year = {2021},
+  doi = {10.1038/s42254-021-00314-5},
+  abstract = {Despite great progress in simulating multiphysics problems using the numerical discretization of partial differential equations (PDEs), one still cannot seamlessly incorporate noisy data into existing algorithms, mesh generation remains complex, and high-dimensional problems governed by parameterized PDEs cannot be tackled. Moreover, solving inverse problems with hidden physics is often prohibitively expensive and requires different formulations and elaborate computer codes. Machine learning has emerged as a promising alternative, but training deep neural networks requires big data, not always available for scientific problems. Instead, such networks can be trained from additional information obtained by enforcing the physical laws (for example, at random points in the continuous space-time domain). Such physics-informed learning integrates (noisy) data and mathematical models, and implements them through neural networks or other kernel-based regression networks. Moreover, it may be possible to design specialized network architectures that automatically satisfy some of the physical invariants for better accuracy, faster training and improved generalization. Here, we review some of the prevailing trends in embedding physics into machine learning, present some of the current capabilities and limitations and discuss diverse applications of physics-informed learning both for forward and inverse problems, including discovering hidden physics and tackling high-dimensional problems.}
+}
+
+@article{Yang2021JCP,
+  title = {B-PINNs: Bayesian physics-informed neural networks for forward and inverse PDE problems with noisy data},
+  author = {Yang, Liu and Meng, Xuhui and Karniadakis, George Em},
+  journal = {Journal of Computational Physics},
+  volume = {425},
+  pages = {109913},
+  year = {2021},
+  doi = {10.1016/j.jcp.2020.109913},
+  abstract = {We propose a Bayesian physics-informed neural network (B-PINN) to solve both forward and inverse nonlinear problems described by partial differential equations (PDEs) and noisy data. In this Bayesian framework, the Bayesian neural network (BNN) combined with a PINN for PDEs serves as the prior while the Hamiltonian Monte Carlo (HMC) or the variational inference (VI) could serve as an estimator of the posterior. B-PINNs make use of both physical laws and scattered noisy measurements to provide predictions and quantify the aleatoric uncertainty arising from the noisy data in the Bayesian framework. Compared with PINNs, in addition to uncertainty quantification, B-PINNs obtain more accurate predictions in scenarios with large noise due to their capability of avoiding overfitting. We conduct a systematic comparison between the two different approaches for the B-PINNs posterior estimation (i.e., HMC or VI), along with dropout used for quantifying uncertainty in deep neural networks. Our experiments show that HMC is more suitable than VI with mean field Gaussian approximation for the B-PINNs posterior estimation, while dropout employed in PINNs can hardly provide accurate predictions with reasonable uncertainty. Finally, we replace the BNN in the prior with a truncated Karhunen-Loève (KL) expansion combined with HMC or a deep normalizing flow (DNF) model as posterior estimators. The KL is as accurate as BNN and much faster but this framework cannot be easily extended to high-dimensional problems unlike the BNN based framework.}
+}
+
+% =========================================================================
+% Stabilized PINN Lineage (Wang et al.)
+% =========================================================================
+
+@misc{wang2022respectingcausality,
+  title        = {Respecting Causality Is All You Need for Training Physics-Informed Neural Networks},
+  author       = {Sifan Wang and Shyam Sankaran and Paris Perdikaris},
+  year         = {2022},
+  eprint       = {2203.07404},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG},
+  url          = {https://arxiv.org/abs/2203.07404}
+}
+
+@article{Wang2024JMLR,
+  author  = {Wang, S. and Li, B. and Chen, Y. and Perdikaris, P.},
+  title   = {PirateNets: Physics-informed Deep Learning with Residual
+Adaptive Networks},
+  journal = {Journal of Machine Learning Research},
+  volume  = {25},
+  number  = {402},
+  pages   = {1--51},
+  year    = {2024},
+  abstract= {While physics-informed neural networks (PINNs) have become a popular deep learning framework for tackling forward and inverse problems governed by partial differential equations (PDEs), their performance is known to degrade when larger and deeper neural network architectures are employed. Our study identifies that the root of this counter-intuitive behavior lies in the use of multi-layer perceptron (MLP) architectures with non-suitable initialization schemes, which result in poor trainablity for the network derivatives, and ultimately lead to an unstable minimization of the PDE residual loss. To address this, we introduce Physics-informed Residual Adaptive Networks (PirateNets), a novel architecture that is designed to facilitate stable and efficient training of deep PINN models. PirateNets leverage a novel adaptive residual connection, which allows the networks to be initialized as shallow networks that progressively deepen during training. We also show that the proposed initialization scheme allows us to encode appropriate inductive biases corresponding to a given PDE system into the network architecture. We provide comprehensive empirical evidence showing that PirateNets are easier to optimize and can gain accuracy from considerably increased depth, ultimately achieving state-of-the-art results across various benchmarks. All code and data accompanying this manuscript will be made publicly available at at https://github.com/PredictiveIntelligenceLab/jaxpi/tree/pirate.}
+}
+
+@misc{wang2025gradientalignmentpinns,
+      title={Gradient Alignment in Physics-informed Neural Networks: A Second-Order Optimization Perspective},
+      author={Sifan Wang and Ananyae Kumar Bhartari and Bowen Li and Paris Perdikaris},
+      year={2025},
+      eprint={2502.00604},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.00604}
+}
+
+% =========================================================================
+% Operator Learning for PDEs
+% =========================================================================
+
+@article{ChenChen1995,
+  title={Universal approximation to nonlinear operators by neural networks with arbitrary activation functions and its application to dynamical systems},
+  author={Chen, T.P. and Chen, H.},
+  journal={IEEE Transactions on Neural Networks},
+  volume={6},
+  number={4},
+  pages={911--917},
+  year={1995},
+  publisher={IEEE}
+}
+
+@article{Lu2021NMI,
+  title={Learning nonlinear operators via DeepONet based on the universal approximation theorem of operators},
+  author={Lu, Lu and Jin, Pengzhan and Pang, Guofei and Zhang, Zhongqiang and Karniadakis, George Em},
+  journal={Nature Machine Intelligence},
+  volume={3},
+  number={3},
+  pages={218--229},
+  year={2021},
+  publisher={Nature Publishing Group},
+  doi={10.1038/s42256-021-00302-5}
+}
+
+@article{Kovachki2023JMLR,
+  title={Neural operator: Learning maps between function spaces with applications to PDEs},
+  author={Kovachki, Nikola B. and Li, Zongyi and Liu, Burigede and Azizzadenesheli, Kamyar and Bhattacharya, Kaushik and Stuart, Andrew M. and Anandkumar, Anima},
+  journal={Journal of Machine Learning Research},
+  volume={24},
+  number={89},
+  pages={1--97},
+  year={2023}
+}
+
+@inproceedings{Li2021FNO,
+  title={Fourier Neural Operator for Parametric Partial Differential Equations},
+  author={Li, Zongyi and Kovachki, Nikola and Azizzadenesheli, Kamyar and Liu, Burigede and Bhattacharya, Kaushik and Stuart, Andrew and Anandkumar, Anima},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2021},
+  eprint={2010.08895},
+  archivePrefix={arXiv}
+}
+
+@inproceedings{Cao2021Galerkin,
+  title={Choose a Transformer: Fourier or {Galerkin}},
+  author={Cao, Shuhao},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  volume={34},
+  pages={24924--24940},
+  year={2021}
+}
+
+@article{Li2023OFormer,
+  title={Transformer for Partial Differential Equations' Operator Learning},
+  author={Li, Zijie and Meidani, Kazem and Barati Farimani, Amir},
+  journal={Transactions on Machine Learning Research},
+  year={2023},
+  eprint={2205.13671},
+  archivePrefix={arXiv}
+}
+
+@inproceedings{Jaegle2021Perceiver,
+  title={Perceiver: General Perception with Iterative Attention},
+  author={Jaegle, Andrew and Gimeno, Felix and Brock, Andrew and Zisserman, Andrew and Vinyals, Oriol and Carreira, João},
+  booktitle={Proceedings of the 38th International Conference on Machine Learning (ICML)},
+  pages={4651--4664},
+  year={2021},
+  organization={PMLR}
+}
+
+% =========================================================================
+% Liquid Neural Networks and Continuous-time RNNs
+% =========================================================================
+
+@inproceedings{Hasani2021LTC,
+  title     = {Liquid Time-constant Networks},
+  author    = {Hasani, Ramin and Lechner, Mathias and Amini, Alexander and Rus, Daniela and Grosu, Radu},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume    = {35},
+  pages     = {7657--7666},
+  year      = {2021}
+}
+
+@article{Hasani2022CfC,
+  title={Closed-form continuous-time neural networks},
+  author={Hasani, Ramin and Lechner, Mathias and Amini, Alexander and Liebenwein, Lucas and Ray, Aaron and Tschaikowski, Max and Teschl, Gerald and Rus, Daniela},
+  journal={Nature Machine Intelligence},
+  volume={4},
+  number={11},
+  pages={992--1003},
+  year={2022},
+  publisher={Nature Publishing Group},
+  doi={10.1038/s42256-022-00556-7}
+}
+
+@article{Lechner2020NCP,
+  title={Neural circuit policies enabling auditable autonomy},
+  author={Lechner, Mathias and Hasani, Ramin and Amini, Alexander and Henzinger, Thomas A. and Rus, Daniela and Grosu, Radu},
+  journal={Nature Machine Intelligence},
+  volume={2},
+  number={10},
+  pages={642--652},
+  year={2020},
+  publisher={Nature Publishing Group},
+  doi={10.1038/s42256-020-00237-3}
+}
+
+@inproceedings{Chen2018NODE,
+  title={Neural Ordinary Differential Equations},
+  author={Chen, Ricky T. Q. and Rubanova, Yulia and Bettencourt, Jesse and Duvenaud, David K.},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  volume={31},
+  year={2018}
+}
+
+@inproceedings{Rubanova2019LatentODE,
+  title={Latent ODEs for Irregularly-Sampled Time Series},
+  author={Rubanova, Yulia and Chen, Ricky T. Q. and Duvenaud, David K.},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  volume={32},
+  year={2019}
+}
+
+% =========================================================================
+% Sparse-Sensor Flow Reconstruction and Reduced Order Models
+% =========================================================================
+
+@article{Sirovich1987POD,
+  title={Turbulence and the dynamics of coherent structures. Part I: Coherent structures},
+  author={Sirovich, Lawrence},
+  journal={Quarterly of Applied Mathematics},
+  volume={45},
+  number={3},
+  pages={561--571},
+  year={1987}
+}
+
+@article{Schmid2010DMD,
+  title={Dynamic mode decomposition of numerical and experimental data},
+  author={Schmid, Peter J.},
+  journal={Journal of Fluid Mechanics},
+  volume={656},
+  pages={5--28},
+  year={2010},
+  doi={10.1017/S0022112010001217}
+}
+
+@article{Brunton2016SINDy,
+  title={Discovering governing equations from data by sparse identification of nonlinear dynamical systems},
+  author={Brunton, Steven L. and Proctor, Joshua L. and Kutz, J. Nathan},
+  journal={Proceedings of the National Academy of Sciences},
+  volume={113},
+  number={15},
+  pages={3932--3937},
+  year={2016},
+  doi={10.1073/pnas.1517384113}
+}
+
+@article{Manohar2018PNAS,
+  title = {Data-driven sparse sensor placement for reconstruction: Demonstrating benefits of exploiting known patterns},
+  author = {Manohar, Krithika and Brunton, Bingni W. and Kutz, J. Nathan and Brunton, Steven L.},
+  journal = {Proceedings of the National Academy of Sciences},
+  volume = {115},
+  number = {31},
+  pages = {E7358--E7366},
+  year = {2018},
+  doi = {10.1073/pnas.1715275115},
+  note = {Preprint: arXiv:1701.07569}
+}
+
+@article{Drmac2016SISC,
+  title = {A New Selection Operator for the Discrete Empirical Interpolation Method---Improved A Priori Error Bound and Extensions},
+  author = {Drma{\v{c}}, Zlatko and Gugercin, Serkan},
+  journal = {SIAM Journal on Scientific Computing},
+  volume = {38},
+  number = {2},
+  pages = {A631--A648},
+  year = {2016},
+  doi = {10.1137/15M1019271},
+  abstract = {This paper introduces a new framework for constructing the Discrete Empirical Interpolation Method DEIM projection operator. The interpolation node selection procedure is formulated using the QR factorization with column pivoting, and it enjoys a sharper error bound for the DEIM projection error. Furthermore, for a subspace  given as the range of an orthonormal U, the DEIM projection does not change if U is replaced by UΩ with arbitrary unitary matrix Ω. In a large-scale setting, the new approach allows modifications that use only randomly sampled rows of U, but with the potential of producing good approximations with corresponding probabilistic error bounds. Another salient feature of the new framework is that robust and efficient software implementation is easily developed, based on readily available high performance linear algebra packages.}
+}
+
+@article{Mo2025PRF,
+  title={Reconstructing unsteady flows from sparse, noisy measurements with a physics-constrained convolutional neural network},
+  author={Mo, Yaxin and Magri, Luca},
+  journal={Physical Review Fluids},
+  volume={10},
+  number={3},
+  pages={034901},
+  year={2025},
+  publisher={American Physical Society},
+  doi={10.1103/PhysRevFluids.10.034901}
+}
+
+@misc{Kelshaw2022PISR,
+  title={Physics-Informed {CNNs} for Super-Resolution of Sparse Observations on Dynamical Systems},
+  author={Kelshaw, Daniel and Rigas, Georgios and Magri, Luca},
+  year={2022},
+  eprint={2210.17319},
+  archivePrefix={arXiv},
+  primaryClass={physics.flu-dyn},
+  note={NeurIPS 2022 Workshop on Machine Learning and the Physical Sciences},
+  url={https://arxiv.org/abs/2210.17319}
+}
+
+@article{Parfenyev2024PINN,
+  title={Inferring Parameters and Reconstruction of Two-dimensional Turbulent Flows with Physics-informed Neural Networks},
+  author={Parfenyev, Vladimir and Blumenau, Mark and Nikitin, Ilia},
+  journal={JETP Letters},
+  year={2024},
+  doi={10.1134/S0021364024602203},
+  url={https://arxiv.org/abs/2404.01193}
+}
+
+@misc{FLRONet2024,
+  title={Deep Operator Learning for High-Fidelity Fluid Flow Field Reconstruction from Sparse Sensor Measurements},
+  author={Vo Dang, Hiep and Nguyen, Phong C. H.},
+  year={2024},
+  eprint={2412.08009},
+  archivePrefix={arXiv},
+  primaryClass={physics.flu-dyn},
+  url={https://arxiv.org/abs/2412.08009}
+}
+
+@misc{Vyas2024SOAP,
+  title={{SOAP}: Improving and Stabilizing Shampoo using Adam},
+  author={Vyas, Nikhil and Morwani, Depen and Zhao, Rosie and Kwun, Mujin and Shapira, Itai and Brandfonbrener, David and Janson, Lucas and Kakade, Sham},
+  year={2024},
+  eprint={2409.11321},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG},
+  url={https://arxiv.org/abs/2409.11321}
+}
+
+@article{Williams2024SHRED,
+  title={Sensing with shallow recurrent decoder networks},
+  author={Williams, Jan P. and Zahn, Olivia and Kutz, J. Nathan},
+  journal={Proceedings of the Royal Society A},
+  volume={480},
+  number={2298},
+  pages={20240054},
+  year={2024},
+  publisher={The Royal Society}
+}
+
+@article{Senseiver2023,
+  title={Development of the {Senseiver} for efficient field reconstruction from sparse observations},
+  author={Santos, Javier E. and Fox, Zachary R. and Mohan, Arvind and O'Malley, Daniel and Viswanathan, Hari S. and Lubbers, Nicholas},
+  journal={Nature Machine Intelligence},
+  volume={5},
+  number={11},
+  pages={1317--1325},
+  year={2023},
+  publisher={Nature Publishing Group}
+}
+
+@article{FLRNet2024,
+  title  = {{FLRNet}: A deep learning method for regressive reconstruction of flow field from limited sensor measurements},
+  author = {Nguyen, Phong C. H. and Choi, Joseph B. and Luu, Quang-Trung},
+  journal= {arXiv preprint arXiv:2411.13815},
+  year   = {2024}
+}
+
+@article{EnergyTransformer2025,
+  title  = {Operator learning for reconstructing flow fields from sparse measurements: an {Energy Transformer} approach},
+  author = {Zhang, Qian and Krotov, Dmitry and Karniadakis, George Em},
+  journal= {Journal of Computational Physics},
+  volume = {538},
+  pages  = {114148},
+  year   = {2025},
+  publisher = {Elsevier},
+  note   = {arXiv:2501.08339}
+}
+
+@article{Hanrahan2023,
+  title  = {Studying turbulent flows with physics-informed neural networks and sparse data},
+  author = {Hanrahan, S. and Kozul, M. and Sandberg, R. D.},
+  journal= {International Journal of Heat and Fluid Flow},
+  volume = {104},
+  pages  = {109232},
+  year   = {2023},
+  publisher = {Elsevier}
+}
+
+% =========================================================================
+% Compressed Sensing Theory
+% =========================================================================
+
+@article{Donoho2006,
+  title={Compressed sensing},
+  author={Donoho, David L.},
+  journal={IEEE Transactions on Information Theory},
+  volume={52},
+  number={4},
+  pages={1289--1306},
+  year={2006},
+  publisher={IEEE}
+}
+
+@article{Candes2006,
+  title={Near-optimal signal recovery from random projections: Universal encoding strategies?},
+  author={Cand{\`e}s, Emmanuel J. and Tao, Terence},
+  journal={IEEE Transactions on Information Theory},
+  volume={52},
+  number={12},
+  pages={5406--5425},
+  year={2006},
+  publisher={IEEE}
+}
+
+% =========================================================================
+% Architecture, Embedding, and Optimization
+% =========================================================================
+
+@misc{tancik2020fourierfeaturesletnetworks,
+      title={Fourier Features Let Networks Learn High Frequency Functions in Low Dimensional Domains}, 
+      author={Matthew Tancik and Pratul P. Srinivasan and Ben Mildenhall and Sara Fridovich-Keil and Nithin Raghavan and Utkarsh Singhal and Ravi Ramamoorthi and Jonathan T. Barron and Ren Ng},
+      year={2020},
+      eprint={2006.10739},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2006.10739}, 
+      abstract={We show that passing input points through a simple Fourier feature mapping enables a multilayer perceptron (MLP) to learn high-frequency functions in low-dimensional problem domains. These results shed light on recent advances in computer vision and graphics that achieve state-of-the-art results by using MLPs to represent complex 3D objects and scenes. Using tools from the neural tangent kernel (NTK) literature, we show that a standard MLP fails to learn high frequencies both in theory and in practice. To overcome this spectral bias, we use a Fourier feature mapping to transform the effective NTK into a stationary kernel with a tunable bandwidth. We suggest an approach for selecting problem-specific Fourier features that greatly improves the performance of MLPs for low-dimensional regression tasks relevant to the computer vision and graphics communities.}
+}
+
+@inproceedings{Rahaman2019Spectral,
+  title={On the Spectral Bias of Neural Networks},
+  author={Rahaman, Nasim and Baratin, Aristide and Arpit, Devansh and Draxler, Felix and Lin, Min and Hamprecht, Fred A. and Bengio, Yoshua and Courville, Aaron C.},
+  booktitle={Proceedings of the 36th International Conference on Machine Learning (ICML)},
+  pages={5301--5310},
+  year={2019},
+  organization={PMLR}
+}
+
+@inproceedings{Chen2018ICML,
+  title = {GradNorm: Gradient normalization for adaptive loss balancing in deep multitask networks},
+  author = {Chen, Zhao and Badrinarayanan, Vijay and Lee, Chen-Yu and Rabinovich, Andrew},
+  booktitle = {Proceedings of the 35th International Conference on Machine Learning},
+  pages = {794--803},
+  year = {2018},
+  volume = {80},
+  series = {Proceedings of Machine Learning Research},
+  publisher = {PMLR},
+  abstract = {We present GradNorm, an algorithm that automatically balances training in deep multitask models by dynamically tuning gradient magnitudes. By adapting the gradients to have roughly equal magnitudes across all tasks, GradNorm improves training stability and final performance. We demonstrate its effectiveness on several multitask learning benchmarks including classification, segmentation, and depth prediction tasks.}
+}
+
+@inproceedings{Sener2018MOO,
+  title={Multi-Task Learning as Multi-Objective Optimization},
+  author={Sener, Ozan and Koltun, Vladlen},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
+  volume={31},
+  pages={527--538},
+  year={2018}
+}
+
+@misc{ScheduleFree2024,
+  title={The Road Less Scheduled},
+  author={Defazio, Aaron and Mishchenko, Konstantin},
+  year={2024},
+  eprint={2405.15682},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
+}
+
+% =========================================================================
+% Machine Learning for Fluid Mechanics (Reviews and Perspectives)
+% =========================================================================
+
+@article{Brunton2020ARFM,
+  title   = {Machine Learning for Fluid Mechanics},
+  author  = {Brunton, Steven L. and Noack, Bernd R. and Koumoutsakos, Petros},
+  journal = {Annual Review of Fluid Mechanics},
+  volume  = {52},
+  pages   = {477--508},
+  year    = {2020},
+  doi     = {10.1146/annurev-fluid-010719-060214}
+}
+
+@article{VinuesaBrunton2022NCS,
+  title   = {Enhancing computational fluid dynamics with machine learning},
+  author  = {Vinuesa, Ricardo and Brunton, Steven L.},
+  journal = {Nature Computational Science},
+  volume  = {2},
+  number  = {6},
+  pages   = {358--366},
+  year    = {2022},
+  doi     = {10.1038/s43588-022-00264-7}
+}
+
+% =========================================================================
+% PINN Training Pathologies and Stability Analyses
+% =========================================================================
+
+@inproceedings{Krishnapriyan2021,
+  title     = {Characterizing possible failure modes in physics-informed neural networks},
+  author    = {Krishnapriyan, Aditi S. and Gholami, Amir and Zhe, Shandian and Kirby, Robert M. and Mahoney, Michael W.},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {34},
+  year      = {2021},
+  eprint    = {2109.01050},
+  archivePrefix = {arXiv}
+}
+
+@article{Wang2021SISC,
+  title   = {Understanding and mitigating gradient flow pathologies in physics-informed neural networks},
+  author  = {Wang, Sifan and Teng, Yujun and Perdikaris, Paris},
+  journal = {SIAM Journal on Scientific Computing},
+  volume  = {43},
+  number  = {5},
+  pages   = {A3055--A3081},
+  year    = {2021},
+  doi     = {10.1137/20M1318043}
+}
+
+% =========================================================================
+% PINN Applications to Flow Reconstruction
+% =========================================================================
+
+% =========================================================================
+% Compressed Sensing and Library-Based Flow Reconstruction
+% =========================================================================
+
+@article{Callaham2019PRF,
+  title   = {Robust flow reconstruction from limited measurements via sparse representation},
+  author  = {Callaham, Jared L. and Maeda, Kazuki and Brunton, Steven L.},
+  journal = {Physical Review Fluids},
+  volume  = {4},
+  number  = {10},
+  pages   = {103907},
+  year    = {2019},
+  doi     = {10.1103/PhysRevFluids.4.103907}
+}
+
+% =========================================================================
+% Operator Learning: Comparative Studies and Foundations
+% =========================================================================
+
+% =========================================================================
+% Transformer / Attention Foundation
+% =========================================================================
+
+@inproceedings{Vaswani2017Attention,
+  title     = {Attention is all you need},
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017}
+}
+
+% =========================================================================
+% 2D Turbulence and Kolmogorov Flow Physics
+% =========================================================================
+
+@article{Boffetta2012ARFM,
+  title   = {Two-Dimensional Turbulence},
+  author  = {Boffetta, Guido and Ecke, Robert E.},
+  journal = {Annual Review of Fluid Mechanics},
+  volume  = {44},
+  pages   = {427--451},
+  year    = {2012},
+  doi     = {10.1146/annurev-fluid-120710-101240}
+}
+
+@article{Platt1991,
+  title   = {An investigation of chaotic {Kolmogorov} flows},
+  author  = {Platt, N. and Sirovich, L. and Fitzmaurice, N.},
+  journal = {Physics of Fluids A: Fluid Dynamics},
+  volume  = {3},
+  number  = {4},
+  pages   = {681--696},
+  year    = {1991},
+  doi     = {10.1063/1.858074}
+}
+
+% =========================================================================
+% Public PDE Benchmarks (real-world + simulated datasets)
+% =========================================================================
+
+@article{Hu2026RealPDEBench,
+  title  = {{RealPDEBench}: A Benchmark for Complex Physical Systems with Real-World Data},
+  author = {Hu, Peiyan and Feng, Haodong and Liu, Hongyuan and Yan, Tongtong and Deng, Wenhao and Gao, Tianrun and Zheng, Rong and Zheng, Haoren and Yu, Chenglei and Wang, Chuanrui and Li, Kaiwen and Ma, Zhi-Ming and Zhou, Dezhi and Lu, Xingcai and Fan, Dixia and Wu, Tailin},
+  journal= {arXiv preprint arXiv:2601.01829},
+  year   = {2026},
+  url    = {https://realpdebench.github.io/}
+}
+
+% =========================================================================
+% Classical data assimilation, super-resolution, and ROM (for Literature Review broadening)
+% =========================================================================
+
+@article{Fukami2019JFM,
+  title   = {Super-resolution reconstruction of turbulent flows with machine learning},
+  author  = {Fukami, Kai and Fukagata, Koji and Taira, Kunihiko},
+  journal = {Journal of Fluid Mechanics},
+  volume  = {870},
+  pages   = {106--120},
+  year    = {2019},
+  doi     = {10.1017/jfm.2019.238}
+}
+
+@article{Maulik2021NN,
+  title   = {Reduced-order modeling of advection-dominated systems with recurrent neural networks and convolutional autoencoders},
+  author  = {Maulik, Romit and Lusch, Bethany and Balaprakash, Prasanna},
+  journal = {Physics of Fluids},
+  volume  = {33},
+  number  = {3},
+  pages   = {037106},
+  year    = {2021},
+  doi     = {10.1063/5.0039986}
+}
+
+@book{Asch2016DA,
+  title     = {Data Assimilation: Methods, Algorithms, and Applications},
+  author    = {Asch, Mark and Bocquet, Marc and Nodet, Ma{\"e}lle},
+  publisher = {SIAM},
+  year      = {2016},
+  series    = {Fundamentals of Algorithms},
+  doi       = {10.1137/1.9781611974546}
+}
+
+@book{Pope2000,
+  author    = {Pope, Stephen B.},
+  title     = {Turbulent Flows},
+  publisher = {Cambridge University Press},
+  year      = {2000},
+  doi       = {10.1017/CBO9780511840531}
+}
+
+@article{Kraichnan1967,
+  author    = {Kraichnan, Robert H.},
+  title     = {Inertial Ranges in Two-Dimensional Turbulence},
+  journal   = {Physics of Fluids},
+  volume    = {10},
+  number    = {7},
+  pages     = {1417--1423},
+  year      = {1967},
+  doi       = {10.1063/1.1762301}
+}
+
+@article{Anagnostopoulos2024RBA,
+  author    = {Anagnostopoulos, Sokratis J. and Toscano, Juan Diego and Stergiopulos, Nikolaos and Karniadakis, George Em},
+  title     = {Residual-based attention in physics-informed neural networks},
+  journal   = {Computer Methods in Applied Mechanics and Engineering},
+  volume    = {421},
+  pages     = {116805},
+  year      = {2024},
+  doi       = {10.1016/j.cma.2024.116805}
+}
+
+@article{Wang2022NTK,
+  author    = {Wang, Sifan and Yu, Xinling and Perdikaris, Paris},
+  title     = {When and why {PINNs} fail to train: A neural tangent kernel perspective},
+  journal   = {Journal of Computational Physics},
+  volume    = {449},
+  pages     = {110768},
+  year      = {2022},
+  doi       = {10.1016/j.jcp.2021.110768}
+}
+
+@inproceedings{Wu2024Transolver,
+  author    = {Wu, Haixu and Luo, Huakun and Wang, Haowen and Wang, Jianmin and Long, Mingsheng},
+  title     = {Transolver: A fast transformer solver for {PDEs} on general geometries},
+  booktitle = {Proceedings of the 41st International Conference on Machine Learning (ICML)},
+  year      = {2024}
+}
+
+@article{McGreivy2024,
+  author    = {McGreivy, Nick and Hakim, Ammar},
+  title     = {Weak baselines and reporting biases lead to overoptimism in machine learning for fluid-related partial differential equations},
+  journal   = {Nature Machine Intelligence},
+  volume    = {6},
+  pages     = {1256--1269},
+  year      = {2024},
+  doi       = {10.1038/s42256-024-00897-5}
+}
+
+@inproceedings{Bardina1980,
+  author    = {Bardina, J. and Ferziger, J. H. and Reynolds, W. C.},
+  title     = {Improved subgrid scale models for large eddy simulation},
+  booktitle = {13th Fluid and Plasma Dynamics Conference},
+  series    = {AIAA Paper 80-1357},
+  publisher = {American Institute of Aeronautics and Astronautics},
+  year      = {1980},
+  doi       = {10.2514/6.1980-1357}
+}
+
+@book{Sagaut2006,
+  author    = {Sagaut, Pierre},
+  title     = {Large Eddy Simulation for Incompressible Flows: An Introduction},
+  edition   = {3rd},
+  publisher = {Springer},
+  year      = {2006},
+  isbn      = {978-3-540-26344-9}
+}
+
+@article{Orszag1971,
+  author    = {Orszag, Steven A.},
+  title     = {On the elimination of aliasing in finite-difference schemes by filtering high-wavenumber components},
+  journal   = {Journal of the Atmospheric Sciences},
+  volume    = {28},
+  number    = {6},
+  pages     = {1074},
+  year      = {1971},
+  doi       = {10.1175/1520-0469(1971)028<1074:OTEOAI>2.0.CO;2}
+}
+
+@book{Boyd2001,
+  author    = {Boyd, John P.},
+  title     = {Chebyshev and {Fourier} Spectral Methods},
+  edition   = {2nd},
+  publisher = {Dover Publications},
+  year      = {2001},
+  isbn      = {978-0-486-41183-5}
+}
+
+@article{Cox2002,
+  author    = {Cox, S. M. and Matthews, P. C.},
+  title     = {Exponential time differencing for stiff systems},
+  journal   = {Journal of Computational Physics},
+  volume    = {176},
+  number    = {2},
+  pages     = {430--455},
+  year      = {2002},
+  doi       = {10.1006/jcph.2002.6995}
+}
+
+@article{KassamTrefethen2005,
+  author    = {Kassam, Aly-Khan and Trefethen, Lloyd N.},
+  title     = {Fourth-order time-stepping for stiff {PDEs}},
+  journal   = {SIAM Journal on Scientific Computing},
+  volume    = {26},
+  number    = {4},
+  pages     = {1214--1233},
+  year      = {2005},
+  doi       = {10.1137/S1064827502410633}
+}
+
+@article{Moin1998AIAA,
+  author    = {Moin, Parviz and Mahesh, Krishnan},
+  title     = {Direct Numerical Simulation: A tool in turbulence research},
+  journal   = {Annual Review of Fluid Mechanics},
+  volume    = {30},
+  pages     = {539--578},
+  year      = {1998},
+  doi       = {10.1146/annurev.fluid.30.1.539}
+}
+
+@book{NocedalWright2006,
+  author    = {Nocedal, Jorge and Wright, Stephen J.},
+  title     = {Numerical Optimization},
+  publisher = {Springer},
+  year      = {2006},
+  edition   = {2nd},
+  address   = {New York}
+}
+
+@article{Li2021PINO,
+  author    = {Li, Zongyi and Zheng, Hongkai and Kovachki, Nikola and Jin, David and Chen, Haoxuan and Liu, Burigede and Azizzadenesheli, Kamyar and Anandkumar, Anima},
+  title     = {Physics-Informed Neural Operator for Learning Partial Differential Equations},
+  journal   = {arXiv preprint arXiv:2111.03794},
+  year      = {2021}
+}
+
+@inproceedings{Lakshminarayanan2017DeepEnsembles,
+  author    = {Lakshminarayanan, Balaji and Pritzel, Alexander and Blundell, Charles},
+  title     = {Simple and Scalable Predictive Uncertainty Estimation using Deep Ensembles},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  volume    = {30},
+  year      = {2017},
+  url       = {https://proceedings.neurips.cc/paper/2017/hash/9ef2ed4b7fd2c810847ffa5fa85bce38-Abstract.html}
+}
+
+@article{Psaros2023UQ,
+  author    = {Psaros, Apostolos F. and Meng, Xuhui and Zou, Zongren and Guo, Ling and Karniadakis, George Em},
+  title     = {Uncertainty quantification in scientific machine learning: Methods, metrics, and comparisons},
+  journal   = {Journal of Computational Physics},
+  volume    = {477},
+  pages     = {111902},
+  year      = {2023},
+  doi       = {10.1016/j.jcp.2022.111902}
+}
