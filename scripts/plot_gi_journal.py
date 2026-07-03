@@ -31,6 +31,8 @@ OUT_DIR = Path("thesis/figures/results")
 # ── Journal style (NeurIPS/ICLR + CLAUDE.md memory preferences) ──────
 def setup_style() -> None:
     mpl.rcParams.update({
+        "pdf.fonttype": 42,  # 嵌入 TrueType,避免 Type-3
+        "ps.fonttype": 42,
         "font.family": "sans-serif",
         "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
         "font.size": 9,

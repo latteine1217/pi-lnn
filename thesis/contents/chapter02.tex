@@ -5,7 +5,7 @@ In data-assimilation terms, PI-CON learns a reconstruction operator that maps a 
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/architecture/architecture.png}
+    \includegraphics[width=0.95\linewidth]{figures/architecture/architecture.pdf}
     \caption{PI-CON end-to-end signal flow. Colour code: green inputs, grey inherited DeepONet backbone, three blue blocks (additions in this work), orange text for embedding-type techniques (Fourier/RFF encoding, residual MLP, temporal anchor). Branch path: the $K=100$ sensor time series enters Fourier/RFF spatial tokens and the CfC memory. Trunk path: query $(x,y,t,c)$ is embedded. Cross-attention and DeepONet fusion produce $(u,v,p)$. Training uses sensor MSE and Navier--Stokes residuals only; no full-field DNS supervision. The three additions correspond to the gaps in Table~\ref{tab:deeponet_gaps}.}
     \label{fig:architecture}
 \end{figure}
@@ -27,7 +27,7 @@ Figure~\ref{fig:pipeline} situates these conditions in the DNS-free deployment i
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=\linewidth]{figures/architecture/pipeline.png}
+    \includegraphics[width=\linewidth]{figures/architecture/pipeline.pdf}
     \caption{Engineering deployment instance using DNS-free, LES-derived sensor placement. Colours follow Figure~\ref{fig:architecture}: green field inputs, blue PI-CON and its reconstructed output, grey dashed block for the offline DNS reference. A low-cost LES supplies a POD basis for QR-pivot selection of the $K=100$ sensor positions only (it provides no sensor values); at those positions a DNS field, standing in for the real-world flow a deployment would measure, is sampled for the sensor time series; PI-CON trains on the sensor time series and PDE residuals and outputs $(u,v,p)$. The full DNS field serves offline evaluation only.}
     \label{fig:pipeline}
 \end{figure}

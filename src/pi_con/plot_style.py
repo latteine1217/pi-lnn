@@ -61,6 +61,9 @@ JOURNAL_RCPARAMS: dict = {
     "savefig.dpi": 300,
     "savefig.bbox": "tight",
     "figure.dpi": 100,
+    # 嵌入 TrueType 字型,避免 matplotlib 預設輸出 Type-3(部分期刊/印刷拒收)
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
 }
 
 

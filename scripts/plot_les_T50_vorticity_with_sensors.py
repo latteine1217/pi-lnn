@@ -62,6 +62,8 @@ print(f"[load] K={K} sensors, x∈[{coords[:,0].min():.3f},{coords[:,0].max():.3
 plt.rcParams.update({
     "font.family": "serif",
     "font.size": 11,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
     "axes.linewidth": 0.8,
     "xtick.major.width": 0.8,
     "ytick.major.width": 0.8,
@@ -87,8 +89,8 @@ ax.scatter(
     label=f"K={K} sensors (QR-pivot on LES)",
 )
 
-ax.set_xlabel("x")
-ax.set_ylabel("y")
+ax.set_xlabel("$x$ (m)")
+ax.set_ylabel("$y$ (m)")
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
 ax.set_aspect("equal")
@@ -96,7 +98,7 @@ ax.set_title(f"LES vorticity $\\omega$ at $t={t_final:.0f}$ with K={K} sensor pl
 
 # Colorbar
 cbar = fig.colorbar(mesh, ax=ax, fraction=0.046, pad=0.02)
-cbar.set_label(r"$\omega$")
+cbar.set_label(r"$\omega$ (1/s)")
 cbar.outline.set_linewidth(0.6)
 
 # 圖例（白底黑框）
