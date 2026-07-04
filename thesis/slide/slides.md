@@ -665,7 +665,15 @@ $$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^{\top} - \lambda\,|r|}{
 <LabelTiny>② CFD ANALOGUE — LEARNABLE RBF INTERPOLANT</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug space-y-2">
-<div>An RBF interpolant<br/>$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j$&nbsp; uses a fixed kernel $w_j \propto \exp(-\|r_j\|^2/\sigma^2)$.</div>
+
+<div>An RBF interpolant uses a fixed kernel:</div>
+
+<div style="font-size: 0.8em;">
+
+$$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j, \quad w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
+
+</div>
+
 <div><b>Cross-attention with |r| bias</b> learns both the kernel shape (via softmax(QK<sup>⊤</sup>)) <i>and</i> the bandwidth (λ), instead of hand-picking σ.</div>
 <div><b>Causal masking</b>&nbsp;·&nbsp; future sensor times invisible → streaming-deployable.</div>
 </div>
@@ -691,7 +699,7 @@ $$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^{\top} - \lambda\,|r|}{
 
 # LES proxy — DNS-free sensor placement
 
-<div class="grid grid-cols-5 gap-4 mt-3">
+<div class="grid grid-cols-5 gap-4 mt-1">
 
 <div class="col-span-3 space-y-2">
 
@@ -723,15 +731,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <div><b>Spectral overlap</b></div><div><b style="color:#0F2D52;">within 2×</b> on k ∈ [2, N/3]</div>
 <div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b></div><div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b style="color:#0F2D52;">placement only</b>, not training truth</div>
 </div>
-
-<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
-QR-pivot depends on leading POD mode geometry; exact LES pointwise match to DNS is not required.
-</div>
 </Card>
-
-<div class="text-center">
-<Pill>LES → QR-pivot&nbsp;<span class="opacity-70">[Manohar 2018]</span>&nbsp;→ K = 100 placement&nbsp;·&nbsp; EXP-245: 5.71 ± 0.11 % KE</Pill>
-</div>
 
 </div>
 
@@ -1018,7 +1018,7 @@ $$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathc
 </div>
 
 <div class="mt-2 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
-<b style="color:#7F1084;">Invariant</b>&nbsp;·&nbsp; DNS field never enters $\mathcal{L}$.
+<b style="color:#7F1084;">Invariant</b>&nbsp;·&nbsp; DNS field never enters the loss ℒ.
 </div>
 </Card>
 
@@ -1403,7 +1403,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 
 # DNS-free placement is competitive, not oracle-equivalent
 
-<div class="grid grid-cols-5 gap-3 mt-2">
+<div class="grid grid-cols-5 gap-3 mt-1">
 
 <div class="col-span-3">
 
@@ -1445,11 +1445,6 @@ Same B3, 1024 collocation, 20 k iterations, n = 5 seeds. DNS oracle wins KE; LES
     </tr>
   </tbody>
 </table>
-
-<div class="mt-3 text-xs leading-snug">
-<b style="color:#7F1084;">Real-world pipeline (fully DNS-free)</b>&nbsp;·&nbsp;
-LES (random IC) → QR-pivot on LES POD modes → measure at K = 100 physical locations → reconstruct. DNS is used only for offline benchmark.
-</div>
 
 </div>
 
