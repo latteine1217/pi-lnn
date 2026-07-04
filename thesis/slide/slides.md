@@ -1310,7 +1310,7 @@ div ratio&nbsp; <b style="color:#7F1084;">0.39 ± 0.006 %</b><br/>
 <Card>
 <LabelTiny>① u CHANNEL — streamwise</LabelTiny>
 <div class="mt-2 leading-snug">
-DNS dynamic range ±1.0.&nbsp; Error band ±0.15 ⇒ <b style="color:#7F1084;">~15 % peak local error</b>.
+DNS dynamic range ±1.0.&nbsp; Error band ±0.10 ⇒ <b style="color:#7F1084;">~10 % peak local error</b>.
 </div>
 <div class="mt-2 leading-snug">
 Large-scale shear sheets fully recovered; remaining error localised at sheet edges where |∂u/∂y| is large.
@@ -1323,7 +1323,7 @@ u rel-L₂ — B3 5-seed mean&nbsp;<b>13.65 ± 0.06 %</b>
 <Card>
 <LabelTiny>② v CHANNEL — cross-stream</LabelTiny>
 <div class="mt-2 leading-snug space-y-1">
-<div>· DNS range ±0.7 (smaller than u) · error band ±0.20 <span style="color:#E97132;">(higher relative error)</span></div>
+<div>· DNS range ±0.7 (smaller than u) · error band ±0.15 <span style="color:#E97132;">(higher relative error)</span></div>
 <div>· Forcing acts only on u (sin(k<sub>f</sub> y))</div>
 <div>· v = derived response via ∇p + nonlinear coupling</div>
 <div>· No direct forcing template → harder to recover from sparse v samples</div>
@@ -1364,13 +1364,13 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <Card>
 <LabelTiny>Kinetic energy KE(t) — units: m²/s²</LabelTiny>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5)·&nbsp; PI-CON follows the DNS chaotic decay 0.161 → 0.122 m²/s²; IC warm-up oscillation for t &lt; 2 s, residual within ~7 % of DNS for t ≥ 2.5 s.</div>
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5, mean ± 1σ)·&nbsp; PI-CON follows the DNS chaotic decay 0.161 → 0.122 m²/s²; IC warm-up for t &lt; 2 s, within ~7 % of DNS for t ≥ 2.5 s.</div>
 </Card>
 
 <Card>
-<LabelTiny>Velocity RMSE u, v — units: m/s</LabelTiny>
+<LabelTiny>Velocity rel-L₂ error u, v — dimensionless</LabelTiny>
 <img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">RMSE 0.16 m/s (t = 0) → ≲ 0.04 m/s (t = 3 s).&nbsp; |v error| &lt; |u error| in absolute units (smaller dynamic range; forcing in u direction).</div>
+<div class="foot mt-1">rel-L₂ ~30% (IC) → single-digit; time-avg u <b>13.65%</b>, v <b>17.52%</b> (n = 5, ±1σ).&nbsp; v &gt; u — forcing on u; v is a derived response.</div>
 </Card>
 
 <Card>
@@ -1390,7 +1390,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <FooterLogos />
 
 <!--
-[Temporal & Spectral · 2min] 三張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay 0.161→0.122 m²/s²）、velocity RMSE u/v(t)（0.16→≲0.04 m/s, |v err|<|u err|）、E(k) at t=5（low band k≤5 recovered, mid/high 在 k≈5.64 = K=100 sensor-Nyquist 掉落）。div ratio 0.39% 接近 resolved-bandwidth FD floor。
+[Temporal & Spectral · 2min] 三張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay 0.161→0.122 m²/s²）、velocity rel-L₂ u/v(t)（~30%→single-digit, v>u, ±1σ band n=5）、E(k) at t=5（low band k≤5 recovered, mid/high 在 k≈5.64 = K=100 sensor-Nyquist 掉落）。div ratio 0.39% 接近 resolved-bandwidth FD floor。
 -->
 
 ---
