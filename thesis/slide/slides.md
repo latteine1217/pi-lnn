@@ -15,8 +15,6 @@ download: false
 exportFilename: pi-lnn-talk
 ---
 
----
-
 <!-- ====================================================================
      SLIDE 01 · COVER  (pptx Cover layout: 無 chevron NavBar，只有 logos)
      ==================================================================== -->
@@ -233,12 +231,12 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
 
 # How PI-CON compares within the deployable regime
 
-<div class="mt-3 text-sm">
+<div class="mt-1 text-sm">
 
 <table class="w-full" style="border-collapse: collapse;">
   <thead>
     <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Method</th>
+      <th class="text-left py-1 px-2" style="color:#7F1084;">Method</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">Backbone</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">Training supervision</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">Kolmogorov KE MAPE</th>
@@ -247,43 +245,43 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
   </thead>
   <tbody style="font-size: 0.85rem;">
     <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-2 px-2">Mons et al. 2025 &nbsp;<span class="opacity-50 text-xs">[Mons 2025]</span></td>
-      <td class="py-2 px-2">Physics-constrained CNN</td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
-      <td class="py-2 px-2">~ 23 %</td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">Yes</b></td>
+      <td class="py-1 px-2">Mons et al. 2025 &nbsp;<span class="opacity-50 text-xs">[Mons 2025]</span></td>
+      <td class="py-1 px-2">Physics-constrained CNN</td>
+      <td class="py-1 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
+      <td class="py-1 px-2">~ 23 %</td>
+      <td class="py-1 px-2"><b style="color:#7F1084;">Yes</b></td>
     </tr>
     <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.08);">
-      <td class="py-2 px-2"><b>PI-CON&nbsp;(ours)</b></td>
-      <td class="py-2 px-2">DeepONet&nbsp;+&nbsp;CfC&nbsp;+&nbsp;cross-attn</td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">5.71&nbsp;±&nbsp;0.11 %</b>&nbsp;<span class="text-xs">(n=5)</span></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">Yes</b></td>
+      <td class="py-1 px-2"><b>PI-CON&nbsp;(ours)</b></td>
+      <td class="py-1 px-2">DeepONet&nbsp;+&nbsp;CfC&nbsp;+&nbsp;cross-attn</td>
+      <td class="py-1 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
+      <td class="py-1 px-2"><b style="color:#7F1084;">5.71&nbsp;±&nbsp;0.11 %</b>&nbsp;<span class="text-xs">(n=5)</span></td>
+      <td class="py-1 px-2"><b style="color:#7F1084;">Yes</b></td>
     </tr>
     <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-2 px-2">Classical interpolation&nbsp;<span class="opacity-50 text-xs">(EXP-295)</span></td>
-      <td class="py-2 px-2">RBF / IDW / div-free trig LSQ</td>
-      <td class="py-2 px-2">Sensor only</td>
-      <td class="py-2 px-2">KE can be low, but u L₂ <b>28–54 %</b></td>
-      <td class="py-2 px-2"><b>Partly</b></td>
+      <td class="py-1 px-2">Classical interpolation&nbsp;<span class="opacity-50 text-xs">(EXP-295)</span></td>
+      <td class="py-1 px-2">RBF / IDW / div-free trig LSQ</td>
+      <td class="py-1 px-2">Sensor only</td>
+      <td class="py-1 px-2">KE can be low, but u L₂ <b>28–54 %</b></td>
+      <td class="py-1 px-2"><b>Partly</b></td>
     </tr>
     <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-2 px-2">FLRNet 2024 / Senseiver 2023 / SHRED 2024</td>
-      <td class="py-2 px-2">CNN-PerceptualLoss / Perceiver / LSTM</td>
-      <td class="py-2 px-2" style="color:#E97132;">Sensor + DNS full field</td>
-      <td class="py-2 px-2">few %</td>
-      <td class="py-2 px-2" style="color:#E97132;">No</td>
+      <td class="py-1 px-2">FLRNet 2024 / Senseiver 2023 / SHRED 2024</td>
+      <td class="py-1 px-2">CNN-PerceptualLoss / Perceiver / LSTM</td>
+      <td class="py-1 px-2" style="color:#E97132;">Sensor + DNS full field</td>
+      <td class="py-1 px-2">few %</td>
+      <td class="py-1 px-2" style="color:#E97132;">No</td>
     </tr>
   </tbody>
 </table>
 
 </div>
 
-<div class="mt-3 text-xs leading-snug" style="color:#374151;">
+<div class="mt-2 text-[10px] leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-aways</span>&nbsp;·&nbsp;
-<b>① Architecture</b>, not supervision, gives the gain: under the same sensor-only + NS regime as Mons 2025, PI-CON reduces KE error from ~23 % to 5.71 %.&nbsp;
-<b>② Classical interpolation</b> can look KE-competitive but is pointwise poor.&nbsp;
-<b>③ DNS-supervised methods</b> reach few-% error <i>because they train on DNS</i> — those numbers are not reproducible at deployment.
+<b>①</b> Architecture drives the gain (Mons 2025 ~23 % → 5.71 %).&nbsp;
+<b>②</b> Interpolation: low KE, poor pointwise.&nbsp;
+<b>③</b> DNS-supervised few-% not reproducible at deployment.
 </div>
 
 <FooterLogos />
@@ -880,7 +878,11 @@ recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weight
 
 # Configuration parameters (1 of 2)
 
-<div class="mt-3 text-xs grid grid-cols-2 gap-6">
+<style>
+.cfgtight table :is(td, th) { padding-top: 1px !important; padding-bottom: 1px !important; line-height: 1.15 !important; }
+</style>
+
+<div class="cfgtight mt-2 text-xs grid grid-cols-2 gap-6">
 
 <div>
 
@@ -888,10 +890,10 @@ recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weight
 |---|---|
 | **Flow** | |
 | Domain &amp; BC | Ω = \[0, 1\]² (dimensionless), doubly-periodic |
-| Characteristic scales | L<sup>★</sup> = 1, U<sup>★</sup> = 1 (nondimensionalisation); measured U<sub>rms</sub> = 0.503 |
+| Characteristic scales | L<sup>★</sup> = 1, U<sup>★</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503 |
 | Reynolds number | Re = U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴ ⇒ ν = 10⁻⁴ |
 | Forcing &amp; window | A = 0.1, k<sub>f</sub> = 2, T = 5 (≈ 2.51 t<sub>eddy</sub>) |
-| DNS | **Run 1024²**, ↓×4 → **Stored 256²** · pseudo-spectral + 2/3 dealiasing · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201) |
+| DNS | **Run 1024²** ↓×4 → **Stored 256²** · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201) |
 | **Sensors** | |
 | Number &amp; channels | **K = 100**,&nbsp; (u, v) only |
 | Placement | QR-pivot POD basis [Manohar 2018] |
@@ -953,8 +955,8 @@ recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weight
 | Penalty ρ · λ clip | **0.1** · 10 |
 | Constraint | C = 𝔼[(∂<sub>x</sub>u + ∂<sub>y</sub>v)²] |
 | **Training & reproducibility** | |
-| Iterations · seeds | 10 000 · **n = 5** (42, 1, 2, 3, 4) |
-| Hardware · wall-time | NVIDIA RTX 3090 · <b>~1 h 20m </b> per seed (10k steps, 1024 collocation) |
+| Iterations · seeds | 20 000 · **n = 5** (42, 1, 2, 3, 4) |
+| Hardware · wall-time | NVIDIA RTX 3090 · <b>~2 h 45m </b> per seed (20k steps, 1024 collocation) |
 
 </div>
 
