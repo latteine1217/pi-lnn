@@ -771,39 +771,59 @@ recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weight
 # Configuration parameters (1 of 2)
 
 <style>
-.cfgtight table :is(td, th) { padding-top: 1px !important; padding-bottom: 1px !important; line-height: 1.15 !important; }
+.cfg-col { display: flex; flex-direction: column; gap: 14px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.78rem; line-height: 1.32; margin-top: 10px; }
+.pgrid .k { color: #6B7280; white-space: nowrap; }
+.pgrid .v { color: #1F1B2E; }
+.pgrid .cite { color: #9CA3AF; font-size: 0.9em; }
 </style>
 
-<div class="cfgtight mt-2 text-xs grid grid-cols-2 gap-6">
+<div class="grid grid-cols-2 gap-6 mt-4">
 
-<div>
+<div class="cfg-col">
 
-| Group · Parameter | Value |
-|---|---|
-| **Flow** | |
-| Domain &amp; BC | Ω = \[0, 1\]² (dimensionless), doubly-periodic |
-| Characteristic scales | L<sup>★</sup> = 1, U<sup>★</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503 |
-| Reynolds number | Re = U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴ ⇒ ν = 10⁻⁴ |
-| Forcing &amp; window | A = 0.1, k<sub>f</sub> = 2, T = 5 (≈ 2.51 t<sub>eddy</sub>) |
-| DNS | **Run 1024²** ↓×4 → **Stored 256²** · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201) |
-| **Sensors** | |
-| Number &amp; channels | **K = 100**,&nbsp; (u, v) only |
-| Placement | QR-pivot POD basis [Manohar 2018] |
+<Card>
+<LabelTiny>Flow</LabelTiny>
+<div class="pgrid">
+<div class="k">Domain &amp; BC</div><div class="v">Ω = [0, 1]² dimensionless, doubly-periodic</div>
+<div class="k">Characteristic scales</div><div class="v">L<sup>★</sup> = U<sup>★</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
+<div class="k">Reynolds number</div><div class="v">Re = U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴ ⇒ ν = 10⁻⁴</div>
+<div class="k">Forcing &amp; window</div><div class="v">A = 0.1, k<sub>f</sub> = 2, T = 5 (≈ 2.51 t<sub>eddy</sub>)</div>
+<div class="k">DNS solver</div><div class="v"><b>Run 1024²</b> ↓×4 → <b>Stored 256²</b> · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201)</div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Sensors</LabelTiny>
+<div class="pgrid">
+<div class="k">Number &amp; channels</div><div class="v"><b>K = 100</b>, (u, v) only</div>
+<div class="k">Placement</div><div class="v">QR-pivot POD basis <span class="cite">[Manohar 2018]</span></div>
+</div>
+</Card>
 
 </div>
 
-<div>
+<div class="cfg-col">
 
-| Group · Parameter | Value |
-|---|---|
-| **Network architecture** | |
-| d<sub>model</sub> · d<sub>time</sub> | 256 · 16 |
-| d<sub>emb</sub> (Fourier) | 128, harmonics = 16, σ = 2.0 learnable |
-| Branch (sensor encoder) | spatial CfC × 1 + temporal CfC × 1 [Hasani 2022] |
-| Token self-attn | 2 layers × 1 heads, dim = 256 |
-| Trunk (query MLP) | 1 layer × 256 hidden, operator rank = 256 |
-| Readout (decoder) | Cross-attn, 1 head, \|r\| bias [Vaswani 2017] |
-| **Evaluation grid** | 128² (DNS 256²/4, avoid Nyquist) |
+<Card>
+<LabelTiny>Network architecture</LabelTiny>
+<div class="pgrid">
+<div class="k">d<sub>model</sub> · d<sub>time</sub></div><div class="v">256 · 16</div>
+<div class="k">d<sub>emb</sub> (Fourier)</div><div class="v">128, harmonics = 16, σ = 2.0 learnable</div>
+<div class="k">Branch (sensor encoder)</div><div class="v">spatial CfC × 1 + temporal CfC × 1 <span class="cite">[Hasani 2022]</span></div>
+<div class="k">Token self-attn</div><div class="v">2 layers × 1 head, dim = 256</div>
+<div class="k">Trunk (query MLP)</div><div class="v">1 layer × 256 hidden, operator rank = 256</div>
+<div class="k">Readout (decoder)</div><div class="v">cross-attn, 1 head, |r| bias <span class="cite">[Vaswani 2017]</span></div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Model size &amp; evaluation</LabelTiny>
+<div class="pgrid">
+<div class="k">Total parameters</div><div class="v"><b>3.14 M</b> (B3 PI-CON)</div>
+<div class="k">Query grid</div><div class="v">128² (DNS 256²/4, avoids Nyquist)</div>
+</div>
+</Card>
 
 </div>
 
@@ -823,32 +843,54 @@ recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weight
 
 # Configuration parameters (2 of 2)
 
-<div class="mt-3 text-xs grid grid-cols-2 gap-6">
+<style>
+.cfg-col { display: flex; flex-direction: column; gap: 14px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.78rem; line-height: 1.32; margin-top: 10px; }
+.pgrid .k { color: #6B7280; white-space: nowrap; }
+.pgrid .v { color: #1F1B2E; }
+.pgrid .cite { color: #9CA3AF; font-size: 0.9em; }
+</style>
 
-<div>
+<div class="grid grid-cols-2 gap-6 mt-4">
 
-| Group · Parameter | Value |
-|---|---|
-| **SOAP optimiser** [Wang 2025] | |
-| Learning rate · warm-up | 10⁻³ · 2 000 steps |
-| β₁, β₂ · precond. freq. | 0.9, 0.999 · every 2 steps |
-| **Schedule-Free** [Defazio 2024] | Polyak averaging, no lr decay |
-| **GradNorm** [Chen 2018] | |
-| Update freq. · EMA | 1 000 steps · momentum 0.9 |
-| Init weights | (w<sub>d</sub>, w<sub>NS,u</sub>, w<sub>NS,v</sub>, w<sub>c</sub>) = (1, 0.01, 0.01, 0.01) |
+<div class="cfg-col">
+
+<Card>
+<LabelTiny>SOAP optimiser <span class="cite">[Wang 2025]</span></LabelTiny>
+<div class="pgrid">
+<div class="k">Learning rate · warm-up</div><div class="v">10⁻³ · 2 000 steps</div>
+<div class="k">β₁, β₂ · precond. freq.</div><div class="v">0.9, 0.999 · every 2 steps</div>
+<div class="k">Schedule-Free</div><div class="v">Polyak averaging, no lr decay <span class="cite">[Defazio 2024]</span></div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>GradNorm balancing <span class="cite">[Chen 2018]</span></LabelTiny>
+<div class="pgrid">
+<div class="k">Update freq. · EMA</div><div class="v">1 000 steps · momentum 0.9</div>
+<div class="k">Init weights</div><div class="v">(w<sub>d</sub>, w<sub>NS,u</sub>, w<sub>NS,v</sub>, w<sub>c</sub>) = (1, 0.01, 0.01, 0.01)</div>
+</div>
+</Card>
 
 </div>
 
-<div>
+<div class="cfg-col">
 
-| Group · Parameter | Value |
-|---|---|
-| **Augmented Lagrangian** | (continuity only) |
-| Penalty ρ · λ clip | **0.1** · 10 |
-| Constraint | C = 𝔼[(∂<sub>x</sub>u + ∂<sub>y</sub>v)²] |
-| **Training & reproducibility** | |
-| Iterations · seeds | 20 000 · **n = 5** (42, 1, 2, 3, 4) |
-| Hardware · wall-time | NVIDIA RTX 3090 · <b>~2 h 45m </b> per seed (20k steps, 1024 collocation) |
+<Card>
+<LabelTiny>Augmented Lagrangian <span class="cite">(continuity only)</span></LabelTiny>
+<div class="pgrid">
+<div class="k">Penalty ρ · λ clip</div><div class="v"><b>0.1</b> · 10</div>
+<div class="k">Constraint</div><div class="v">C = 𝔼[(∂<sub>x</sub>u + ∂<sub>y</sub>v)²]</div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Training &amp; reproducibility</LabelTiny>
+<div class="pgrid">
+<div class="k">Iterations · seeds</div><div class="v">20 000 · <b>n = 5</b> (42, 1, 2, 3, 4)</div>
+<div class="k">Hardware · wall-time</div><div class="v">NVIDIA RTX 3090 · <b>~2 h 45 m</b> per seed (20 k steps, 1024 collocation)</div>
+</div>
+</Card>
 
 </div>
 
