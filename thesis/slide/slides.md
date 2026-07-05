@@ -986,7 +986,8 @@ Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (
   </tbody>
 </table>
 
-<div class="text-[10px] mt-1" style="color:#6B7280;">
+<div class="text-[10px] mt-1 leading-snug" style="color:#374151;">
+<span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
 All n = 5 seeds, ranked by KE. PI-CON (B3) vs Vanilla DeepONet (B0): <b>−2.53 percentage points</b> (t = 22.9, p = 3.0×10⁻⁷). CfC alone (B1) is worse than B0 — cross-attention is the dominant standalone lever; CfC contributes through interaction. ω rel-L₂ is a derivative diagnostic (curl amplifies high-k null-space error); the engineering metric is KE.
 </div>
 
@@ -1094,25 +1095,19 @@ Gap&nbsp; <b style="color:#7F1084;">−2.53 pp (−30.6 % relative)</b>,&nbsp; p
 
 # Field reconstruction<br/><span style="font-size: 0.85em; color:#6B7280;">ω · u · v at t = 5</span>
 
-<div class="mt-3 text-xs leading-snug space-y-2">
-
-<div><b style="color:#7F1084;">Colorbar policy</b>&nbsp;·&nbsp; DNS &amp; PI-CON share ±max; Error scaled independently</div>
-
-<div><b style="color:#7F1084;">Key observations</b>
-<div class="mt-1 space-y-0.5" style="font-size: 0.95em;">
-<div>· main vortex structure recovered</div>
-<div>· Small-scale (k &gt; 5) smoothed — Nyquist sensor bound</div>
-<div>· Error on <b>high-shear edges</b>, not random</div>
+<Card>
+<LabelTiny>KEY OBSERVATIONS</LabelTiny>
+<div class="mt-2 text-xs leading-snug space-y-1">
+<div>· Main vortex structure recovered</div>
+<div>· Small scales (k &gt; 5) smoothed — sensor Nyquist bound</div>
+<div>· Error sits on <b>high-shear edges</b>, not random</div>
 <div>· |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
 </div>
-</div>
+</Card>
 
-</div>
-
-<div class="mt-4 text-xs" style="color:#6B7280;">
-Source · EXP-245 baseline<br/>
-B3 1-head + LES_T50 + 1024 collo<br/>
-seed = 42 (field viz) · metrics at n = 5
+<div class="mt-3 text-[10px] leading-snug" style="color:#6B7280;">
+Colourbar: DNS &amp; PI-CON share ±max; error scaled independently.<br/>
+Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, metrics n = 5.
 </div>
 
 </div>
