@@ -1944,37 +1944,33 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <SectionTag>§ Conclusion · future work</SectionTag>
 
-# Four research directions directly from the limitations
+# Each open limitation maps to a concrete next step
 
-<div class="grid grid-cols-2 gap-4 mt-3 text-sm">
+<div class="mt-5 space-y-3 text-sm">
 
-<Card style="background: rgba(127,16,132,0.06);">
-<LabelTiny>① CROSS-RE MULTI-SEED EXTENSION&nbsp;<span class="opacity-60">(highest priority)</span></LabelTiny>
-<div class="mt-1 leading-snug">
-Upgrade Re = 10⁶ from single seed to n ≥ 3, then test Re ≥ 10⁷.
+<div class="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded" style="background: rgba(127,16,132,0.05);">
+<div class="col-span-4 leading-snug" style="color:#6B7280;">Single seed at Re = 10⁶, one trajectory</div>
+<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
+<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Cross-Re multi-seed</b> — Re = 10⁶ single → n ≥ 3, then test Re ≥ 10⁷ <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#7F1084; color:#fff;">highest priority</span></div>
 </div>
-</Card>
 
-<Card style="background: rgba(127,16,132,0.06);">
-<LabelTiny>② SENSOR-BUDGET SCALING&nbsp;<span class="opacity-60">(K = 200 / 400 preliminary ✓)</span></LabelTiny>
-<div class="mt-1 leading-snug">
-Complete K = 50 / 100 / 200 / 400 with matched budgets; test whether bandwidth follows k<sub>max</sub> ≈ √(K/π).
+<div class="grid grid-cols-12 gap-2 items-center px-3 py-2">
+<div class="col-span-4 leading-snug" style="color:#6B7280;">K = 100 / 200 / 400 is only a trend</div>
+<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
+<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Sensor-budget scaling</b> — K = 50 / 100 / 200 / 400 at matched budget; test k<sub>max</sub> ≈ √(K/π) <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#E5E0EC; color:#374151;">K=200/400 preliminary ✓</span></div>
 </div>
-</Card>
 
-<Card>
-<LabelTiny>③ REALISTIC SENSOR-ERROR MODEL</LabelTiny>
-<div class="mt-1 leading-snug">
-Move beyond additive Gaussian noise to bias, drift, dropout, correlated channel noise, and calibration uncertainty.
+<div class="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded" style="background: rgba(127,16,132,0.05);">
+<div class="col-span-4 leading-snug" style="color:#6B7280;">Only additive Gaussian noise tested</div>
+<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
+<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Realistic sensor-error model</b> — bias, drift, dropout, correlated channel noise, calibration</div>
 </div>
-</Card>
 
-<Card style="background: rgba(127,16,132,0.06);">
-<LabelTiny>④ WALL-BOUNDED GEOMETRIES + CLASSICAL-CFD BASELINE&nbsp;<span class="opacity-60">(CFD-rigour anchor)</span></LabelTiny>
-<div class="mt-1 leading-snug">
-Cylinder → airfoil → channel. Add a classical forward-CFD baseline from divergence-projected sensor ICs.
+<div class="grid grid-cols-12 gap-2 items-center px-3 py-2">
+<div class="col-span-4 leading-snug" style="color:#6B7280;">Periodic domain, single Kolmogorov forcing</div>
+<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
+<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Wall-bounded geometries</b> — cylinder → airfoil → channel, plus a classical forward-CFD baseline <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#E5E0EC; color:#374151;">CFD-rigour</span></div>
 </div>
-</Card>
 
 </div>
 
