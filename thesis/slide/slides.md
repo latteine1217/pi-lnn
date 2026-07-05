@@ -1944,33 +1944,29 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <SectionTag>§ Conclusion · future work</SectionTag>
 
-# Each open limitation maps to a concrete next step
+# Four directions, each closing one limitation
 
-<div class="mt-5 space-y-3 text-sm">
+<div class="grid grid-cols-2 gap-4 mt-3 text-sm">
 
-<div class="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded" style="background: rgba(127,16,132,0.05);">
-<div class="col-span-4 leading-snug" style="color:#6B7280;">Single seed at Re = 10⁶, one trajectory</div>
-<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
-<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Cross-Re multi-seed</b> — Re = 10⁶ single → n ≥ 3, then test Re ≥ 10⁷ <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#7F1084; color:#fff;">highest priority</span></div>
-</div>
+<Card>
+<LabelTiny>① CROSS-RE MULTI-SEED&nbsp;<span class="opacity-60">(highest priority)</span></LabelTiny>
+<div class="mt-1 leading-snug">Re = 10⁶ from single seed to n ≥ 3, then test Re ≥ 10⁷ — closes the fixed-Re, single-trajectory limit.</div>
+</Card>
 
-<div class="grid grid-cols-12 gap-2 items-center px-3 py-2">
-<div class="col-span-4 leading-snug" style="color:#6B7280;">K = 100 / 200 / 400 is only a trend</div>
-<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
-<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Sensor-budget scaling</b> — K = 50 / 100 / 200 / 400 at matched budget; test k<sub>max</sub> ≈ √(K/π) <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#E5E0EC; color:#374151;">K=200/400 preliminary ✓</span></div>
-</div>
+<Card>
+<LabelTiny>② SENSOR-BUDGET SCALING&nbsp;<span class="opacity-60">(K = 200 / 400 preliminary ✓)</span></LabelTiny>
+<div class="mt-1 leading-snug">K = 50 / 100 / 200 / 400 at matched budget; test k<sub>max</sub> ≈ √(K/π) — turns the K-trend into a law.</div>
+</Card>
 
-<div class="grid grid-cols-12 gap-2 items-center px-3 py-2 rounded" style="background: rgba(127,16,132,0.05);">
-<div class="col-span-4 leading-snug" style="color:#6B7280;">Only additive Gaussian noise tested</div>
-<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
-<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Realistic sensor-error model</b> — bias, drift, dropout, correlated channel noise, calibration</div>
-</div>
+<Card>
+<LabelTiny>③ REALISTIC SENSOR-ERROR MODEL</LabelTiny>
+<div class="mt-1 leading-snug">Beyond additive Gaussian: bias, drift, dropout, correlated channel noise, and calibration error.</div>
+</Card>
 
-<div class="grid grid-cols-12 gap-2 items-center px-3 py-2">
-<div class="col-span-4 leading-snug" style="color:#6B7280;">Periodic domain, single Kolmogorov forcing</div>
-<div class="col-span-1 text-center text-lg" style="color:#7F1084;">→</div>
-<div class="col-span-7 leading-snug"><b style="color:#7F1084;">Wall-bounded geometries</b> — cylinder → airfoil → channel, plus a classical forward-CFD baseline <span class="ml-1 px-2 py-0.5 rounded-full text-xs whitespace-nowrap inline-block" style="background:#E5E0EC; color:#374151;">CFD-rigour</span></div>
-</div>
+<Card>
+<LabelTiny>④ WALL-BOUNDED GEOMETRIES + CFD BASELINE</LabelTiny>
+<div class="mt-1 leading-snug">Cylinder → airfoil → channel, plus a classical forward-CFD baseline from divergence-projected sensor ICs.</div>
+</Card>
 
 </div>
 
