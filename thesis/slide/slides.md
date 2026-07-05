@@ -2007,6 +2007,10 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 </div>
 
+<div class="mt-4 text-center">
+<Pill>Cross-Re multi-seed comes first — the other three widen scope, not feasibility.</Pill>
+</div>
+
 <FooterLogos />
 
 <!--
