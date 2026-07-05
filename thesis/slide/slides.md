@@ -54,42 +54,29 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <NavBar active="background" />
 
-<SectionTag>§ Background · why classical inverse methods struggle</SectionTag>
+<SectionTag>§ Background · the sparse-reconstruction problem</SectionTag>
 
-# Sparse-sensor flow reconstruction — engineering deployment regime
+# Reconstructing a turbulent flow field from sparse sensors
 
-<div class="grid grid-cols-5 gap-5 mt-3 text-sm">
+<div class="grid grid-cols-5 gap-6 mt-3 text-sm leading-snug">
 
-<div class="col-span-3 space-y-3">
+<div class="col-span-3 space-y-4">
 
-<BulletRow><b style="color:#7F1084;">Setting</b>&nbsp;·&nbsp; K point sensors return (u, v) values · full field unobserved · DNS not available in the field</BulletRow>
+<div><b style="color:#7F1084;">Problem</b>&nbsp;— recover the full velocity field <b>u(x, t)</b> over the whole domain, given only <b>K = 100</b> point sensors and the governing Navier–Stokes equations.</div>
 
-<BulletRow><b style="color:#7F1084;">Challenge</b>&nbsp;·&nbsp; Many candidate flow fields fit the same sensor values → an external prior is required</BulletRow>
+<div><b style="color:#7F1084;">Ill-posed inverse problem</b>&nbsp;— 100 sensors give 200 (u, v) readings against ~1.3×10⁵ field unknowns per snapshot: <b>≈ 650× under-determined</b>. Infinitely many fields fit the same data.</div>
 
-<BulletRow><b style="color:#7F1084;">Classical fix</b>&nbsp;·&nbsp; POD-ROM [Sirovich 1987; Manohar 2018] · 4D-Var [Asch 2016] · (En)KF [Evensen 2003] — each leans on an offline reference</BulletRow>
+<div><b style="color:#7F1084;">Physics as the prior</b>&nbsp;— enforcing the Navier–Stokes residual regularises the inversion: among all data-consistent fields it selects the physically admissible one.</div>
 
-</div>
-
-<div class="col-span-2">
-
-<Card>
-<LabelTiny>FOUR PRACTICAL OBSTACLES</LabelTiny>
-
-<div class="mt-2 leading-snug text-xs space-y-2">
-<div><b style="color:#7F1084;">① Basis grows with Re</b>&nbsp;·&nbsp; truncation discards small scales</div>
-<div><b style="color:#7F1084;">② Needs an offline reference</b>&nbsp;·&nbsp; POD basis or Data Assimilation (DA) background must come from somewhere</div>
-<div><b style="color:#7F1084;">③ Solver in the loop</b>&nbsp;·&nbsp; DA recomputes the NS solver per window — not real-time at high Re</div>
-<div><b style="color:#7F1084;">④ Gaussian assumptions</b>&nbsp;·&nbsp; break in chaotic, non-Gaussian turbulence</div>
-</div>
-</Card>
+<div><b style="color:#7F1084;">Engineering constraint</b>&nbsp;— at deployment no full-field DNS is available; the reconstruction may use only the sparse sensors and the PDE, never a reference solution.</div>
 
 </div>
 
+<div class="col-span-2 text-center">
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded-lg border mx-auto" style="border-color:#E5E0EC; max-height: 46vh; width: auto;" />
+<div class="text-xs mt-2" style="color:#6B7280;">Full vorticity field ω(x) constrained by only K = 100 point sensors (markers).</div>
 </div>
 
-<div class="mt-3 text-xs leading-snug" style="color:#374151;">
-<span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-All four classical pillars break under no-DNS, real-time, sparse-sensor conditions. What remains is a model-based prior learned from <b>sensors + PDE residual alone</b>.
 </div>
 
 <FooterLogos />
@@ -102,54 +89,32 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
 
 <NavBar active="background" />
 
-<SectionTag>§ Background · classical methods vs. neural networks</SectionTag>
+<SectionTag>§ Background · why classical methods stall</SectionTag>
 
-# Why neural networks for sparse-flow reconstruction
+# Why classical reconstruction stalls in the field
 
-<div class="mt-3 text-sm">
+<div class="mt-3 text-base leading-snug" style="color:#374151;">
+Classical inverse methods — POD-ROM, 4D-Var, ensemble Kalman filtering — reconstruct well, but each leans on one of two ingredients the field cannot supply:
+</div>
 
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Requirement at deployment</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Classical &nbsp;<span class="opacity-60 text-xs">(POD-ROM · 4D-Var · KF)</span></th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Neural network &nbsp;<span class="opacity-60 text-xs">(operator + physics)</span></th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 0.78rem;">
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Offline DNS / basis pre-compute</td>
-      <td class="py-1 px-2" style="color:#E97132;">Required (POD basis · adjoint background)</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Not required — train from sensor + PDE residual</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Forward solver in the loop</td>
-      <td class="py-1 px-2" style="color:#E97132;">Required (4D-Var · EnKF propagation)</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Replaced by amortised inference (one forward pass)</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Non-linear / non-Gaussian dynamics</td>
-      <td class="py-1 px-2" style="color:#E97132;">Approximated (linearised tangent · Gaussian innovations)</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Native via deep non-linear feature maps</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Function-valued sensor input</td>
-      <td class="py-1 px-2" style="color:#E97132;">Snapshot-by-snapshot · ad-hoc temporal handling</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Operator-learning branch ingests {y(t<sub>k</sub>)} as input</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Inference latency / snapshot</td>
-      <td class="py-1 px-2" style="color:#E97132;">DA window solve: minutes – hours</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">&lt; 5 min on a single GPU</td>
-    </tr>
-    <tr style="background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>PDE consistency</b></td>
-      <td class="py-1 px-2">Enforced inside the solver</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">Differentiable residual loss (PINN / PINO)</b></td>
-    </tr>
-  </tbody>
-</table>
+<div class="grid grid-cols-2 gap-6 mt-5">
 
+<Card>
+<div class="text-base font-bold" style="color:#7F1084;">① A pre-computed reference field</div>
+<div class="mt-2 text-sm leading-snug">A POD basis, or a data-assimilation background field — both built <b>offline from a full-field DNS</b>.</div>
+<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ In the field there is no DNS</b> to build it from.</div>
+</Card>
+
+<Card>
+<div class="text-base font-bold" style="color:#7F1084;">② The forward solver in the loop</div>
+<div class="mt-2 text-sm leading-snug">4D-Var and EnKF <b>re-run the Navier–Stokes solver</b> every assimilation window.</div>
+<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ Minutes to hours per window</b> — not real-time at Re = 10⁴.</div>
+</Card>
+
+</div>
+
+<div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
+<b style="color:#7F1084;">What remains</b> — learn the prior directly from the sparse sensors and the PDE: no reference field, no online solver. This is where a neural operator with a physics residual enters.
 </div>
 
 <FooterLogos />
@@ -162,54 +127,37 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
 
 <NavBar active="background" />
 
-<SectionTag>§ Background · physics-informed networks vs. neural operators</SectionTag>
+<SectionTag>§ Background · operator vs. plain PINN</SectionTag>
 
-# Why neural operator — PINNs vs. PINOs
+# Why a neural operator, not a plain PINN
 
-<div class="mt-3 text-sm">
+<div class="grid grid-cols-2 gap-6 mt-4">
 
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Aspect</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">PINN &nbsp;<span class="opacity-60 text-xs">[Raissi 2019]</span></th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">PINO &nbsp;<span class="opacity-60 text-xs">(operator + physics) [Lu 2021; Wang 2024]</span></th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 0.78rem;">
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Learned object</td>
-      <td class="py-1 px-2" style="color:#E97132;">One solution u(x, t) for one fixed problem</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Operator G : input function → solution map</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Sensor input</td>
-      <td class="py-1 px-2" style="color:#E97132;">L<sub>data</sub> points only — cannot ingest trajectory</td>
-      <td class="py-1 px-2" style="color:#0F2D52;"><b style="color:#7F1084;">①</b>&nbsp; Branch ingests full y(t<sub>k</sub>) as function-valued input</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Query at new (x, t)</td>
-      <td class="py-1 px-2" style="color:#E97132;">Native, but bound to the trained problem</td>
-      <td class="py-1 px-2" style="color:#0F2D52;"><b style="color:#7F1084;">②</b>&nbsp; Trunk evaluates basis at arbitrary (x, t), problem-agnostic</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Generalisation across IC / sensors</td>
-      <td class="py-1 px-2" style="color:#E97132;">Retrain per problem instance</td>
-      <td class="py-1 px-2" style="color:#0F2D52;"><b style="color:#7F1084;">③</b>&nbsp; Single network across instances — amortised inverse map</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Architecture family</td>
-      <td class="py-1 px-2" style="color:#E97132;">MLP / SIREN per (x, t) query</td>
-      <td class="py-1 px-2" style="color:#0F2D52;">Branch–trunk (DeepONet) · FNO · <br>transformer hybrid (GeoTransolver)</td>
-    </tr>
-    <tr style="background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>PDE residual loss</b></td>
-      <td class="py-1 px-2">Required — central component</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">④</b>&nbsp; <b style="color:#7F1084;">Differentiable residual on operator output (PINO)</b></td>
-    </tr>
-  </tbody>
-</table>
+<Card>
+<LabelTiny>PLAIN PINN&nbsp;<span class="opacity-60">[Raissi 2019]</span></LabelTiny>
+<div class="mt-3 text-center" style="font-family:'JetBrains Mono',monospace; font-size:0.95rem; color:#0F2D52;">
+(x, t)&nbsp; →&nbsp; network&nbsp; →&nbsp; u
+</div>
+<div class="mt-4 text-sm leading-snug" style="color:#374151;">
+Fits <b>one flow at a time</b>. The input is a single query coordinate — it <b style="color:#E97132;">cannot ingest a sensor time-series</b>, and must be retrained for every new case.
+</div>
+</Card>
 
+<Card style="background: rgba(127,16,132,0.05);">
+<LabelTiny>NEURAL OPERATOR&nbsp;<span class="opacity-60">(DeepONet) [Lu 2021]</span></LabelTiny>
+<div class="mt-3 text-center leading-relaxed" style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#7F1084;">
+sensors {y(t<sub>k</sub>)}&nbsp;→&nbsp;<b>branch</b><br/>
+query (x, t)&nbsp;→&nbsp;<b>trunk</b>&nbsp;&nbsp;→&nbsp; u(x, t)
+</div>
+<div class="mt-4 text-sm leading-snug" style="color:#374151;">
+Learns a <b>mapping</b>, not one solution. A <b style="color:#7F1084;">branch reads the whole sensor trajectory</b>; a trunk queries any point. One network serves new sensor streams.
+</div>
+</Card>
+
+</div>
+
+<div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
+<b style="color:#7F1084;">The deciding factor</b> — the operator branch lets a <b>sparse sensor history</b>, not just a coordinate, drive the reconstruction. PI-CON therefore builds on an operator plus a differentiable PDE residual.
 </div>
 
 <FooterLogos />
@@ -227,61 +175,41 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · direct comparison</SectionTag>
+<SectionTag>§ Literature review · where PI-CON sits</SectionTag>
 
-# How PI-CON compares within the deployable regime
+# Positioning against prior work
 
-<div class="mt-1 text-sm">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Method</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Backbone</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Training supervision</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Kolmogorov KE MAPE</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Deployable?</th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 0.85rem;">
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Mons et al. 2025 &nbsp;<span class="opacity-50 text-xs">[Mons 2025]</span></td>
-      <td class="py-1 px-2">Physics-constrained CNN</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
-      <td class="py-1 px-2">~ 23 %</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">Yes</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.08);">
-      <td class="py-1 px-2"><b>PI-CON&nbsp;(ours)</b></td>
-      <td class="py-1 px-2">DeepONet&nbsp;+&nbsp;CfC&nbsp;+&nbsp;cross-attn</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">Sensor + NS</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">5.71&nbsp;±&nbsp;0.11 %</b>&nbsp;<span class="text-xs">(n=5)</span></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">Yes</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Classical interpolation&nbsp;<span class="opacity-50 text-xs">(EXP-295)</span></td>
-      <td class="py-1 px-2">RBF / IDW / div-free trig LSQ</td>
-      <td class="py-1 px-2">Sensor only</td>
-      <td class="py-1 px-2">KE can be low, but u L₂ <b>28–54 %</b></td>
-      <td class="py-1 px-2"><b>Partly</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">FLRNet 2024 / Senseiver 2023 / SHRED 2024</td>
-      <td class="py-1 px-2">CNN-PerceptualLoss / Perceiver / LSTM</td>
-      <td class="py-1 px-2" style="color:#E97132;">Sensor + DNS full field</td>
-      <td class="py-1 px-2">few %</td>
-      <td class="py-1 px-2" style="color:#E97132;">No</td>
-    </tr>
-  </tbody>
-</table>
-
+<div class="text-sm mt-1" style="color:#6B7280;">
+The only fair comparison is <b>same regime</b> — trained on sparse sensors + the PDE, with no DNS full field.
 </div>
 
-<div class="mt-2 text-[10px] leading-snug" style="color:#374151;">
-<span class="uppercase tracking-widest" style="color:#7F1084;">Take-aways</span>&nbsp;·&nbsp;
-<b>①</b> Architecture drives the gain (Mons 2025 ~23 % → 5.71 %).&nbsp;
-<b>②</b> Interpolation: low KE, poor pointwise.&nbsp;
-<b>③</b> DNS-supervised few-% not reproducible at deployment.
+<div class="mt-4 px-5 py-4 rounded-lg" style="background: rgba(127,16,132,0.07); border: 1px solid #E5E0EC;">
+<div class="text-xs uppercase tracking-widest mb-3" style="color:#7F1084;">Same regime · sensor + Navier–Stokes only</div>
+<div class="grid grid-cols-11 gap-3 items-center text-sm">
+<div class="col-span-5">
+<b>Mons et al. 2025</b>&nbsp;<span class="opacity-50 text-xs">[Mons 2025]</span><br/>
+<span style="color:#6B7280;">physics-constrained CNN</span><br/>
+KE MAPE&nbsp; <b style="color:#E97132;">~ 23 %</b>
+</div>
+<div class="col-span-1 text-center text-2xl" style="color:#7F1084;">→</div>
+<div class="col-span-5">
+<b style="color:#7F1084;">PI-CON (ours)</b><br/>
+<span style="color:#6B7280;">DeepONet + CfC + cross-attention</span><br/>
+KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="text-xs">(n = 5)</span>
+</div>
+</div>
+<div class="mt-3 text-sm" style="color:#374151;"><b>Architecture, not supervision</b>, drives the gain — same sensors, same physics, error cut from ~23 % to 5.71 %.</div>
+</div>
+
+<div class="grid grid-cols-2 gap-6 mt-4 text-xs">
+<Card>
+<LabelTiny style="color:#DC2626;">Not a fair yardstick — trains on DNS</LabelTiny>
+<div class="mt-1 leading-snug">FLRNet 2024 · Senseiver 2023 · SHRED 2024 reach few-% error, but <b>because they supervise on the full DNS field</b> — not reproducible where no DNS exists.</div>
+</Card>
+<Card>
+<LabelTiny style="color:#E97132;">KE alone is misleading</LabelTiny>
+<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / div-free trig-LSQ) can score low KE, yet its pointwise <b>u L₂ is 28–54 %</b> — visibly over-smoothed.</div>
+</Card>
 </div>
 
 <FooterLogos />
@@ -294,62 +222,26 @@ All four classical pillars break under no-DNS, real-time, sparse-sensor conditio
 
 <NavBar active="background" />
 
-<SectionTag>§ Sensor budget · null space & spectral bandwidth</SectionTag>
+<SectionTag>§ Background · the sensor resolution limit</SectionTag>
 
-# K = 100 — null-space dimension and sensor bandwidth limit
+# What K = 100 sensors can resolve
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
+<div class="grid grid-cols-5 gap-6 mt-3 items-center">
 
-<Card>
-<LabelTiny>UNDERDETERMINED LINEAR SYSTEM</LabelTiny>
-
-<div class="mt-2" style="font-size: 0.85em;">
-
-$$\mathbf{y}_t \;=\; \mathbf{C}\,\mathbf{u}_t, \qquad \text{rank-deficient}$$
-
+<div class="col-span-3 text-center">
+<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border mx-auto" style="border-color:#E5E0EC; max-height: 52vh; width: auto;" />
 </div>
 
-<div class="mt-2 leading-snug text-xs">
+<div class="col-span-2 space-y-4 text-sm leading-snug">
+<div><b style="color:#7F1084;">A hard ceiling</b> — how many points you sample sets the finest scale you can recover: a field is observable only up to a cutoff wavenumber <b>k<sub>max</sub> ≈ √(K/π)</b>.</div>
 
-Sensing operator <b>C</b> ∈ {0,1}<sup>K×N</sup> selects K entries of <b>u</b><sub>t</sub> ∈ ℝ<sup>N</sup>.
+<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b>. Below it — the energy-dominant low band — reconstruction is faithful; above it, the scales are simply <b>unobserved</b>.</div>
 
+<div class="px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
+<b>Higher fidelity means more sensors</b>, not a bigger network — the limit is information, not architecture.
+</div>
 </div>
 
-<div class="mt-2 leading-snug text-xs">
-Per snapshot: 2K = <b>200</b> sensor obs vs 2N ≈ <b>1.31×10⁵</b> velocity dofs
-&nbsp;⇒&nbsp; <b style="color:#7F1084;">~650× underdetermined</b>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>COMPRESSED SENSING BOUND &nbsp;<span class="opacity-50">[Donoho 2006, Candès 2006]</span></LabelTiny>
-
-<div class="mt-2" style="font-size: 0.85em;">
-
-$$M \;\geq\; C_0 \, s \, \log_2(N/s) \qquad \text{for exact recovery}$$
-
-</div>
-
-<div class="mt-2 leading-snug text-xs">
-
-db4 wavelet sparsity s ≈ 328 (99.5 % energy).&nbsp; Required M ≳ C<sub>0</sub> · 328 · log₂(65,536/328) ≈ <b>2,500–5,000</b>&nbsp;<span class="opacity-60">(C<sub>0</sub> ∈ [1, 2])</span>.
-
-</div>
-
-<div class="mt-2 leading-snug text-xs">
-&nbsp;⇒&nbsp; <b style="color:#7F1084;">K = 100 is 25–50× short</b>
-</div>
-</Card>
-
-</div>
-
-<div class="mt-2 text-xs leading-snug" style="color:#374151;">
-<span class="uppercase tracking-widest" style="color:#7F1084;">Implication</span>
-<div class="mt-1 space-y-0.5">
-<div>· <b>Full-field exact</b> recovery requires K ≫ 100</div>
-<div>· Productive scope: <b>low-band sub-recovery + physics-prior regularisation over the null space</b></div>
-<div>· Scope set by sensor Nyquist k<sub>max</sub><sup>sensor</sup> ≈ √(K/π) ≈ 5.64</div>
-</div>
 </div>
 
 <FooterLogos />

@@ -24,7 +24,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 52px;
+  height: 60px;
   pointer-events: none;
   z-index: 4;
   background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0.85) 100%);
@@ -35,7 +35,7 @@
   align-items: center;
   justify-content: space-between;
   height: 100%;
-  padding: 2px 18px;
+  padding: 2px 20px 12px 20px;
   gap: 12px;
 }
 
@@ -47,9 +47,9 @@
   height: auto;
 }
 
-.logo-actlab  { max-height: 42px; }
-.logo-college { max-height: 44px; }
-.logo-dept    { max-height: 18px; }
-.logo-seal    { max-height: 42px; }
-.logo-nthu    { max-height: 18px; }
+.logo-actlab  { max-height: 48px; }
+.logo-college { max-height: 50px; }
+.logo-dept    { max-height: 21px; }
+.logo-seal    { max-height: 48px; }
+.logo-nthu    { max-height: 21px; }
 </style>

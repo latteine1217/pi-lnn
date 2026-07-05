@@ -29,6 +29,7 @@
   font-weight: 700;
   letter-spacing: -0.005em;
   line-height: 1.18;
+  font-size: 1.9rem;   /* 比預設 36px 小一號,降低標題佔用高度 */
 }
 
 .slidev-layout h2 {
