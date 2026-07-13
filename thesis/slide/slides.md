@@ -1337,7 +1337,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <div class="col-span-3">
 
 <div class="text-xs" style="color:#6B7280;">
-Same B3, 1024 collocation, 20 k iterations, n = 5 seeds. DNS oracle wins KE; LES placement wins pointwise L₂.
+Same B3, 1024 collocation, 20 k iterations, n = 5 seeds · DNS oracle wins KE · LES placement wins pointwise L₂.
 </div>
 
 <table class="w-full mt-2 text-xs" style="border-collapse: collapse;">
