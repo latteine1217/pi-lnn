@@ -62,13 +62,13 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <div class="col-span-3 space-y-4">
 
-<div><b style="color:#7F1084;">Problem</b>&nbsp;— recover the full velocity field <b>u(x, t)</b> over the whole domain, given only <b>K = 100</b> point sensors and the governing Navier–Stokes equations.</div>
+<div><b style="color:#7F1084;">Problem</b>&nbsp;·&nbsp; continuous velocity field <b>u(x, t)</b> from <b>K = 100</b> point sensors + Navier–Stokes</div>
 
-<div><b style="color:#7F1084;">Under-determined inverse problem</b>&nbsp;— 100 sensors give 200 (u, v) readings against ~1.3×10⁵ field unknowns per snapshot: <b>≈ 650× under-determined</b>. Infinitely many fields fit the same data.</div>
+<div><b style="color:#7F1084;">Under-determined inverse problem</b>&nbsp;·&nbsp; 200 (u, v) readings vs ~1.3×10⁵ field unknowns · <b>≈ 650× under-determined</b></div>
 
-<div><b style="color:#7F1084;">Physics as the prior</b>&nbsp;— enforcing the Navier–Stokes residual regularises the inversion: among all data-consistent fields it selects the physically admissible one.</div>
+<div><b style="color:#7F1084;">Physics as the prior</b>&nbsp;·&nbsp; NS residual as structural regulariser → physically admissible field</div>
 
-<div><b style="color:#7F1084;">Engineering constraint</b>&nbsp;— at deployment no full-field DNS is available; the reconstruction may use only the sparse sensors and the PDE, never a reference solution.</div>
+<div><b style="color:#7F1084;">Engineering constraint</b>&nbsp;·&nbsp; no offline DNS reference · sensors + PDE only, never a reference field</div>
 
 </div>
 
@@ -94,27 +94,27 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 # Why classical reconstruction stalls in the field
 
 <div class="mt-3 text-base leading-snug" style="color:#374151;">
-Classical inverse methods — POD-ROM, 4D-Var, ensemble Kalman filtering — reconstruct well, but each leans on one of two ingredients the field cannot supply:
+Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering — each needs one ingredient the field cannot supply:
 </div>
 
 <div class="grid grid-cols-2 gap-6 mt-5">
 
 <Card>
 <div class="text-base font-bold" style="color:#7F1084;">① A pre-computed reference field</div>
-<div class="mt-2 text-sm leading-snug">A POD basis, or a data-assimilation background field — both built <b>offline from a full-field DNS</b>.</div>
-<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ In the field there is no DNS</b> to build it from.</div>
+<div class="mt-2 text-sm leading-snug">POD basis or data-assimilation background field · both <b>offline from a full-field DNS</b></div>
+<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ no offline DNS reference</b> in the field</div>
 </Card>
 
 <Card>
 <div class="text-base font-bold" style="color:#7F1084;">② The forward solver in the loop</div>
-<div class="mt-2 text-sm leading-snug">4D-Var and EnKF <b>re-run the Navier–Stokes solver</b> every assimilation window.</div>
-<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ Minutes to hours per window</b> — not real-time at Re = 10⁴.</div>
+<div class="mt-2 text-sm leading-snug">4D-Var / EnKF <b>re-run the NS solver</b> every assimilation window</div>
+<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ minutes–hours per window</b> · not real-time at Re = 10⁴</div>
 </Card>
 
 </div>
 
 <div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">What remains</b> — learn the prior directly from the sparse sensors and the PDE: no reference field, no online solver. This is where a neural operator with a physics residual enters.
+<b style="color:#7F1084;">What remains</b> · learn the prior from sparse sensors + PDE · no reference field, no online solver → neural operator with a physics residual
 </div>
 
 <FooterLogos />
@@ -139,7 +139,7 @@ Classical inverse methods — POD-ROM, 4D-Var, ensemble Kalman filtering — rec
 (x, t)&nbsp; →&nbsp; network&nbsp; →&nbsp; u
 </div>
 <div class="mt-4 text-sm leading-snug" style="color:#374151;">
-Fits <b>one flow at a time</b>. The input is a single query coordinate — it <b style="color:#E97132;">cannot ingest a sensor time-series</b>, and must be retrained for every new case.
+<b>One flow at a time</b> · input is a single (x, t) coordinate · <b style="color:#E97132;">never reads the measurement stream as input</b> · retrained per case
 </div>
 </Card>
 
@@ -150,14 +150,14 @@ sensors {y(t<sub>k</sub>)}&nbsp;→&nbsp;<b>branch</b><br/>
 query (x, t)&nbsp;→&nbsp;<b>trunk</b>&nbsp;&nbsp;→&nbsp; u(x, t)
 </div>
 <div class="mt-4 text-sm leading-snug" style="color:#374151;">
-Learns a <b>mapping</b>, not one solution. A <b style="color:#7F1084;">branch reads the whole sensor trajectory</b>; a trunk queries any point. One network serves new sensor streams.
+Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch reads the whole sensor trajectory</b> · trunk queries any point · one network serves new sensor streams
 </div>
 </Card>
 
 </div>
 
 <div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">The deciding factor</b> — the operator branch lets a <b>sparse sensor history</b>, not just a coordinate, drive the reconstruction. PI-CON therefore builds on an operator plus a differentiable PDE residual.
+<b style="color:#7F1084;">The deciding factor</b> · operator branch lets a <b>sparse sensor history</b> — not just a coordinate — drive the reconstruction · PI-CON = operator + differentiable PDE residual
 </div>
 
 <FooterLogos />
@@ -180,7 +180,7 @@ Learns a <b>mapping</b>, not one solution. A <b style="color:#7F1084;">branch re
 # Positioning against prior work
 
 <div class="text-sm mt-1" style="color:#6B7280;">
-The only fair comparison is <b>same regime</b> — trained on sparse sensors + the PDE, with no DNS full field.
+The only fair comparison · <b>same regime</b> — sparse sensors + PDE, no DNS full field.
 </div>
 
 <div class="mt-4 px-5 py-4 rounded-lg" style="background: rgba(127,16,132,0.07); border: 1px solid #E5E0EC;">
@@ -198,17 +198,17 @@ KE MAPE&nbsp; <b style="color:#E97132;">~ 23 %</b>
 KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="text-xs">(n = 5)</span>
 </div>
 </div>
-<div class="mt-3 text-sm" style="color:#374151;"><b>Architecture, not supervision</b>, drives the gain — same sensors, same physics, error cut from ~23 % to 5.71 %.</div>
+<div class="mt-3 text-sm" style="color:#374151;"><b>Architecture, not supervision</b>, drives the gain · same sensors, same physics · ~23 % → 5.71 %</div>
 </div>
 
 <div class="grid grid-cols-2 gap-6 mt-4 text-xs">
 <Card>
 <LabelTiny style="color:#DC2626;">Not a fair yardstick — trains on DNS</LabelTiny>
-<div class="mt-1 leading-snug">FLRNet 2024 · Senseiver 2023 · SHRED 2024 reach few-% error, but <b>because they supervise on the full DNS field</b> — not reproducible where no DNS exists.</div>
+<div class="mt-1 leading-snug">FLRNet 2024 · Senseiver 2023 · SHRED 2024 · few-% error, but <b>supervised on the full DNS field</b> · not reproducible where no DNS exists.</div>
 </Card>
 <Card>
 <LabelTiny style="color:#E97132;">KE alone is misleading</LabelTiny>
-<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / trig-LSQ) contracts toward the inter-sensor mean — some post <b>lower KE</b> than PI-CON, yet pointwise <b>u L₂ is 26–53 %</b> (PI-CON cuts it <b>47–74 % relative</b>).</div>
+<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / trig-LSQ) · contracts toward the inter-sensor mean · <b>lower KE</b> but pointwise <b>u L₂ 26–53 %</b> · PI-CON cuts u rel-L₂ <b>47–74 % relative</b>.</div>
 </Card>
 </div>
 
@@ -233,12 +233,12 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 </div>
 
 <div class="col-span-2 space-y-4 text-sm leading-snug">
-<div><b style="color:#7F1084;">An information ceiling</b> — how many points you sample sets the finest scale you can recover: a field is observable only up to a cutoff wavenumber <b>k<sub>max</sub> ≈ √(K/π)</b>.</div>
+<div><b style="color:#7F1084;">An information ceiling</b> · sample count sets the finest recoverable scale · observable only up to cutoff <b>k<sub>max</sub> ≈ √(K/π)</b></div>
 
-<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b>. Below it — the energy-dominant low band — reconstruction is faithful; above it, the scales are simply <b>unobserved</b>.</div>
+<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b> · below it (energy-dominant low band) faithful · above it, <b>unobserved</b></div>
 
 <div class="px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
-<b>Higher fidelity means more sensors</b>, not a bigger network — the limit is information, not architecture.
+<b>Higher fidelity = more sensors</b>, not a bigger network · the limit is information, not architecture.
 </div>
 </div>
 
@@ -432,15 +432,15 @@ graph LR
 <div class="grid grid-cols-3 gap-3 mt-2 text-xs">
 <Card>
 <LabelTiny>CfC branch</LabelTiny>
-<div class="mt-1 leading-snug">Consumes sensor time signals instead of fixed-grid snapshots; keeps (O1) sensor-only training feasible.</div>
+<div class="mt-1 leading-snug">Reads the irregularly-clocked sensor time signal, not a fixed-grid snapshot · keeps (O1) sensor-only training feasible.</div>
 </Card>
 <Card>
 <LabelTiny>Relpos cross-attention</LabelTiny>
-<div class="mt-1 leading-snug">Links each query (x, t) to nearby sensor tokens; enables sparse-to-dense streaming readout.</div>
+<div class="mt-1 leading-snug">Query (x, t) → nearby sensors · sparse-to-dense field readout at any query.</div>
 </Card>
 <Card>
 <LabelTiny>AL-continuity</LabelTiny>
-<div class="mt-1 leading-snug">Makes incompressibility an active constraint instead of a soft residual side effect.</div>
+<div class="mt-1 leading-snug">Adaptive penalty on ∇·u · incompressibility as an active constraint, not a soft residual.</div>
 </Card>
 </div>
 
@@ -469,7 +469,7 @@ CfC 內部公式、cross-attn 內部公式留 backup slides，這張只講 narra
 # CfC — closing the "time-signal" gap in vanilla DeepONet
 
 <div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet's branch ingests a fixed-grid snapshot.&nbsp; Our sensors deliver an unevenly clocked <b>time series</b>; we replace the branch with a closed-form continuous-time RNN.
+Vanilla DeepONet branch ingests a fixed-grid snapshot · our sensors = unevenly clocked <b>time series</b> → replace the branch with a closed-form continuous-time RNN.
 </div>
 
 <div class="grid grid-cols-2 gap-5 mt-2">
@@ -478,7 +478,7 @@ Vanilla DeepONet's branch ingests a fixed-grid snapshot.&nbsp; Our sensors deliv
 <LabelTiny>① LIQUID NEURAL NETWORK (LNN) [Hasani 2021]</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug">
-Hidden state h(t) ∈ ℝ<sup>d</sup> evolves by an ODE — natural fit for an irregular sensor clock, but an ODE solver inside the autograd graph is expensive:
+Hidden state h(t) ∈ ℝ<sup>d</sup> evolves by an ODE · natural fit for an irregular sensor clock · but an ODE solver in the autograd graph is expensive:
 </div>
 
 <div class="mt-2" style="font-size: 0.7em;">
@@ -506,7 +506,7 @@ $$h(t + \Delta t) = \sigma\!\left(-f \Delta t\right) \odot g(h, x;\theta_g) + \l
 </div>
 
 <div class="mt-2 text-xs" style="color:#6B7280;">
-σ(·) gating · g(·) update target. The gap closed: branch now consumes a true time signal at any Δt.
+σ(·) gating · g(·) update target · gap closed: branch now reads a true time signal at any Δt.
 </div>
 </Card>
 
@@ -531,7 +531,7 @@ $$h(t + \Delta t) = \sigma\!\left(-f \Delta t\right) \odot g(h, x;\theta_g) + \l
 # Cross-attention — closing the "sparse-to-dense" gap
 
 <div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet's inner product has no spatial prior linking a query to the nearest sensors.&nbsp; We add a distance-aware attention readout — a learnable analogue of an RBF interpolant.
+Vanilla DeepONet inner product has no spatial prior linking a query to nearby sensors · add a distance-aware attention readout — a learnable analogue of an RBF interpolant.
 </div>
 
 <div class="grid grid-cols-2 gap-5 mt-2">
@@ -566,7 +566,7 @@ $$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j, \quad w_j \propto \e
 
 </div>
 
-<div><b>Cross-attention with |r| bias</b> learns both the kernel shape (via softmax(QK<sup>⊤</sup>)) <i>and</i> the bandwidth (λ), instead of hand-picking σ.</div>
+<div><b>Cross-attention with |r| bias</b> learns the kernel shape (softmax QK<sup>⊤</sup>) and bandwidth (λ) — no hand-picked σ.</div>
 <div><b>Causal masking</b>&nbsp;·&nbsp; future sensor times invisible → streaming-deployable.</div>
 </div>
 </Card>
@@ -683,11 +683,11 @@ $$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
 <LabelTiny>CFD ANALOGUE &amp; OBSERVED EFFECT</LabelTiny>
 
 <div class="mt-3 leading-snug">
-<b>SIMPLE / PISO algorithms</b> in classical CFD enforce incompressibility by solving an <b>elliptic Poisson equation</b> for pressure correction p' — non-local, pointwise, exact on the discrete grid.
+<b>SIMPLE / PISO</b> (classical CFD) · incompressibility via an <b>elliptic Poisson equation</b> for pressure correction p' · non-local, pointwise, exact on the grid.
 </div>
 
 <div class="mt-3 leading-snug">
-Our λ is the <b>Lagrange-multiplier analog</b> — not algorithmically equivalent: λ is a scalar updated by gradient ascent on the mean residual; constraint is enforced <b>in expectation</b> over sampled collocation points, not pointwise on a grid.
+Our λ · <b>Lagrange-multiplier analog</b>, not algorithmically equivalent · scalar updated by gradient ascent on the mean residual · constraint enforced <b>in expectation</b> over collocation points, not pointwise.
 </div>
 
 <div class="mt-3">
@@ -718,11 +718,11 @@ Our λ is the <b>Lagrange-multiplier analog</b> — not algorithmically equivale
 <LabelTiny>SOAP + SCHEDULE-FREE &nbsp;<span class="opacity-50">[Wang 2025, Defazio 2024]</span></LabelTiny>
 
 <div class="mt-3 leading-snug">
-<b>SOAP.</b> Shampoo-style 2nd-order preconditioner that approximates the Hessian via Kronecker-factorisation, then applies Adam <i>in the eigenbasis</i> of the preconditioner. <span class="opacity-70">Recomputed every 2 steps.</span>
+<b>SOAP</b> · Shampoo-style 2nd-order preconditioner · approximates the Hessian, applies Adam <i>in the preconditioner eigenbasis</i> · <span class="opacity-70">recomputed every 2 steps</span>
 </div>
 
 <div class="mt-3 leading-snug">
-<b>Schedule-Free.</b> Polyak–Ruppert averaging trajectory without explicit lr decay. Outputs the running average rather than the last iterate.
+<b>Schedule-Free</b> · Polyak–Ruppert averaging, no explicit lr decay · outputs the running average, not the last iterate
 </div>
 
 <div class="mt-3 leading-snug">
@@ -745,12 +745,12 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <div class="mt-3 leading-snug">
 
-recomputed every 1 000 steps with respect to the trunk output layer θ_r. Weights normalised by w_d^target to avoid absolute scale drift; EMA(0.9) on top.
+recomputed every 1 000 steps w.r.t. the trunk output layer θ_r · weights normalised by w_d^target to suppress absolute scale drift · EMA(0.9).
 
 </div>
 
 <div class="mt-3 leading-snug">
-<b>Why.</b> Hand-tuned w are brittle: too small ⇒ data overfit; too large ⇒ near-zero collapse. GradNorm equalises <b>gradient-norm magnitude</b> across {data, NS-u, NS-v, cont} automatically.
+<b>Why</b> · hand-tuned w brittle (too small ⇒ data overfit, too large ⇒ near-zero collapse) · GradNorm equalises <b>gradient-norm magnitude</b> across {data, NS-u, NS-v, cont}.
 </div>
 </Card>
 
@@ -1030,7 +1030,7 @@ Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (
 
 <div class="text-[10px] mt-1 leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-All n = 5 seeds, ranked by KE. PI-CON (B3) vs Vanilla DeepONet (B0): <b>−2.52 percentage points</b> (t = 22.9, p = 3.0×10⁻⁷). CfC alone (B1) is worse than B0 — cross-attention is the dominant standalone lever; CfC contributes through interaction. ω rel-L₂ is a derivative diagnostic (curl amplifies high-k null-space error); the engineering metric is KE.
+n = 5, ranked by KE · B3 vs B0 <b>−2.52 pp</b> (t = 22.9, p = 3.0×10⁻⁷) · cross-attention the dominant standalone lever, CfC via interaction · ω rel-L₂ a derivative diagnostic (curl amplifies high-k null-space error); engineering metric = KE.
 </div>
 
 </div>
@@ -1205,17 +1205,17 @@ div ratio&nbsp; <b style="color:#7F1084;">0.39 ± 0.006 %</b><br/>
 
 <Card>
 <LabelTiny>① REFERENCE → PREDICTION</LabelTiny>
-<div class="mt-1 leading-snug">DNS has k<sub>f</sub> = 2 forcing and ω range ≈ ±30. PI-CON recovers dominant vortex pairs and k<sub>f</sub> phase; small scales are smoothed.</div>
+<div class="mt-1 leading-snug">DNS: k<sub>f</sub> = 2 forcing, ω range ≈ ±30 · PI-CON recovers dominant vortex pairs + k<sub>f</sub> phase · small scales smoothed.</div>
 </Card>
 
 <Card>
 <LabelTiny>② ERROR FIELD — structural, not stochastic</LabelTiny>
-<div class="mt-1 leading-snug">Error concentrates along <b>high-shear edges</b>, not as random noise. ω rel-L₂ is dominated by mid/high-k modes.</div>
+<div class="mt-1 leading-snug">Error on <b>high-shear edges</b>, not random noise · ω rel-L₂ dominated by mid/high-k modes.</div>
 </Card>
 
 <Card>
 <LabelTiny>③ INTERPRETATION</LabelTiny>
-<div class="mt-1 leading-snug">The ceiling is sensor-information-bound at K = 100: k<sub>max</sub><sup>sensor</sup> ≈ 5.64. Architecture tweaks cannot recover unseen bandwidth.</div>
+<div class="mt-1 leading-snug">Sensor-information ceiling at K = 100 · k<sub>max</sub><sup>sensor</sup> ≈ 5.64 · architecture tweaks cannot recover unseen bandwidth.</div>
 </Card>
 
 </div>
@@ -1241,10 +1241,10 @@ div ratio&nbsp; <b style="color:#7F1084;">0.39 ± 0.006 %</b><br/>
 <Card>
 <LabelTiny>① u CHANNEL — streamwise</LabelTiny>
 <div class="mt-2 leading-snug">
-DNS dynamic range ±1.0.&nbsp; Error band ±0.10 ⇒ <b style="color:#7F1084;">~10 % peak local error</b>.
+DNS range ±1.0 · error band ±0.10 ⇒ <b style="color:#7F1084;">~10 % peak local error</b>
 </div>
 <div class="mt-2 leading-snug">
-Large-scale shear sheets fully recovered; remaining error localised at sheet edges where |∂u/∂y| is large.
+Large-scale shear sheets fully recovered · error localised at sheet edges (large |∂u/∂y|)
 </div>
 <div class="mt-2 text-xs" style="color:#6B7280;">
 u rel-L₂ — B3 5-seed mean&nbsp;<b>13.65 ± 0.06 %</b>
@@ -1295,13 +1295,13 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <Card>
 <LabelTiny>Kinetic energy KE(t) — units: m²/s²</LabelTiny>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5, mean ± 1σ)·&nbsp; PI-CON follows the DNS chaotic decay 0.161 → 0.122 m²/s²; IC warm-up for t &lt; 2 s, within ~7 % of DNS for t ≥ 2.5 s.</div>
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS chaotic decay 0.161 → 0.122 m²/s² · IC warm-up t &lt; 2 s · within ~7 % of DNS for t ≥ 2.5 s.</div>
 </Card>
 
 <Card>
 <LabelTiny>Velocity rel-L₂ error u, v — dimensionless</LabelTiny>
 <img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">rel-L₂ ~30% (IC) → single-digit; time-avg u <b>13.65%</b>, v <b>17.52%</b> (n = 5, ±1σ).&nbsp; v &gt; u — forcing on u; v is a derived response.</div>
+<div class="foot mt-1">rel-L₂ ~30% (IC) → single-digit · time-avg u <b>13.65%</b>, v <b>17.52%</b> (n = 5) · v &gt; u: forcing on u, v a derived response.</div>
 </Card>
 
 <Card>
@@ -1439,7 +1439,7 @@ Both consume the same K = 100 sensors at t = 0 and are compared at t = 5; the fo
 
 <div class="mt-3 text-xs leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-The forward-CFD baseline <b>appears KE-competitive because bounded statistics are preserved</b>, but pointwise metrics expose the failure mode: it <b>remains on the attractor at a decorrelated phase</b> (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>). <b>KE alone therefore mis-ranks the comparison</b> — PI-CON <b>re-conditions on the sensor stream throughout</b> t ∈ [0, 5], winning both KE (<b style="color:#7F1084;">1.62 % vs 3.85 %</b>) and pointwise error.
+Forward-CFD: <b>KE-competitive via bounded statistics only</b> · <b>on the attractor at a decorrelated phase</b> (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>) · <b>KE alone mis-ranks</b> · PI-CON <b>re-conditions on the sensor stream</b> → wins both (matched t = 5)
 </div>
 
 <FooterLogos />
@@ -1474,7 +1474,7 @@ const ksOpts = {
 <Card>
 <LabelTiny>KE vs sensor count K (single-seed, 20 k)</LabelTiny>
 <ChartCanvas type="bar" :data="ksData" :options="ksOpts" height="210px" />
-<div class="foot mt-1">KE drops ~70 % from K = 100 to K = 400; ratios (0.42, 0.30) follow the 1/K prediction within 20 %.</div>
+<div class="foot mt-1">KE drops ~70 % (K = 100 → 400) · ratios (0.42, 0.30) follow the 1/K prediction within 20 %.</div>
 </Card>
 </div>
 
@@ -1490,7 +1490,7 @@ const ksOpts = {
 <Card>
 <LabelTiny>Take-away</LabelTiny>
 <div class="mt-2 leading-snug">
-Effective cutoff tracks √(K/π): <b>sensor budget, not architecture</b>, is the lever for higher fidelity.<br/>
+Effective cutoff tracks √(K/π) · <b>sensor budget, not architecture</b>, is the lever for higher fidelity.<br/>
 <span style="color:#6B7280;">Preliminary trend — single-seed, retuned config; K = 100 here = 5.90 % (seed 42) vs n = 5 baseline 5.71 %.</span>
 </div>
 </Card>
@@ -1530,7 +1530,7 @@ const nzOpts = {
 <Card>
 <LabelTiny>KE vs additive Gaussian noise level (n = 5, per-channel std)</LabelTiny>
 <ChartCanvas type="bar" :data="nzData" :options="nzOpts" height="210px" />
-<div class="foot mt-1">KE 5.71 → 6.08 % across 0–10 % noise (+0.37 percentage points); stays well under the 10 % engineering threshold.</div>
+<div class="foot mt-1">KE 5.71 → 6.08 % across 0–10 % noise (+0.37 pp) · well under the 10 % engineering threshold.</div>
 </Card>
 </div>
 
@@ -1546,7 +1546,7 @@ const nzOpts = {
 <Card>
 <LabelTiny>Take-away</LabelTiny>
 <div class="mt-2 leading-snug">
-PI-CON is <b>highly robust</b> to realistic additive sensor noise; engineering-grade across the tested range.
+PI-CON <b>highly robust</b> to realistic additive sensor noise · engineering-grade across the tested range.
 </div>
 </Card>
 </div>
@@ -1949,22 +1949,22 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <Card>
 <LabelTiny>① REALISTIC SENSOR ERRORS REMAIN OPEN</LabelTiny>
-<div class="mt-1 leading-snug">Additive Gaussian noise is tested up to 10 % and remains engineering-grade. Bias, drift, dropout, correlated noise, and calibration errors remain open.</div>
+<div class="mt-1 leading-snug">Additive Gaussian tested to 10 %, engineering-grade · bias, drift, dropout, correlated noise, calibration errors remain open.</div>
 </Card>
 
 <Card>
 <LabelTiny>② PERIODIC-DOMAIN VALIDATION</LabelTiny>
-<div class="mt-1 leading-snug">Cylinder wake has preliminary support, but airfoils, internal flows, and mixing layers are not yet validated.</div>
+<div class="mt-1 leading-snug">Cylinder wake: preliminary support · airfoils, internal flows, mixing layers not yet validated.</div>
 </Card>
 
 <Card>
 <LabelTiny>③ SINGLE FORCING FORM</LabelTiny>
-<div class="mt-1 leading-snug">The validated case uses Kolmogorov body forcing. Wall-driven and inflow-driven flows need case-specific re-training and checks.</div>
+<div class="mt-1 leading-snug">Validated case: Kolmogorov body forcing · wall-driven / inflow-driven flows need case-specific re-training.</div>
 </Card>
 
 <Card>
 <LabelTiny>④ GENERALITY AND CFD-RIGOUR GAPS</LabelTiny>
-<div class="mt-1 leading-snug">Training is single-trajectory at fixed Re. Mean profiles, Reynolds stresses, TKE budget closure, and classical sensor-projection CFD baselines remain future validation.</div>
+<div class="mt-1 leading-snug">Single-trajectory at fixed Re · mean profiles, Reynolds stresses, TKE budget closure, classical sensor-projection CFD baselines remain future validation.</div>
 </Card>
 
 </div>
