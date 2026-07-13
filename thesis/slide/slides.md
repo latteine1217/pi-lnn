@@ -64,7 +64,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <div><b style="color:#7F1084;">Problem</b>&nbsp;— recover the full velocity field <b>u(x, t)</b> over the whole domain, given only <b>K = 100</b> point sensors and the governing Navier–Stokes equations.</div>
 
-<div><b style="color:#7F1084;">Ill-posed inverse problem</b>&nbsp;— 100 sensors give 200 (u, v) readings against ~1.3×10⁵ field unknowns per snapshot: <b>≈ 650× under-determined</b>. Infinitely many fields fit the same data.</div>
+<div><b style="color:#7F1084;">Under-determined inverse problem</b>&nbsp;— 100 sensors give 200 (u, v) readings against ~1.3×10⁵ field unknowns per snapshot: <b>≈ 650× under-determined</b>. Infinitely many fields fit the same data.</div>
 
 <div><b style="color:#7F1084;">Physics as the prior</b>&nbsp;— enforcing the Navier–Stokes residual regularises the inversion: among all data-consistent fields it selects the physically admissible one.</div>
 
@@ -187,7 +187,7 @@ The only fair comparison is <b>same regime</b> — trained on sparse sensors + t
 <div class="text-xs uppercase tracking-widest mb-3" style="color:#7F1084;">Same regime · sensor + Navier–Stokes only</div>
 <div class="grid grid-cols-11 gap-3 items-center text-sm">
 <div class="col-span-5">
-<b>Mons et al. 2025</b>&nbsp;<span class="opacity-50 text-xs">[Mons 2025]</span><br/>
+<b>Mo &amp; Magri 2025</b>&nbsp;<span class="opacity-50 text-xs">[Mo &amp; Magri 2025]</span><br/>
 <span style="color:#6B7280;">physics-constrained CNN</span><br/>
 KE MAPE&nbsp; <b style="color:#E97132;">~ 23 %</b>
 </div>
@@ -215,7 +215,7 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 <FooterLogos />
 
 <!--
-[Literature review · direct comparison · 1.5min] 重點：同 regime 比 — Mons 2025 (~23%) → ours (5.71 ± 0.11%)。Classical interpolation 用 EXP-295：trig/RBF 可有低 KE，但 u/v/ω pointwise 很差，所以不能只看 KE。底部 DNS-supervised methods 數字漂亮但不能比，因為 deployment 沒 DNS。
+[Literature review · direct comparison · 1.5min] 重點：同 regime 比 — Mo & Magri 2025 (~23%) → ours (5.71 ± 0.11%)。Classical interpolation 用 EXP-295：trig/RBF 可有低 KE，但 u/v/ω pointwise 很差，所以不能只看 KE。底部 DNS-supervised methods 數字漂亮但不能比，因為 deployment 沒 DNS。
 -->
 
 ---
@@ -233,7 +233,7 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 </div>
 
 <div class="col-span-2 space-y-4 text-sm leading-snug">
-<div><b style="color:#7F1084;">A hard ceiling</b> — how many points you sample sets the finest scale you can recover: a field is observable only up to a cutoff wavenumber <b>k<sub>max</sub> ≈ √(K/π)</b>.</div>
+<div><b style="color:#7F1084;">An information ceiling</b> — how many points you sample sets the finest scale you can recover: a field is observable only up to a cutoff wavenumber <b>k<sub>max</sub> ≈ √(K/π)</b>.</div>
 
 <div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b>. Below it — the energy-dominant low band — reconstruction is faithful; above it, the scales are simply <b>unobserved</b>.</div>
 
@@ -307,7 +307,7 @@ Placement and noise change reliability, <b>not feasibility</b>.
 <div class="mt-5 px-3 py-2 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
 <div class="text-xs uppercase tracking-widest mb-1" style="color:#7F1084;">Contribution</div>
 <div class="text-sm leading-snug" style="color:#374151;">
-<b>PI-CON</b> · CfC branch + distance-biased cross-attention + AL-continuity. The first surveyed operator to pair <b>query-anywhere continuous-time</b> with <b>sensor-only-with-physics</b> training at Re = 10⁴.
+<b>PI-CON</b> · CfC branch + distance-biased cross-attention + AL-continuity. Among surveyed methods, the only one to combine <b>query-anywhere continuous-time</b> evaluation with <b>sensor-only-with-physics</b> training at Re = 10⁴.
 </div>
 </div>
 
@@ -607,7 +607,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <div class="mt-2 text-xs leading-snug space-y-0.5">
 <div><b>Domain</b>&nbsp; same Ω, BC, forcing as DNS</div>
 <div><b>Closure</b>&nbsp; Bardina scale-similarity + spectral hyperviscosity</div>
-<div><b>Solver</b>&nbsp; pseudo-spectral + 2/3 dealiasing, ETDRK4 fp64</div>
+<div><b>Solver</b>&nbsp; pseudo-spectral + 2/3 dealiasing, RK2 (Heun) fp64</div>
 <div><b>Setup</b>&nbsp;·&nbsp; N = 256, T<sub>end</sub> = 50, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
 </div>
 </Card>
@@ -638,7 +638,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <!--
 [LES generation · 2min] 教授九點 (4) (5) 落實：LES 也要把 CFD 重要參數寫清楚 + 解析度/穩定度判斷標準。
-左卡 1 — filtered NS + Domain/BC（雙週期，與 DNS 一致）+ SGS closure（Bardina scale-similarity [Bardina 1980; Sagaut 2006] + spectral hyperviscosity）+ Solver（pseudo-spectral + 2/3 dealiasing, ETDRK4 fp64 [Kassam-Trefethen 2005]）+ N=256, T_end=50, cost ≈ 1/16 DNS
+左卡 1 — filtered NS + Domain/BC（雙週期，與 DNS 一致）+ SGS closure（Bardina scale-similarity [Bardina 1980; Sagaut 2006] + spectral hyperviscosity）+ Solver（pseudo-spectral + 2/3 dealiasing, RK2 Heun fp64；DNS 才用 ETDRK4）+ N=256, T_end=50, cost ≈ 1/16 DNS
 左卡 2 — convergence/穩定度四條件，標題改成「When is the LES good enough for placement?」更貼近 CFD 實驗室問法：incompressibility、KE plateau、T/t_eddy ≥ 5 (EXP-221 達 26.5)、spectral overlap within 2× DNS on k ∈ [2, N/3]。結尾交代「placement 只需 leading POD modes align」說明為何不要求 pointwise match。
 底部 Pill 用 final fair-comparison 口徑：LES placement 是 EXP-245 main pipeline，KE 5.71 ± 0.11%；不要再用舊 placement-ablation 的 12.36% / 9.40% 作主張。
 -->
