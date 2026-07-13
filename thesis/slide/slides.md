@@ -38,7 +38,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 <div class="mt-6 flex gap-2">
   <TagChip>Sparse-Sensor</TagChip>
   <TagChip>DeepONet + CfC</TagChip>
-  <TagChip>PINO</TagChip>
+  <TagChip>Physics-informed</TagChip>
   <TagChip>2-D Kolmogorov</TagChip>
 </div>
 
@@ -402,7 +402,7 @@ $$\nabla\!\cdot\!\mathbf{u} = 0, \quad \partial_t \mathbf{u} + (\mathbf{u}\!\cdo
 
 # Three additions that turn DeepONet into a sparse-sensor operator
 <div class="text-xs opacity-70 -mt-1 mb-2">
-DeepONet needs three changes to become a sparse inverse-flow operator.
+DeepONet needs three changes to become a sparse inverse-flow operator — the result is <b>PI-CON</b> (<b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork).
 </div>
 
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
@@ -1030,7 +1030,7 @@ Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (
 
 <div class="text-[10px] mt-1 leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-All n = 5 seeds, ranked by KE. PI-CON (B3) vs Vanilla DeepONet (B0): <b>−2.53 percentage points</b> (t = 22.9, p = 3.0×10⁻⁷). CfC alone (B1) is worse than B0 — cross-attention is the dominant standalone lever; CfC contributes through interaction. ω rel-L₂ is a derivative diagnostic (curl amplifies high-k null-space error); the engineering metric is KE.
+All n = 5 seeds, ranked by KE. PI-CON (B3) vs Vanilla DeepONet (B0): <b>−2.52 percentage points</b> (t = 22.9, p = 3.0×10⁻⁷). CfC alone (B1) is worse than B0 — cross-attention is the dominant standalone lever; CfC contributes through interaction. ω rel-L₂ is a derivative diagnostic (curl amplifies high-k null-space error); the engineering metric is KE.
 </div>
 
 </div>
@@ -1045,8 +1045,8 @@ B0 Vanilla DeepONet: 8.23 ± 0.22 %
 B1 CfC only: 9.23 ± 0.51 % ← 比 B0 還差
 Paper-grade findings：
 - B1 (CfC only) 比 B0 差 → CfC 單獨無益，只透過 interaction 生效；cross-attention 才是 dominant standalone lever
-- B3 vs B0：−2.53 percentage points, t=22.9, p=3.0×10⁻⁷, Cohen d=14.5
-- KE decomposition about B0=8.23：cross-attn main −1.21、CfC main +0.99、interaction −2.31、sum −2.53
+- B3 vs B0：−2.52 percentage points, t=22.9, p=3.0×10⁻⁷, Cohen d=14.5
+- KE decomposition about B0=8.23：cross-attn main −1.20、CfC main +1.00、interaction −2.32、sum −2.52
 - PINN single-seed sweep 已移出主表（論文不採此口徑）；如委員問可走 backup
 -->
 
@@ -1097,12 +1097,12 @@ const archOpts = {
 <Card>
 <LabelTiny>KE decomposition · main effects (about B0)</LabelTiny>
 <div class="mt-1 leading-tight">
-Cross-attention&nbsp; <b style="color:#7F1084;">−1.21 pp</b> (main lever)<br/>
-CfC&nbsp; <b style="color:#E97132;">+0.99 pp</b> (worse alone)<br/>
-Interaction&nbsp; <b style="color:#7F1084;">−2.31 pp</b>
+Cross-attention&nbsp; <b style="color:#7F1084;">−1.20 pp</b> (main lever)<br/>
+CfC&nbsp; <b style="color:#E97132;">+1.00 pp</b> (worse alone)<br/>
+Interaction&nbsp; <b style="color:#7F1084;">−2.32 pp</b>
 </div>
 <div class="text-[10px] mt-1" style="color:#6B7280;">
-About B0 = 8.23 %; sum = −2.53 pp → B3 = 5.71 %. ANOVA additivity holds on the absolute scale.
+About B0 = 8.23 %; sum = −2.52 pp → B3 = 5.71 %. ANOVA additivity holds on the absolute scale.
 </div>
 </Card>
 
@@ -1111,7 +1111,7 @@ About B0 = 8.23 %; sum = −2.53 pp → B3 = 5.71 %. ANOVA additivity holds on t
 <div class="mt-1 leading-tight">
 B3 KE&nbsp; <b>5.71 ± 0.11%</b><br/>
 B0 KE&nbsp; 8.23 ± 0.22%<br/>
-Gap&nbsp; <b style="color:#7F1084;">−2.53 pp (−30.6 % relative)</b>,&nbsp; p = <b>3.0×10⁻⁷</b>
+Gap&nbsp; <b style="color:#7F1084;">−2.52 pp (−30.6 % relative)</b>,&nbsp; p = <b>3.0×10⁻⁷</b>
 </div>
 </Card>
 
@@ -1122,7 +1122,7 @@ Gap&nbsp; <b style="color:#7F1084;">−2.53 pp (−30.6 % relative)</b>,&nbsp; p
 <FooterLogos />
 
 <!--
-[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.21pp（dominant lever）、CfC +0.99pp（worse alone）、interaction −2.31pp、sum −2.53pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.53pp（−30.6% relative）、p=3.0×10⁻⁷。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
+[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.20pp（dominant lever）、CfC +1.00pp（worse alone）、interaction −2.32pp、sum −2.52pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.52pp（−30.6% relative）、p=3.0×10⁻⁷。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
 -->
 
 ---
@@ -1883,7 +1883,7 @@ PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative
 </div>
 <div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
 <div>Main baseline (LES_T50, 20 k, n=5): KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ~4 %</div>
-<div>Cross-attention the dominant lever: <b>−2.53 pp</b> vs B0 (p = 3.0×10⁻⁷)</div>
+<div>Cross-attention the dominant lever: <b>−2.52 pp</b> vs B0 (p = 3.0×10⁻⁷)</div>
 <div>Single forward pass · full trajectory <b>≈20×</b> faster than DNS solve (9.7 min vs 3.27 h) · one-time setup 2.2× cheaper</div>
 </div>
 </Card>
@@ -2495,7 +2495,7 @@ Claim: AL-continuity reaches the resolved-bandwidth FD floor, not "more incompre
 <Card>
 <LabelTiny>Q6.&nbsp; Standard PINN baseline straw-man?</LabelTiny>
 <div class="mt-1 leading-snug">
-Acknowledged limitation: PINN has no set-encoder for sensor cloud.&nbsp; <b>Vanilla DeepONet (B0)</b> is the fair architectural baseline (same set-encoded input), and B3 vs B0 KE gap −2.53 percentage points at p = 3.0×10⁻⁷ isolates "operator branch + CfC + cross-attn" gain.&nbsp; PINN row is informational, not the headline claim.
+Acknowledged limitation: PINN has no set-encoder for sensor cloud.&nbsp; <b>Vanilla DeepONet (B0)</b> is the fair architectural baseline (same set-encoded input), and B3 vs B0 KE gap −2.52 percentage points at p = 3.0×10⁻⁷ isolates "operator branch + CfC + cross-attn" gain.&nbsp; PINN row is informational, not the headline claim.
 </div>
 </Card>
 
