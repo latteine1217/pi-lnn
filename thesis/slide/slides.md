@@ -208,7 +208,7 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 </Card>
 <Card>
 <LabelTiny style="color:#E97132;">KE alone is misleading</LabelTiny>
-<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / div-free trig-LSQ) can score low KE, yet its pointwise <b>u L₂ is 28–54 %</b> — visibly over-smoothed.</div>
+<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / trig-LSQ) contracts toward the inter-sensor mean — some post <b>lower KE</b> than PI-CON, yet pointwise <b>u L₂ is 26–53 %</b> (PI-CON cuts it <b>47–74 % relative</b>).</div>
 </Card>
 </div>
 
