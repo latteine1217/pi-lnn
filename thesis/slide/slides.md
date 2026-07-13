@@ -729,8 +729,8 @@ Our λ · <b>Lagrange-multiplier analog</b>, not algorithmically equivalent · s
 <b>Why both</b>&nbsp;·&nbsp; Re = 10⁴ anisotropic valleys · Adam zigzags · SOAP overshoots · SF averaging stabilises second-order trajectory
 </div>
 
-<div class="mt-3">
-<MetricHero value="−20 %" label="KE MAPE drop · Schedule-Free AdamW → SOAP + SF" size="sm" />
+<div class="mt-3 px-3 py-2 rounded text-xs leading-snug" style="background: rgba(127,16,132,0.06);">
+<b style="color:#7F1084;">Better stability than vanilla Adam</b> in the multi-task PINN setting.
 </div>
 </Card>
 
@@ -759,7 +759,7 @@ recomputed every 1 000 steps w.r.t. the trunk output layer θ_r · weights norma
 <FooterLogos />
 
 <!--
-[Optimisation · 2min] 左卡 SOAP+SF — Shampoo 2nd-order + Polyak averaging。chaotic NS valleys 需要 2nd-order；EXP-030 確認 SF AdamW → SOAP+SF 帶 -20% KE。右卡 GradNorm — 4-task gradient-norm equalisation，每 1000 步調權重，避免 hand-tuned brittle。Init 物理 0.01 (1% of data weight)，會自己 ramp up。下一張講 AL 怎麼補 continuity。
+[Optimisation · 2min] 左卡 SOAP+SF — Shampoo 2nd-order + Polyak averaging。chaotic NS valleys 需要 2nd-order；SOAP+SF 比 vanilla Adam 在 multi-task PINN 更穩定（thesis §Optimization）。（-20% KE 屬 EXP-030 log、thesis 未收，故 slide 只寫質性。）右卡 GradNorm — 4-task gradient-norm equalisation，每 1000 步調權重，避免 hand-tuned brittle。Init 物理 0.01 (1% of data weight)，會自己 ramp up。下一張講 AL 怎麼補 continuity。
 -->
 
 ---
