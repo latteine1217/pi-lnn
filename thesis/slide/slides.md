@@ -1399,7 +1399,7 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
 
 <SectionTag>§ Results · vs forward-CFD from sensor-IC</SectionTag>
 
-# Why a solver-from-sensor-IC is not enough — KE matches, phase doesn't
+# Why a solver-from-sensor-IC is not enough — bulk statistics survive, phase does not
 
 <div class="mt-3 text-sm">
 
@@ -1407,7 +1407,7 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
   <thead>
     <tr style="border-bottom: 2px solid #7F1084;">
       <th class="text-left py-2 px-2" style="color:#7F1084;">Method</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">KE MAPE (%)</th>
+      <th class="text-left py-2 px-2" style="color:#7F1084;">KE rel-err (%)</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">u rel-L₂ (%)</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">v rel-L₂ (%)</th>
       <th class="text-left py-2 px-2" style="color:#7F1084;">Phase preserved?</th>
@@ -1416,9 +1416,9 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
   <tbody style="font-size: 0.85rem;">
     <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
       <td class="py-2 px-2"><b>PI-CON (ours)</b></td>
-      <td class="py-2 px-2"><b>5.71 ± 0.11</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">13.65</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">17.52</b></td>
+      <td class="py-2 px-2"><b style="color:#7F1084;">1.62 ± 0.09</b></td>
+      <td class="py-2 px-2"><b style="color:#7F1084;">7.28</b></td>
+      <td class="py-2 px-2"><b style="color:#7F1084;">16.38</b></td>
       <td class="py-2 px-2"><b style="color:#7F1084;">Yes</b></td>
     </tr>
     <tr style="border-bottom: 1px solid #E5E0EC;">
@@ -1433,15 +1433,19 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
 
 </div>
 
-<div class="mt-4 text-xs leading-snug" style="color:#374151;">
+<div class="mt-2 text-[11px]" style="color:#6B7280;">
+Both consume the same K = 100 sensors at t = 0 and are compared at t = 5; the forward-CFD forecast is open-loop (no later sensor assimilation), PI-CON re-conditions on the sensor stream throughout.
+</div>
+
+<div class="mt-3 text-xs leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-A standard solver started from a sensor-projected IC gets a <b>better bulk KE (3.85 %)</b> but its pointwise rel-L₂ is <b style="color:#E97132;">≥ 11× worse</b> — bounded statistics survive, phase information is lost to chaotic decorrelation. This is exactly why <b>KE alone mis-ranks chaotic reconstruction</b>; pointwise fidelity is the discriminating metric.
+At matched t = 5, PI-CON beats the open-loop forecast on <b>both</b> KE (<b style="color:#7F1084;">1.62 % vs 3.85 %</b>) and pointwise error (<b style="color:#7F1084;">≥ 12× lower</b>). The forecast still looks <b>KE-competitive</b> — bounded statistics stay near DNS — yet its phase has fully decorrelated (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>). KE alone therefore <b>mis-ranks</b> the comparison; pointwise fidelity is the discriminating metric.
 </div>
 
 <FooterLogos />
 
 <!--
-[forward-CFD 對照 · 1.5min] 委員第一個反射問題「為何不直接 forward CFD」的正面回答。forward-CFD KE 3.85% 看似贏 PI-CON 5.71%，但 u/v rel-L₂ 152.8%/203.9% vs 13.65%/17.52%（≥11×）證明它只保住 bulk statistics、相位全丟（chaos）。呼應 §Conclusion ④ KE-as-misleading。
+[forward-CFD 對照 · 1.5min] 委員第一個反射問題「為何不直接 forward CFD」的正面回答。matched t=5 比較（thesis appendix07 tab:forward_cfd）：forward-CFD KE 3.85% 看似 KE-competitive（bounded stats 近 DNS），但 PI-CON t=5 snapshot KE 1.62% 反而更好；u/v rel-L₂ 152.8%/203.9% vs 7.28%/16.38%（≥12×）證明 forward-CFD 相位全丟（chaos decorrelation）。重點：KE 單看會誤判，matched 下 PI-CON 兩者皆贏。呼應 §Conclusion ④ KE-as-misleading。兩者皆吃同 K=100 sensors@t=0，forward-CFD open-loop（不再吃 sensor），PI-CON 全程 re-condition。
 -->
 
 
