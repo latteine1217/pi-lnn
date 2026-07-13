@@ -1399,7 +1399,7 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
 
 <SectionTag>§ Results · vs forward-CFD from sensor-IC</SectionTag>
 
-# Why a solver-from-sensor-IC is not enough — bulk statistics survive, phase does not
+# Why a solver-from-sensor-IC is not enough — bounded statistics survive, phase decorrelates
 
 <div class="mt-3 text-sm">
 
@@ -1434,12 +1434,12 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
 </div>
 
 <div class="mt-2 text-[11px]" style="color:#6B7280;">
-Both consume the same K = 100 sensors at t = 0 and are compared at t = 5; the forward-CFD forecast is open-loop (no later sensor assimilation), PI-CON re-conditions on the sensor stream throughout.
+Both consume the same K = 100 sensors at t = 0 and are compared at t = 5; the forward-CFD forecast is integrated freely with no later sensor assimilation, while PI-CON ingests the full sensor time series.
 </div>
 
 <div class="mt-3 text-xs leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-At matched t = 5, PI-CON beats the open-loop forecast on <b>both</b> KE (<b style="color:#7F1084;">1.62 % vs 3.85 %</b>) and pointwise error (<b style="color:#7F1084;">≥ 12× lower</b>). The forecast still looks <b>KE-competitive</b> — bounded statistics stay near DNS — yet its phase has fully decorrelated (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>). KE alone therefore <b>mis-ranks</b> the comparison; pointwise fidelity is the discriminating metric.
+The forward-CFD baseline <b>appears KE-competitive because bounded statistics are preserved</b>, but pointwise metrics expose the failure mode: it <b>remains on the attractor at a decorrelated phase</b> (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>). <b>KE alone therefore mis-ranks the comparison</b> — PI-CON <b>re-conditions on the sensor stream throughout</b> t ∈ [0, 5], winning both KE (<b style="color:#7F1084;">1.62 % vs 3.85 %</b>) and pointwise error.
 </div>
 
 <FooterLogos />
