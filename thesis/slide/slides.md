@@ -309,10 +309,7 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors + Navier–Stokes resi
 Engineering-grade from <b>sensor + PDE</b> only · query any (x, t) in one pass.
 </div>
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-<div>Criterion ·</div>
-<div>· KE rel-err <b>&lt; 10 %</b> (n = 5)</div>
-<div>· dominant lever <b>≥ 2 pp @ p &lt; 0.01</b></div>
-<div>· single pass <b>≥ 5×</b> faster than solving</div>
+Criterion · KE rel-err <b>&lt; 10 %</b> (n = 5) — the engineering usability threshold
 </div>
 </Card>
 
@@ -322,9 +319,7 @@ Engineering-grade from <b>sensor + PDE</b> only · query any (x, t) in one pass.
 Recoverable band set by <b>sensor count</b>, not architecture.
 </div>
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-<div>Criterion ·</div>
-<div>· k<sub>max</sub><sup>sensor</sup> = √(K/π) ≈ <b>5.64</b> at K = 100</div>
-<div>· cutoff tracks √(K/π) over K ∈ {100, 200, 400}</div>
+Criterion · effective cutoff tracks <b>√(K/π)</b> as K scales
 </div>
 </Card>
 
@@ -334,10 +329,7 @@ Recoverable band set by <b>sensor count</b>, not architecture.
 Placement and noise change reliability, <b>not feasibility</b>.
 </div>
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-<div>Criterion ·</div>
-<div>· DNS / LES / random all engineering-grade</div>
-<div>· σ<sub>placement</sub> ≥ <b>3×</b> σ<sub>training</sub></div>
-<div>· noise to <b>10 %</b> stays usable</div>
+Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b>
 </div>
 </Card>
 
