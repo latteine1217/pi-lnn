@@ -243,20 +243,18 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 
 # What K = 100 sensors can resolve
 
-<div class="grid grid-cols-5 gap-6 mt-3 items-center">
-
-<div class="col-span-3 text-center">
-<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border mx-auto" style="border-color:#E5E0EC; max-height: 52vh; width: auto;" />
+<div class="mt-2">
+<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border mx-auto" style="border-color:#E5E0EC; width: auto; max-width: 100%; max-height: 255px;" />
 </div>
 
-<div class="col-span-2 space-y-4 text-sm leading-snug">
-<div><b style="color:#7F1084;">An information ceiling</b> · sample count sets the finest recoverable scale · observable only up to cutoff <b>k<sub>max</sub> ≈ √(K/π)</b></div>
+<div class="grid grid-cols-3 gap-4 mt-4 text-sm leading-snug">
 
-<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b> · below it (energy-dominant low band) faithful · above it, <b>unobserved</b></div>
+<div><b style="color:#7F1084;">An information ceiling</b> · sample count sets the finest recoverable scale</div>
+
+<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ √(K/π) ≈ <b>5.64</b> · above it, <b>unobserved</b></div>
 
 <div class="px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
-<b>Higher fidelity = more sensors</b>, not a bigger network · the limit is information, not architecture.
-</div>
+<b>More sensors, not a bigger network</b> · the limit is information
 </div>
 
 </div>
