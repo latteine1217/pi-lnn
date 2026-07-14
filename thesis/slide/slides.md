@@ -273,8 +273,8 @@ the ceiling bites the tail, not the energy-dominant bulk
 </div>
 
 <div class="col-span-3">
-<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
-<div class="text-xs mt-1" style="color:#6B7280;">Recoverability ≈ 1 until the shell mode count approaches K, then degrades.</div>
+<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
+<div class="text-xs mt-1" style="color:#6B7280;">DNS energy spectrum (a) and cumulative fraction (b); dashed lines mark k<sub>max</sub> = √(K/π), markers locate the energy inside the band for K = 100 / 200 / 400.</div>
 </div>
 
 </div>
@@ -370,11 +370,11 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 <LabelTiny>2-D INCOMPRESSIBLE NS + KOLMOGOROV FORCING</LabelTiny>
 <div class="mt-2" style="font-size: 0.72em;">
 
-$$\begin{aligned}
-\nabla\!\cdot\!\mathbf{u} &= 0 \\[3pt]
-\partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} &= -\nabla p + \nu\,\nabla^2 \mathbf{u} + \mathbf{f} \\[3pt]
-\mathbf{f} &= \bigl(A\sin(2\pi k_f y),\,0\bigr)
-\end{aligned}$$
+$$\nabla\!\cdot\!\mathbf{u} = 0$$
+
+$$\partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} = -\nabla p + \nu\,\nabla^2 \mathbf{u} + \mathbf{f}$$
+
+$$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
 
 </div>
 <div class="mt-1 text-xs leading-snug space-y-0.5" style="color:#374151;">
