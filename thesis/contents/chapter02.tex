@@ -111,14 +111,7 @@ yields a permutation $\mathbf{P}$ whose first $K$ columns identify the sensor gr
 In practice $\kappa$ from QRCP is much smaller than from random placement~\cite{Drmac2016SISC, Manohar2018PNAS}.
 
 \paragraph{Concrete configuration.}
-The main configuration sets $r$ automatically by a $99\%$ cumulative-variance threshold ($r\approx 60$), with $K=100$ and $M = 201$ DNS frames over $T=5$. The snapshot window spans one eddy turnover, so selected positions track dynamically informative regions. Figure~\ref{fig:sensor_coverage} quantifies the resulting spectral coverage as a Fourier pseudo-inverse recoverability test: each wavenumber shell is fully recovered (recoverability $\approx 1$) for $k \lesssim 12$, stays above $0.8$ through $k \approx 20$, and falls below $0.5$ for $k \gtrsim 32$, where the number of Fourier modes on the shell exceeds the $K=100$ measurements. Because this test recovers each shell in isolation it upper-bounds observability; jointly reconstructing all shells is harder, so the effective full-field cutoff is lower. This is consistent with the wavelet sparsity bound (\S\ref{sec:underdetermined}); doubling the budget to $K=200$ extends full recoverability past $k \approx 32$.
-
-\begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=0.85\linewidth]{figures/architecture/sensor_spectral_coverage.pdf}
-    \caption{Fourier pseudo-inverse recoverability of the QR-pivot sensors at $Re=10\,000$ ($K=100$ and $K=200$, mean over eight snapshots). Horizontal axis: wavenumber $k$ (1/m) on the $256\times 256$ DNS grid; vertical axis: per-shell recoverability $1 - \Vert\hat{u}_{\rm rec}-\hat{u}\Vert^2/\Vert\hat{u}\Vert^2$ (dimensionless). Dashed and dotted horizontal lines mark recoverability $0.8$ and $0.5$; coloured vertical lines mark the sensor-count Nyquist scale $\sqrt{K/\pi}$.}
-    \label{fig:sensor_coverage}
-\end{figure}
+The main configuration sets $r$ automatically by a $99\%$ cumulative-variance threshold ($r\approx 60$), with $K=100$ and $M = 201$ DNS frames over $T=5$. The snapshot window spans one eddy turnover, so selected positions track dynamically informative regions.
 
 \section{PI-CON Architecture}
 \label{sec:architecture}

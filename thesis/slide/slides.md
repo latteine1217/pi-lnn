@@ -370,7 +370,11 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 <LabelTiny>2-D INCOMPRESSIBLE NS + KOLMOGOROV FORCING</LabelTiny>
 <div class="mt-2" style="font-size: 0.72em;">
 
-$$\nabla\!\cdot\!\mathbf{u} = 0, \quad \partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} = -\nabla p + \nu\,\nabla^2 \mathbf{u} + \mathbf{f}, \quad \mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
+$$\begin{aligned}
+\nabla\!\cdot\!\mathbf{u} &= 0 \\[3pt]
+\partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} &= -\nabla p + \nu\,\nabla^2 \mathbf{u} + \mathbf{f} \\[3pt]
+\mathbf{f} &= \bigl(A\sin(2\pi k_f y),\,0\bigr)
+\end{aligned}$$
 
 </div>
 <div class="mt-1 text-xs leading-snug space-y-0.5" style="color:#374151;">
@@ -394,12 +398,10 @@ $$\nabla\!\cdot\!\mathbf{u} = 0, \quad \partial_t \mathbf{u} + (\mathbf{u}\!\cdo
 <div class="col-span-2 space-y-2">
 
 <Card>
-<LabelTiny>DNS VERIFICATION&nbsp;<span class="opacity-60">(see backup for full table)</span></LabelTiny>
-<div class="mt-2 text-xs leading-snug space-y-0.5">
-<div><b>Resolution</b>&nbsp; k<sub>max</sub>·η = <b style="color:#0F2D52;">7.61</b> run · <b style="color:#0F2D52;">1.91</b> stored ✓</div>
-<div><b>Statistics</b>&nbsp; KE plateau &lt; 3 % · energy budget &lt; 5 % ✓</div>
-<div><b>Grid margin</b>&nbsp; <b style="color:#0F2D52;">5.07×</b> over Pope threshold ✓</div>
-<div><b>Window</b>&nbsp; T / t<sub>eddy</sub> = 2.51&nbsp;⚠</div>
+<LabelTiny>DNS VERIFICATION</LabelTiny>
+<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
+<div><b style="color:#0F2D52;">Resolution and turbulence statistics verified</b> against the standard CFD criteria ✓ <span style="color:#6B7280;">(full table in backup)</span></div>
+<div class="pt-1" style="border-top: 1px solid #E5E0EC;"><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnover times</b></div>
 </div>
 </Card>
 
