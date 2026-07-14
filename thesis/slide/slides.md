@@ -145,10 +145,15 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 
 <Card style="background: rgba(127,16,132,0.05);">
 <LabelTiny>NEURAL OPERATOR&nbsp;<span class="opacity-60">(DeepONet) [Lu 2021]</span></LabelTiny>
-<div class="mt-3 text-center leading-relaxed" style="font-family:'JetBrains Mono',monospace; font-size:0.9rem; color:#7F1084;">
-sensors {y(t<sub>k</sub>)}&nbsp;→&nbsp;<b>branch</b><br/>
-query (x, t)&nbsp;→&nbsp;<b>trunk</b>&nbsp;&nbsp;→&nbsp; u(x, t)
+<div class="mt-3 flex items-center justify-center gap-2" style="font-family:'JetBrains Mono',monospace; font-size:0.82rem; color:#7F1084;">
+<div style="display:grid; grid-template-columns:max-content max-content; column-gap:6px; row-gap:3px; text-align:right;">
+<span>sensors {y(t<sub>k</sub>)} →</span><span style="text-align:left;"><b>branch</b></span>
+<span>query (x, t) →</span><span style="text-align:left;"><b>trunk</b></span>
 </div>
+<div style="font-size:2.1rem; line-height:0.85; font-weight:200;">}</div>
+<div>→&nbsp;<b>u(x, t)</b></div>
+</div>
+<div class="text-center" style="font-size:0.62rem; color:#6B7280;">inner product of branch &amp; trunk bases</div>
 <div class="mt-4 text-sm leading-snug" style="color:#374151;">
 Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch reads the whole sensor trajectory</b> · trunk queries any point · one network serves new sensor streams
 </div>
