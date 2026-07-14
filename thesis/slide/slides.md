@@ -245,32 +245,41 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 
 <div class="grid grid-cols-5 gap-5 mt-3 items-center">
 
-<div class="col-span-2">
+<div class="col-span-2 space-y-2">
+
 <Card>
 <LabelTiny>Sensor Nyquist</LabelTiny>
-<div class="mt-2 text-sm leading-snug">
-Fourier modes inside |k| ≤ k<sub>max</sub> number ≈ <b>πk<sub>max</sub>²</b> · set equal to the <b>K</b> measurements:
+<div class="mt-1 text-xs leading-snug">
+Fourier modes inside |k| ≤ k<sub>max</sub> ≈ <b>πk<sub>max</sub>²</b> · set equal to the <b>K</b> measurements:
 </div>
-<div class="mt-2 text-center">
-<span class="eq">k<sub>max</sub> ≈ √(K/π)</span>
+<div class="mt-1 text-center">
+<span class="eq" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">k<sub>max</sub> ≈ √(K/π)</span>
 </div>
-<div class="mt-3 text-sm leading-snug">
-At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.4em;">5.64</b>
-</div>
-<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-beyond it: more modes than measurements → <b>unobserved</b>
+<div class="mt-1 text-xs leading-snug">
+At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · beyond it: more modes than measurements → <b>unobserved</b>
 </div>
 </Card>
+
+<Card>
+<LabelTiny>Energy inside the band</LabelTiny>
+<div class="mt-1 text-xs leading-snug">
+DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b style="color:#7F1084;">98.9 %</b> · 200 → 99.7 % · 400 → 99.9 %
+</div>
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
+the ceiling bites the tail, not the energy-dominant bulk
+</div>
+</Card>
+
 </div>
 
 <div class="col-span-3">
-<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 240px; object-fit: contain;" />
+<img :src="'/images/sensor_spectral_coverage.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
 <div class="text-xs mt-1" style="color:#6B7280;">Recoverability ≈ 1 until the shell mode count approaches K, then degrades.</div>
 </div>
 
 </div>
 
-<div class="mt-4 px-4 py-2 rounded text-sm leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
+<div class="mt-3 px-4 py-2 rounded text-sm leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
 <b style="color:#7F1084;">More sensors, not a bigger network</b> · the limit is information, not architecture.
 </div>
 
