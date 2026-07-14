@@ -10,11 +10,11 @@
 
 <style scoped>
 .label-tiny {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6B7280;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 0.25rem;
 }
 </style>
