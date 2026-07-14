@@ -249,9 +249,9 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 
 <div class="grid grid-cols-3 gap-4 mt-4 text-sm leading-snug">
 
-<div><b style="color:#7F1084;">An information ceiling</b> · sample count sets the finest recoverable scale</div>
+<div><b style="color:#7F1084;">Sensor Nyquist</b> · Fourier modes inside |k| ≤ k<sub>max</sub> number ≈ πk<sub>max</sub>² · set equal to the K measurements → <b>k<sub>max</sub> ≈ √(K/π)</b></div>
 
-<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ √(K/π) ≈ <b>5.64</b> · above it, <b>unobserved</b></div>
+<div><b style="color:#7F1084;">At K = 100</b> → k<sub>max</sub> ≈ <b>5.64</b> · beyond it, more modes than measurements → <b>unobserved</b></div>
 
 <div class="px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
 <b>More sensors, not a bigger network</b> · the limit is information
