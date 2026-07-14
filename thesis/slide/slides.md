@@ -221,11 +221,11 @@ KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="tex
 <div class="grid grid-cols-2 gap-6 mt-4 text-xs">
 <Card>
 <LabelTiny style="color:#DC2626;">Not a fair yardstick — trains on DNS</LabelTiny>
-<div class="mt-1 leading-snug">FLRNet 2024 · Senseiver 2023 · SHRED 2024 · few-% error, but <b>supervised on the full DNS field</b> · not reproducible where no DNS exists.</div>
+<div class="mt-1 leading-snug">FLRNet · Senseiver · SHRED · few-% error — but <b>need the full DNS field</b>.</div>
 </Card>
 <Card>
 <LabelTiny style="color:#E97132;">KE alone is misleading</LabelTiny>
-<div class="mt-1 leading-snug">Classical interpolation (RBF / IDW / trig-LSQ) · contracts toward the inter-sensor mean · <b>lower KE</b> but pointwise <b>u L₂ 26–53 %</b> · PI-CON cuts u rel-L₂ <b>47–74 % relative</b>.</div>
+<div class="mt-1 leading-snug">RBF / IDW / trig-LSQ · <b>lower KE</b> — but pointwise <b style="color:#E97132;">u L₂ 26–53 %</b> vs PI-CON <b style="color:#7F1084;">13.65 %</b>.</div>
 </Card>
 </div>
 
