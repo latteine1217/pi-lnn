@@ -803,8 +803,8 @@ recomputed every 1 000 steps w.r.t. the trunk output layer θ_r · weights norma
 <LabelTiny>Flow</LabelTiny>
 <div class="pgrid">
 <div class="k">Domain &amp; BC</div><div class="v">Ω = [0, 1]² dimensionless, doubly-periodic</div>
-<div class="k">Characteristic scales</div><div class="v">L<sup>★</sup> = U<sup>★</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
-<div class="k">Reynolds number</div><div class="v">Re = U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴ ⇒ ν = 10⁻⁴</div>
+<div class="k">Characteristic scales</div><div class="v">L<sup>*</sup> = U<sup>*</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
+<div class="k">Reynolds number</div><div class="v">Re = U<sup>*</sup>L<sup>*</sup>/ν<sup>*</sup> = 10⁴ ⇒ ν = 10⁻⁴</div>
 <div class="k">Forcing &amp; window</div><div class="v">A = 0.1, k<sub>f</sub> = 2, T = 5 (≈ 2.51 t<sub>eddy</sub>)</div>
 <div class="k">DNS solver</div><div class="v"><b>Run 1024²</b> ↓×4 → <b>Stored 256²</b> · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201)</div>
 </div>
