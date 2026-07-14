@@ -62,13 +62,25 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <div class="col-span-3 space-y-4">
 
-<div><b style="color:#7F1084;">Problem</b>&nbsp;·&nbsp; continuous velocity field <b>u(x, t)</b> from <b>K = 100</b> point sensors + Navier–Stokes</div>
+<div>
+<LabelTiny>Problem</LabelTiny>
+<div class="mt-1 leading-snug">Continuous velocity field <b>u(x, t)</b> from <b>K = 100</b> point sensors + Navier–Stokes</div>
+</div>
 
-<div><b style="color:#7F1084;">Under-determined inverse problem</b>&nbsp;·&nbsp; 200 (u, v) readings vs ~1.3×10⁵ field unknowns · <b>≈ 650× under-determined</b></div>
+<div>
+<LabelTiny>Under-determined inverse problem</LabelTiny>
+<div class="mt-1 leading-snug">200 (u, v) readings vs ~1.3×10⁵ unknowns&nbsp;·&nbsp;<b style="color:#7F1084;">≈ 650× under-determined</b></div>
+</div>
 
-<div><b style="color:#7F1084;">Physics as the prior</b>&nbsp;·&nbsp; NS residual as structural regulariser → physically admissible field</div>
+<div>
+<LabelTiny>Physics as the prior</LabelTiny>
+<div class="mt-1 leading-snug">NS residual as structural regulariser → physically admissible field</div>
+</div>
 
-<div><b style="color:#7F1084;">Engineering constraint</b>&nbsp;·&nbsp; no offline DNS reference · sensors + PDE only, never a reference field</div>
+<div>
+<LabelTiny>Engineering constraint</LabelTiny>
+<div class="mt-1 leading-snug">No offline DNS reference&nbsp;·&nbsp;sensors + PDE only</div>
+</div>
 
 </div>
 
