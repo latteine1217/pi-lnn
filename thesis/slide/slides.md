@@ -464,7 +464,7 @@ CfC 內部公式、cross-attn 內部公式留 backup slides，這張只講 narra
 
 <NavBar active="method" />
 
-<SectionTag>§ Method backup · CfC branch detail</SectionTag>
+<SectionTag>§ Method · CfC branch (closing the time-signal gap)</SectionTag>
 
 # CfC — closing the "time-signal" gap in vanilla DeepONet
 
@@ -526,7 +526,7 @@ $$h(t + \Delta t) = \sigma\!\left(-f \Delta t\right) \odot g(h, x;\theta_g) + \l
 
 <NavBar active="method" />
 
-<SectionTag>§ Method backup · cross-attention readout detail</SectionTag>
+<SectionTag>§ Method · cross-attention readout (closing the sparse-to-dense gap)</SectionTag>
 
 # Cross-attention — closing the "sparse-to-dense" gap
 
@@ -1717,6 +1717,8 @@ EXP-292 is single-seed and diagnostic. The thesis keeps continuity-only AL becau
 [Multi-constraint AL · 2min] 這張是 EXP-292 final-protocol rerun。不要再沿用舊的 multi-AL 負面結論。新的重點：NS-momentum AL 在 final protocol 下並未 collapse，甚至有 single-seed KE 較好的 row；但這不是 main claim，因為沒有 multi-seed。正式 thesis conclusion：continuity-only AL 保留為 conservative main recipe，因為 EXP-245 n=5 已驗證；multi-constraint AL 留在 appendix/backup 作 diagnostic。
 -->
 
+---
+disabled: true
 ---
 
 <NavBar active="results" />
