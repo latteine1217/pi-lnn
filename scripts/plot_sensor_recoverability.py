@@ -67,7 +67,7 @@ def main() -> None:
     print(f"DNS T={T} N={N}; snapshots={list(snap)}")
 
     fig, ax = plt.subplots(figsize=(5.4, 3.6))
-    palette = {"100": "#1f4e79", "200": "#c00000", "400": "#548235"}
+    palette = {"100": "#0072B2", "200": "#D55E00", "400": "#009E73"}  # Okabe--Ito K
 
     for jp in a.sensors:
         m = json.load(open(jp, encoding="utf-8"))

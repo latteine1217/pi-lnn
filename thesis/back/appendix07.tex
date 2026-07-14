@@ -1,109 +1,54 @@
-\chapter{Diagnostic Ablations and Forward-CFD Reference}
+\chapter{Boundary Diagnostics and Forward-CFD Reference}
 \label{app:diagnostic_ablation_forward_cfd}
 
-\section{Diagnostic Ablations and Boundary Findings}
+\section{Boundary Diagnostics}
 \label{sec:diagnostics}
 
-The following diagnostics record alternative recipes and classical references that informed the final pipeline. They are kept out of Chapter~\ref{ch:results} unless supported by multi-seed final-protocol evidence.
+The diagnostics below define what the final recipe does \emph{not} claim. They are single-seed or local-sweep checks under the final LES-pivot, $1024$-collocation, $20\,000$-iteration protocol unless otherwise noted, and are therefore used to set boundaries rather than to support Chapter~\ref{ch:results} main evidence.
 
-\subsection{Multi-constraint Augmented-Lagrangian under the final protocol}
+\begin{table}[!htbp]
+    \centering
+    \caption{Boundary diagnostics for alternative recipe choices at $Re=10\,000$, $K=100$. Metrics are percentages unless noted. The multi-seed main baseline remains $5.71 \pm 0.11\%$ KE error.}
+    \label{tab:boundary_diagnostics}
+    \footnotesize
+    \setlength{\tabcolsep}{3pt}
+    \renewcommand{\arraystretch}{1.08}
+    \begin{tabularx}{\textwidth}{p{2.6cm}p{4.6cm}p{3.2cm}X}
+    \toprule
+    \textbf{Diagnostic} & \textbf{Probe} & \textbf{Observed range} & \textbf{Reading} \\
+    \midrule
+    Multi-constraint AL
+    & Add AL terms to NS momentum and/or continuity, with alternative GradNorm task sets.
+    & KE $5.47$--$6.31$; div ratio $0.39$--$0.57$.
+    & NS-momentum AL is not categorically unstable, but the effect is a divergence--accuracy trade-off rather than a validated improvement. \\
+    \midrule
+    Continuity-AL strength
+    & Vary $\rho$ around the main $\rho=0.1$ setting: $0.03$, $0.30$, $1.00$.
+    & KE $5.88$--$6.12$; div ratio decreases $0.45 \to 0.28$.
+    & Larger $\rho$ tightens divergence but costs field accuracy; $\rho$ is a physics--data knob, not a source of improved reconstruction. \\
+    \midrule
+    Forcing recovery
+    & Learn $A$, $k_f$, or both from near-zero initialisation ($A_{\rm init}=0.001$, $k_{f,\rm init}=0.01$).
+    & Learned values collapse near $A=0.001$, $k_f=0.01$ while KE stays $5.74$--$5.85$.
+    & Accurate velocity reconstruction does not certify recovery of the forcing parameters; structural identifiability is not established. \\
+    \midrule
+    Filtering vs.\ smoothing
+    & Compare deployable filtering against offline bidirectional smoothing.
+    & Filtering KE $5.71 \pm 0.11$; smoothing KE $5.74$.
+    & Future-sensor access gives no clear gain in this single-seed diagnostic; filtering remains the deployable default. \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\paragraph{Recipe implication.}
+The final pipeline therefore keeps continuity-only AL with $\rho=0.1$, fixed forcing parameters, and filtering-mode CfC. These choices are conservative: they are supported by the $n=5$ main baseline, avoid non-deployable future-sensor access, and do not promote single-seed alternatives into recipe claims.
+
+\paragraph{Detailed diagnostic anchors.}
 \label{sec:multi_al_negative}
-
-The main pipeline applies continuity AL at $\rho=0.1$ together with four-task GradNorm (\S\ref{sec:sub_dns_div}). Table~\ref{tab:multi_al} refreshes the multi-constraint AL diagnostic under the final LES-pivot, $1024$-collocation, $20\,000$-iteration setting. These runs are single-seed diagnostics and are not used as Chapter~\ref{ch:results} main evidence.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{Multi-constraint Augmented-Lagrangian diagnostic at $Re=10\,000$, $K=100$, LES $T=50$, seed 42, $1024$ collocation, $20\,000$ iterations.}
-    \label{tab:multi_al}
-    \footnotesize
-    \setlength{\tabcolsep}{3pt}
-    \begin{tabular}{lccccc}
-    \toprule
-    \textbf{Configuration} & \textbf{GN tasks} & \textbf{AL terms} & \textbf{KE \%} & \textbf{$u$ $L_2$ \%} & \textbf{div ratio \%} \\
-    \midrule
-    cont-only AL, cont outside GN & $[$data, ns$_u$, ns$_v]$ & $[$cont$]$ & $5.75$ & $13.38$ & $0.57$ \\
-    full physics AL, no GN        & -- & $[$ns$_u$, ns$_v$, cont$]$ & $5.54$ & $13.31$ & $0.56$ \\
-    NS-AL + cont double           & $[$data, cont$]$ & $[$ns$_u$, ns$_v$, cont$]$ & $\mathbf{5.47}$ & $13.47$ & $0.39$ \\
-    NS-AL + cont double, full GN  & $[$data, ns$_u$, ns$_v$, cont$]$ & $[$ns$_u$, ns$_v$, cont$]$ & $6.31$ & $13.85$ & $0.39$ \\
-    \bottomrule
-    \end{tabular}
-\end{table}
-
-\paragraph{Diagnostic verdict.}
-The final-protocol rerun no longer supports categorically rejecting NS-momentum AL. Several NS-AL variants remain stable and reach KE values comparable to the main pipeline. The clearest trade-off is instead between divergence enforcement and field accuracy: stronger physics constraints can reduce divergence, but the differences are single-seed and small relative to the main multi-seed evidence. The thesis therefore keeps continuity AL as the conservative main recipe and reports this table only as a diagnostic rather than a design claim.
-
-\subsection{AL strength selection and final-protocol rho diagnostic}
 \label{sec:al_strength_appendix}
-
-The continuity-AL penalty strength $\rho=0.1$ was originally selected from a nine-point AL$\times$GradNorm sweep before the final $20\,000$-iteration PI-CON protocol was established. Table~\ref{tab:al_rho_final} refreshes the local trade-off around the final setting. The main protocol remains $\rho=0.1$ because it is already evaluated as part of the $n=5$ final baseline (Table~\ref{tab:main_metrics}); the rows below are single-seed diagnostics.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{Continuity-AL penalty-strength diagnostic under the final protocol. The main setting $\rho=0.1$ is reported in Table~\ref{tab:main_metrics}; these rows probe neighbouring values with seed 42.}
-    \label{tab:al_rho_final}
-    \small
-    \begin{tabular}{lcccc}
-    \toprule
-    \textbf{$\rho$} & \textbf{KE \%} & \textbf{$u$ $L_2$ \%} & \textbf{$v$ $L_2$ \%} & \textbf{div ratio \%} \\
-    \midrule
-    $0.03$ & $5.88$ & $13.40$ & $17.24$ & $0.45$ \\
-    $0.30$ & $5.93$ & $13.96$ & $18.11$ & $0.33$ \\
-    $1.00$ & $6.12$ & $14.36$ & $18.70$ & $0.28$ \\
-    \bottomrule
-    \end{tabular}
-\end{table}
-
-The refreshed sweep behaves as expected: larger $\rho$ lowers the divergence ratio but costs field accuracy. This supports treating $\rho$ as a physics--data trade-off knob rather than as a source of improved reconstruction.
-
-\subsection{Forcing-parameter recovery fails under the tested setup}
 \label{sec:forcing_identifiability}
-
-The Kolmogorov forcing has two free parameters, amplitude $A$ and wavenumber $k_f$, held at $A=0.1$, $k_f=2$ in the main pipeline. Three configurations test whether the architecture can recover them from sensor data alone, with near-zero initialisation ($A_{\rm init}=0.001$, $k_{f,\rm init}=0.01$) in the flat region of the sigmoid/log-$A$ parameterisation. All three start from this single flat-region initialisation, so the diagnostic probes recovery under the tested setup rather than structural identifiability.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{Forcing-parameter identifiability diagnostic at $Re=10\,000$, $K=100$, LES $T=50$, seed 42, $1024$ collocation, $20\,000$ iterations. Truth values are $A=0.1$ and $k_f=2.0$.}
-    \label{tab:forcing_identifiability}
-    \footnotesize
-    \setlength{\tabcolsep}{3pt}
-    \begin{tabular}{lcccc}
-    \toprule
-    \textbf{Configuration} & \textbf{$A$ learned} & \textbf{$k_f$ learned} & \textbf{KE \%} & \textbf{$u$ $L_2$ \%} \\
-    \midrule
-    Hardcoded (main reference)      & $0.1$ (fixed)             & $2.0$ (fixed)             & $5.71 \pm 0.11$ & $13.65 \pm 0.06$ \\
-    Learn $k_f$ only, $A$ fixed     & $0.1$ (fixed)             & $\mathbf{0.00908}$ ($-99.5\%$) & $5.85$ & $13.57$ \\
-    Learn $A$ only, $k_f$ fixed     & $\mathbf{0.00136}$ ($-98.6\%$) & $2.0$ (fixed)             & $5.76$ & $13.55$ \\
-    Learn both $A$, $k_f$           & $\mathbf{0.00099}$ ($-99.0\%$) & $\mathbf{0.00988}$ ($-99.5\%$) & $5.74$ & $13.57$ \\
-    \bottomrule
-    \end{tabular}
-\end{table}
-
-\paragraph{Identifiability verdict.}
-Learned forcing parameters drift two orders of magnitude from truth, yet KE reconstruction remains close to the hardcoded reference: the forcing-mode contribution to $u, v$ is small relative to advection and diffusion, so reconstruction is insensitive to forcing accuracy at this sensor budget. The reverse implication is stronger: at $K=100$, accurate reconstruction does not certify forcing recovery. Whether the forcing is structurally unidentifiable, as opposed to unrecovered under the tested initialisation, optimiser, and parameterisation, is not established here; recovering it likely requires a larger budget, multiple initialisations, or an explicit spectral-peak prior.
-
-\section{Filtering vs.\ Smoothing Mode}
 \label{sec:filtering_smoothing}
-
-The filtering and smoothing readout modes (\S\ref{subsec:cfc_encoder}) are compared at $K=100$ to test whether bidirectional access to future sensor tokens improves reconstruction.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{Filtering vs.\ smoothing mode comparison at $Re=10\,000$, $K=100$, LES $T=50$, $1024$ collocation, $20\,000$ iterations. Filtering is the main $n=5$ baseline; smoothing is a seed-42 diagnostic.}
-    \label{tab:filter_smooth}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabular}{lcccc}
-    \toprule
-    \textbf{Mode} & \textbf{KE \%} & \textbf{$u$ $L_2$ \%} & \textbf{$v$ $L_2$ \%} & \textbf{Note} \\
-    \midrule
-    Filtering & $5.71 \pm 0.11$ & $13.65 \pm 0.06$ & $17.52 \pm 0.10$ & deployable \\
-    Smoothing & $5.74$ & $13.58$ & $17.28$ & offline (bidir.) \\
-    \bottomrule
-    \end{tabular}
-\end{table}
-
-\paragraph{Conclusion.}
-Under the final protocol, smoothing is statistically comparable to filtering in this single-seed rerun. Filtering remains the default because it is deployable on streaming sensors, uses one temporal scan instead of two, and is the configuration supported by the $n=5$ main baseline.
+Table~\ref{tab:boundary_diagnostics} is the canonical summary for the diagnostic boundary cases referenced from Chapter~\ref{ch:results} and Chapter~\ref{ch:discussion_conclusion}.
 
 \section{Engineering-Transferable Interpolation Baselines}
 \label{app:fair_baselines}
@@ -130,14 +75,14 @@ Three classical reconstructions respect the same sensor-only constraint as PI-CO
 \end{table}
 
 \paragraph{Kinetic energy is a misleading sole metric.}
-RBF multiquadric and the divergence-free trigonometric least-squares post lower KE error ($5.08\%$ and $4.42\%$) than the PI-CON multi-seed mean ($5.71\%$), yet both reconstruct the field markedly worse pointwise. Classical interpolation contracts the velocity toward the inter-sensor mean, suppressing total kinetic energy and collapsing the KE ratio toward the DNS value for the wrong reason; the pointwise $u$- and $v$-$L_2$ rows expose this. PI-CON reduces $u$ rel-$L_2$ by $47.2\%$ relative to the strongest fair baseline (trigonometric LSQ, $25.87\%\to13.65\%$) and by $74.2\%$ relative to IDW. Pointwise error, not KE alone, separates reconstruction from energy contraction.
+RBF multiquadric and the divergence-free trigonometric least-squares post lower KE error ($5.08\%$ and $4.42\%$) than the PI-CON multi-seed mean ($5.71\%$), but both reconstruct the field markedly worse pointwise. Classical interpolation contracts the velocity toward the inter-sensor mean, suppressing total kinetic energy and collapsing the KE ratio toward the DNS value for the wrong reason; the pointwise $u$- and $v$-$L_2$ rows expose this. PI-CON reduces $u$ rel-$L_2$ by $47.2\%$ relative to the strongest fair baseline (trigonometric LSQ, $25.87\%\to13.65\%$) and by $74.2\%$ relative to IDW. Pointwise error, rather than KE alone, separates reconstruction from energy contraction.
 
 The refreshed interpolation sweep also shows strong hyperparameter sensitivity: under the same sensors, over-complete trigonometric LSQ at $k_{\max}=8$ and $12$ and poorly chosen RBF length scales can produce errors orders of magnitude larger than the carefully selected rows in Table~\ref{tab:fair_baselines}. These unstable variants are excluded from the main comparison table and treated as evidence that classical interpolation baselines require explicit validation rather than default trust.
 
 \section{Open-Loop Forward-CFD Baseline}
 \label{sec:forward_cfd_baseline}
 
-A natural CFD-side reference reconstructs a divergence-free initial field from the $K=100$ sensor measurements at $t=0$, then forward-integrates the pseudo-spectral ETDRK4 solver used for the reference DNS. Both the Proper Orthogonal Decomposition (POD) reconstruction and the forward integration run on the stored $256^2$ snapshot grid (Table~\ref{tab:dns_params}); only the scoring reference remains the $1024^2$ DNS downsampled to $256^2$. Because the field is reconstructed from the initial-time sensors alone and then integrated freely, with no later sensor data assimilated, this is an open-loop forecast reference rather than a matched assimilation baseline: PI-CON, by contrast, ingests the full sensor time series. The comparison therefore contrasts open-loop forecasting with continuous assimilation, isolating what a purely physics-driven forecast attains from the same initial-time sensor budget without learned components.
+A natural CFD-side reference reconstructs a divergence-free initial field from the $K=100$ sensor measurements at $t=0$, then forward-integrates the pseudo-spectral ETDRK4 solver used for the reference DNS. Both the Proper Orthogonal Decomposition (POD) reconstruction and the forward integration run on the stored $256^2$ snapshot grid (Table~\ref{tab:dns_params}); only the scoring reference remains the $1024^2$ DNS downsampled to $256^2$. Because the field is reconstructed from the initial-time sensors alone and then integrated freely, with no later sensor data assimilated, this is an open-loop forecast reference rather than a matched assimilation baseline: it isolates what a purely physics-driven forecast attains from the initial-time sensor budget without learned components, whereas PI-CON ingests the full sensor time series.
 
 \paragraph{Construction.}
 Leading-rank $r=40$ POD modes are computed from $200$ DNS snapshots over $t\in[0,5]$ jointly over the $u$ and $v$ channels; the modes are divergence-free by construction. Sensor measurements at $t=0$ are projected onto these modes by least squares,
@@ -170,33 +115,5 @@ Table~\ref{tab:forward_cfd} compares the baseline at $t=5$ against the PI-CON mu
     \end{tabular}
 \end{table}
 
-\paragraph{Same-attractor diagnosis.}
-The Forward-CFD baseline appears KE-competitive, while pointwise metrics reveal phase decorrelation. Three observations isolate the cause.
-
-\emph{Bounded statistics are preserved.} At $t=5$ the baseline gives $\mathrm{KE}=0.1200$ vs.\ DNS $0.1248$ ($-3.85\%$) and enstrophy $\Omega=14.65$ vs.\ $14.16$ ($+3.46\%$); the dissipation balance is intact.
-
-\emph{The energy spectrum matches DNS within $\approx 10\%$ for $k\in[1,120]$} (Fig.~\ref{fig:forward_cfd_spectrum}), sharing the $k^{-3}$ enstrophy-cascade slope and dissipation roll-off; both fields lie on the same invariant measure of the chaotic attractor.
-
-\emph{The forcing-induced anisotropy preserved by DNS at $t=5$} ($\sigma_u/\sigma_v=2.32$) is lost in the baseline ($0.90$, with $\sigma_v$ exceeding $\sigma_u$; Fig.~\ref{fig:forward_cfd_spectrum}, right). Forward integration over $T/t_{\rm eddy}=2.51$ eddy-turnover times (\S\ref{subsec:dns_verification}) loses the directional bias injected by $f_x=A\sin(2\pi k_f y)$ once IC error grows.
-
-\begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=0.95\linewidth]{figures/results/forward_cfd_fields_t5.png}
-    \caption{Forward-CFD baseline vs.\ DNS at $t=5$ ($Re=10^4$, $K=100$). Rows: $u$ (m/s), $v$ (m/s), vorticity $\omega$ (1/s). Columns: DNS, forward-CFD prediction, signed difference. Axes: $x, y$ on $\Omega=[0,1]^2$ m$^2$. Same-row colourbars shared between DNS and prediction; the error column uses an independent symmetric scale.}
-    \label{fig:forward_cfd_fields}
-\end{figure}
-
-\begin{figure}[!htbp]
-    \centering
-    \begin{minipage}[t]{0.58\linewidth}
-        \includegraphics[width=\linewidth]{figures/results/forward_cfd_spectrum_t5.pdf}
-    \end{minipage}\hfill
-    \begin{minipage}[t]{0.40\linewidth}
-        \includegraphics[width=\linewidth]{figures/results/forward_cfd_anisotropy.png}
-    \end{minipage}
-    \caption{Left: radial energy spectrum $E(k)$ (m$^3$/s$^2$) at $t=5$, log-log; DNS and forward-CFD baseline, with $k_f=2$~m$^{-1}$ (vertical dashed). Right: per-component velocity standard deviation $\sigma_u, \sigma_v$ (m/s).}
-    \label{fig:forward_cfd_spectrum}
-\end{figure}
-
-\paragraph{Interpretation.}
-Forward integration from a sensor-reconstructed initial condition cannot recover pointwise phase at $t=5$: over the five-second horizon ($\approx 2.5$ eddy-turnover times) chaotic growth of the initial reconstruction error drives $u$-$L_2$ to $152.8\%$, by which point pointwise phase is lost. KE alone misranks the comparison: the baseline sits on the attractor's invariant measure but at a phase fully decorrelated from the DNS realisation, whereas PI-CON re-conditions on the sensor stream throughout $t\in[0,5]$ and tracks the realisation. The pointwise gap at the matched final time is an order of magnitude ($u$-$L_2$ $152.8\% \to 7.28\%$ is $21\times$; $v$-$L_2$ $203.9\% \to 16.38\%$ is $12.4\times$), reflecting the structural advantage of continuous re-conditioning. The baseline has no recovery path within its own framework: a denser POD rank would not stabilise the phase, since the leading modes already capture $>99\%$ of the energy. Reducing the pointwise error requires either a continuous sensor stream (the PI-CON regime) or a 4D-variational assimilation loop on top of the forward solver.
+\paragraph{Same-attractor diagnosis and interpretation.}
+The forward-CFD baseline appears KE-competitive because bounded statistics are preserved: at $t=5$ it gives $\mathrm{KE}=0.1200$ vs.\ DNS $0.1248$ ($-3.85\%$), enstrophy $\Omega=14.65$ vs.\ $14.16$ ($+3.46\%$), and an energy spectrum within $\approx 10\%$ of DNS for $k\in[1,120]$. Pointwise metrics expose the failure mode: after $\approx 2.5$ eddy-turnover times, chaotic growth of the initial reconstruction error drives $u$-$L_2$ to $152.8\%$ and $v$-$L_2$ to $203.9\%$, and the forcing-induced anisotropy $\sigma_u/\sigma_v=2.32$ in DNS is lost ($0.90$). KE alone therefore misranks the comparison: the baseline remains on the attractor but at a decorrelated phase, whereas PI-CON re-conditions on the sensor stream throughout $t\in[0,5]$. Reducing the pointwise error requires either continuous sensor conditioning (the PI-CON regime) or a 4D-Var loop on top of the forward solver.

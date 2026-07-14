@@ -17,18 +17,18 @@ On the doubly-periodic square $\Omega = [0, L^\star]^2$, the velocity $\mathbf{u
     \partial_{t^\star}\mathbf{u}^\star + (\mathbf{u}^\star\!\cdot\!\nabla)\,\mathbf{u}^\star &= -\nabla p^\star + \nu^\star\,\nabla^2\mathbf{u}^\star + \mathbf{f}^\star,
 \end{align}
 \end{subequations}
-with the Kolmogorov body force $\mathbf{f}^\star = (A^\star \sin(2\pi k_f^\star y^\star),\, 0)^T$. The equations are non-dimensionalised with the box edge $L^\star = 1$~m and a reference velocity $U^\star = 1$~m/s as unit scales; together with $\nu^\star = 10^{-4}$~m$^2$/s this fixes the control Reynolds number $Re \equiv U^\star L^\star/\nu^\star = 10^4$ (equivalently $\nu = 1/Re$ in dimensionless form), prescribed through $\nu^\star$ rather than derived from the realised flow. The physical characteristic scales are the forcing-injection wavelength and the root-mean-square velocity,
+with the Kolmogorov body force $\mathbf{f}^\star = (A^\star \sin(2\pi k_f^\star y^\star),\, 0)^T$. The dimensional equations in \eqref{eq:ns_dim} are non-dimensionalised with the box edge $L^\star = 1$~m and a reference velocity $U^\star = 1$~m/s as unit scales; together with $\nu^\star = 10^{-4}$~m$^2$/s this fixes the control Reynolds number $Re \equiv U^\star L^\star/\nu^\star = 10^4$ (equivalently $\nu = 1/Re$ in dimensionless form), prescribed through $\nu^\star$ rather than derived from the realised flow. The physical characteristic scales are the forcing-injection wavelength and the root-mean-square velocity,
 \begin{equation}
     \label{eq:char_scales}
     \lambda_f = \frac{1}{k_f} = 0.5~\text{m}, \qquad
     U_{\rm rms} = \sqrt{\langle|\mathbf{u}^\star|^2\rangle} = \sqrt{2\,\overline{\mathrm{KE}}} = 0.503~\text{m/s},
 \end{equation}
-which set an injection-scale Reynolds number
+The scales in \eqref{eq:char_scales} set an injection-scale Reynolds number
 \begin{equation}
     \label{eq:re_inj}
     Re_f \equiv \frac{U_{\rm rms}\,\lambda_f}{\nu^\star} \approx 2.5\times 10^3 .
 \end{equation}
-The realised $U_{\rm rms} < U^\star$ because the forced turbulence saturates below the reference velocity, so $Re_f$ is reported as a physical diagnostic while $Re = 10^4$ remains the control parameter set by $\nu^\star$. Table~\ref{tab:dns_params} lists parameters in dimensionless and SI columns. A cross-check at $Re=1\,000$ uses the same protocol with $\nu^\star = 10^{-3}$.
+The realised $U_{\rm rms} < U^\star$ because the forced turbulence saturates below the reference velocity, so the diagnostic Reynolds number in \eqref{eq:re_inj} is reported separately from the control $Re = 10^4$. Table~\ref{tab:dns_params} lists parameters in dimensionless and SI columns. A cross-check at $Re=1\,000$ uses the same protocol with $\nu^\star = 10^{-3}$.
 
 \begin{table}[!htbp]
     \centering
@@ -54,7 +54,7 @@ The realised $U_{\rm rms} < U^\star$ because the forced turbulence saturates bel
     Forcing amplitude $A$     & $0.1$ & $0.1$ m/s$^2$ \\
     \midrule
     \multicolumn{3}{@{}l}{\emph{Solver method}} \\
-    Spatial discretisation       & \multicolumn{2}{@{}l@{}}{Spectral pseudo-spectral, $2/3$-rule dealiasing~\cite{Orszag1971,Boyd2001}} \\
+    Spatial discretisation       & \multicolumn{2}{@{}l@{}}{Pseudo-spectral, $2/3$-rule dealiasing~\cite{Orszag1971,Boyd2001}} \\
     Time integrator              & \multicolumn{2}{@{}l@{}}{ETDRK4 (exp.\ time differencing)~\cite{Cox2002,KassamTrefethen2005}} \\
     Precision                    & \multicolumn{2}{@{}l@{}}{fp64} \\
     Initial condition            & \multicolumn{2}{@{}l@{}}{Random Gaussian field; spectral burn-in} \\
@@ -71,7 +71,7 @@ The realised $U_{\rm rms} < U^\star$ because the forced turbulence saturates bel
 \end{table}
 
 \paragraph{Solver and storage.}
-The solver runs on $N_{\rm run}=1024^2$ with $\Delta t_{\rm DNS}=2.5\times 10^{-4}$, downsampled $4\times$ to $N_{\rm stored}=256^2$ snapshots every $\Delta t_{\rm store}=0.025$~s ($201$ frames over $T=5$); sensor measurements and offline evaluation use this $256^2$ trajectory. \emph{The full trajectory never enters training}; only (a) sensor extraction and (b) offline a posteriori evaluation are permitted.
+The solver runs on $N_{\rm run}=1024^2$ with $\Delta t_{\rm DNS}=2.5\times 10^{-4}$, downsampled $4\times$ to $N_{\rm stored}=256^2$ snapshots every $\Delta t_{\rm store}=0.025$~s ($201$ frames over $T=5$). \emph{This $256^2$ trajectory never enters training}; only (a) sensor extraction and (b) offline a posteriori evaluation are permitted.
 
 \paragraph{DNS verification.}
 \label{subsec:dns_verification}
@@ -114,55 +114,22 @@ Three DNS-derived constants enter the evaluator of \S\ref{sec:eval_metrics} and 
 
 \paragraph{Grid independence.}
 \label{subsec:dns_grid_indep}
-A refinement sweep on $N \in \{128, 256, 512, 1024\}$ at production solver settings ($\Delta t = 2.5\times 10^{-4}$, ETDRK4, $2/3$-rule, fp64) is reported in Table~\ref{tab:dns_grid_indep} and Figures~\ref{fig:grid_indep_convergence}--\ref{fig:grid_indep_main}. The four runs share a deterministic spectral-seeded IC bit-exact at common grid points across $N$, isolating discretisation error from IC variability~\cite{Pope2000}. At production resolution $N=256$, post-spin-up ($t \ge 2$) agreement against $N=1024$ is $0.064\%$ for KE and $0.24\%$ for enstrophy, with $0.05\%$ in the $K=100$ sensor band $k \le k_{\max}^{\rm sensor} \approx 5.64$ (carrying $\approx 99\%$ of the kinetic energy at $t=5$). The $N=512$ row provides ref-converged evidence near fp64 round-off ($\approx 4\times 10^{-7}$). The under-resolved $N=128$ drifts by $7.33\%$ (KE) and $8.76\%$ (enstrophy), confirming the protocol detects insufficient resolution. Consecutive convergence ratios ($115\times$ for $N{=}128{\to}256$, $1.65\times 10^5$ for $N{=}256{\to}512$) far exceed the algebraic $r^p = 4$ baseline, placing the sequence in the pseudo-spectral super-algebraic regime~\cite{Boyd2001}.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{Grid-independence verification at $Re=10\,000$, $T=5$, against the $N=1024$ reference. Post-spin-up metrics use $t \in [2, 5]$; pointwise $\|\Delta u\|_2 / \|u\|_2$ is reported at $t=0.5$. The ``Ratio vs prev $N$'' column is the ratio of $\Delta$KE between successive grid pairs ($r^p = 4$ algebraic baseline). $\eta = (\nu^3/\varepsilon)^{1/4}$ with $\varepsilon = 2\nu\langle\omega^2\rangle_{N=1024}$ ($k_\eta = 41.5$~m$^{-1}$).}
-    \label{tab:dns_grid_indep}
-    \footnotesize
-    \setlength{\tabcolsep}{4pt}
-    \begin{tabularx}{\textwidth}{
-        @{}>{\raggedright\arraybackslash}p{1.4cm}
-        >{\centering\arraybackslash}p{1.5cm}
-        >{\centering\arraybackslash}p{1.9cm}
-        >{\centering\arraybackslash}p{1.9cm}
-        >{\centering\arraybackslash}p{2.1cm}
-        >{\centering\arraybackslash}p{1.8cm}
-        >{\centering\arraybackslash}p{1.8cm}@{}
-    }
-    \toprule
-    \textbf{Grid} & \textbf{$k_{\max}/k_\eta$} & \textbf{$\Delta$KE (post-spin-up)} & \textbf{$\Delta$Enstrophy (post-spin-up)} & \textbf{$\Delta E(k\le k_{\max}^{\rm sensor})$} & \textbf{$\|\Delta u\|_2 / \|u\|_2$ at $t=0.5$} & \textbf{Ratio vs prev $N$} \\
-    \midrule
-    $N=128$  & $1.03$ & $7.33\%$        & $8.76\%$        & $7.26\%$        & $2.60\%$         & -- \\
-    $\mathbf{N=256}$  & $2.06$ & $\mathbf{0.064\%}$ & $\mathbf{0.24\%}$  & $\mathbf{0.05\%}$  & $\mathbf{0.113\%}$ & $\mathbf{115\times}$ \\
-    $N=512$  & $4.12$ & $3.87\times 10^{-7}$ & $3.78\times 10^{-7}$ & $3\times 10^{-5}\%$ & $5\times 10^{-6}$ & $1.65\times 10^{5}$ \\
-    $N=1024$ & $8.23$ & \emph{reference} & \emph{reference} & \emph{reference} & \emph{reference} & -- \\
-    \bottomrule
-    \end{tabularx}
-\end{table}
+A refinement sweep on $N \in \{128, 256, 512, 1024\}$ at production solver settings ($\Delta t = 2.5\times 10^{-4}$, ETDRK4, $2/3$-rule, fp64), sharing a deterministic spectral-seeded IC bit-exact across $N$ to isolate discretisation error from IC variability~\cite{Pope2000}, fixes the production resolution (Fig.~\ref{fig:grid_indep_convergence}; full four-grid table and per-field diagnostics in Appendix~\ref{app:dns_grid_indep_supp}). At $N=256$, post-spin-up ($t \ge 2$) agreement against $N=1024$ is $0.064\%$ for KE and $0.24\%$ for enstrophy, and $0.05\%$ in the $K=100$ sensor band $k \le k_{\max}^{\rm sensor} \approx 5.64$; the under-resolved $N=128$ drifts by $7.33\%$ (KE) and $8.76\%$ (enstrophy), confirming the protocol detects insufficient resolution. Consecutive convergence ratios ($115\times$ for $N{=}128{\to}256$, $1.65\times 10^5$ for $N{=}256{\to}512$) far exceed the algebraic $r^p = 4$ baseline, placing the sequence in the pseudo-spectral super-algebraic regime~\cite{Boyd2001}.
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.72\textwidth]{figures/results/grid_indep_convergence.pdf}
-    \caption{Relative error vs.\ grid resolution $N$ ($Re=10^4$, $T=5$~s) against the $N=1024$ reference. Lines: post-spin-up ($t \in [2,5]$~s) maximum relative differences of kinetic energy (KE, m$^2$/s$^2$) and enstrophy (1/s$^2$), and pointwise $L^2$ relative errors of $u$ and $\omega$ at $t=0.5$~s. Horizontal dashed line: $2\%$ tolerance; vertical dashed line: production resolution $N=256$. Values in Table~\ref{tab:dns_grid_indep}.}
+    \caption{Relative error vs.\ grid resolution $N$ ($Re=10^4$, $T=5$~s) against the $N=1024$ reference. Lines: post-spin-up ($t \in [2,5]$~s) maximum relative differences of kinetic energy (KE, m$^2$/s$^2$) and enstrophy (1/s$^2$), and pointwise $L^2$ relative errors of $u$ and $\omega$ at $t=0.5$~s. Horizontal dashed line: $2\%$ tolerance; vertical dashed line: production resolution $N=256$. Full values and supplementary diagnostics are provided in Appendix A.}
     \label{fig:grid_indep_convergence}
 \end{figure}
 
-\begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/results/grid_indep_main.png}
-    \caption{Grid-independence supporting evidence. (a) Kinetic energy (m$^2$/s$^2$) vs.\ time $t$ (s) for $N \in \{128, 256, 512, 1024\}$; shaded band: post-spin-up window $t \in [2, 5]$~s. (b) Radial energy spectrum $E(k)$ (m$^3$/s$^2$) at $t=5$~s; vertical dashed lines: $K=100$ sensor Nyquist $k_{\rm sensor} = \sqrt{K/\pi} \approx 5.64$~m$^{-1}$ (purple) and dissipation wavenumber $k_\eta = 41.5$~m$^{-1}$ (orange).}
-    \label{fig:grid_indep_main}
-\end{figure}
-
 \paragraph{Time-step, seed, and IC sensitivity.}
-Three supplementary checks isolate non-spatial sources of error. Halving the time step at $N=256$, $T=0.5$ changes the solution by $7.0\times 10^{-6}$ ($160\times$ below the spatial error), confirming $\Delta t = 2.5\times 10^{-4}$ is temporally converged. A second seed reproduces the result: $N=256$-vs-$N=512$ post-spin-up KE agreement is $0.19\%$, within the $2\%$ engineering tolerance. Spectral truncation error is a property of discretisation rather than IC phase~\cite{Boyd2001}, and the $\approx 99\%$ sensor-band energy fraction holds for any forced-stationary trajectory at this $Re$, so the conclusions transfer to the production IC. Per-field log-log convergence and diagnostics across all four grids appear in Appendix~\ref{app:dns_grid_indep_supp}.
+Halving the time step at $N=256$ changes the solution by $7.0\times 10^{-6}$ ($160\times$ below the spatial error), confirming $\Delta t = 2.5\times 10^{-4}$ is temporally converged; a second seed reproduces the $N=256$-vs-$N=512$ post-spin-up KE agreement to $0.19\%$. Spectral truncation error is a property of discretisation rather than IC phase~\cite{Boyd2001}, so the conclusions transfer to the production IC. The full four-grid table, per-field log-log convergence, and secondary diagnostics appear in Appendix~\ref{app:dns_grid_indep_supp}.
 
 \section{LES for DNS-Free Sensor Placement}
 \label{sec:les_placement}
 
-In the LES-derived placement strategy (one of the placement options studied), a low-cost LES on a new scene supplies a POD basis from which QR-pivoting selects sensor positions; the physical flow then provides the sensor values. The DNS substitutes for the physical flow during controlled validation, but not for placement. The LES need not match the DNS pointwise: its sole role is to supply a POD snapshot matrix whose leading modes determine the QR-pivot indices. The LES and the DNS are therefore \emph{independent} realisations: they share the same $Re$, domain, and forcing but start from different random initial fields, so at high Reynolds number their trajectories decorrelate and never coincide pointwise at any matched time. Their integration horizons follow their roles, not each other. The LES is integrated long only so that its leading POD modes reach statistical convergence for placement (it is a statistical tool, not a trajectory to be matched); the DNS is the single target realisation to be reconstructed over the shorter window $t\in[0,5]$, from which the sensors read their values. Statistics therefore set the LES horizon and the reconstruction target sets the DNS horizon (the specific values appear in Tables~\ref{tab:dns_params} and~\ref{tab:les_params}).
+In the LES-derived placement strategy, a low-cost LES on a new scene supplies the POD basis for QR-pivot sensor positions; the physical flow then supplies sensor values. In this controlled study, the DNS substitutes for that physical flow only at the $K$ sensor locations and for offline scoring, not for placement or training. The LES and DNS are independent realisations with the same $Re$, domain, and forcing but different random initial fields, so the LES is used as a statistically converged placement tool rather than as a pointwise trajectory to match. Statistics set the LES horizon, while the DNS reconstruction target remains the shorter window $t\in[0,5]$ (Tables~\ref{tab:dns_params} and~\ref{tab:les_params}).
 
 \paragraph{Filtered equations and closure.}
 The LES solves the spatially filtered incompressible Navier--Stokes equations,
@@ -173,7 +140,7 @@ The LES solves the spatially filtered incompressible Navier--Stokes equations,
     \partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i &= -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i - \partial_j \tau_{ij}^{\mathrm{SGS}} + f_i, \label{eq:filtered_mom}
 \end{align}
 \end{subequations}
-on the same domain, viscosity, and forcing as the DNS. The high-wavenumber SGS drain is a spectral hyperviscosity term, used alone in the reference LES; the low-fidelity variant additionally applies a Bardina scale-similarity term~\cite{Bardina1980, Sagaut2006},
+on the same domain, viscosity, and forcing as the DNS. Equations~\eqref{eq:filtered_cont}--\eqref{eq:filtered_mom} differ from the DNS only through filtering and the SGS stress term. The high-wavenumber SGS drain is a spectral hyperviscosity term, used alone in the reference LES; the low-fidelity variant additionally applies a Bardina scale-similarity term~\cite{Bardina1980, Sagaut2006},
 \begin{equation}
     \label{eq:bardina_hyperv}
     \begin{aligned}
@@ -185,7 +152,7 @@ both chosen over Smagorinsky-type eddy-viscosity, which is poorly justified for 
 
 \begin{table}[!htbp]
     \centering
-    \caption{LES configuration at $Re=10\,000$. The sub-grid closure and the four discretisation parameters at the bottom differ between the reference and low-fidelity runs; values in brackets denote the low-fidelity setting. The governing equation and solver inherit the dimensional mapping of Table~\ref{tab:dns_params}.}
+    \caption{LES configuration at $Re=10\,000$. The sub-grid closure and the four discretisation parameters at the bottom differ between the reference and low-fidelity runs; values in brackets denote the low-fidelity setting. The governing equation and solver inherit the dimensional mapping of the DNS-parameter table.}
     \label{tab:les_params}
     \footnotesize
     \setlength{\tabcolsep}{5pt}
@@ -255,7 +222,7 @@ Table~\ref{tab:les_verification} reports verification against three criterion gr
 \end{table}
 
 \paragraph{Predictability horizon.}
-A same-initial-condition diagnostic bounds how long any reference-grade LES can match the DNS pointwise, substantiating the decorrelation premise stated above. The vorticity fields are co-located through $\approx 1\,t_{\rm eddy}$ and visibly separated by $\approx 2\,t_{\rm eddy}$ (Fig.~\ref{fig:les_vort_compare}). The reference LES, initialised from the DNS field at $t=0$ and integrated to $t=5$~s on the matched grid (shared $Re$, domain, and forcing), keeps its velocity relative-$L^2$ error against the DNS below $5\%$ for $0.59\,t_{\rm eddy}$ and below $20\%$ for $1.10\,t_{\rm eddy}$; beyond that, chaotic divergence and the closure difference dominate, and the full-field error peaks near $92\%$ (below the $\sqrt{2}$ fully-decorrelated level) by $t\approx 4$~s (Fig.~\ref{fig:les_predictability}). The energy-containing scales persist longest: the resolved-band ($k\le 5$) error follows the full-field error, and the velocity correlation stays above $0.9$ until $\approx 1.5\,t_{\rm eddy}$, while the small-scale vorticity correlation falls to $\approx 0.1$ by $t\approx 4$~s. The quadratic kinetic-energy and enstrophy ratios remain within $[0.74, 1.00]$ throughout. Even this most favourable, same-initial-condition pair loses pointwise agreement within about one-and-a-half eddy-turnover times, so the independent realisation used for placement (already decorrelated at $t=0$) never coincides pointwise; the placement information resides in the statistically converged POD structure, not in any matched-time field.
+A same-initial-condition diagnostic bounds the pointwise lifetime of even a reference-grade LES. Initialising the LES from the DNS field and integrating to $t=5$~s keeps velocity relative-$L^2$ below $5\%$ for $0.59\,t_{\rm eddy}$ and below $20\%$ for $1.10\,t_{\rm eddy}$; by $t\approx 4$~s the full-field error peaks near $92\%$ (Fig.~\ref{fig:les_predictability}). Velocity correlation remains above $0.9$ until $\approx 1.5\,t_{\rm eddy}$, while vorticity correlation falls to $\approx 0.1$ by $t\approx 4$~s. Thus even the most favourable matched-IC pair loses pointwise agreement within about one-and-a-half eddy-turnover times; deployable placement must rely on statistically converged POD structure, not matched-time fields.
 
 \begin{figure}[!htbp]
     \centering
@@ -272,9 +239,9 @@ A same-initial-condition diagnostic bounds how long any reference-grade LES can 
 \end{figure}
 
 \paragraph{Spectrum offset.}
-Over the inertial range $k\in[3,30]$ the same-initial-condition LES and DNS energy spectra agree (slopes $-4.56$ and $-4.64$; Fig.~\ref{fig:les_vort_compare}b), while the LES energy falls below the DNS for $k\gtrsim 30$, where the hyperviscosity closure drains the small scales. This high-wavenumber offset bounds high-band reconstruction but not QR-pivot placement, which depends on the leading POD basis conditioning rather than the small-scale spectrum. The reference LES used for placement is integrated to $T_{\rm end}=50$ ($26.5\,t_{\rm eddy}$) for statistical convergence of the leading POD modes, since that convergence, not small-scale solver fidelity, governs the placement quality.
+Over $k\in[3,30]$ the same-initial-condition LES and DNS spectra agree (slopes $-4.56$ and $-4.64$; Fig.~\ref{fig:les_vort_compare}b), while LES energy falls below DNS for $k\gtrsim 30$ as hyperviscosity drains small scales. This high-wavenumber offset bounds high-band reconstruction but not QR-pivot placement, which depends on leading POD modes. The placement LES is integrated to $T_{\rm end}=50$ ($26.5\,t_{\rm eddy}$) for that statistical convergence.
 
-The LES-derived and DNS-oracle placements both target $K = 100$, with downstream KE MAPE within engineering tolerance (Table~\ref{tab:les_grid_independence}).
+The LES-derived and DNS-oracle placements both target $K = 100$, differing only in the placement source.
 
 \begin{figure}[!htbp]
     \centering
@@ -284,25 +251,7 @@ The LES-derived and DNS-oracle placements both target $K = 100$, with downstream
 \end{figure}
 
 \paragraph{Placement robustness to LES configuration.}
-Grid independence in the DNS sense (Table~\ref{tab:dns_grid_indep}) does not transfer to the LES: the DNS converges to a resolved solution as $N$ increases, whereas an LES has no grid-converged limit short of DNS, since refining $N$ shifts the filter cutoff and the resolved/SGS split and thereby changes the resolved field itself. The relevant question is instead whether the \emph{placement} is robust to the LES configuration. The two LES runs compared (Table~\ref{tab:les_grid_independence}) differ not only in resolution ($N_{\rm LES}=256$ vs $128$) but also in closure (pure hyperviscosity vs Bardina-plus-hyperviscosity), hyperviscosity strength, and integration horizon ($T_{\rm end}=50$ vs $15$); despite this four-way change and a $16\times$ compute reduction, the downstream KE MAPE differs by only $0.04\%$ absolute ($\approx 0.3\%$ relative). The leading POD modes driving QR-pivot placement are therefore insensitive to the LES configuration, not merely to its resolution. The two retrainings here use a legacy single-seed, reduced-collocation configuration, so their absolute KE MAPE ($\approx 12\%$) sits above the final-protocol baseline; only the near-zero difference between them, the placement-robustness quantity, is used as evidence.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{LES configuration robustness: downstream KE MAPE after the full pipeline (LES POD basis $\to$ QR-pivot $\to$ sensor measurement $\to$ PI-CON retraining) under two LES runs that differ in resolution, closure, hyperviscosity strength, and integration horizon. The $E(k)$ slope is measured for $k>k_f$ (1/s units); the low-fidelity $-14$ reflects over-dissipation, and the $\approx 0.3\%$ relative difference lies at the evaluator noise floor. Both rows use a legacy single-seed, reduced-collocation retraining, so the absolute KE MAPE exceeds the final-protocol baseline; the placement-robustness claim rests on their relative difference, not the absolute level.}
-    \label{tab:les_grid_independence}
-    \footnotesize
-    \setlength{\tabcolsep}{5pt}
-    \begin{tabular}{lccccc}
-    \toprule
-    \textbf{Configuration} & \textbf{$N_{\rm LES}$} & \textbf{$T_{\rm end}$ (s)} & \textbf{Closure} & \textbf{$E(k)$ slope} & \textbf{KE MAPE} \\
-    \midrule
-    Reference LES    & $256^2$ & $50$ & hyperviscosity      & $-6.46$ & $12.36\%$ \\
-    Low-fidelity LES & $128^2$ & $15$ & Bardina $+$ hyperv. & $-14$   & $12.40\%$ \\
-    \midrule
-    Difference       & --     & --  & --                 & --     & \textbf{$\approx 0.3\%$ rel.} \\
-    \bottomrule
-    \end{tabular}
-\end{table}
+DNS-style grid independence does not apply to LES because refining $N$ changes the filter cutoff and resolved/SGS split. The relevant check is placement robustness. Two LES runs differing in resolution ($256$ vs $128$), closure, hyperviscosity strength, and horizon ($T_{\rm end}=50$ vs $15$), a four-way change with $16\times$ lower compute, give downstream KE MAPE of $12.36\%$ and $12.40\%$. The $0.04$ percentage-point difference is at the evaluator noise floor, so the leading POD modes driving QR-pivot placement are insensitive to the tested LES configuration. These legacy single-seed retrainings are used only for the near-zero placement difference, not for their absolute KE values.
 
 \section{Sensor Data Construction}
 \label{sec:sensor_data}
@@ -348,7 +297,7 @@ The worst-case pointwise discrepancy normalised by the maximum DNS amplitude,
     \label{eq:rel_linf}
     \mathrm{rel}\,L_\infty(\phi) \;=\; \frac{\max_{\mathbf{x},\,t}\,|\phi_{\text{pred}}(\mathbf{x},t) - \phi_{\text{DNS}}(\mathbf{x},t)|}{\max_{\mathbf{x},\,t}\,|\phi_{\text{DNS}}(\mathbf{x},t)|},
 \end{equation}
-captures localised peak discrepancies (e.g.\ unresolved shear-layer cusps) that the global $L_2$ averages out. The maximum runs over the $128^2$ grid and all $201$ time stamps.
+The metric in \eqref{eq:rel_linf} captures localised peak discrepancies (e.g.\ unresolved shear-layer cusps) that the global $L_2$ averages out. The maximum runs over the $128^2$ grid and all $201$ time stamps.
 
 \paragraph{Snapshot error at $t^\star = T$.}
 The relative $L_2$ error of the final snapshot is reported separately, since forward integration accumulates phase error along the chaotic trajectory and $t^\star = 5$ is the most demanding instant:
@@ -356,7 +305,7 @@ The relative $L_2$ error of the final snapshot is reported separately, since for
     \label{eq:rel_l2_tstar}
     \mathrm{rel}\,L_2^{\,t^\star}(\phi) \;=\; \frac{\Vert \phi_{\text{pred}}(\cdot,\,t^\star) - \phi_{\text{DNS}}(\cdot,\,t^\star)\Vert_2}{\Vert \phi_{\text{DNS}}(\cdot,\,t^\star)\Vert_2}.
 \end{equation}
-A bounded snapshot error at $t^\star$ indicates the operator retains physical fidelity at the trajectory end, not only in time-averaged statistics.
+A bounded snapshot error in \eqref{eq:rel_l2_tstar} indicates the operator retains physical fidelity at the trajectory end, not only in time-averaged statistics.
 
 \paragraph{Kinetic-energy MAPE.}
 The integrated kinetic energy is the canonical CFD validation observable for turbulent statistics~\cite{Pope2000}. Its Mean Absolute Percentage Error (MAPE) is
@@ -392,7 +341,7 @@ The root-mean-square of the NS momentum and continuity residuals at $N_c$ colloc
     \label{eq:ns_rms}
     \mathrm{NS\_rms}_\phi \;=\; \sqrt{\frac{1}{N_c}\sum_{j=1}^{N_c} \mathcal{R}_\phi^2(\mathbf{x}_j,t_j)}, \quad \phi \in \{u,\, v,\, c\},
 \end{equation}
-with $\mathcal{R}_u$, $\mathcal{R}_v$, $\mathcal{R}_c$ defined in \eqref{eq:res_u}--\eqref{eq:cont_res}. The continuity variant is also written $\mathrm{div\_rms}$. Values are compared against the DNS reference computed on the downsampled grid.
+with $\mathcal{R}_u$, $\mathcal{R}_v$, $\mathcal{R}_c$ defined in \eqref{eq:res_u}--\eqref{eq:cont_res}. The residual norm in \eqref{eq:ns_rms} is also written $\mathrm{div\_rms}$ for the continuity variant. Values are compared against the DNS reference computed on the downsampled grid.
 
 \subsection{Spectral Diagnostics}
 
@@ -414,7 +363,7 @@ The ideal values are $\mathrm{amp\_ratio} = 1$ and $\mathrm{phase\_err} = 0$.
 Metrics are also reported as means over three segments: early ($t<1$), mid ($1\le t<3$), late ($t\ge 3$).
 
 \paragraph{Wavelet-based multi-scale error diagnostic.}
-Complementing the Fourier-band diagnostics, a 2D Daubechies-4 wavelet decomposition is applied to the reconstructed field. The wavelet metric decomposes the relative $L_2$ error by level, providing the spatial localisation that the global Fourier spectrum lacks. Full details are in Appendix~\ref{app:wavelet_diag}.
+Complementing the Fourier-band diagnostics, a 2D Daubechies-4 wavelet decomposition is applied to the reconstructed field. The wavelet metric decomposes the relative $L_2$ error by level, providing the spatial localisation that the global Fourier spectrum lacks. Full details are in Appendix~\ref{app:info_ceiling_diagnostics}.
 
 \subsection{Train/Validation Split Metrics}
 To detect transductive overfitting, KE MAPE is reported over the training window $t\in[0, 4]$ and the validation window $t\in[4, 5]$ separately.

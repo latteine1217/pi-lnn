@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.plot_style import apply_journal_rcparams, DNS as DNS_C, PICON as PRED_C, LES as LES_C  # noqa: E402
 
 FIELDS = ROOT / "artifacts/eval_245_seed42_fields/fields.npz"
 OUTDIR = ROOT / "thesis/figures/results"
 OUTDIR.mkdir(parents=True, exist_ok=True)
-DNS_C, PRED_C = "#000000", "#D55E00"
+# DNS_C / PRED_C / LES_C imported from pi_con.plot_style (Okabe--Ito semantic palette)
 
 
 def autocorr_mean(arr: np.ndarray, n_probe: int = 512) -> np.ndarray:
@@ -69,7 +69,7 @@ def main() -> None:
     if les_probe.exists():
         d_les = np.load(les_probe)
         u_les_pt = np.interp(t, d_les["t"], d_les["u_probe"])
-        ax1.plot(t, u_les_pt, color="#0072B2", ls=":", lw=1.2, label="LES (same IC)")
+        ax1.plot(t, u_les_pt, color=LES_C, ls=":", lw=1.2, label="LES (same IC)")
     ax1.set_xlabel(r"$t$ [s]")
     ax1.set_ylabel(r"$u(\mathbf{x}_0, t)$ [m/s]")
     ax1.set_title(rf"(a) Probe trace at $\mathbf{{x}}_0=(0.5,0.5)$", fontsize=9)

@@ -1,12 +1,45 @@
 \chapter{DNS Grid Independence Supplementary Diagnostics}
 \label{app:dns_grid_indep_supp}
 
-This appendix collects the per-field log-log convergence and the secondary time-series diagnostics for the four-grid DNS sweep summarised in \S\ref{subsec:dns_grid_indep} and Table~\ref{tab:dns_grid_indep}.
+This appendix collects the full four-grid convergence table, the per-field log-log convergence, and the secondary time-series diagnostics for the DNS sweep summarised in \S\ref{subsec:dns_grid_indep}.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Grid-independence verification at $Re=10\,000$, $T=5$, against the $N=1024$ reference. Post-spin-up metrics use $t \in [2, 5]$; pointwise $\|\Delta u\|_2 / \|u\|_2$ is reported at $t=0.5$. The ``Ratio vs prev $N$'' column is the ratio of $\Delta$KE between successive grid pairs ($r^p = 4$ algebraic baseline). $\eta = (\nu^3/\varepsilon)^{1/4}$ with $\varepsilon = 2\nu\langle\omega^2\rangle_{N=1024}$ ($k_\eta = 41.5$~m$^{-1}$).}
+    \label{tab:dns_grid_indep}
+    \footnotesize
+    \setlength{\tabcolsep}{4pt}
+    \begin{tabularx}{\textwidth}{
+        @{}>{\raggedright\arraybackslash}p{1.4cm}
+        >{\centering\arraybackslash}p{1.5cm}
+        >{\centering\arraybackslash}p{1.9cm}
+        >{\centering\arraybackslash}p{1.9cm}
+        >{\centering\arraybackslash}p{2.1cm}
+        >{\centering\arraybackslash}p{1.8cm}
+        >{\centering\arraybackslash}p{1.8cm}@{}
+    }
+    \toprule
+    \textbf{Grid} & \textbf{$k_{\max}/k_\eta$} & \textbf{$\Delta$KE (post-spin-up)} & \textbf{$\Delta$Enstrophy (post-spin-up)} & \textbf{$\Delta E(k\le k_{\max}^{\rm sensor})$} & \textbf{$\|\Delta u\|_2 / \|u\|_2$ at $t=0.5$} & \textbf{Ratio vs prev $N$} \\
+    \midrule
+    $N=128$  & $1.03$ & $7.33\%$        & $8.76\%$        & $7.26\%$        & $2.60\%$         & -- \\
+    $\mathbf{N=256}$  & $2.06$ & $\mathbf{0.064\%}$ & $\mathbf{0.24\%}$  & $\mathbf{0.05\%}$  & $\mathbf{0.113\%}$ & $\mathbf{115\times}$ \\
+    $N=512$  & $4.12$ & $3.87\times 10^{-7}$ & $3.78\times 10^{-7}$ & $3\times 10^{-5}\%$ & $5\times 10^{-6}$ & $1.65\times 10^{5}$ \\
+    $N=1024$ & $8.23$ & \emph{reference} & \emph{reference} & \emph{reference} & \emph{reference} & -- \\
+    \bottomrule
+    \end{tabularx}
+\end{table}
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/results/grid_indep_main.pdf}
+    \caption{Grid-independence supporting evidence. (a) Kinetic energy (m$^2$/s$^2$) vs.\ time $t$ (s) for $N \in \{128, 256, 512, 1024\}$; shaded band: post-spin-up window $t \in [2, 5]$~s. (b) Radial energy spectrum $E(k)$ (m$^3$/s$^2$) at $t=5$~s; vertical dashed lines: $K=100$ sensor Nyquist $k_{\rm sensor} = \sqrt{K/\pi} \approx 5.64$~m$^{-1}$ (purple) and dissipation wavenumber $k_\eta = 41.5$~m$^{-1}$ (orange).}
+    \label{fig:grid_indep_main}
+\end{figure}
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/results/grid_indep_supp_loglog.pdf}
-    \caption{Log-log pointwise $L^2$ convergence against the $N=1024$ reference for the four-grid sweep at $Re=10^4$, evaluated at $t \in \{0.5, 1, 2, 5\}$~s. Each panel reports one field ($u$, $v$, $\omega$); dashed grey lines mark the algebraic reference slopes $N^{-4}$ and $N^{-8}$. Short-time slopes ($t \le 2$~s) lie steeper than $N^{-8}$, characteristic of pseudo-spectral super-algebraic convergence on a smooth IC; the $t=5$~s slope is shallower because pointwise error late in the chaotic trajectory is bounded by chaos amplification rather than discretisation truncation (statistical metrics in Fig.~\ref{fig:grid_indep_main}(a) remain at $0.064\%$).}
+    \caption{Log-log pointwise $L^2$ convergence against the $N=1024$ reference for the four-grid sweep at $Re=10^4$, evaluated at $t \in \{0.5, 1, 2, 5\}$~s. Each panel reports one field ($u$, $v$, $\omega$); dashed grey lines mark the algebraic reference slopes $N^{-4}$ and $N^{-8}$. Short-time slopes ($t \le 2$~s) lie steeper than $N^{-8}$, characteristic of pseudo-spectral super-algebraic convergence on a smooth IC; the $t=5$~s slope is shallower because pointwise error late in the chaotic trajectory is bounded by chaos amplification rather than discretisation truncation.}
     \label{fig:grid_indep_supp_loglog}
 \end{figure}
 
@@ -16,4 +49,3 @@ This appendix collects the per-field log-log convergence and the secondary time-
     \caption{Secondary time-series diagnostics for the four-grid sweep. (a) Enstrophy $\langle \omega^2/2 \rangle(t)$; $N \ge 256$ overlap throughout, with the post-spin-up window ($t \ge 2$~s) shaded. (b) Maximum spectral incompressibility $\max_{\mathbf{x}} |\nabla \cdot \mathbf{u}|(t)$. All four grids sit at the fp64 round-off floor ($<10^{-11}$~1/s throughout); the apparent stratification reflects round-off accumulation scaling with $N^2$ over $\sim 10^5$ time steps rather than physical divergence.}
     \label{fig:grid_indep_supp_enstrophy_div}
 \end{figure}
-

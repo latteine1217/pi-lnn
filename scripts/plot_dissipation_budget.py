@@ -15,15 +15,14 @@ import matplotlib.pyplot as plt
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.plot_style import apply_journal_rcparams, DNS as DNS_C, PICON as PRED_C  # noqa: E402
 
 NU = 1e-4  # Re = 10000 → ν = 1/Re
 SERIES = ROOT / "artifacts/eval_245_seed42_export/series.npz"
 OUTDIR = ROOT / "thesis/figures/results"
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
-DNS_C = "#000000"
-PRED_C = "#D55E00"
+# DNS_C / PRED_C imported from pi_con.plot_style (Okabe--Ito semantic palette)
 
 
 def main() -> None:

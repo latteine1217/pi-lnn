@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
-from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.plot_style import apply_journal_rcparams, BASELINE  # noqa: E402
 from evaluate_deeponet_cfc import energy_spectrum_1d  # noqa: E402
 
 NPZ = ROOT / "reports/forward_cfd_baseline_T5_rank40.npz"
@@ -49,7 +49,7 @@ def main() -> None:
     apply_journal_rcparams()
     fig, ax = plt.subplots(figsize=(5.5, 2.8), constrained_layout=True)
     ax.loglog(k_dns, e_dns, color="#000000", linestyle="-", linewidth=1.4, label="DNS")
-    ax.loglog(k_cfd, e_cfd, color="#0072B2", linestyle="--", linewidth=1.4,
+    ax.loglog(k_cfd, e_cfd, color=BASELINE, linestyle="--", linewidth=1.4,
               label="Forward-CFD baseline")
 
     idx_f = np.argmin(np.abs(k_dns - K_FORCING))

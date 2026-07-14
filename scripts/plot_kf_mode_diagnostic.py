@@ -15,12 +15,12 @@ import matplotlib.pyplot as plt
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.plot_style import apply_journal_rcparams, PICON as PRED  # noqa: E402
 
 SEED_DIRS = [ROOT / f"artifacts/exp245_seeds/eval_245_seed{s}_mac" for s in "abcde"]
 OUTDIR = ROOT / "thesis/figures/results"
 OUTDIR.mkdir(parents=True, exist_ok=True)
-PRED = "#D55E00"
+# PRED imported from pi_con.plot_style (Okabe--Ito semantic palette)
 
 
 def wrap(x: np.ndarray) -> np.ndarray:

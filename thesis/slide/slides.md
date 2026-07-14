@@ -1627,6 +1627,8 @@ Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted s
 -->
 
 ---
+disabled: true
+---
 
 <NavBar active="results" />
 

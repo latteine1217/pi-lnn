@@ -37,8 +37,8 @@ def plot_supp_loglog(j) -> None:
     times = ["t=0.50", "t=1.00", "t=2.00", "t=5.00"]
     time_labels = {"t=0.50": r"$t=0.5$ s", "t=1.00": r"$t=1$ s",
                    "t=2.00": r"$t=2$ s", "t=5.00": r"$t=5$ s"}
-    time_colors = {"t=0.50": "#1f77b4", "t=1.00": "#2ca02c",
-                   "t=2.00": "#ff7f0e", "t=5.00": "#d62728"}
+    time_colors = {"t=0.50": "#0072B2", "t=1.00": "#009E73",
+                   "t=2.00": "#E69F00", "t=5.00": "#D55E00"}  # Okabe--Ito
     time_markers = {"t=0.50": "o", "t=1.00": "s", "t=2.00": "^", "t=5.00": "D"}
 
     fig, axes = plt.subplots(1, 3, figsize=(9.5, 3.0))
@@ -145,11 +145,11 @@ def plot_convergence(j) -> None:
             100 * m_om["t=0.50"][f"N={N}"] for N in Ns
         ],
     }
-    metric_styles = {
-        r"$\Delta\,$KE (post-spin-up)":             ("#d62728", "o", "-"),
-        r"$\Delta\,$Enstrophy (post-spin-up)":      ("#1f77b4", "s", "-"),
-        r"$\|\Delta u\|_2 / \|u\|_2$ at $t=0.5$ s":     ("#2ca02c", "^", "--"),
-        r"$\|\Delta \omega\|_2 / \|\omega\|_2$ at $t=0.5$ s": ("#ff7f0e", "D", "--"),
+    metric_styles = {  # Okabe--Ito
+        r"$\Delta\,$KE (post-spin-up)":             ("#D55E00", "o", "-"),
+        r"$\Delta\,$Enstrophy (post-spin-up)":      ("#0072B2", "s", "-"),
+        r"$\|\Delta u\|_2 / \|u\|_2$ at $t=0.5$ s":     ("#009E73", "^", "--"),
+        r"$\|\Delta \omega\|_2 / \|\omega\|_2$ at $t=0.5$ s": ("#E69F00", "D", "--"),
     }
 
     fig, ax = plt.subplots(figsize=(5.8, 4.2))

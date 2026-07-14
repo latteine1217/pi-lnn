@@ -18,28 +18,22 @@ OUT_DIR = ROOT / "docs" / "figures"
 OUT_STEM = OUT_DIR / "picon_deeponet_architecture"
 
 COLORS = {
-    "ink": "#1f2933",
-    "muted": "#59636f",
-    "blue": "#2567ad",
-    "blue_fill": "#eaf3ff",
-    "teal": "#16817a",
-    "teal_fill": "#e8f7f4",
-    "purple": "#6d46b5",
-    "purple_fill": "#f0eafd",
-    "orange": "#d96c00",
-    "orange_fill": "#fff4e5",
-    "rust": "#b43d15",
-    "rust_fill": "#fff0e8",
-    "gray": "#374151",
-    "gray_fill": "#eef2f7",
-    "line": "#253142",
-    "light": "#cbd5df",
-    # 貢獻標示：單一 accent（this work 的 3 個新元件）。灰底骨幹 + accent novelty，
-    # 並以粗框 + 編號 badge 作為非顏色通道，確保灰階列印仍可區分。
-    "novel": "#1f6fb2",
-    "novel_fill": "#e7f1fb",
-    "backbone": "#566173",
-    "backbone_fill": "#eef2f7",
+    "ink": "#1a1a1a",
+    "muted": "#5a6572",
+    "line": "#33414f",
+    "light": "#c9d3dd",
+    "gray": "#3a4652",
+    "gray_fill": "#eef2f6",
+    # 統一論文配色（Okabe-Ito）：backbone = 中性灰、novelty = PI-CON 藍 (#0072B2)。
+    # 灰底骨幹 + 藍色 accent + 粗框 + 編號 badge（非顏色通道），確保灰階列印仍可區分。
+    "novel": "#0072B2",
+    "novel_fill": "#e2eef6",
+    "backbone": "#5b6670",
+    "backbone_fill": "#f2f5f8",
+    # branch / trunk 泳道背景（極淡，僅作結構分群，不喧賓奪主）。
+    "lane_branch": "#f6f8fa",
+    "lane_trunk": "#f6f8fa",
+    "lane_edge": "#e3e9ef",
 }
 
 
@@ -55,9 +49,9 @@ def add_box(
     edge: str,
     face: str,
     title_color: str | None = None,
-    title_size: float = 8.2,
-    subtitle_size: float = 6.5,
-    lw: float = 1.35,
+    title_size: float = 9.2,
+    subtitle_size: float = 7.4,
+    lw: float = 1.05,
 ) -> None:
     """固定尺寸節點，文字置中，避免自動 layout 改變拓撲。"""
     box = patches.FancyBboxPatch(
@@ -104,8 +98,8 @@ def add_chip(
     *,
     edge: str,
     width: float,
-    height: float = 0.34,
-    fontsize: float = 6.5,
+    height: float = 0.36,
+    fontsize: float = 7.0,
 ) -> None:
     chip = patches.FancyBboxPatch(
         (x, y),
@@ -154,7 +148,7 @@ def add_legend(ax, x: float, y: float) -> None:
     ax.add_patch(
         patches.FancyBboxPatch(
             (x, y2), sw, h, boxstyle="round,pad=0.01,rounding_size=0.04",
-            facecolor=COLORS["novel_fill"], edgecolor=COLORS["novel"], linewidth=2.2, zorder=5,
+            facecolor=COLORS["novel_fill"], edgecolor=COLORS["novel"], linewidth=1.8, zorder=5,
         )
     )
     add_badge(ax, x + sw + 0.16, y2 + h / 2, 1, r=0.135)
@@ -173,10 +167,10 @@ def add_arrow(
     color: str = COLORS["line"],
     label: str | None = None,
     label_xy: tuple[float, float] | None = None,
-    lw: float = 1.35,
+    lw: float = 1.0,
     linestyle: str = "-",
     connectionstyle: str = "arc3,rad=0.0",
-    mutation_scale: float = 12.0,
+    mutation_scale: float = 10.0,
     zorder: int = 2,
 ) -> None:
     arrow = patches.FancyArrowPatch(
@@ -202,7 +196,7 @@ def add_arrow(
             label,
             ha="center",
             va="center",
-            fontsize=5.9,
+            fontsize=6.6,
             color=color,
             bbox=dict(boxstyle="round,pad=0.16", fc="white", ec="none", alpha=0.92),
             zorder=6,
@@ -220,7 +214,7 @@ def add_bracket(ax, x0: float, x1: float, y: float, label: str) -> None:
             path,
             fill=False,
             edgecolor=COLORS["gray"],
-            linewidth=1.1,
+            linewidth=0.9,
             linestyle=(0, (4, 3)),
             zorder=1,
         )
@@ -237,11 +231,23 @@ def add_bracket(ax, x0: float, x1: float, y: float, label: str) -> None:
     )
 
 
+def add_lane(ax, x: float, y: float, w: float, h: float, *, fill: str, edge: str) -> None:
+    """極淡的圓角泳道背景，將 branch / trunk 兩條 encoder path 視覺分群。"""
+    ax.add_patch(
+        patches.FancyBboxPatch(
+            (x, y), w, h,
+            boxstyle="round,pad=0.02,rounding_size=0.12",
+            linewidth=0.8, edgecolor=edge, facecolor=fill, zorder=0,
+        )
+    )
+
+
 def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update(
         {
             "font.family": "DejaVu Sans",
+            "mathtext.fontset": "cm",  # Computer Modern：公式呈現 LaTeX 編譯樣式，與內文數學一致
             "pdf.fonttype": 42,
             "ps.fonttype": 42,
             "svg.fonttype": "none",
@@ -255,44 +261,48 @@ def main() -> None:
     ax.set_ylim(0, 6.7)
     ax.axis("off")
 
+    # branch / trunk encoder-path 泳道背景（zorder 0，最底層）：淡色圓角分群。
+    add_lane(ax, 0.12, 4.34, 6.85, 1.74, fill=COLORS["lane_branch"], edge=COLORS["lane_edge"])
+    add_lane(ax, 2.55, 1.60, 4.42, 1.22, fill=COLORS["lane_trunk"], edge=COLORS["lane_edge"])
+
     # 分區標題（zone label）：統一中性灰，讓 accent 顏色專門表達「貢獻」
-    ax.text(0.35, 6.25, "Branch path: sparse sensor memory", fontsize=8.5, fontweight="bold", color=COLORS["muted"])
-    ax.text(2.55, 2.95, "Trunk path: query feature", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
-    ax.text(7.05, 6.25, "Interaction", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
-    ax.text(11.35, 6.25, "Output and loss", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
+    ax.text(0.30, 6.24, "BRANCH PATH: SPARSE SENSOR MEMORY", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
+    ax.text(2.60, 2.94, "TRUNK PATH: QUERY FEATURE", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
+    ax.text(7.05, 6.24, "INTERACTION", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
+    ax.text(11.35, 6.24, "OUTPUT AND LOSS", fontsize=8.0, fontweight="bold", color=COLORS["muted"])
 
     # Branch row
     obs = (0.35, 4.55, 1.72, 1.08)
     spatial = (2.62, 4.55, 1.82, 1.08)
     cfc = (4.95, 4.55, 1.76, 1.08)
-    add_box(ax, *obs, "Observations", "sensor values [T,K,{u,v}]\npositions + time", edge=COLORS["backbone"], face=COLORS["backbone_fill"])
-    add_chip(ax, obs[0] + 0.25, obs[1] + obs[3] + 0.09, "K = 100 sensors", edge=COLORS["backbone"], width=1.22)
+    add_box(ax, *obs, "Observations", "sensor values\npositions + time", edge=COLORS["backbone"], face=COLORS["backbone_fill"])
+    add_chip(ax, obs[0] + 0.10, obs[1] + obs[3] + 0.09, "K = 100 sensors", edge=COLORS["backbone"], width=1.52)
     add_box(ax, *spatial, "Spatial Tokens", "Fourier/RFF encoding\nresidual MLP", edge=COLORS["backbone"], face=COLORS["backbone_fill"])
-    add_chip(ax, spatial[0] + 0.26, spatial[1] + spatial[3] + 0.09, "tokens: [T,K,d]", edge=COLORS["backbone"], width=1.30)
-    add_box(ax, *cfc, "CfC Memory", "token attention\ncausal scan dt", edge=COLORS["novel"], face=COLORS["novel_fill"], lw=2.4)
-    add_chip(ax, cfc[0] + 0.37, cfc[1] + cfc[3] + 0.09, "h: [T,K,d]", edge=COLORS["novel"], width=1.00)
+    add_chip(ax, spatial[0] + 0.24, spatial[1] + spatial[3] + 0.09, "tokens: [T,K,d]", edge=COLORS["backbone"], width=1.34)
+    add_box(ax, *cfc, "CfC Memory", "token attention\ncausal scan dt", edge=COLORS["novel"], face=COLORS["novel_fill"], title_size=8.6, lw=1.9)
+    add_chip(ax, cfc[0] + 0.33, cfc[1] + cfc[3] + 0.09, "h: [T,K,d]", edge=COLORS["novel"], width=1.10)
     add_badge(ax, cfc[0] + 0.16, cfc[1] + cfc[3] - 0.16, 1)
-    add_arrow(ax, (obs[0] + obs[2], 5.12), (spatial[0], 5.12), label="encode", label_xy=(2.36, 5.35))
-    add_arrow(ax, (spatial[0] + spatial[2], 5.12), (cfc[0], 5.12), label="scan dt", label_xy=(4.66, 5.35))
+    add_arrow(ax, (obs[0] + obs[2], 5.09), (spatial[0], 5.09))
+    add_arrow(ax, (spatial[0] + spatial[2], 5.09), (cfc[0], 5.09))
 
     # Trunk row
     query = (2.75, 1.92, 1.45, 0.76)
     trunk_feature = (4.95, 1.82, 1.86, 0.94)
-    add_box(ax, *query, "Query", "(x, y, t_q, c)", edge=COLORS["backbone"], face=COLORS["backbone_fill"], title_size=8.0)
+    add_box(ax, *query, "Query", "(x, y, t_q, c)", edge=COLORS["backbone"], face=COLORS["backbone_fill"], title_size=8.8)
     add_box(
         ax,
         *trunk_feature,
         "Trunk Feature",
-        "Fourier + temporal anchor\ndt_to_query",
+        "Fourier + temporal\nanchor, dt_to_query",
         edge=COLORS["backbone"],
         face=COLORS["backbone_fill"],
-        title_size=7.6,
-        subtitle_size=6.1,
+        title_size=8.4,
+        subtitle_size=6.8,
     )
-    add_arrow(ax, (query[0] + query[2], 2.28), (trunk_feature[0], 2.28), label="embed", label_xy=(4.56, 2.50))
+    add_arrow(ax, (query[0] + query[2], 2.29), (trunk_feature[0], 2.29))
 
     # Cross-attention block
-    attn = (7.25, 3.76, 2.55, 1.18)
+    attn = (7.15, 3.76, 2.90, 1.18)
     add_box(
         ax,
         *attn,
@@ -301,9 +311,9 @@ def main() -> None:
         edge=COLORS["novel"],
         face=COLORS["novel_fill"],
         title_color=COLORS["novel"],
-        title_size=7.4,
-        subtitle_size=5.9,
-        lw=2.4,
+        title_size=7.7,
+        subtitle_size=6.6,
+        lw=1.9,
     )
     add_badge(ax, attn[0] + 0.16, attn[1] + attn[3] - 0.16, 2)
     add_arrow(
@@ -311,7 +321,7 @@ def main() -> None:
         (cfc[0] + cfc[2], 5.12),
         (attn[0], 4.55),
         label="K,V tokens\nlatest h(t_k <= t_q)",
-        label_xy=(7.30, 5.34),
+        label_xy=(7.62, 5.42),
         connectionstyle="arc3,rad=-0.08",
     )
     add_arrow(
@@ -324,26 +334,26 @@ def main() -> None:
     )
 
     # Basis + fusion: 嚴格 Y-shaped merge，basis 只進 Fusion。
-    branch_basis = (10.35, 4.70, 1.35, 0.64)
-    trunk_basis = (10.35, 2.48, 1.35, 0.64)
-    fusion = (12.15, 3.48, 1.72, 0.88)
-    field = (14.25, 3.52, 0.90, 0.78)
-    loss = (14.15, 1.65, 1.55, 1.24)
-    add_box(ax, *branch_basis, "Branch Basis", "query-conditioned\ncontext", edge=COLORS["backbone"], face="white", title_size=7.2, subtitle_size=5.6)
-    add_box(ax, *trunk_basis, "Trunk Basis", "component-wise\nbasis", edge=COLORS["backbone"], face="white", title_size=7.2, subtitle_size=5.6)
-    add_box(ax, *fusion, "DeepONet Fusion", "branch basis x trunk basis\ncomponent-wise output", edge=COLORS["backbone"], face=COLORS["backbone_fill"], title_size=7.2, subtitle_size=5.6)
-    add_box(ax, *field, "Field", "u, v, p\np physics-only", edge=COLORS["backbone"], face="white", title_size=7.2, subtitle_size=5.6)
+    branch_basis = (10.30, 4.70, 1.45, 0.64)
+    trunk_basis = (10.30, 2.48, 1.45, 0.64)
+    fusion = (12.20, 3.48, 1.80, 0.88)
+    field = (14.35, 3.52, 0.95, 0.78)
+    loss = (13.95, 1.62, 2.05, 1.30)
+    add_box(ax, *branch_basis, "Branch Basis", "query-conditioned\ncontext", edge=COLORS["backbone"], face="white", title_size=7.8, subtitle_size=6.2)
+    add_box(ax, *trunk_basis, "Trunk Basis", "component-wise\nbasis", edge=COLORS["backbone"], face="white", title_size=7.8, subtitle_size=6.2)
+    add_box(ax, *fusion, "DeepONet Fusion", "branch × trunk basis\ncomponent-wise output", edge=COLORS["backbone"], face=COLORS["backbone_fill"], title_size=7.8, subtitle_size=6.2)
+    add_box(ax, *field, "Field", "u, v, p\n(p physics-only)", edge=COLORS["backbone"], face="white", title_size=7.8, subtitle_size=6.2)
     add_box(
         ax,
         *loss,
         "Loss",
-        "AL hard constraint: div u = 0\nsensor MSE + NS residual\nGradNorm balancing",
+        "AL constraint: div u = 0\nsensor MSE + NS residual\nGradNorm balancing",
         edge=COLORS["novel"],
         face=COLORS["novel_fill"],
         title_color=COLORS["novel"],
-        title_size=7.4,
-        subtitle_size=5.5,
-        lw=2.4,
+        title_size=8.2,
+        subtitle_size=6.2,
+        lw=1.9,
     )
     add_badge(ax, loss[0] + 0.16, loss[1] + loss[3] - 0.16, 3)
     add_arrow(ax, (attn[0] + attn[2], 4.58), (branch_basis[0], 5.00))
@@ -354,10 +364,10 @@ def main() -> None:
     add_arrow(ax, (field[0] + field[2], 3.92), (loss[0], 2.55), label="autograd", label_xy=(14.35, 3.24), connectionstyle="angle3,angleA=0,angleB=90")
 
     # Optimizer feedback
-    opt = (10.15, 0.72, 1.72, 0.64)
-    params = (7.35, 0.72, 1.92, 0.64)
-    add_box(ax, *opt, "SOAP + Schedule-Free", "preconditioned updates", edge=COLORS["gray"], face="white", title_color=COLORS["ink"], title_size=6.6, subtitle_size=5.1, lw=1.15)
-    add_box(ax, *params, "model parameters theta", "encoder + CfC + decoder", edge=COLORS["gray"], face="white", title_color=COLORS["ink"], title_size=6.5, subtitle_size=5.1, lw=1.15)
+    opt = (10.05, 0.68, 2.10, 0.68)
+    params = (7.25, 0.68, 2.02, 0.68)
+    add_box(ax, *opt, "SOAP + Schedule-Free", "preconditioned updates", edge=COLORS["gray"], face="white", title_color=COLORS["ink"], title_size=6.9, subtitle_size=5.8, lw=1.15)
+    add_box(ax, *params, "Model Parameters", "theta: encoder + CfC + decoder", edge=COLORS["gray"], face="white", title_color=COLORS["ink"], title_size=7.2, subtitle_size=5.8, lw=1.15)
     add_arrow(ax, (loss[0] + 0.55, loss[1]), (opt[0] + opt[2], opt[1] + 0.36), label="optimize", label_xy=(13.0, 1.05), linestyle=(0, (4, 3)), lw=1.2)
     add_arrow(ax, (opt[0], opt[1] + 0.36), (params[0] + params[2], params[1] + 0.36), label="update theta", label_xy=(9.82, 1.32), linestyle=(0, (4, 3)), lw=1.2)
     add_bracket(ax, spatial[0] - 0.05, fusion[0] + fusion[2] + 0.05, 1.52, "trainable modules")
@@ -367,12 +377,14 @@ def main() -> None:
     ax.text(
         4.05,
         0.23,
-        "L = L_data(u,v) + GradNorm(NS_u, NS_v, cont) + AL(cont)",
+        r"$\mathcal{L} = \mathrm{GradNorm}\left(\mathcal{L}_{\mathrm{data}},\, "
+        r"\mathcal{L}_{\mathrm{NS},u},\, \mathcal{L}_{\mathrm{NS},v},\, "
+        r"\mathcal{L}_{\mathrm{cont}}\right) + \mathcal{L}_{\mathrm{AL}}$",
         ha="center",
         va="center",
-        fontsize=7.4,
+        fontsize=9.5,
         color=COLORS["ink"],
-        bbox=dict(boxstyle="round,pad=0.25,rounding_size=0.05", fc="white", ec=COLORS["light"], lw=0.9),
+        bbox=dict(boxstyle="round,pad=0.3,rounding_size=0.05", fc="white", ec=COLORS["light"], lw=0.9),
         zorder=5,
     )
     ax.text(

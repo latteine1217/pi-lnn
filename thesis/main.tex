@@ -25,6 +25,7 @@
 \usepackage{tabularx}                   % full-width tables
 \usepackage[ruled]{algorithm2e}         % algorithm environment & List of Algorithms
 \usepackage{placeins}                   % \FloatBarrier，避免 float 漂移到後面章節
+\usepackage{csquotes}                   % biblatex 建議；避免 babel/polyglossia quotation warning
 
 % 章節內 caption 風格微調（不覆寫 nthu_thesis.cls 既有的 NTHU 標準）
 \setlength{\emergencystretch}{2em}
@@ -34,10 +35,12 @@
 \begin{document}
 \pagestyle{plain} % 預設樣式：頁碼置於頁尾置中，頁首為空
 \begin{CJK}{UTF8}{bkai}
+\hypersetup{pageanchor=false}
+\pagenumbering{Alph} % 封面區獨立 anchor，避免與 frontmatter roman 頁碼重複
 
 %%% Necessary fields for this thesis data %%%
 \newcommand{\degreeZH}{碩}                    % 碩 (Master's) / 博 (Doctor's)
-\newcommand{\degreeEN}{Master's Thesis}        % "Master's Thesis" / "Doctoral Dissertation"
+\newcommand{\degreeEN}{Master Thesis}        % "Master's Thesis" / "Doctoral Dissertation"
 \newcommand{\titleZH}{物理約束之稀疏感測器連續時間湍流場重建}
 \newcommand{\titleEN}{Physics-Constrained Continuous-Time Reconstruction of Turbulent Flows from Sparse Sensors}
 \newcommand{\instituteZH}{工程與系統科學研究所乙組}
@@ -48,7 +51,7 @@
 \newcommand{\instituteEN}{Engineering and System Science, Group B}
 \newcommand{\studentID}{113011527}
 \newcommand{\studentZH}{李駿毅}
-\newcommand{\studentEN}{JunYi Li}
+\newcommand{\studentEN}{Jun-Yi Li}
 \newcommand{\advisorZH}{林洸銓}
 \newcommand{\advisorEN}{Kuang C. Lin}
 \newcommand{\yearZH}{115}     % 民國年
@@ -58,35 +61,40 @@
 
 \input{2025Titlepage}
 
-% TODO: 正式繳交（NTHU Library 送審）前補回「扉頁 + 內封」：
-%       裝訂後對應「外封 → 空白扉頁 → 內封(title page)」三層結構。
-%       電子試讀 / 校內 working draft 可不放；library 送審時把下方 % 拿掉。
-%
-% \newpage
-% \null
-% \thispagestyle{empty}
-% \newpage
-% \input{2025Titlepage}
+% Library submission structure: outer cover -> blank flyleaf -> inner title page.
+\newpage
+\null
+\thispagestyle{empty}
+\newpage
+\input{2025Titlepage}
 
 \let\cleardoublepage=\clearpage % 抑制 book class 在章節之間自動插入空白頁
 
-% TODO: 送審前補回三份 NTHU 必填表格的 \includepdf 與 \cftaddtitleline
-%       (1) 學位論文授權書 — front/Authorized agreement.pdf (3 頁)
-%       (2) 指導教授推薦書 — front/Advisor Approval Form.pdf (1 頁)
-%       (3) 考試委員審定書 — front/Thesis Review Form.pdf (1 頁)
-% 補回時，把下方 % 註解拿掉即可。實際 PDF 需替換為簽核完成的正式版。
-%
-% \cftaddtitleline{toc}{chapter}{學位論文授權書}{}
-% \includepdf[pages=1-3, angle=0, fitpaper=true,
-%        keepaspectratio, pagecommand={{\thispagestyle{empty}}},offset=-0.0cm 0.0cm]{./front/Authorized agreement.pdf}
-% \includepdf[pages=1, angle=0, fitpaper=true,
-%     keepaspectratio, pagecommand={{\thispagestyle{empty}}}]{./front/Advisor Approval Form.pdf}
-% \cftaddtitleline{toc}{chapter}{指導教授推薦書}{}
-% \includepdf[pages=1, angle=0, fitpaper=true,
-%        keepaspectratio, pagecommand={{\thispagestyle{empty}}},offset=-0.0cm 0.0cm]{./front/Thesis Review Form.pdf}
-% \cftaddtitleline{toc}{chapter}{考試委員審定書}{}
+\IfFileExists{./front/Authorized agreement.pdf}{%
+  \cftaddtitleline{toc}{chapter}{學位論文授權書}{}%
+  \includepdf[pages=1-3, angle=0, fitpaper=true,
+       keepaspectratio, pagecommand={{\thispagestyle{empty}}},offset=-0.0cm 0.0cm]{./front/Authorized agreement.pdf}%
+}{%
+  \ClassWarningNoLine{nthu-thesis}{Missing signed file: front/Authorized agreement.pdf}%
+}
+\IfFileExists{./front/Advisor Approval Form.pdf}{%
+  \includepdf[pages=1, angle=0, fitpaper=true,
+      keepaspectratio, pagecommand={{\thispagestyle{empty}}}]{./front/Advisor Approval Form.pdf}%
+  \cftaddtitleline{toc}{chapter}{指導教授推薦書}{}%
+}{%
+  \ClassWarningNoLine{nthu-thesis}{Missing signed file: front/Advisor Approval Form.pdf}%
+}
+\IfFileExists{./front/Thesis Review Form.pdf}{%
+  \includepdf[pages=1, angle=0, fitpaper=true,
+       keepaspectratio, pagecommand={{\thispagestyle{empty}}},offset=-0.0cm 0.0cm]{./front/Thesis Review Form.pdf}%
+  \cftaddtitleline{toc}{chapter}{考試委員審定書}{}%
+}{%
+  \ClassWarningNoLine{nthu-thesis}{Missing signed file: front/Thesis Review Form.pdf}%
+}
 
 \frontmatter
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
 
 %%% Abstract (English) %%%
 \chapter*{Abstract}
@@ -157,8 +165,8 @@ title={References}
 \chapter*{\centering{Appendices}}
 \addtocontents{toc}{\protect\contentsline {chapter}{Appendices}{}{}}
 
-\input{back/appendix01}
 \input{back/appendix02}
+\input{back/appendix03}
 \input{back/appendix04}
 \input{back/appendix05}
 \input{back/appendix06}

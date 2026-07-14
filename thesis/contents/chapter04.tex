@@ -1,7 +1,7 @@
 \chapter{Results and Discussion}
 \label{ch:results}
 
-This chapter reports the main reconstruction result, the studies that validate it, and a systematic account of how the sensing configuration governs reconstruction quality. The pipeline is: sensor placement $\to$ sensor measurements (here, DNS samples) $\to$ sensor-only physics training $\to$ continuous field reconstruction; placement uses a low-cost LES, one of three placement strategies studied. The chapter proceeds from the headline result, its field and spectral characterisation, and the architectural ablation that supports it; through a sensing-configuration study of sensor count, placement, and noise; to a higher-Reynolds feasibility case, diagnostic boundaries, and inference cost.
+This chapter reports the main reconstruction result, the validation studies, and how sensing configuration governs reconstruction quality. The pipeline is: sensor placement $\to$ sensor measurements (here, DNS samples) $\to$ sensor-only physics training $\to$ continuous field reconstruction. Placement uses a low-cost LES in the main pipeline and is compared with two alternatives. The chapter proceeds from the headline result, field and spectral characterisation, and architectural ablation; through sensor count, placement, and noise studies; to a higher-Reynolds feasibility case, diagnostic boundaries, and inference cost.
 
 \section{Main Result on $Re=10\,000$ Kolmogorov Flow}
 \label{sec:main_result}
@@ -42,7 +42,7 @@ The closest published sensor-only-with-physics comparison, Mo and Magri~\cite{Mo
 Table~\ref{tab:time_local} reports early, mid, and late segment averages from the main pipeline, diagnosing when reconstruction is hardest without altering the baseline definition; the worst single-time KE MAPE is $29.96\%$, at $t = 0.10$~s.
 
 \paragraph{Discussion.}
-The main row in Table~\ref{tab:main_metrics} uses no DNS full field for sensor placement or training supervision; the sensor values remain the DNS stand-in sampled at the $K$ positions. Against the DNS-oracle reference the two placements trade integral- against pointwise-fidelity: the DNS oracle attains lower KE error ($4.68\%$ vs $5.71\%$), while LES-derived placement attains lower pointwise velocity error ($u$ rel-$L_2$ $13.65\%$ vs $15.34\%$, $v$ rel-$L_2$ $17.52\%$ vs $18.10\%$). Neither placement dominates; LES-derived placement is thus competitive with the DNS oracle while requiring no DNS full field for placement. Across the full placement spectrum, reconstruction stays engineering-grade even without placement effort: random placement attains KE $7.95\%$ (five placement seeds, fixed training seed; \S\ref{sec:placement_analysis}), LES-derived placement improves this to $5.71\%$, and the non-deployable DNS oracle reaches $4.68\%$, all within the $10\%$ target, so reconstruction quality does not depend on a privileged sensor layout. Among DNS-free options, LES-derived placement is preferred: it lowers KE error by $2.24$ percentage points over random and reduces placement-induced variance roughly sixfold (\S\ref{sec:placement_analysis}); it is adopted as the reference configuration throughout, since placement governs reliability, not feasibility.
+The main row in Table~\ref{tab:main_metrics} uses no DNS full field for sensor placement or training supervision; sensor values are the DNS stand-in sampled only at the $K$ positions. Against the DNS-oracle reference, placement shows an integral/pointwise trade-off: the oracle has lower KE error ($4.68\%$ vs $5.71\%$), while LES-derived placement has lower pointwise velocity error ($u$ rel-$L_2$ $13.65\%$ vs $15.34\%$, $v$ rel-$L_2$ $17.52\%$ vs $18.10\%$). All strategies remain within the $10\%$ target: random placement gives KE $7.95\%$, LES-derived placement $5.71\%$, and the non-deployable DNS oracle $4.68\%$. LES-derived placement is therefore adopted as the reference DNS-free configuration because it improves over random by $2.24$ KE percentage points and reduces placement-induced variance roughly sixfold (\S\ref{sec:placement_analysis}).
 
 The divergence ratio of $0.39\%$ confirms the continuity constraint is active, matching the finite-difference floor of a DNS field band-limited to the reconstruction's resolved bandwidth (\S\ref{sec:sub_dns_div}; Fig.~\ref{fig:main_trajectories}, middle). The energy-dominant low-wavenumber band (sensor Nyquist cutoff $k_{\max}^{\rm sensor}\approx 5.64$, carrying $\approx 99\%$ of kinetic energy at $t=5$; \S\ref{subsec:nyquist_scaling}) recovers to single-digit relative error (Fig.~\ref{fig:band_err}), within the $10\%$ engineering target of O1.
 
@@ -74,7 +74,7 @@ Error concentrates at $t\in[0, 0.1]$, consistent with the difficulty of reconstr
 
 \paragraph{Multi-seed statistical confirmation.}
 \label{sec:statistical_significance}
-The main result is checked against seed variability with an $n=5$ ensemble, which also provides a training-variability estimate before the per-seed values are reported.
+The main result is checked against seed variability with an $n=5$ ensemble, which also provides a training-variability estimate.
 
 \paragraph{Multi-seed training variability.}
 The multi-seed training protocol follows a \emph{deep ensemble}~\cite{Lakshminarayanan2017DeepEnsembles}: training $n=5$ models from different random initialisations yields both a point estimate (the across-seed mean) and an empirical measure of training-induced variability (the across-seed standard deviation), capturing sensitivity to random initialisation and to the stochastic physics-collocation sampling schedule~\cite{Psaros2023UQ}. Here $n=5$ seeds yield a KE standard deviation of $0.11$ percentage points ($1.9\%$ relative scatter). This quantifies seed-and-collocation variability rather than a calibrated predictive uncertainty: no coverage or calibration of the spread is claimed.
@@ -114,32 +114,32 @@ To confirm the main result is not a seed artefact, the B3 LES-pivot configuratio
 The seed-to-seed KE standard deviation is $0.11$ percentage points ($1.9\%$ relative to the mean); all five seeds fall within a $0.32$ percentage-point window ($5.59$--$5.90\%$). Pointwise $u$-$L_2$ and $v$-$L_2$ are tighter still ($\sigma=0.06\%$ and $0.10\%$, both below $1\%$ relative scatter). The divergence ratio is reproducible to two decimal places ($0.39 \pm 0.006\%$), confirming it is a property of the architecture--AL recipe rather than any individual seed (\S\ref{sec:sub_dns_div}).
 
 \paragraph{Architectural significance.}
-The architectural advantage holds at budget parity. With all four ablation cells trained at the matched $1\,024$-collocation $20\,000$-iteration $n=5$-seed regime, a Welch $t$-test between B0 (Vanilla DeepONet, $8.23 \pm 0.22\%$) and B3 (Full PI-CON, $5.71 \pm 0.11\%$) gives a KE gap of $-2.53$ percentage points ($t=22.9$, $p=3.0\times10^{-7}$, Cohen's $d=14.5$): the gain is significant and not an artefact of seed count or iteration budget. The full $2\times2$ component decomposition appears with the ablation matrix (\S\ref{sec:baseline_comparison}).
+The architectural advantage holds at budget parity. With all four ablation cells trained at the matched $1\,024$-collocation $20\,000$-iteration $n=5$-seed regime, a Welch $t$-test between B0 (Vanilla DeepONet, $8.23 \pm 0.22\%$) and B3 (Full PI-CON, $5.71 \pm 0.11\%$) gives a KE gap of $-2.52$ percentage points ($t=22.9$, $p=3.0\times10^{-7}$, Cohen's $d=14.5$): the gain is significant and not an artefact of seed count or iteration budget. The full $2\times2$ component decomposition appears with the ablation matrix (\S\ref{sec:baseline_comparison}).
 
 \section{Field, Vorticity, and Low-Order Statistics}
 \label{sec:visual}
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/results/field_comparison_t5.png}
-    \caption{Velocity-field comparison at $t=5$ (seed 42). Columns: DNS reference, PI-CON prediction, absolute error. Rows: $u$ (m/s), $v$ (m/s), vorticity $\omega$ (1/s).}
+    \includegraphics[width=0.95\linewidth]{figures/results/field_comparison_t5.pdf}
+    \caption{Velocity and vorticity fields at $t=5$ (seed 42). Columns: DNS reference, PI-CON prediction, absolute error. Rows: $u$ (m/s), $v$ (m/s), vorticity $\omega$ (1/s).}
     \label{fig:field_t5}
 \end{figure}
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.92\linewidth]{figures/results/vorticity_comparison_t5.png}
-    \caption{Vorticity $\omega = \partial_x v - \partial_y u$ (1/s) at $t=5$ (seed 42). Left: DNS; middle: PI-CON prediction; right: error $\omega_{\rm pred} - \omega_{\rm DNS}$ (1/s). Axes: $x, y$ on $\Omega=[0,1]^2$ m$^2$. Left and middle share a colourbar; the error panel uses an independent symmetric scale.}
+    \includegraphics[width=0.92\linewidth]{figures/results/vorticity_comparison_t5.pdf}
+    \caption{Vorticity fields at $t=5$ (seed 42). Left: DNS; middle: PI-CON prediction; right: error $\omega_{\rm pred} - \omega_{\rm DNS}$ (1/s). Axes: $x, y$ on $\Omega=[0,1]^2$ m$^2$. Left and middle share a colourbar; the error panel uses an independent symmetric scale.}
     \label{fig:vorticity_t5}
 \end{figure}
 
-Figure~\ref{fig:field_t5} compares $u$, $v$, and $\omega$ at $t=5$. PI-CON reproduces the dominant DNS structures (the large-scale shear bands in $u$ and energy-containing vortices in $v$) at the correct positions, signs, and amplitudes; the error panels (right column) show only fine-scale, structured residual rather than a bulk offset. The reconstruction acts as a low-pass copy: the energy-dominant large scales are recovered while the finest features are attenuated. This is clearest in vorticity (Figure~\ref{fig:vorticity_t5}, which amplifies high wavenumbers by $k^2$): PI-CON captures the principal vortices (their location, rotation sense, and gross shape) but blurs thin filaments and sharp cores, under-shooting peak vorticity magnitude. The error panel shows that the residual traces vortex boundaries and high-shear filaments rather than being spatially random, consistent with the spectral roll-off in \S\ref{sec:spectrum}.
+Figure~\ref{fig:field_t5} compares $u$, $v$, and $\omega$ at $t=5$. PI-CON recovers the dominant DNS structures (large-scale shear bands in $u$ and energy-containing vortices in $v$) with the correct positions, signs, and amplitudes; residuals are fine-scale and structured rather than bulk offsets. The field is a low-pass reconstruction: energy-dominant large scales are recovered, while vorticity filaments and sharp cores are attenuated, matching the spectral roll-off in \S\ref{sec:spectrum}.
 
 \paragraph{Discussion.}
-The error structure in Figures~\ref{fig:field_t5}--\ref{fig:vorticity_t5} is consistent with $k^2$ amplification of $\omega$ relative to $u$ and $v$: vorticity is the hardest quantity to reconstruct under the $K=100$ budget and is reported as a diagnostic rather than a primary observable. The spatially structured residual, rather than random noise, indicates a wavenumber-content limitation, in agreement with the per-band analysis in \S\ref{sec:spectrum}. For engineering tasks driven by mean flow, kinetic energy, and dominant-structure positions, the $u$ and $v$ reconstruction in Figure~\ref{fig:field_t5} is adequate; tasks requiring fine-scale turbulence statistics (such as higher-order Reynolds-stress moments) need either more sensors or a different prior.
+The error structure in Figures~\ref{fig:field_t5}--\ref{fig:vorticity_t5} follows the $k^2$ amplification of $\omega$ relative to $u$ and $v$: vorticity is the hardest quantity to reconstruct under the $K=100$ budget and is reported as a diagnostic rather than a primary observable. The residual is spatially structured rather than random, pointing to a wavenumber-content limitation (\S\ref{sec:spectrum}). For engineering tasks driven by mean flow, kinetic energy, and dominant-structure positions, the $u$ and $v$ reconstruction in Figure~\ref{fig:field_t5} is adequate; tasks requiring fine-scale turbulence statistics (such as higher-order Reynolds-stress moments) need either more sensors or a different prior.
 
 \paragraph{Low-order statistics.}
-Beyond the instantaneous fields, the time- and span-averaged statistics quantify how well the reconstruction serves mean-flow monitoring. Figure~\ref{fig:mean_profile} reports the mean streamwise profile $\langle u\rangle_{x,t}(y)$ and the Reynolds shear stress $\langle u'v'\rangle_{x,t}(y)$, averaged over $x$ and the post-spin-up window $t\in[1,5]$~s. The mean profile agrees with DNS to $1.55\%$ relative $L_2$ error and the Reynolds shear stress to $8.61\%$; the two-lobe shear structure set by the $k_f=2$ forcing is reproduced in both amplitude and position. Low-order statistics are thus recovered well within the engineering target, supporting mean-flow and momentum-flux monitoring at the $K=100$ budget.
+Beyond the instantaneous fields, the time- and span-averaged statistics quantify how well the reconstruction serves mean-flow monitoring. Figure~\ref{fig:mean_profile} reports the mean streamwise profile $\langle u\rangle_{x,t}(y)$ and the Reynolds shear stress $\langle u'v'\rangle_{x,t}(y)$, averaged over $x$ and the post-spin-up window $t\in[1,5]$~s. The mean profile agrees with DNS to $1.55\%$ relative $L_2$ error and the Reynolds shear stress to $8.61\%$; the two-lobe shear structure set by the $k_f=2$ forcing is reproduced in both amplitude and position. Low-order statistics fall well within the engineering target, supporting mean-flow and momentum-flux monitoring at the $K=100$ budget.
 
 \begin{figure}[!htbp]
     \centering
@@ -157,7 +157,7 @@ Beyond the instantaneous fields, the time- and span-averaged statistics quantify
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.92\linewidth]{figures/results/energy_spectrum.pdf}
-    \caption{Radial energy spectrum at $t=5$ for the representative single seed (seed 42). Horizontal axis: wavenumber $k$ (1/m), log scale; vertical axis: radial energy spectrum $E(k)$ (m$^3$/s$^2$), log scale. DNS (solid black) and PI-CON prediction (dashed orange). Vertical dash-dotted line marks the forcing wavenumber $k_f = 2$; vertical dashed green line marks the sensor Nyquist cutoff $k_{\max}^{\rm sensor}\approx 5.64$.}
+    \caption{Radial energy spectrum at $t=5$ for the representative single seed (seed 42). Horizontal axis: wavenumber $k$ (1/m), log scale; vertical axis: radial energy spectrum $E(k)$ (m$^3$/s$^2$), log scale. DNS (solid black) and PI-CON prediction (dashed blue). Vertical dash-dotted line marks the forcing wavenumber $k_f = 2$; vertical dashed green line marks the sensor Nyquist cutoff $k_{\max}^{\rm sensor}\approx 5.64$.}
     \label{fig:spectrum}
 \end{figure}
 
@@ -166,7 +166,7 @@ Figure~\ref{fig:spectrum} shows the radial energy spectrum at $t=5$. PI-CON matc
 Figure~\ref{fig:band_err} reports the per-band relative error against time. The low band ($k\le 5$) stays near $\sim 4\%$ throughout and reaches near-zero at several instants; the mid-$k$ and high-$k$ bands saturate near $100\%$ from $t\gtrsim 0.5$\,s, at the sensor-information ceiling. (The $t=0$ frame is excluded because high-$k$ energy there is near-zero, making relative error singular.)
 
 \paragraph{Discussion.}
-The high-$k$ deviation is not a model defect; it is the expected signature of a sensor-limited reconstruction. At $K=100$ the available measurements constrain the energy-dominant low-wavenumber band but do not independently determine the mid and high bands. The $K$-scaling experiment in \S\ref{subsec:nyquist_scaling} provides further evidence: the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling.
+The high-$k$ deviation is the expected signature of a sensor-limited reconstruction rather than a model defect. At $K=100$ the available measurements constrain the energy-dominant low-wavenumber band but do not independently determine the mid and high bands. The $K$-scaling experiment in \S\ref{subsec:nyquist_scaling} provides further evidence: the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling.
 
 \begin{figure}[!htbp]
     \centering
@@ -176,7 +176,7 @@ The high-$k$ deviation is not a model defect; it is the expected signature of a 
 \end{figure}
 
 \paragraph{Enstrophy and dissipation under the spectral cutoff.}
-The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.4\%$ on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content removed by the $K=100$ Nyquist cutoff carries enstrophy weighted by $k^2$. The deficit is consistent with the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
+The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.4\%$ on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content removed by the $K=100$ Nyquist cutoff carries enstrophy weighted by $k^2$. The deficit follows the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
 
 \begin{figure}[!htbp]
     \centering
@@ -186,7 +186,7 @@ The band-limited reconstruction carries a direct consequence for vorticity-deriv
 \end{figure}
 
 \paragraph{Forcing-mode ($k = k_f = 2$) diagnostic.}
-Because $k_f = 2$ lies inside the sensor-resolvable low band, the forcing-mode amplitude and phase serve as a focused sanity check on the energy-injection scale rather than as broadband evidence. Figure~\ref{fig:kf_mode} tracks both over $n=5$ seeds: after the initial-condition window ($t\ge 1$~s) the amplitude ratio holds near unity (across-seed mean $0.99$) and the phase error stays within $0.09$~rad ($\approx 5^\circ$), ending at $-0.013$~rad, the larger early-time excursions reflecting the initial-condition reconstruction difficulty. The forcing enters the Navier--Stokes residual as a fixed source, yet the velocity coefficient $\hat{u}_{k_f}(t)$ is a dynamical response whose decaying amplitude and phase the model recovers; broadband pointwise fidelity is quantified separately by the velocity relative-$L_2$ errors of Table~\ref{tab:main_metrics}.
+Because $k_f = 2$ lies inside the sensor-resolvable low band, the forcing-mode amplitude and phase check the energy-injection scale. Over $n=5$ seeds, after the initial-condition window ($t\ge 1$~s), the amplitude ratio holds near unity (mean $0.99$) and the phase error stays within $0.09$~rad ($\approx 5^\circ$), ending at $-0.013$~rad (Fig.~\ref{fig:kf_mode}), recovering the forced response; broadband pointwise fidelity is reported separately in Table~\ref{tab:main_metrics}.
 
 \begin{figure}[!htbp]
     \centering
@@ -196,7 +196,7 @@ Because $k_f = 2$ lies inside the sensor-resolvable low band, the forcing-mode a
 \end{figure}
 
 \paragraph{Temporal dynamics.}
-Because the CfC branch encodes the sensor time series rather than reconstructing each frame independently, the reconstruction is also assessed in the time domain. Figure~\ref{fig:temporal_consistency} shows a velocity probe trace at the domain centre and the spatially-averaged temporal autocorrelation $R_{uu}(\tau)$. The probe trace follows the DNS instantaneous evolution, and the autocorrelation reproduces the DNS decorrelation: the $1/e$ time is $0.40$~s for PI-CON against $0.375$~s for DNS. The reconstruction thus recovers the temporal decorrelation structure, not only per-frame spatial statistics. A forward LES initialised from the same field departs from the DNS over this window (Fig.~\ref{fig:temporal_consistency}a, dotted), so the instantaneous probe evolution is recovered from the sparse sensor stream, not from a forward simulation.
+Because the CfC branch encodes the sensor time series rather than reconstructing each frame independently, the reconstruction is also assessed in the time domain. Figure~\ref{fig:temporal_consistency} shows a velocity probe trace at the domain centre and the spatially-averaged temporal autocorrelation $R_{uu}(\tau)$. The probe trace follows the DNS instantaneous evolution, and the autocorrelation reproduces the DNS decorrelation: the $1/e$ time is $0.40$~s for PI-CON against $0.375$~s for DNS. The reconstruction recovers the temporal decorrelation structure, not only per-frame spatial statistics. A forward LES initialised from the same field departs from the DNS over this window (Fig.~\ref{fig:temporal_consistency}a, dotted), so the instantaneous probe evolution is recovered from the sparse sensor stream, not from a forward simulation.
 
 \begin{figure}[!htbp]
     \centering
@@ -216,7 +216,7 @@ The main pipeline applies Augmented-Lagrangian (AL) continuity at $\rho=0.1$, an
 
 \paragraph{Architectural ablation matrix.}
 \label{sec:baseline_comparison}
-The ablation isolates the contribution of CfC and cross-attention under the final common supervision regime. A $2\times2$ matrix toggles CfC and cross-attention independently: Vanilla DeepONet (B0), CfC-only (B1), Cross-attention-only (B2), and Full PI-CON (B3). The four cells share the supervision regime of \S\ref{sec:engineering_constraint}, the optimizer, the LES $T=50$ sensor placement, and $1024$ physics-collocation points used by the main pipeline (\S\ref{sec:main_result}). Engineering-transferable interpolation baselines (RBF, IDW, divergence-free trigonometric least squares) are compared against PI-CON in Appendix~\ref{app:fair_baselines}: PI-CON reduces pointwise $u$ rel-$L_2$ by $47$--$74\%$ relative to them despite their lower KE, which reflects over-smoothing toward the inter-sensor mean rather than better reconstruction.
+The ablation isolates the contribution of CfC and cross-attention under the final common supervision regime. A $2\times2$ matrix toggles CfC and cross-attention independently: Vanilla DeepONet (B0), CfC-only (B1), Cross-attention-only (B2), and Full PI-CON (B3). The four cells share the supervision regime of \S\ref{sec:engineering_constraint}, the optimizer, the LES $T=50$ sensor placement, and $1024$ physics-collocation points used by the main pipeline (\S\ref{sec:main_result}). Engineering-transferable interpolation baselines (RBF, IDW, divergence-free trigonometric least squares) are compared against PI-CON in Appendix~\ref{app:fair_baselines}: PI-CON reduces pointwise $u$ rel-$L_2$ by $47$--$74\%$ relative to them despite their lower KE, which comes from over-smoothing toward the inter-sensor mean rather than better reconstruction.
 
 \begin{table}[!htbp]
     \centering
@@ -244,7 +244,7 @@ The ablation isolates the contribution of CfC and cross-attention under the fina
 \end{table}
 
 \paragraph{Architectural ranking under the main pipeline.}
-With all four cells trained at the matched $20\,000$-iteration, $n=5$-seed budget, the KE ordering is B3 ($5.71 \pm 0.11\%$) $\prec$ B2 ($7.03 \pm 0.14\%$) $\prec$ B0 ($8.23 \pm 0.22\%$) $\prec$ B1 ($9.23 \pm 0.51\%$). Seed-paired Welch $t$-tests confirm every gap to B3 is significant: $-2.53$ percentage points versus B0 ($t=22.9$, $p=3.0\times10^{-7}$), $-3.52$ versus B1 ($t=15.1$, $p=5.5\times10^{-5}$), and $-1.32$ versus B2 ($t=16.3$, $p=2.4\times10^{-7}$). Decomposing the $2\times2$ on the absolute KE scale about the B0 reference cell (where the decomposition is additive) separates a cross-attention main effect of $-1.21$ percentage points, a CfC main effect of $+0.99$, and a CfC$\times$cross-attention interaction of $-2.31$, summing to the $-2.53$ B3$-$B0 total. Cross-attention is the dominant lever. CfC raises KE error on its own (mean-pool aggregation in B1 erodes the per-query specificity that physics-residual sampling supplies) but carries a large negative interaction, so it lowers error only in combination with the cross-attention readout.
+With all four cells trained at the matched $20\,000$-iteration, $n=5$-seed budget, the KE ordering is B3 ($5.71 \pm 0.11\%$) $\prec$ B2 ($7.03 \pm 0.14\%$) $\prec$ B0 ($8.23 \pm 0.22\%$) $\prec$ B1 ($9.23 \pm 0.51\%$). Seed-paired Welch $t$-tests confirm every gap to B3 is significant: $-2.52$ percentage points versus B0 ($t=22.9$, $p=3.0\times10^{-7}$), $-3.52$ versus B1 ($t=15.1$, $p=5.5\times10^{-5}$), and $-1.32$ versus B2 ($t=16.3$, $p=2.4\times10^{-7}$). Decomposing the $2\times2$ on the absolute KE scale about the B0 reference cell (where the decomposition is additive) separates a cross-attention main effect of $-1.20$ percentage points, a CfC main effect of $+1.00$, and a CfC$\times$cross-attention interaction of $-2.32$, summing to the $-2.52$ B3$-$B0 total. Cross-attention is the dominant lever. CfC raises KE error on its own (mean-pool aggregation in B1 erodes the per-query specificity that physics-residual sampling supplies) but carries a large negative interaction, so it lowers error only in combination with the cross-attention readout.
 
 \section{Sensing-Configuration Study}
 \label{sec:sensing_study}
@@ -258,7 +258,9 @@ The most direct test of the information-limited interpretation varies sensor cou
 \begin{equation}
     k_{\max}^{\rm sensor} \;\approx\; \sqrt{K/\pi},
 \end{equation}
-a scale for the reconstructable band rather than a hard cutoff: it counts each sensor as a single sample, whereas the two measured velocity components $(u,v)$ at the divergence-free-constrained locations push the strict linear-observability limit somewhat higher (for $K=100$ the sensing matrix stays full-rank up to $k\lesssim 8$, Appendix~\ref{app:info_ceiling_diagnostics}). Raising $K$ from $100$ to $200$ and $400$ moves this scale from $\approx 5.64$ to $7.98$ and $11.28$. Read against the DNS energy distribution, it locates how much energy lies within reach of each sensor count: Figure~\ref{fig:nyquist_recoverability} integrates the DNS energy CDF at $t=5$ over the $|\mathbf{k}|\le k_{\max}^{\rm sensor}$ disk, giving $98.9\%$, $99.7\%$, and $99.9\%$ of total kinetic energy at $K=100$, $200$, and $400$. These fractions report the energy available below the sensor-count scale, not a proof that higher-$k$ energy is unrecoverable; the information-limited reading rests instead on the empirical cutoff tracking $\sqrt{K/\pi}$ as $K$ grows.
+a scale for the reconstructable band rather than a hard cutoff. It counts each sensor as a single sample, whereas the two measured velocity components $(u,v)$ at the divergence-free-constrained locations push the strict linear-observability limit somewhat higher (for $K=100$ the sensing matrix stays full-rank up to $k\lesssim 8$, Appendix~\ref{app:info_ceiling_diagnostics}). Raising $K$ from $100$ to $200$ and $400$ moves this scale from $\approx 5.64$ to $7.98$ and $11.28$.
+
+Read against the DNS energy distribution, the scale locates how much energy lies within reach of each sensor count. Figure~\ref{fig:nyquist_recoverability} integrates the DNS energy CDF at $t=5$ over the $|\mathbf{k}|\le k_{\max}^{\rm sensor}$ disk, giving $98.9\%$, $99.7\%$, and $99.9\%$ of total kinetic energy at $K=100$, $200$, and $400$. These fractions report the energy available below the sensor-count scale, not a proof that higher-$k$ energy is unrecoverable. The information-limited reading rests instead on the empirical cutoff tracking $\sqrt{K/\pi}$ as $K$ grows.
 
 \begin{figure}[!htbp]
     \centering
@@ -309,7 +311,7 @@ Table~\ref{tab:k_scaling_nyquist} reports the empirical reconstruction following
         \caption{$K=400$, $k_{\max}^{\rm sensor}\approx 11.28$}
         \label{fig:spectrum_K400}
     \end{subfigure}
-    \caption{Radial energy spectrum $E(k)$ (m$^3$/s$^2$) versus wavenumber $k$ (1/m) at $t=5$ for the three sensor budgets of Table~\ref{tab:k_scaling_nyquist}. Each panel: DNS (solid black), PI-CON (dashed orange), $k^{-3}$ enstrophy-cascade reference (dotted grey; the forward-cascade slope for $k>k_f$), forcing $k_f = 2$ (dash-dotted black), sensor Nyquist $k_{\max}^{\rm sensor}=\sqrt{K/\pi}$ (dashed green). LES-derived QR-pivot, seed $42$, $20\,000$ iterations.}
+    \caption{Radial energy spectrum $E(k)$ (m$^3$/s$^2$) versus wavenumber $k$ (1/m) at $t=5$ for three sensor budgets. Each panel: DNS (solid black), PI-CON (dashed blue), $k^{-3}$ enstrophy-cascade reference (dotted grey; the forward-cascade slope for $k>k_f$), forcing $k_f = 2$ (dash-dotted black), sensor Nyquist $k_{\max}^{\rm sensor}=\sqrt{K/\pi}$ (dashed green). LES-derived QR-pivot, seed $42$, $20\,000$ iterations.}
     \label{fig:k_scaling_spectra}
 \end{figure}
 
@@ -319,7 +321,7 @@ The agreement is qualitative but clear: at $K=100$ the $\sqrt{K/\pi}$ scale sits
 \subsection{Information-Ceiling Summary}
 \label{sec:info_limit_summary}
 
-The $K=100$ result should be read against the sensor information ceiling rather than as an unconstrained full-field regression problem. A wavelet sparsity diagnostic, a sensing-matrix rank calculation, and a spectral-truncation bound all give the same conclusion: the low-wavenumber band is observable enough to support engineering KE and mean-flow monitoring, while mid- and high-wavenumber content remains underdetermined at this sensor budget. The B3 multi-seed KE error ($5.71\%$) maps to an effective spectral cutoff between $k_{\rm cut}=4$ and $5$, and the vorticity error maps to a cutoff near the sensor Nyquist estimate $k_{\max}^{\rm sensor}\approx 5.64$. Thus, closing the remaining mid/high-band error requires more sensors or extra modalities, not another architecture-side loss term.
+The $K=100$ result should be read against the sensor information ceiling rather than as an unconstrained full-field regression problem. A wavelet sparsity diagnostic, a sensing-matrix rank calculation, and a spectral-truncation bound point to the same interpretation: the low-wavenumber band is observable enough to support engineering KE and mean-flow monitoring, while mid- and high-wavenumber content remains underdetermined at this sensor budget. The B3 multi-seed KE error ($5.71\%$) maps to an effective spectral cutoff between $k_{\rm cut}=4$ and $5$, and the vorticity error maps to a cutoff near the sensor Nyquist estimate $k_{\max}^{\rm sensor}\approx 5.64$. Closing the remaining mid/high-band error therefore requires more sensors or extra modalities, not another architecture-side loss term.
 
 The detailed wavelet, SVD, and spectral-truncation diagnostics are collected in Appendix~\ref{app:info_ceiling_diagnostics}.
 
@@ -352,7 +354,7 @@ Placement strategy contributes a variance source larger than training stochastic
 \end{table}
 
 \paragraph{Strategy comparison.}
-All three strategies stay below the $10\%$ KE engineering target. The DNS oracle gives the lowest integral KE error ($4.68\%$), but the LES-derived placement gives lower pointwise velocity error ($u$ rel-$L_2$ $13.65\%$ vs.\ $15.34\%$) while needing no DNS full field to place the sensors. Random placement remains feasible ($7.95\%$ KE) but less reliable; thus placement changes reliability more than feasibility. The final pipeline therefore adopts LES-derived QR-pivot placement as the deployable reference: it approaches the DNS oracle without needing a DNS full field for placement, and improves over random placement by $2.24$ KE percentage points.
+All three strategies stay below the $10\%$ KE engineering target. The DNS oracle gives the lowest integral KE error ($4.68\%$), but the LES-derived placement gives lower pointwise velocity error ($u$ rel-$L_2$ $13.65\%$ vs.\ $15.34\%$) while needing no DNS full field to place the sensors. Random placement remains feasible ($7.95\%$ KE) but less reliable: placement changes reliability more than feasibility. The final pipeline adopts LES-derived QR-pivot placement as the deployable reference: it approaches the DNS oracle without needing a DNS full field for placement, and improves over random placement by $2.24$ KE percentage points.
 
 \label{sec:placement_variance}
 
@@ -394,10 +396,10 @@ The two five-seed estimates yield $\sigma_{\rm training}=0.11\%$ (LES $T=50$, Ta
     \sigma_{\rm placement}/\sigma_{\rm training} \;\approx\; 6.2\times.
     \label{eq:placement_dominance}
 \end{equation}
-LES-derived placement improves both the mean (KE $5.71\%$ vs.\ $7.95\%$, $\Delta=2.24$ percentage points, Welch $z \approx 3.3$, $p<0.01$) and the reproducibility ($6.2\times$ tighter), so engineering deployment should prioritise placement optimisation over training repetition. Divergence ratio stays at $0.35 \pm 0.01\%$ across all five placement seeds: the divergence diagnostic (\S\ref{sec:sub_dns_div}) is placement-invariant within the random-uniform family.
+The ratio in \eqref{eq:placement_dominance} shows that LES-derived placement improves both the mean (KE $5.71\%$ vs.\ $7.95\%$, $\Delta=2.24$ percentage points, Welch $z \approx 3.3$, $p<0.01$) and the reproducibility ($6.2\times$ tighter), so engineering deployment should prioritise placement optimisation over training repetition. Divergence ratio stays at $0.35 \pm 0.01\%$ across all five placement seeds: the divergence diagnostic (\S\ref{sec:sub_dns_div}) is placement-invariant within the random-uniform family.
 
 \paragraph{Field alignment does not improve placement.}
-The placement LES is an independent realisation, statistically converged yet pointwise-decorrelated from the DNS (\S\ref{sec:les_placement}). A natural expectation is that a more field-aligned LES (initialised from the DNS field at $t=0$, so that it tracks the DNS pointwise for roughly one eddy-turnover time, Fig.~\ref{fig:les_predictability}) would select better sensors. Table~\ref{tab:placement_dnsinit} refutes this. A DNS-initialised (dns-init) LES integrated only to $t=5$ ($\sim 2.5\,\tau$) gives a worse placement (KE $9.12\%$) than the statistically-converged random-initial-condition $T=50$ LES ($\sim 22\,\tau$, $5.90\%$) at the same training seed and configuration: DNS seeding does not help, it hurts. QR-pivoting selects positions from the leading POD modes, which require a statistically-converged trajectory; a DNS-seeded LES first sheds the small-scale energy it cannot sustain (an initial spin-down transient), so the short $t=5$ window captures that transient rather than the attractor. Pointwise field alignment at matched time is therefore irrelevant, indeed counterproductive, for placement, which supports selecting sensors from a statistically-converged, DNS-free $T=50$ LES. The dns-init run requires a DNS field to seed and is reported only as a diagnostic, not as a deployable option.
+The placement LES is an independent, statistically converged realisation (\S\ref{sec:les_placement}). Initialising LES from the DNS field might seem preferable because it tracks the DNS pointwise for about one eddy-turnover time (Fig.~\ref{fig:les_predictability}), but Table~\ref{tab:placement_dnsinit} shows the opposite. A DNS-initialised LES integrated only to $t=5$ gives worse placement (KE $9.12\%$) than the statistically converged random-IC $T=50$ LES ($5.90\%$) at the same training seed. QR-pivot placement depends on leading POD modes, so a short DNS-seeded spin-down trajectory is less useful than a converged attractor sample. The dns-init run also requires a DNS field to seed and is diagnostic only.
 
 \begin{table}[!htbp]
     \centering
@@ -417,11 +419,11 @@ The placement LES is an independent realisation, statistically converged yet poi
 \subsection{Sensor Noise Robustness}
 \label{sec:noise_robustness}
 
-Because the main pipeline relies on measured sensor time series rather than full-field supervision, moderate observation noise must not dominate reconstruction. Table~\ref{tab:noise_robustness} reports the response to per-channel Gaussian noise at $1$--$10\%$ of the sensor standard deviation, with the LES-derived layout and final $20\,000$-iteration, $1024$-collocation training setup fixed. The sweep uses $n=5$ seeds at each noise level and supports O3 by testing whether the trained recipe remains engineering-grade under controlled additive perturbations.
+Because the main pipeline relies on measured sensor time series rather than full-field supervision, moderate observation noise must not dominate reconstruction. Table~\ref{tab:noise_robustness} reports the response to per-channel Gaussian noise at $1$--$10\%$ of the sensor standard deviation, with the LES-derived layout and final $20\,000$-iteration, $1024$-collocation training setup fixed. The sweep uses $n=5$ seeds at each noise level and supports O3 by testing whether the trained recipe remains within the engineering target under controlled additive perturbations.
 
 \begin{table}[!htbp]
     \centering
-    \caption{Sensor-noise robustness of the LES-pivot pipeline under the final PI-CON protocol ($20\,000$ iterations, $1024$ collocation, $n=5$ seeds per noise level). Noise level is relative to the per-channel sensor standard deviation; $\Delta$~KE is measured against the clean final-protocol baseline in Table~\ref{tab:main_metrics}.}
+    \caption{Sensor-noise robustness of the LES-pivot pipeline under the final PI-CON protocol ($20\,000$ iterations, $1024$ collocation, $n=5$ seeds per noise level). Noise level is relative to the per-channel sensor standard deviation; $\Delta$~KE is measured against the clean final-protocol baseline.}
     \label{tab:noise_robustness}
     \small
     \setlength{\tabcolsep}{5pt}
@@ -445,12 +447,11 @@ The aggregate trend is monotone: increasing sensor noise raises KE error, pointw
 
 The same architecture, with the sensor budget and model capacity retuned, is applied at $Re=10^{6}$ to probe whether the approach remains feasible two orders of magnitude higher in Reynolds number.
 
-PI-CON is evaluated at $Re=10^{6}$, two orders of magnitude above the primary test case.
 At higher Reynolds numbers the spatial under-sampling ratio $d/\delta_\omega$ (sensor spacing $d = L/\sqrt{K}$ relative to vorticity layer thickness $\delta_\omega \propto Re^{-1/2}$) is approximately $10\times$ more severe than at $Re=10^{4}$.
 Three adaptations are applied: sensor count is raised to $K=200$; the LES proxy is run to $T=50$ turnover times for statistically converged placement (\S\ref{sec:les_placement}); and the model is widened to $d_\text{model}=384$ with $50\,000$ training steps.
 All other hyperparameters follow the $Re=10^{4}$ baseline (Chapter~\ref{ch:experiments_setup}).
 
-Results are in Table~\ref{tab:re1e6}. KE MAPE attains $6.10\%$, close to the $Re=10^{4}$ baseline level ($5.71 \pm 0.11\%$, Table~\ref{tab:main_metrics}) but not directly comparable as a seed-statistics claim because the $Re=10^{6}$ run is single-seed and uses a retuned sensor budget, width, and step count. This is therefore a feasibility case at higher Reynolds number, not a like-for-like generalisation or recipe-transfer claim.
+Results are in Table~\ref{tab:re1e6}. KE MAPE attains $6.10\%$, close to the $Re=10^{4}$ baseline level ($5.71 \pm 0.11\%$, Table~\ref{tab:main_metrics}) but not directly comparable as a seed-statistics claim because the $Re=10^{6}$ run is single-seed and uses a retuned sensor budget, width, and step count. This is a feasibility case at higher Reynolds number, not a like-for-like generalisation or recipe-transfer claim.
 The divergence diagnostic is consistent across Reynolds numbers: div-ratio $0.37\%$ matches the $Re=10^{4}$ value of $0.39\%$ (\S\ref{sec:sub_dns_div}), indicating the continuity constraint reaches its band-limited floor at both $Re$.
 The forcing-mode amplitude ratio reaches $1.04$, confirming recovery of the dominant energy-injection mode.
 Enstrophy rel-err ($42\%$) is higher than at $Re=10^{4}$, consistent with the wider gap between the sensor Nyquist ceiling ($k_\text{max}\approx8$ at $K=200$) and the $Re=10^{6}$ dissipation cut-off ($k\approx100$), rather than an architectural limitation.
@@ -479,7 +480,7 @@ The key result is that matched low-frequency accuracy (KE $6.10\%$ vs.\ $5.71\%$
 
 
 \paragraph{Diagnostic boundaries.}
-Several diagnostic findings define the boundary of the final recipe without changing the main result. Recovering the Kolmogorov forcing parameters from $K=100$ sensors failed under the tested setup (near-zero flat-region initialisation): accurate velocity reconstruction did not certify recovery of $A$ or $k_f$, though structural identifiability is not established. Extending Augmented-Lagrangian enforcement from continuity to the Navier--Stokes momentum residual is not promoted as a main-recipe improvement: the final-protocol rerun gives mixed single-seed results, so the final pipeline keeps the $n=5$-validated continuity-only AL recipe and leaves momentum residuals to GradNorm weighting. These functional-parameter and recipe diagnostics are reported in Appendix~\ref{app:diagnostic_ablation_forward_cfd} rather than used as Chapter~\ref{ch:results} evidence.
+Several diagnostic findings define the boundary of the final recipe without changing the main result. The Kolmogorov forcing parameters are not recovered from $K=100$ sensors under the tested setup (near-zero flat-region initialisation): accurate velocity reconstruction did not certify recovery of $A$ or $k_f$, though structural identifiability is not established. Extending Augmented-Lagrangian enforcement from continuity to the Navier--Stokes momentum residual is not promoted as a main-recipe improvement: the final-protocol rerun gives mixed single-seed results, so the final pipeline keeps the $n=5$-validated continuity-only AL recipe and leaves momentum residuals to GradNorm weighting. These functional-parameter and recipe diagnostics are reported in Appendix~\ref{app:diagnostic_ablation_forward_cfd} rather than used as Chapter~\ref{ch:results} evidence.
 
 \section{Engineering Applicability}
 \label{sec:engineering_app}
@@ -487,13 +488,13 @@ Several diagnostic findings define the boundary of the final recipe without chan
 Inference cost is quantified below.
 
 \paragraph{End-to-end pipeline cost.}
-Table~\ref{tab:inference_cost} reports the end-to-end pipeline cost. The encoder pass costs $70.7 \pm 3.8$\,ms once per trajectory; subsequent spatial queries cost $32\,\mu$s per grid point ($31\,030$ queries/s). Because the trunk evaluates any coordinate directly, the operator answers an arbitrary space--time query without re-integrating the solver from an initial condition: the query-anywhere property required by O1 (\S\ref{sec:research_questions}). Sparse monitoring (up to $\sim 3\,000$ query points) completes within $100$\,ms, whereas a full $128^2$ field query costs $527.8 \pm 17.1$\,ms, so single-shot real-time full-field reconstruction on CPU or MPS requires GPU or batched optimisation.
+Table~\ref{tab:inference_cost} reports the end-to-end pipeline cost. The encoder pass costs $70.7 \pm 3.8$\,ms once per trajectory; subsequent spatial queries cost $32\,\mu$s per grid point ($31\,030$ queries/s). Because the trunk evaluates any coordinate directly, the operator answers an arbitrary space--time query without re-integrating the solver from an initial condition, meeting the query-anywhere requirement of O1 (\S\ref{sec:research_questions}). Sparse monitoring (up to $\sim 3\,000$ query points) completes within $100$\,ms, whereas a full $128^2$ field query costs $527.8 \pm 17.1$\,ms. Single-shot real-time full-field reconstruction on CPU or MPS therefore requires GPU or batched optimisation.
 
 The one-time setup couples the placement-LES forward solve over the reconstruction window ($256^2$, $50\,000$ steps at $\Delta t = 10^{-4}$~s, $7.6$\,min) with operator training ($1.33$\,h), totalling $\approx 1.46$\,h against the $3.27$\,h required to solve the $1024^2$ DNS reference over the same window. The trained operator then reconstructs a full trajectory in $9.7$\,min and answers further space--time queries at negligible marginal cost, so the setup amortises across queries. This setup-versus-solve margin mixes hardware (GPU training against the CPU DNS solve) and is not the engineering case for the operator: forward simulation cannot reconstruct a field from sparse observations, and the DNS is unavailable on a new scene. The margin widens where a single high-fidelity solve is far more expensive (3D, multi-physics, or higher-Reynolds flows); establishing this remains an open follow-up.
 
 \begin{table}[!htbp]
     \centering
-    \caption{End-to-end cost of the PI-CON pipeline against the DNS reference. The one-time setup couples the placement-LES forward solve over the reconstruction window $t\in[0,5]$~s (the placement basis itself uses the longer integration of \S\ref{sec:les_placement}) with operator training; per-trajectory inference is then reused for arbitrary space--time queries. Wall-clock is single-host CPU (numpy) for the LES and DNS solves, a single GPU for training, and Apple M3 MPS for inference, so the setup-versus-DNS ratio mixes hardware. Times in milliseconds (ms), minutes (min), or hours (h) as indicated; throughput in queries per second (q/s).}
+    \caption{End-to-end cost of the PI-CON pipeline against the DNS reference. The one-time setup couples the placement-LES forward solve over the reconstruction window $t\in[0,5]$~s with operator training; per-trajectory inference is then reused for arbitrary space--time queries. Wall-clock is single-host CPU (numpy) for the LES and DNS solves, a single GPU for training, and Apple M3 MPS for inference, so the setup-versus-DNS ratio mixes hardware. Times in milliseconds (ms), minutes (min), or hours (h) as indicated; throughput in queries per second (q/s).}
     \label{tab:inference_cost}
     \small
     \setlength{\tabcolsep}{5pt}

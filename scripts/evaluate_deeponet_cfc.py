@@ -33,7 +33,7 @@ TRAIN_RATIO_FALLBACK = 0.8
 
 # 期刊風格繪圖（NeurIPS/ICLR）— 透過 shared helper 套用全域 rcParams。
 # Why: 三個 evaluator script 共用同一 style 避免 figure 在同一篇 paper 中 drift。
-from pi_con.plot_style import apply_journal_rcparams
+from pi_con.plot_style import apply_journal_rcparams, DNS, PICON
 apply_journal_rcparams()
 
 
@@ -591,7 +591,7 @@ def plot_energy_spectrum(
     mask_pred = e_pred > 0.0
     fig, ax = plt.subplots(figsize=(5.5, 2.8), constrained_layout=True)
     ax.loglog(k_ref[mask_ref], e_ref[mask_ref], color="#000000", linestyle="-", label="DNS")
-    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color="#D55E00", linestyle="--", label="PI-CON")
+    ax.loglog(k_pred[mask_pred], e_pred[mask_pred], color=PICON, linestyle="--", label="PI-CON")
 
     # k^(-3) 2D 正向 enstrophy-cascade 參考線（k>k_f；Kraichnan）。
     # 不是 k^(-5/3)：後者是 k<k_f 的 inverse energy cascade。anchor 在 k_forcing。
@@ -629,10 +629,10 @@ def plot_metric_vs_time(
     """What: DNS vs PI-CON 時序比較（期刊單欄寬度）。"""
     me = _markevery_for(len(time_vals))
     fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
-    ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
+    ax.plot(time_vals, ref_vals, color=DNS, linestyle="-", marker="o",
             markevery=me, label="DNS")
-    ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
-            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="PI-CON")
+    ax.plot(time_vals, pred_vals, color=PICON, linestyle="--", marker="o",
+            markevery=me, markerfacecolor="white", markeredgecolor=PICON, label="PI-CON")
     ax.set_title(title)
     ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
@@ -764,10 +764,10 @@ def plot_mode_vs_time(
     """What: forcing mode amplitude / phase 時間演化（期刊單欄寬度）。"""
     me = _markevery_for(len(time_vals))
     fig, ax = plt.subplots(figsize=(3.6, 2.6), constrained_layout=True)
-    ax.plot(time_vals, ref_vals, color="#1f77b4", linestyle="-", marker="o",
+    ax.plot(time_vals, ref_vals, color=DNS, linestyle="-", marker="o",
             markevery=me, label="DNS")
-    ax.plot(time_vals, pred_vals, color="#d62728", linestyle="--", marker="o",
-            markevery=me, markerfacecolor="white", markeredgecolor="#d62728", label="PI-CON")
+    ax.plot(time_vals, pred_vals, color=PICON, linestyle="--", marker="o",
+            markevery=me, markerfacecolor="white", markeredgecolor=PICON, label="PI-CON")
     ax.set_title(title)
     ax.set_xlabel(r"Time $t$ [s]")
     ax.set_ylabel(y_label)
@@ -885,7 +885,9 @@ def main() -> None:
     xx, yy = np.meshgrid(x_g, y_g, indexing="ij")
     xy_flat = np.stack([xx.ravel(), yy.ravel()], axis=1).astype(np.float32)
     xy_t = torch.tensor(xy_flat, dtype=torch.float32, device=device)
-    batch = 8192
+    # 8192 OOMs at K=400 (full-field query × K cross-attention + 2nd-order autograd
+    # peaks ~17 GB); 2048 keeps the peak memory-safe on 20 GB MPS / 32 GB CPU.
+    batch = 2048
 
     sv_t = torch.tensor(sensor_vals.transpose(1, 0, 2), dtype=torch.float32, device=device)
     sp_t = torch.tensor(sensor_pos, dtype=torch.float32, device=device)

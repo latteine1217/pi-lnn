@@ -58,10 +58,10 @@ def setup_style() -> None:
 
 
 # Color & marker palette (B&W-print safe — distinct via marker + linestyle)
-N_COLORS = {
-    128:  "#1f77b4",   # blue
-    256:  "#d62728",   # red (main result, emphasised)
-    512:  "#2ca02c",   # green
+N_COLORS = {  # Okabe--Ito (matches pi_con.plot_style.N_COLORS)
+    128:  "#0072B2",   # blue
+    256:  "#D55E00",   # vermillion (main result, emphasised)
+    512:  "#009E73",   # bluish-green
     1024: "#000000",   # black (reference)
 }
 N_MARKERS = {128: "o", 256: "s", 512: "^", 1024: "D"}

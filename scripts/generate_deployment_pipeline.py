@@ -1,11 +1,15 @@
-"""Generate the PI-CON deployment-pipeline figure (capability-contrast narrative).
+"""Generate the PI-CON deployment-pipeline figure (WHERE-vs-WHAT narrative).
 
-What: 一條左到右的工程部署流程圖：便宜 LES 佈點 → K=100 感測器量測 →
-      PI-CON 重建全場；強調 capability contrast（LES 只能佈點/給統計，
-      無法重建單一 realization；PI-CON 從同一佈點 + 感測器歷史重建實際流場）。
-Why: §Methodology 的 REAL_WORLD_PIPELINE 需要視覺化「現場可得 = LES + sensor + PDE，
-     DNS 不存在」，並把 advisor 想要的賣點（model 比 LES 更能還原真實流場）以
-     誠實的 capability 框架呈現（非誤差賽跑數字）。固定座標避免箭頭拓撲錯誤。
+What: 兩軌關係圖，明確區分「模型真正吃什麼」與「離線鷹架」：
+      - 上排（綠）：Low-cost LES --POD+QR-pivot--> Sensor positions（只給位置，不給資料）。
+      - 中排（可部署資料路徑，solid）：DNS field（real-world stand-in，橘）--read u,v at K pts-->
+        Sensor time series（藍）--sensor stream--> PI-CON（藍）--query--> Reconstructed field（紫）。
+      - 右下（紫，dashed）：Offline evaluation（DNS full field，只做離線 benchmark）。
+      - 左下註解框：LES 決定 WHERE、DNS stand-in 供 WHAT。
+Why: 舊版單一直線把 LES 畫成資料上游，讀者誤以為模型需要 LES 資料，且 DNS 角色不清。
+     本版用 solid=可部署資料/訓練路徑、dashed=位置指標與離線評估，讓
+     「訓練只吃 sparse sensor + PDE residual、LES 只佈點、DNS 全場僅離線評估」一眼可辨。
+     固定座標避免箭頭拓撲錯誤與文字重疊（舊版頂部標題壓到 DNS box 的 bug 已移除）。
 """
 from __future__ import annotations
 
@@ -18,109 +22,144 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "docs" / "figures"
 OUT_STEM = OUT_DIR / "picon_deployment_pipeline"
 
+# 語意分組 + 色盲友善（關鍵區分另以 solid/dashed 線型冗餘編碼，不單靠顏色）
 COLORS = {
     "ink": "#1f2933",
-    "muted": "#59636f",
-    "novel": "#1f6fb2",
-    "novel_fill": "#e7f1fb",
-    "backbone": "#566173",
-    "backbone_fill": "#eef2f7",
     "line": "#253142",
-    "light": "#cbd5df",
-    "warn": "#b43d15",
+    # 綠：placement 鷹架（LES 決定 WHERE）
+    "place_edge": "#2e7d5b", "place_fill": "#e7f3ec",
+    # 橘：DNS real-world stand-in（供 WHAT）
+    "dns_edge": "#6f7a85", "dns_fill": "#eef1f3",
+    # 藍：可部署輸入 + 方法（hero）
+    "novel_edge": "#1f6fb2", "novel_fill": "#e7f1fb",
+    # 紫：輸出 + 離線評估
+    "out_edge": "#7b4fa0", "out_fill": "#f1e9f7",
+    "muted": "#59636f",
 }
 
+DASH = (0, (4, 3))  # 離線 / 位置指標關係的統一虛線樣式
 
-def add_box(ax, x, y, w, h, title, subtitle="", *, edge, face, title_color=None,
-            title_size=9.0, subtitle_size=7.0, lw=1.4):
+
+def add_box(ax, x, y, w, h, title, subtitle="", *, edge, face,
+            title_size=8.1, subtitle_size=7.0, lw=1.5, dashed=False):
     ax.add_patch(
         patches.FancyBboxPatch(
-            (x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.08",
+            (x, y), w, h, boxstyle="round,pad=0.02,rounding_size=0.10",
             linewidth=lw, edgecolor=edge, facecolor=face, zorder=3,
+            linestyle=DASH if dashed else "solid",
         )
     )
-    ax.text(x + w / 2, y + h * (0.62 if subtitle else 0.5), title, ha="center", va="center",
-            fontsize=title_size, fontweight="bold", color=title_color or edge, zorder=4)
+    ax.text(x + w / 2, y + h * (0.64 if subtitle else 0.5), title, ha="center", va="center",
+            fontsize=title_size, fontweight="bold", color=edge, zorder=4)
     if subtitle:
-        ax.text(x + w / 2, y + h * 0.30, subtitle, ha="center", va="center",
-                fontsize=subtitle_size, color=COLORS["ink"], linespacing=1.25, zorder=4)
-
-
-def add_badge(ax, cx, cy, num, *, color=COLORS["novel"], r=0.19):
-    ax.add_patch(patches.Circle((cx, cy), r, facecolor=color, edgecolor="white", linewidth=1.1, zorder=7))
-    ax.text(cx, cy, str(num), ha="center", va="center", fontsize=9.0, fontweight="bold", color="white", zorder=8)
+        ax.text(x + w / 2, y + h * 0.28, subtitle, ha="center", va="center",
+                fontsize=subtitle_size, color=COLORS["ink"], linespacing=1.22, zorder=4)
 
 
 def add_arrow(ax, start, end, *, color=COLORS["line"], label=None, label_xy=None,
-              lw=1.6, linestyle="-", connectionstyle="arc3,rad=0.0", mutation_scale=15.0):
+              lw=1.7, dashed=False, mutation_scale=15.0, connectionstyle="arc3,rad=0.0",
+              label_size=6.7):
     ax.add_patch(
         patches.FancyArrowPatch(
             start, end, arrowstyle="-|>", mutation_scale=mutation_scale, linewidth=lw,
-            color=color, linestyle=linestyle, connectionstyle=connectionstyle,
-            shrinkA=5, shrinkB=5, zorder=2,
+            color=color, linestyle=DASH if dashed else "solid",
+            connectionstyle=connectionstyle, shrinkA=4, shrinkB=4, zorder=2,
         )
     )
     if label:
         if label_xy is None:
             label_xy = ((start[0] + end[0]) / 2, (start[1] + end[1]) / 2)
-        ax.text(label_xy[0], label_xy[1], label, ha="center", va="center", fontsize=6.6,
-                color=color, bbox=dict(boxstyle="round,pad=0.18", fc="white", ec="none", alpha=0.92), zorder=6)
+        ax.text(label_xy[0], label_xy[1], label, ha="center", va="center",
+                fontsize=label_size, color=color, linespacing=1.15,
+                bbox=dict(boxstyle="round,pad=0.16", fc="white", ec="none", alpha=0.95), zorder=6)
 
 
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({"font.family": "DejaVu Sans", "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none"})
 
-    fig, ax = plt.subplots(figsize=(12.2, 3.5), dpi=240)
+    fig, ax = plt.subplots(figsize=(12.8, 6.1), dpi=240)
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
-    ax.set_xlim(0, 16.2)
-    ax.set_ylim(0, 4.6)
+    ax.set_xlim(0, 17)
+    ax.set_ylim(0.2, 8.2)
     ax.axis("off")
 
-    # 四個主流程節點：灰 = 現場可得的便宜素材；藍 = 本方法與其產出（hero）
-    les = (0.35, 2.05, 3.0, 1.25)
-    sens = (4.20, 2.05, 3.0, 1.25)
-    picon = (8.05, 2.05, 3.0, 1.25)
-    field = (11.90, 2.05, 3.0, 1.25)
+    # ── boxes: (x, y, w, h) 以左下角為基準 ──
+    les    = (0.35, 6.65, 3.60, 1.15)
+    pos    = (5.25, 6.65, 3.70, 1.15)
+    dns    = (0.35, 3.55, 3.60, 1.45)
+    series = (5.25, 3.55, 3.70, 1.45)
+    picon  = (10.30, 3.55, 3.05, 1.45)
+    field  = (14.45, 3.55, 2.35, 1.45)
+    ev     = (10.30, 0.75, 3.60, 1.15)
 
-    add_box(ax, *les, "Low-cost LES", "no DNS\nstatistical surrogate", edge=COLORS["backbone"], face=COLORS["backbone_fill"])
-    add_box(ax, *sens, "K = 100 sensors", "QR-pivot placement\nmeasure u, v in time", edge=COLORS["backbone"], face=COLORS["backbone_fill"])
-    add_box(ax, *picon, "PI-CON operator", "sensor MSE + PDE residual\n(no full-field target)", edge=COLORS["novel"], face=COLORS["novel_fill"], title_color=COLORS["novel"], lw=2.4)
-    add_box(ax, *field, "Reconstructed field", "u, v, p over full domain", edge=COLORS["novel"], face=COLORS["novel_fill"], title_color=COLORS["novel"], lw=2.4)
+    # 上排：placement 鷹架（綠）
+    add_box(ax, *les, "Low-cost LES", "DNS-free statistical surrogate",
+            edge=COLORS["place_edge"], face=COLORS["place_fill"])
+    add_box(ax, *pos, "Sensor positions", "locations only — LES gives\npositions, not data",
+            edge=COLORS["place_edge"], face=COLORS["place_fill"])
 
-    add_arrow(ax, (les[0] + les[2], 2.68), (sens[0], 2.68), label="POD + QR-pivot", label_xy=(3.78, 2.95))
-    add_arrow(ax, (sens[0] + sens[2], 2.68), (picon[0], 2.68), label="sensor time series", label_xy=(7.63, 2.95))
-    add_arrow(ax, (picon[0] + picon[2], 2.68), (field[0], 2.68), label="query (x, y, t)", label_xy=(11.48, 2.95))
+    # 中排：可部署資料路徑（橘 stand-in → 藍輸入 → 藍方法 → 紫輸出）
+    add_box(ax, *dns, "DNS field (real-world stand-in)", "experimentally inaccessible\ntrue flow",
+            edge=COLORS["dns_edge"], face=COLORS["dns_fill"], title_size=8.0)
+    add_box(ax, *series, "Sensor time series", "the input — K = 100, read\nfrom DNS at the positions",
+            edge=COLORS["novel_edge"], face=COLORS["novel_fill"])
+    add_box(ax, *picon, "PI-CON operator", "sensor MSE + PDE residual\n(no full-field target)",
+            edge=COLORS["novel_edge"], face=COLORS["novel_fill"], lw=2.4)
+    add_box(ax, *field, "Reconstructed field", "$u,\\ v,\\ p$",
+            edge=COLORS["out_edge"], face=COLORS["out_fill"], lw=2.4, title_size=8.0)
 
-    # 階段下方的 capability 對比註解（誠實：LES 只佈點、無 phase；PI-CON 還原實際 realization）
-    ax.text(les[0] + les[2] / 2, 1.78, "phase-decorrelated;\nplaces sensors only", ha="center", va="top",
-            fontsize=6.6, color=COLORS["warn"], linespacing=1.2)
-    ax.text(field[0] + field[2] / 2, 1.78, "actual realisation,\nenergy-dominant scales", ha="center", va="top",
-            fontsize=6.6, color=COLORS["novel"], linespacing=1.2)
+    # 右下：離線評估（紫、虛線框）
+    add_box(ax, *ev, "Offline evaluation", "DNS full field — offline only",
+            edge=COLORS["out_edge"], face=COLORS["out_fill"], title_size=8.0, subtitle_size=6.6,
+            lw=1.3, dashed=True)
 
-    # capability hook：從 LES 到 reconstructed field 的對比 bracket
-    add_arrow(ax, (les[0] + les[2] / 2, 1.18), (field[0] + field[2] / 2, 1.18),
-              color=COLORS["muted"], lw=1.2, linestyle=(0, (5, 3)), mutation_scale=12.0,
-              connectionstyle="arc3,rad=-0.10")
-    ax.text((les[0] + field[0] + field[2]) / 2, 0.70,
-            "The LES proxy places the sensors but cannot reconstruct the realisation; PI-CON does, from the placement and sensor histories alone.",
-            ha="center", va="center", fontsize=7.2, fontweight="bold", color=COLORS["ink"],
-            bbox=dict(boxstyle="round,pad=0.3,rounding_size=0.05", fc="white", ec=COLORS["light"], lw=0.9), zorder=5)
+    def cx(b):  # box center x
+        return b[0] + b[2] / 2
 
-    # DNS 僅離線評估、不進訓練
-    dns = (11.90, 3.66, 3.0, 0.66)
-    add_box(ax, *dns, "DNS full field", "offline evaluation only", edge=COLORS["muted"], face="white",
-            title_color=COLORS["muted"], title_size=7.6, subtitle_size=6.2, lw=1.1)
-    add_arrow(ax, (dns[0] + dns[2] / 2, dns[1]), (field[0] + field[2] / 2, field[1] + field[3]),
-              color=COLORS["muted"], lw=1.0, linestyle=(0, (3, 3)), mutation_scale=10.0, label="compare", label_xy=(13.95, 3.50))
-    ax.text(8.1, 4.30, "Field-deployable inputs: low-cost LES, K sparse sensors, and the PDE -- no DNS full field in training.",
-            ha="center", va="center", fontsize=7.4, fontweight="bold", color=COLORS["muted"], zorder=5)
+    # ── arrows ──
+    # 上排 placement 流：LES --> positions（solid, 綠）
+    add_arrow(ax, (les[0] + les[2], 7.225), (pos[0], 7.225), color=COLORS["place_edge"],
+              label="POD + QR-pivot", label_xy=(4.60, 7.56))
+    # positions --> series：dashed「where to read」（位置指標，非資料流）
+    add_arrow(ax, (cx(pos), pos[1]), (cx(series), series[1] + series[3]),
+              color=COLORS["place_edge"], dashed=True, mutation_scale=13.0,
+              label="where to read", label_xy=(8.00, 5.80))
 
-    fig.savefig(f"{OUT_STEM}.svg", bbox_inches="tight", pad_inches=0.04)
-    fig.savefig(f"{OUT_STEM}.pdf", bbox_inches="tight", pad_inches=0.04)
-    fig.savefig(f"{OUT_STEM}.png", bbox_inches="tight", pad_inches=0.04, dpi=360)
+    # 中排 可部署資料路徑（solid）
+    add_arrow(ax, (dns[0] + dns[2], 4.275), (series[0], 4.275), color=COLORS["line"],
+              label="read $u, v$ at\nthe K positions", label_xy=(4.60, 4.80))
+    add_arrow(ax, (series[0] + series[2], 4.275), (picon[0], 4.275), color=COLORS["line"],
+              label="sensor stream", label_xy=(9.62, 4.62))
+    add_arrow(ax, (picon[0] + picon[2], 4.275), (field[0], 4.275), color=COLORS["line"],
+              label="query $(x, t)$", label_xy=(13.90, 4.62), label_size=6.4)
+
+    # 離線評估（dashed）：DNS full field 與 reconstruction 都只在此比對
+    add_arrow(ax, (cx(dns), dns[1]), (ev[0] + 0.20, ev[1] + ev[3]),
+              color=COLORS["muted"], dashed=True, mutation_scale=12.0,
+              label="full field,\noffline only", label_xy=(5.55, 2.55))
+    add_arrow(ax, (cx(field), field[1]), (ev[0] + ev[2] - 0.20, ev[1] + ev[3]),
+              color=COLORS["muted"], dashed=True, mutation_scale=12.0,
+              label="compare offline", label_xy=(15.05, 2.62))
+
+    # 左下 WHERE/WHAT 註解框（綠、虛線）
+    cap = (0.35, 0.55, 4.65, 1.35)
+    ax.add_patch(patches.FancyBboxPatch(
+        (cap[0], cap[1]), cap[2], cap[3], boxstyle="round,pad=0.03,rounding_size=0.06",
+        linewidth=1.1, edgecolor=COLORS["place_edge"], facecolor="white",
+        linestyle=DASH, zorder=3))
+    ax.text(cap[0] + cap[2] / 2, cap[1] + cap[3] / 2,
+            "LES fixes WHERE the sensors sit; the DNS field\n"
+            "(real-world stand-in) supplies WHAT they read\nat those K points.",
+            ha="center", va="center", fontsize=7.2, style="italic",
+            color=COLORS["place_edge"], linespacing=1.28, zorder=4)
+
+    fig.savefig(f"{OUT_STEM}.svg", bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(f"{OUT_STEM}.pdf", bbox_inches="tight", pad_inches=0.05)
+    fig.savefig(f"{OUT_STEM}.png", bbox_inches="tight", pad_inches=0.05, dpi=360)
     plt.close(fig)
+    print(f"saved {OUT_STEM}.pdf / .png / .svg")
 
 
 if __name__ == "__main__":

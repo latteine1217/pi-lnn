@@ -66,7 +66,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.plot_style import apply_journal_rcparams, DNS, PICON  # noqa: E402
 
 # --- Plot specifications -----------------------------------------------------
 # Each entry maps a thesis-figure filename to the series.npz key(s) and labels.
@@ -141,8 +141,8 @@ def plot_one(
     """
     apply_journal_rcparams()
     # Wong colour palette — colour-blind safe (blue, orange, vermillion, green).
-    palette = ["#D55E00", "#009E73", "#CC79A7"]  # orange-red, green, magenta
-    dns_color = "#0072B2"  # Wong blue
+    palette = [PICON, "#009E73", "#CC79A7"]  # PI-CON blue, green, magenta
+    dns_color = DNS  # DNS reference: black
 
     fig, ax = plt.subplots(figsize=(5.5, 3.6))
     if dns_curve is not None:
@@ -216,7 +216,9 @@ def plot_combined(
     Units follow the thesis text (divergence ratio and velocity errors in %),
     fixing the earlier fraction-vs-% mismatch with the caption.
     """
-    orange, blue, green, magenta = "#D55E00", "#0072B2", "#009E73", "#CC79A7"
+    # slot names kept; values set to the semantic palette:
+    # "orange" slot = PI-CON blue, "blue" slot = DNS black (see pi_con.plot_style)
+    orange, blue, green, magenta = PICON, DNS, "#009E73", "#CC79A7"
     seed_kw = dict(linewidth=0.6, alpha=0.40, linestyle=":")
     band_kw = dict(alpha=0.20, linewidth=0)
 
