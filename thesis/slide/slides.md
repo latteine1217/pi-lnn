@@ -1296,7 +1296,7 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 # Where the error sits and why — K = 100 information bound
 
 <style>
-.bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 6px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
+.bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
 .bg2 .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
 .bg2 .v { font-size: 0.73rem; color: #1F1B2E; line-height: 1.3; }
 </style>
@@ -1312,16 +1312,18 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 <div class="col-span-2 space-y-2">
 
-<Card>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Key metrics &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
 <div class="bg2">
 <div class="k">KE MAPE</div><div class="v"><b style="color:#7F1084;">5.71 ± 0.11 %</b></div>
+<div class="k">u rel-L₂</div><div class="v">13.65 ± 0.06 %</div>
+<div class="k">v rel-L₂</div><div class="v">17.52 ± 0.10 %</div>
 <div class="k">ω rel-L₂</div><div class="v">41.79 ± 0.12 %</div>
 <div class="k">div ratio</div><div class="v"><b style="color:#7F1084;">0.39 ± 0.006 %</b></div>
 </div>
 </Card>
 
-<Card>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Why KE 5.7 % but <span class="raw">ω</span> 41.8 %</LabelTiny>
 <div class="bg2">
 <div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error ≈ 4 %</div>
@@ -1330,7 +1332,7 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 <div class="mt-1 text-[10px]" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
 </Card>
 
-<Card>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Ceiling</LabelTiny>
 <div class="mt-2 text-xs leading-snug" style="color:#374151;">Sensor Nyquist <b style="color:#7F1084;">k<sub>max</sub> ≈ 5.64</b> — architecture cannot recover unseen bandwidth.</div>
 </Card>
@@ -1346,10 +1348,23 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 -->
 
 ---
+disabled: true
+---
+
+<!--
+Backup. 停用理由（2026-07-15）：
+- ① / ③ 與 slide 19（field figure）及 slide 20（ceiling card）重複。
+- ② 的 u/v anisotropy 歸因（forcing 只在 u → v 為導出量 → 較難重建）全 thesis
+  搜不到，屬投影片手打推理；且 chapter02.tex:265 自承 cross-attention 用
+  isotropic 距離核是 deliberate modelling simplification，構成一個未被排除的
+  競爭解釋。兩假設未經實驗分離，不宜在口試斷言。
+- 唯一該留的 u/v rel-L₂ 數值已併入 slide 20 Key metrics（同屬 Table 4.1 主列）。
+若要復用：先讓 anisotropy 歸因進 thesis，或補實驗分離 (a) forcing 與 (b) isotropic kernel。
+-->
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · velocity error analysis</SectionTag>
+<SectionTag>§ Backup · velocity error analysis</SectionTag>
 
 # Channel-wise interpretation — u, v anisotropy and structural error
 
