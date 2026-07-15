@@ -2246,77 +2246,63 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 
 <SectionTag>§ Conclusion · contributions</SectionTag>
 
-# Three core contributions + one secondary finding
+# Three contributions, one secondary finding
 
-<div class="grid grid-cols-2 gap-4 mt-3 text-sm">
+<style>
+.ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 14px; }
+.ct .num { font-size: 1.5rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 14px 0; }
+.ct .body { padding: 12px 0; border-bottom: 1px solid #F1EDF5; }
+.ct .ttl { font-size: 0.9rem; font-weight: 700; color: #1F1B2E; }
+.ct .det { font-size: 0.76rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.ct .sec .num, .ct .sec .ttl { color: #9CA3AF; }
+</style>
 
-<Card>
-<div class="flex items-baseline gap-2">
-<span class="text-xl font-bold" style="color:#7F1084;">①</span>
-<LabelTiny>PI-CON ARCHITECTURE</LabelTiny>
-</div>
-<div class="mt-2 leading-snug">
-CfC branch · distance-biased cross-attention · AL-continuity → DeepONet as a sparse-sensor inverse operator.
-</div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-KE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n=5, K=100, Re=10⁴) · cross-attention the dominant lever · query any (x, t) in one pass.
-</div>
-</Card>
+<div class="ct">
 
-<Card>
-<div class="flex items-baseline gap-2">
-<span class="text-xl font-bold" style="color:#7F1084;">②</span>
-<LabelTiny>SYSTEMATIC SENSING-CONFIGURATION STUDY</LabelTiny>
+<div class="num">①</div>
+<div class="body">
+<div class="ttl">PI-CON — DeepONet as a sparse-sensor inverse operator</div>
+<div class="det">KE <b style="color:#7F1084;">5.71 ± 0.11 %</b> · K = 100 · Re = 10⁴ · cross-attention the dominant lever</div>
 </div>
-<div class="mt-2 leading-snug">
-How sensor <b>count · placement · noise</b> govern reconstruction quality.
-</div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-Count: K=100→400 KE <b>5.90→1.76 %</b> · placement DNS/LES/random all &lt; 10 %, σ<sub>placement</sub>/σ<sub>training</sub> = <b>6.2×</b> · noise to 10 % stays usable.
-</div>
-</Card>
 
-<Card>
-<div class="flex items-baseline gap-2">
-<span class="text-xl font-bold" style="color:#7F1084;">③</span>
-<LabelTiny>CROSS-REYNOLDS FEASIBILITY</LabelTiny>
+<div class="num">②</div>
+<div class="body">
+<div class="ttl">Sensing configuration mapped — count, placement, noise</div>
+<div class="det">Count sets resolution (K 100 → 400: KE <b>5.90 → 1.76 %</b>) · placement and noise set reliability</div>
 </div>
-<div class="mt-2 leading-snug">
-Same architecture across two decades of Reynolds number.
-</div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-Re=10⁶, K=200: KE <b style="color:#7F1084;">6.10 %</b> ≈ Re=10⁴ baseline 5.71 % (single-seed, retuned config).
-</div>
-</Card>
 
-<Card style="background: rgba(127,16,132,0.04);">
-<div class="flex items-baseline gap-2">
-<span class="text-xl font-bold" style="color:#9CA3AF;">④</span>
-<LabelTiny>SECONDARY · KE ALONE IS MISLEADING</LabelTiny>
+<div class="num">③</div>
+<div class="body">
+<div class="ttl">Cross-Reynolds feasibility on one architecture</div>
+<div class="det">Re = 10⁶, K = 200 → KE <b>6.10 %</b> ≈ the Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed, retuned</span></div>
 </div>
-<div class="mt-2 leading-snug">
-vs classical interpolation (RBF / IDW / div-free trig-LSQ), same sensors.
+
+<div class="num" style="color:#9CA3AF;">④</div>
+<div class="body">
+<div class="ttl" style="color:#9CA3AF;">Secondary — KE alone mis-ranks</div>
+<div class="det">Interpolation posts lower KE by over-smoothing · PI-CON cuts pointwise u rel-L₂ <b>47–74 %</b></div>
 </div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative</b>, despite their lower KE (over-smoothing).
-</div>
-</Card>
 
 </div>
 
-<div class="mt-4 text-center">
+<div class="mt-5 text-center">
 <Pill>Engineering-grade sparse reconstruction without DNS-field supervision.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Contributions · 1.5min] 對齊論文 Conclusion 三條 core + 一條 secondary：
-① PI-CON 架構：CfC + cross-attn + AL-continuity，sensor-only-with-physics，KE 5.71±0.11%，cross-attn 為 dominant lever。
-② Sensing-configuration 系統研究（數量/位置/噪音）：K-scaling 100→400 KE 5.90→1.76%；placement DNS/LES/random 皆 <10%，σ_placement/σ_training=6.2×；noise 到 10% 仍 engineering-grade。
-③ Cross-Reynolds feasibility：Re=10⁶ K=200 KE 6.10%（single-seed、retuned config）。
-④ secondary：KE 單看會誤導 — vs RBF/IDW/trig-LSQ pointwise u rel-L₂ 好 47–74% relative。
-注意：divergence 已降級為 §Results diagnostic，不再列為 contribution。
+[Contributions · 1.5min] 對應 thesis §5.2 的四條（chapter05.tex:18-21）。
+
+舊版每張卡都是「一句敘述 + 一句數字」雙層結構，敘述那層是講的時候要說的話，不是要印的。
+壓成單行標題 + 單行數字（147 → 約 70 字）。
+
+數字出處：① tab:main_metrics；② tab:k_scaling_nyquist + chapter04:45 的 σ 比 6.2×；
+③ tab:re1e6（chapter05:20 明載「single-seed and should be treated as an extension,
+not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 的 47–74 %
+（Appendix app:fair_baselines）。
+
+④ 刻意灰階：thesis/CLAUDE.md 定調它是次要貢獻，不與前三條等重。
 -->
 
 ---
@@ -2327,66 +2313,62 @@ PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative
 
 # Three objectives — three answers
 
-<div class="grid grid-cols-3 gap-3 mt-4 text-sm">
+<style>
+.ob { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 18px; row-gap: 0;
+      align-items: center; margin-top: 16px; }
+.ob .tag { font-size: 0.6rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
+.ob .body { padding: 13px 0; border-bottom: 1px solid #F1EDF5; }
+.ob .ttl { font-size: 0.92rem; font-weight: 700; color: #1F1B2E; }
+.ob .det { font-size: 0.78rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
+.ob .ok { font-size: 1.4rem; color: #16A34A; font-weight: 700; }
+</style>
 
-<Card>
-<div class="text-center mb-2">
-<div class="text-xs font-bold tracking-wide" style="color:#6B7280;">OBJECTIVE 1</div>
-<div class="text-sm mt-1 leading-snug" style="color:#374151;">Accurate &amp; fast reconstructor</div>
-</div>
-<div class="text-center my-2">
-<span class="text-2xl" style="color:#16A34A;">✓</span>
-</div>
-<div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
-<div>Main baseline (LES_T50, 20 k, n=5): KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ~4 %</div>
-<div>Cross-attention the dominant lever: <b>−2.52 pp</b> vs B0 (p = 3.0×10⁻⁷)</div>
-<div>Any (x, t) in a <b>single forward pass</b>; a full trajectory reconstructs <b>several-fold</b> faster than re-solving the DNS<span style="color:#9CA3AF;"> — margin mixes GPU vs CPU, and is not the engineering case</span></div>
-</div>
-</Card>
+<div class="ob">
 
-<Card>
-<div class="text-center mb-2">
-<div class="text-xs font-bold tracking-wide" style="color:#6B7280;">OBJECTIVE 2</div>
-<div class="text-sm mt-1 leading-snug" style="color:#374151;">Count sets the resolution</div>
+<div class="tag">O1</div>
+<div class="body">
+<div class="ttl">Accurate and fast reconstructor</div>
+<div class="det">KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ≈ 4 % · any (x, t) in one forward pass</div>
 </div>
-<div class="text-center my-2">
-<span class="text-2xl" style="color:#16A34A;">✓</span>
-</div>
-<div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
-<div>Sensor Nyquist k<sub>max</sub><sup>sensor</sup> = √(K/π) ≈ <b>5.64</b> at K = 100</div>
-<div>K = 100 / 200 / 400 → KE <b style="color:#7F1084;">5.90 / 2.47 / 1.76 %</b></div>
-<div>Cutoff tracks √(K/π) — budget, not architecture</div>
-</div>
-</Card>
+<div class="ok">✓</div>
 
-<Card>
-<div class="text-center mb-2">
-<div class="text-xs font-bold tracking-wide" style="color:#6B7280;">OBJECTIVE 3</div>
-<div class="text-sm mt-1 leading-snug" style="color:#374151;">Placement &amp; noise set reliability</div>
+<div class="tag">O2</div>
+<div class="body">
+<div class="ttl">Count sets the resolution</div>
+<div class="det">K 100 / 200 / 400 → KE <b>5.90 / 2.47 / 1.76 %</b> · cutoff tracks <span class="raw">√(K/π)</span></div>
 </div>
-<div class="text-center my-2">
-<span class="text-2xl" style="color:#16A34A;">✓</span>
+<div class="ok">✓</div>
+
+<div class="tag">O3</div>
+<div class="body">
+<div class="ttl">Placement and noise set reliability</div>
+<div class="det">DNS / LES / random → <b>4.68 / 5.71 / 7.95 %</b> · noise to 10 % → <b>6.08 %</b> · all under 10 %</div>
 </div>
-<div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
-<div>DNS / LES / random: KE <b style="color:#7F1084;">4.68 / 5.71 / 7.95 %</b> — all &lt; 10 %</div>
-<div>σ<sub>placement</sub> / σ<sub>training</sub> = <b>6.2×</b></div>
-<div>Noise to 10 % → KE <b>6.08 %</b> (reliability, not feasibility)</div>
-</div>
-</Card>
+<div class="ok">✓</div>
 
 </div>
 
-<div class="mt-5 text-center">
-<Pill>Tool (PI-CON) + sensing study · count sets resolution · placement &amp; noise set reliability</Pill>
+<div class="mt-6 text-center">
+<Pill>A tool, and the sensing study that tells you what to buy next.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Conclusion summary · 2min] 對應三個 objectives 一一作答：
-O1 feasibility — main baseline EXP-245 (LES_T50 + 1024 collo + 20k, n=5) KE 5.71 ± 0.11% 達工程目標；EXP-271 DNS oracle fair comparison KE 4.68 ± 0.06% 但 pointwise L2 較差；EXP-290 noise n=5 證明 10% additive noise 仍 engineering-grade；inference 說法限定 sparse monitoring。
-O2 數量軸 — sensor Nyquist k_max=√(K/π)≈5.64 @K=100；K=100/200/400 → KE 5.90/2.47/1.76%，cutoff 隨 √(K/π)，budget 而非架構。
-O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placement/σ_training=6.2×；noise 到 10% 仍 engineering-grade。
+[Summary · 1.5min] 三個 objective 三個答案。對應 thesis §5.1（chapter05.tex:11-13）。
+
+舊版 O1 卡 63 字（全 deck 最重），三頁合計 168 字。壓成每列「標題 + 一行數字」約 60 字。
+
+⚠️ 已從 O1 移除「full trajectory ≈20× faster than DNS solve (9.7 min vs 3.27 h)」：
+(a) 算術雖對（196.2 / 9.7 = 20.2），但 thesis §Conclusion (chapter05:11) 只寫
+    「several-fold faster」，chapter04:493 更明載該 margin「mixes hardware (GPU training
+    against the CPU DNS solve) and **is not the engineering case for the operator**」。
+(b) 推理成本的正確表述已在 slide 28（70.7 ms encoder / 31k sparse queries per second /
+    full-field query 非即時），不需在 summary 重複一個更弱的版本。
+被問到速度時翻 slide 28，不要在這裡給 20×。
+
+數字出處：O1 tab:main_metrics + fig:band_err；O2 tab:k_scaling_nyquist；
+O3 tab:placement_strategy_new + chapter04:438。
 -->
 
 ---
@@ -2395,124 +2377,176 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <SectionTag>§ Conclusion · limitations</SectionTag>
 
-# Five limitations bound the scope of these results
+# Five limitations bound the scope
 
-<div class="grid grid-cols-2 gap-3 mt-2 text-xs">
+<style>
+.lm { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 10px; }
+.lm .num { font-size: 1.05rem; font-weight: 700; color: #E97132; line-height: 1; padding: 9px 0; }
+.lm .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
+.lm .ttl { font-size: 0.88rem; font-weight: 700; color: #1F1B2E; }
+.lm .det { font-size: 0.75rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+</style>
 
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>① The clock was never irregular</LabelTiny>
-<div class="mt-1 leading-snug">The CfC branch is adopted to read <b>unevenly clocked</b> sensors — but the Kolmogorov benchmark samples <b style="color:#E97132;">uniformly</b> (Δt<sub>s</sub> = 0.025). That capability is <b>untested here</b>.</div>
-</Card>
+<div class="lm">
 
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>② Realistic sensor errors remain open</LabelTiny>
-<div class="mt-1 leading-snug">Additive Gaussian tested to 10 % at n = 5 · bias, drift, dropout, correlated channel noise, calibration error remain open.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>③ Periodic domain, single forcing</LabelTiny>
-<div class="mt-1 leading-snug">Doubly periodic Ω = [0,1]², body force f<span class="raw">ₓ</span> = A sin(2πk<sub>f</sub>y). Cylinder wake is a preliminary extension; airfoils, internal flows, wall-driven cases need revalidation.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>④ Single trajectory, single-seed cross-Re</LabelTiny>
-<div class="mt-1 leading-snug">One DNS realisation at fixed Re; the Re = 10⁶ case is <b>single-seed and retuned</b> — feasibility, not a multi-seed benchmark.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>⑤ CFD-rigour gaps</LabelTiny>
-<div class="mt-1 leading-snug">Mean profiles, Reynolds stresses and TKE-budget closure are only partly reported; classical sensor-projection CFD baselines remain future validation.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;" class="flex items-center">
-<div class="leading-snug text-xs" style="color:#6B7280;">
-K = 100 is an <b style="color:#7F1084;">engineering success regime</b> — not a universal operator-generalisation claim.
+<div class="num">①</div>
+<div class="body">
+<div class="ttl">The clock was never irregular</div>
+<div class="det">CfC is adopted to read unevenly clocked sensors — the benchmark samples <b style="color:#E97132;">uniformly</b>. Untested here.</div>
 </div>
-</Card>
 
+<div class="num">②</div>
+<div class="body">
+<div class="ttl">Only additive Gaussian noise</div>
+<div class="det">Bias, drift, dropout, correlated channels, calibration error remain open.</div>
+</div>
+
+<div class="num">③</div>
+<div class="body">
+<div class="ttl">Periodic domain, single forcing</div>
+<div class="det">Cylinder wake is preliminary · airfoils, internal and wall-driven flows need revalidation.</div>
+</div>
+
+<div class="num">④</div>
+<div class="body">
+<div class="ttl">One trajectory, single-seed cross-Re</div>
+<div class="det">The Re = 10⁶ case is single-seed and retuned — feasibility, not a benchmark.</div>
+</div>
+
+<div class="num">⑤</div>
+<div class="body">
+<div class="ttl">CFD-rigour gaps</div>
+<div class="det">Reynolds stresses, TKE-budget closure and classical CFD baselines remain future validation.</div>
+</div>
+
+</div>
+
+<div class="mt-3 text-center">
+<Pill>K = 100 is an engineering success regime — not a generalisation claim.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Limitations · 1.5min] 對應 thesis §5.3（該節共 7 條：Observation noise / Geometry scope /
-Forcing form / Acceptance metrics / Per-case fitting and single-seed cross-Re / CFD-rigour
-gaps / Diagnostic boundaries）。投影片壓成 5 條：Geometry 與 Forcing 合為 ③，
-Acceptance metrics 與 Diagnostic boundaries 屬細節、留給提問。
+[Limitations · 1.5min] 對應 thesis §5.3（7 條：Observation noise / Geometry scope /
+Forcing form / Acceptance metrics / Per-case fitting and single-seed cross-Re /
+CFD-rigour gaps / Diagnostic boundaries）。壓成 5 條：Geometry 與 Forcing 併為 ③；
+Acceptance metrics 與 Diagnostic boundaries 屬細節，留給提問。
 
-⚠️ ① 是本次新增，且 thesis §5.3 目前「沒有」這一條 —— 需回頭補進論文。依據：
-chapter01.tex:114 自承「a capability retained here even though the controlled Kolmogorov
-benchmark samples uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在
-irregular clock（「Discrete RNNs (GRU, LSTM) cannot absorb such irregular sampling」）；
-論文標題亦是「Physics-Constrained Continuous-Time Reconstruction」。
-即：標題與架構選擇的核心賣點，在本研究中從未被實驗觸及，而 §Conclusion 未揭露。
-先自己講，比被問出來好；對應的實驗已列入 slide 32 ①。
+⚠️ ① 為新增，thesis §5.3 目前沒有 —— 需回頭補進論文。依據：chapter01.tex:114 自承
+「a capability retained here even though the controlled Kolmogorov benchmark samples
+uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregular clock；
+論文標題亦是「Continuous-Time」。即標題與架構選擇的核心賣點從未被實驗觸及。
+先自己講比被問出來好；對應實驗在下一頁 ①。
 
-這也解釋了 slide 18 的 2×2：CfC 單獨使用 +1.00 pp（變差）是預期的 —— 均勻時鐘下
-Δt 為定值，CfC 的 Δt 閘門（chapter02:212）吃不到變異，退化成多帶參數的 gated RNN。
+也解釋 slide 18 的 CfC 單獨 +1.00 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
+Δt 閘門吃不到變異，CfC 退化為多帶參數的 gated RNN，變差是預期而非意外。
 -->
 
 ---
 
 <NavBar active="summary" />
 
-<SectionTag>§ Conclusion · future work</SectionTag>
+<SectionTag>§ Conclusion · future work 1/2</SectionTag>
 
-# Five directions, each closing one limitation
+# First, close the claims we made
 
-<div class="grid grid-cols-2 gap-3 mt-2 text-xs">
+<div class="fw">
 
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>① Put the clock to work &nbsp;<span class="opacity-60">(closes ①)</span></LabelTiny>
-<div class="mt-1 leading-snug">Re-run at <b>irregular sensor clocks</b> — dropped packets, per-group cadences — against a GRU with Δt concatenated. Needs <b>no new DNS</b>: a mask on the existing 201 frames. This is the test the title rests on.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>② Cross-Re multi-seed &nbsp;<span class="opacity-60">(closes ④)</span></LabelTiny>
-<div class="mt-1 leading-snug">Re = 10⁶ from single seed to n ≥ 3, then Re ≥ 10⁷ — turns feasibility into a benchmark.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>③ Sensor-budget scaling at matched budget</LabelTiny>
-<div class="mt-1 leading-snug">K = 50 / 100 / 200 / 400 with collocation held fixed <span style="color:#9CA3AF;">(K = 400 currently uses 512, not 1024)</span> — turns the three-point trend into a law.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>④ Realistic sensor-error model &nbsp;<span class="opacity-60">(closes ②)</span></LabelTiny>
-<div class="mt-1 leading-snug">Beyond additive Gaussian: bias, drift, dropout, correlated channel noise, calibration error.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<LabelTiny>⑤ Wall-bounded geometries + CFD baseline &nbsp;<span class="opacity-60">(closes ③, ⑤)</span></LabelTiny>
-<div class="mt-1 leading-snug">Cylinder → airfoil → channel, plus 4D-Var on the forward-CFD baseline and the CFD-rigour statistics.</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;" class="flex items-center">
-<div class="leading-snug text-xs" style="color:#6B7280;">
-① is cheapest and closest to the claim; ② is the one that raises the ceiling. The rest widen <b>scope</b>, not feasibility.
+<div class="num">①</div>
+<div class="body">
+<div class="cl">CLOSES LIMITATION ①</div>
+<div class="ttl">Put the clock to work</div>
+<div class="det">Re-run on <b>irregular sensor clocks</b> against a GRU with Δt concatenated. A mask on the existing 201 frames — <b style="color:#7F1084;">no new DNS</b>. This is the test the title rests on.</div>
 </div>
-</Card>
 
+<div class="num">②</div>
+<div class="body">
+<div class="cl">CLOSES LIMITATION ④</div>
+<div class="ttl">Cross-Re multi-seed</div>
+<div class="det">Re = 10⁶ from single seed to n ≥ 3, then Re ≥ 10⁷ — turns feasibility into a benchmark.</div>
+</div>
+
+<div class="num">③</div>
+<div class="body">
+<div class="cl">MAKES THE K-TREND A LAW</div>
+<div class="ttl">Sensor-budget scaling at matched budget</div>
+<div class="det">K = 50 / 100 / 200 / 400 with collocation held fixed <span style="color:#9CA3AF;">(K = 400 currently uses 512, not 1024)</span>.</div>
+</div>
+
+</div>
+
+<div class="mt-5 text-center">
+<Pill>① is the cheapest and the closest to the title.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Future work · 1.5min] 對應 thesis §5.4（該節 6 條：Sensor-budget scaling / Cross-Reynolds
-multi-seed / Realistic sensor-error model / Wall-bounded and obstacle geometries with
-multi-modal fusion / 4D-Var on the forward-CFD baseline and pressure-supported
-reconstruction / Cross-case generalisation and the training–simulation crossover）。
-投影片壓成 5 條並與 slide 31 的限制編號對齊（每條標「closes ⓘ」）。
+[Future work 1/2 · 1.5min] 這頁的三項都是「把已經做出的主張補實」，不是擴張範圍。
 
-⚠️ ① 為本次新增，thesis §5.4 目前沒有這一條 —— 需回頭補進論文，與 §5.3 的新限制配套。
-它是最便宜的一項（既有 201 frames 上加時間軸 mask，不需新 DNS），卻直接檢驗論文標題
-「Continuous-Time」與 CfC 的存在理由。對照組建議 GRU + Δt concat：若不規則時鐘下 CfC
-主效應仍為正、或 B3 − B2 gap 未擴大，則 CfC 的 continuous-time 賣點在此問題上不成立，
-誠實的動作是換掉 CfC 並改標題。
+⚠️ ① 為新增，thesis §5.4 目前沒有 —— 需與 §5.3 的新限制配套補進論文。它最便宜
+（既有 201 frames 加時間軸 mask，不需新 DNS），卻直接檢驗論文標題「Continuous-Time」
+與 CfC 的存在理由。對照組建議 GRU + Δt concat：若不規則時鐘下 CfC 主效應仍為正，
+或 B3 − B2 gap 未擴大，則該賣點在此問題上不成立，誠實的動作是換掉 CfC 並改標題。
 
-③ 的括號揭露 K = 400 目前用 512 collocation（chapter04.tex:276 caption 明載），這正是
-chapter04:318 說「the three-point curve should not be read as a strict fit」的原因；
-matched budget 才能把趨勢變成定律。
+③ 括號揭露 K = 400 目前用 512 collocation（chapter04.tex:276 caption 明載），
+正是 chapter04:318 說「the three-point curve should not be read as a strict fit」的原因。
+另：實測 log-log 局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)，三點不在一直線上，
+matched budget 才能判斷那是真的彎還是 collocation 造成的。
+-->
+
+---
+
+<NavBar active="summary" />
+
+<SectionTag>§ Conclusion · future work 2/2</SectionTag>
+
+# Then, widen where it applies
+
+<div class="fw">
+
+<div class="num">④</div>
+<div class="body">
+<div class="cl">CLOSES LIMITATION ②</div>
+<div class="ttl">Realistic sensor-error model</div>
+<div class="det">Bias, drift, dropout, correlated channel noise, calibration error — beyond additive Gaussian.</div>
+</div>
+
+<div class="num">⑤</div>
+<div class="body">
+<div class="cl">CLOSES LIMITATIONS ③ ⑤</div>
+<div class="ttl">Wall-bounded geometries, and a CFD baseline that fights back</div>
+<div class="det">Cylinder → airfoil → channel, with multi-modal fusion · 4D-Var on the forward-CFD baseline and pressure support.</div>
+</div>
+
+<div class="num">⑥</div>
+<div class="body">
+<div class="cl">THE DEPLOYMENT QUESTION</div>
+<div class="ttl">Cross-case generalisation, and where training stops paying</div>
+<div class="det">One operator over many scenes, and the crossover at which re-training costs more than simply solving the flow.</div>
+</div>
+
+</div>
+
+<div class="mt-5 text-center">
+<Pill>These widen the scope — they do not change feasibility.</Pill>
+</div>
+
+<FooterLogos />
+
+<!--
+[Future work 2/2 · 1.5min] 這頁三項是擴張適用範圍，非補強既有主張。
+
+對應 thesis §5.4 剩下三條（chapter05.tex §5.4）：Realistic sensor-error model /
+Wall-bounded and obstacle geometries with multi-modal fusion / 4D-Var on the forward-CFD
+baseline and pressure-supported reconstruction / Cross-case generalisation and the
+training–simulation crossover。⑤ 合併了 geometries 與 4D-Var 兩條（同屬「換場景就要有
+能打的對照」）。
+
+⑥ 是舊版投影片漏掉的一條，論文有：training–simulation crossover 是這個方法的部署邊界
+—— 若重訓比直接解流場還貴，operator 就沒有工程理由。與 slide 30 移除的 20× speedup
+呼應：那個 margin 混了 GPU/CPU，真正該回答的是這個 crossover。
 -->
 
 ---

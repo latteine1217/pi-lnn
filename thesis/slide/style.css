@@ -111,3 +111,13 @@
 .slidev-presenter .slidev-page-number {
   display: revert !important;
 }
+
+/* Numbered list rows shared by the two Future-Work slides.
+   Lives here, not in a per-slide style block: Slidev scopes those to one slide, so a
+   second slide reusing the class silently falls back to block layout. */
+.fw { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 14px; }
+.fw .num { font-size: 1.2rem; font-weight: 700; color: var(--color-primary); line-height: 1; padding: 12px 0; }
+.fw .body { padding: 10px 0; border-bottom: 1px solid #F1EDF5; }
+.fw .ttl { font-size: 0.92rem; font-weight: 700; color: var(--color-ink); }
+.fw .det { font-size: 0.76rem; color: var(--color-muted); margin-top: 4px; line-height: 1.38; }
+.fw .cl { font-size: 0.6rem; color: var(--color-accent); font-weight: 700; letter-spacing: 0.04em; }
