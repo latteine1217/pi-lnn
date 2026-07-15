@@ -199,7 +199,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
 .blk .lbl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; white-space: nowrap; padding: 11px 0; }
-.blk .fam { font-size: 0.7rem; color: #6B7280; line-height: 1.35; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
+.blk .fam { font-size: 0.78rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
 .blk .lbl { border-bottom: 1px solid #F1EDF5; }
 .need { color: #E97132; font-weight: 700; }
 </style>
@@ -247,12 +247,12 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 # DNS-supervised methods — the hidden cost
 
 <style>
-.dns { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; margin-bottom: 0; }
-.dns th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.57rem; text-transform: uppercase;
+.dns { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
+.dns th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.63rem; text-transform: uppercase;
           letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.dns td { padding: 5px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
+.dns td { padding: 3px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.2; }
 .dns tr.ours td { background: #F7EDF8; border-bottom: none; }
-.dns .who { font-size: 0.68rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.dns .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .dns .no { color: #E97132; }
 .dns .yes { color: #7F1084; font-weight: 700; }
 .dns .ns { color: #C9C6D0; font-style: italic; }
@@ -317,12 +317,12 @@ Query-anywhere or sensor-reading designs exist — but every one is trained agai
 </tbody>
 </table>
 
-<div class="grid grid-cols-2 gap-5 mt-4 text-xs">
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<div class="grid grid-cols-2 gap-5 mt-3 text-xs">
+<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>Their accuracy is not the point</LabelTiny>
 <div class="mt-1 leading-snug">Few-% error is real — but it is bought with the one thing a rig never has. <b>Not a fair yardstick.</b></div>
 </Card>
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>What none of them report</LabelTiny>
 <div class="mt-1 leading-snug"><b>Parameter counts</b> — none of the seven surveyed works states one. <b>Reynolds number</b> — unstated in three.</div>
 </Card>
@@ -358,12 +358,12 @@ Query-anywhere or sensor-reading designs exist — but every one is trained agai
 # Same-regime works — head to head
 
 <style>
-.hh { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; margin-bottom: 0; }
-.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.57rem; text-transform: uppercase;
+.hh { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
+.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.63rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .hh td { padding: 5px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
 .hh tr.ours td { background: #F7EDF8; border-bottom: none; }
-.hh .who { font-size: 0.68rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.hh .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .hh .no { color: #E97132; }
 .hh .yes { color: #7F1084; font-weight: 700; }
 </style>
