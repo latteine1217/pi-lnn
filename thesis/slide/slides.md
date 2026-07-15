@@ -56,7 +56,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <SectionTag>§ Background · the sparse-reconstruction problem</SectionTag>
 
-# Reconstructing a turbulent flow field from sparse sensors
+# The sparse-sensor reconstruction problem
 
 <div class="grid grid-cols-5 gap-6 mt-3 text-sm leading-snug">
 
@@ -103,7 +103,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <SectionTag>§ Background · why classical methods stall</SectionTag>
 
-# Why classical reconstruction stalls in the field
+# Classical methods — where they stall
 
 <div class="mt-3 text-base leading-snug" style="color:#374151;">
 Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering — each needs one ingredient the field cannot supply:
@@ -141,7 +141,7 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 
 <SectionTag>§ Background · operator vs. plain PINN</SectionTag>
 
-# Why a neural operator, not a plain PINN
+# Operator vs. plain PINN
 
 <div class="grid grid-cols-2 gap-6 mt-4">
 
@@ -194,7 +194,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <SectionTag>§ Literature review · what blocks each line</SectionTag>
 
-# Nothing on the shelf survives the field constraint
+# Seven research lines — what blocks each
 
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
@@ -244,7 +244,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <SectionTag>§ Literature review · the accurate ones, and what they cost</SectionTag>
 
-# The low-error methods all buy it with a full field
+# DNS-supervised methods — the hidden cost
 
 <style>
 .dns { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; margin-bottom: 0; }
@@ -355,7 +355,7 @@ Query-anywhere or sensor-reading designs exist — but every one is trained agai
 
 <SectionTag>§ Literature review · the same-regime works, head to head</SectionTag>
 
-# The three works in our regime — and where each stops
+# Same-regime works — head to head
 
 <style>
 .hh { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; margin-bottom: 0; }
@@ -468,7 +468,7 @@ Sensor measurements + PDE residual, <b>no full reference field</b> — the thesi
 
 <SectionTag>§ Background · the sensor resolution limit</SectionTag>
 
-# What K = 100 sensors can resolve
+# K = 100 — the sensor resolution limit
 
 <div class="grid grid-cols-5 gap-5 mt-3 items-center">
 
@@ -660,7 +660,7 @@ $$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
 <SectionTag>§ Architecture · how (O1)–(O3) get answered</SectionTag>
 
 
-# Three additions that turn DeepONet into a sparse-sensor operator
+# Three additions to DeepONet
 <div class="text-xs opacity-70 -mt-1 mb-2">
 DeepONet needs three changes to become a sparse inverse-flow operator — the result is <b>PI-CON</b> (<b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork).
 </div>
@@ -1227,7 +1227,7 @@ disabled: true
 
 <SectionTag>§ Evaluation metrics &amp; training loss</SectionTag>
 
-# How error and physics consistency are computed
+# Error metrics & training loss
 
 <style>
 .ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px; align-items: baseline; margin-top: 10px; }
@@ -1303,7 +1303,7 @@ $$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathc
 
 <SectionTag>§ Main result · multi-seed comparison against fair baselines</SectionTag>
 
-# 2×2 architecture ablation at the deployment setup
+# Main result — every variant at n = 5
 
 <div class="mt-1 text-xs" style="color:#6B7280;">
 Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (DNS-free)</b> · 1024 collocation · 20 k iterations · <b>all rows n = 5 seeds</b>
@@ -1379,9 +1379,9 @@ Paper-grade findings：
 
 <NavBar active="results" />
 
-<SectionTag>§ Architectural value · 2×2 ablation + baselines</SectionTag>
+<SectionTag>§ Results · architectural value</SectionTag>
 
-# Cross-attention is the dominant lever
+# 2×2 ablation — the dominant lever
 
 <style>
 .m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 7px; align-items: center; margin-top: 10px; margin-bottom: 0; }
@@ -1520,7 +1520,7 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 <SectionTag>§ Results · vorticity error interpretation</SectionTag>
 
-# Where the error sits and why — K = 100 information bound
+# Error structure — the K = 100 bound
 
 <style>
 .bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
@@ -1689,7 +1689,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 
 <SectionTag>§ Results · sensor placement axis (O3)</SectionTag>
 
-# DNS-free placement is competitive, not oracle-equivalent
+# DNS-free placement — competitive, not equivalent
 
 <style>
 .pl { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 12px;
@@ -1797,7 +1797,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 
 <SectionTag>§ Results · vs an open-loop forward-CFD forecast</SectionTag>
 
-# Same energy at every scale — and no shared structure
+# Forward-CFD — same spectrum, unrelated field
 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
@@ -1879,7 +1879,7 @@ KE-as-misleading。
 
 <SectionTag>§ Results · sensor count axis (O2)</SectionTag>
 
-# The cutoff moves right with the sensors
+# K-scaling — cutoff vs. sensor count
 
 <div class="text-sm mt-1" style="color:#374151;">
 Where PI-CON departs from DNS follows the sensor Nyquist <span class="raw">k<sub>max</sub> = √(K/π)</span> — higher fidelity comes from <b style="color:#7F1084;">bandwidth expansion</b>, not architecture search.
@@ -1926,7 +1926,7 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 
 <SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Noise moves the numbers, not the verdict
+# Sensor noise — reliability, not feasibility
 
 <style>
 .nz { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 14px; margin-bottom: 0;
@@ -2037,7 +2037,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <SectionTag>§ Results · engineering applicability (within the validated scope)</SectionTag>
 
-# What this method can and cannot deliver
+# Engineering applicability — scope and limits
 
 <div class="text-xs mt-1" style="color:#6B7280;">
 Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted sparse sensors; additive Gaussian noise tested separately up to 10 % sensor std.
@@ -2400,7 +2400,7 @@ O3 tab:placement_strategy_new + chapter04:438。
 
 <SectionTag>§ Conclusion · limitations</SectionTag>
 
-# Five limitations bound the scope
+# Five limitations
 
 <style>
 .lm { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 10px; }
@@ -2472,7 +2472,7 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 
 <SectionTag>§ Conclusion · future work 1/2</SectionTag>
 
-# First, close the claims we made
+# Closing the claims
 
 <div class="fw">
 
@@ -2525,7 +2525,7 @@ matched budget 才能判斷那是真的彎還是 collocation 造成的。
 
 <SectionTag>§ Conclusion · future work 2/2</SectionTag>
 
-# Then, widen where it applies
+# Widening the scope
 
 <div class="fw">
 
