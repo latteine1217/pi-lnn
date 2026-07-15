@@ -194,7 +194,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <SectionTag>§ Literature review · what blocks each line</SectionTag>
 
-# Seven research lines — what blocks each
+# Four blockers, seven research lines
 
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
@@ -204,7 +204,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 .need { color: #E97132; font-weight: 700; }
 </style>
 
-<div class="text-xs mt-1" style="color:#6B7280;">Seven research lines <span class="opacity-70">(thesis Table 1.1)</span> — each blocked by <b>one</b> thing a real rig cannot supply.</div>
+<div class="text-xs mt-1" style="color:#6B7280;">The seven surveyed research lines <span class="opacity-70">(thesis Table 1.1)</span> fall into <b>four</b> blockers — each one a thing a real rig cannot supply.</div>
 
 <div class="blk">
 
@@ -980,17 +980,25 @@ $$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
 <Card>
 <LabelTiny>CFD ANALOGUE &amp; OBSERVED EFFECT</LabelTiny>
 
-<div class="mt-3 text-sm" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
-<b style="color:#7F1084;">SIMPLE / PISO</b><span>pressure-correction Poisson · <b>exact, pointwise</b> on the grid</span>
-<b style="color:#7F1084;">Our AL (λ)</b><span>gradient ascent on the mean residual · <b>in expectation</b>, not pointwise</span>
+<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:5px; align-items:baseline;">
+<b style="color:#7F1084;">SIMPLE / PISO</b><span>pressure-correction Poisson · <b>exact, pointwise</b></span>
+<b style="color:#7F1084;">Our AL (λ)</b><span>ascent on the mean residual · <b>in expectation</b></span>
 </div>
 
-<div class="mt-2 text-xs" style="color:#6B7280;">
+<div class="mt-1 text-[10px]" style="color:#6B7280;">
 an analog, not an algorithmic equivalent
 </div>
 
-<div class="mt-3">
-<MetricHero value="0.39%" label="divergence ratio · EXP-245 main baseline (LES_T50, 20 k, n = 5)" size="sm" />
+<div class="mt-3 pt-2" style="border-top: 1px solid #E5E0EC;">
+<LabelTiny>Is the constraint doing anything?</LabelTiny>
+<div class="mt-1" style="display:grid; grid-template-columns:1fr max-content; column-gap:12px; row-gap:4px; align-items:baseline; font-size:0.72rem; font-variant-numeric:tabular-nums;">
+<span style="color:#6B7280;">DNS, full cascade</span><span style="color:#9CA3AF;">1.04 %</span>
+<span style="color:#6B7280;">DNS, band-limited to k ≤ 16</span><span style="color:#9CA3AF;">0.38 %</span>
+<span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
+</div>
+<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
+Driven to the finite-difference floor its resolved scales permit — <b>not</b> below DNS. Raising ρ tightens it further (0.39 → 0.28 % at ρ = 1) and costs field accuracy: the knob is live.
+</div>
 </div>
 
 </Card>
@@ -1084,7 +1092,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <LabelTiny>Sensors</LabelTiny>
 <div class="pgrid">
 <div class="k">Number &amp; channels</div><div class="v"><b>K = 100</b>, (u, v) only</div>
-<div class="k">Placement</div><div class="v">QR-pivot POD basis <span class="cite">[Manohar 2018]</span></div>
+<div class="k">Placement</div><div class="v"><b style="color:#7F1084;">LES-derived</b> QR-pivot POD basis <span class="cite">[Manohar 2018]</span> — no DNS field</div>
 </div>
 </Card>
 
@@ -1246,7 +1254,8 @@ $$\mathrm{rel}\,L_2(\phi) = \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{
 <div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
 <div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
 <div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
-<div class="sym">div L₂(t)</div><div class="def">‖∂<sub>x</sub>u + ∂<sub>y</sub>v‖₂</div>
+<div class="sym">KE MAPE</div><div class="def">time-mean of |KE<sub>pred</sub> − KE<sub>DNS</sub>| / KE<sub>DNS</sub> over t ∈ [0, T] · <span style="color:#9CA3AF;">also written KE rel-err</span></div>
+<div class="sym">div ratio</div><div class="def">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></div>
 </div>
 
 <div class="mt-3 text-[10px]" style="color:#6B7280;">
@@ -1815,16 +1824,18 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <div class="col-span-2 space-y-2">
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>At t = 5 &nbsp;<span class="opacity-60">(Re = 10⁴, K = 100)</span></LabelTiny>
+<LabelTiny>Near t = 5 &nbsp;<span class="opacity-60">(Re = 10⁴, K = 100)</span></LabelTiny>
 <div class="fc">
 <div></div><div class="hd">Forward-CFD</div><div class="hd">PI-CON</div>
-<div class="k">KE rel-err</div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
-<div class="k">u rel-L₂</div><div class="v bad">152.8 %</div><div class="v good">7.28 ± 0.14 %</div>
-<div class="k">v rel-L₂</div><div class="v bad">203.9 %</div><div class="v good">16.38 ± 0.34 %</div>
-<div class="k">ω rel-L₂</div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
-<div class="k">σ<sub>u</sub>/σ<sub>v</sub></div><div class="v bad">0.90</div><div class="v good">2.30</div>
+<div class="k">KE rel-err <span style="color:#C9C6D0;">late window</span></div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
+<div class="k">u rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">152.8 %</div><div class="v good">7.28 ± 0.14 %</div>
+<div class="k">v rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">203.9 %</div><div class="v good">16.38 ± 0.34 %</div>
+<div class="k">ω rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
+<div class="k">σ<sub>u</sub>/σ<sub>v</sub> <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">0.90</div><div class="v good">2.30</div>
 </div>
-<div class="mt-2 text-[10px]" style="color:#6B7280;">DNS anisotropy σ<sub>u</sub>/σ<sub>v</sub> = 2.32.</div>
+<div class="mt-1 text-[9px] leading-tight" style="color:#6B7280;">
+DNS anisotropy σ<sub>u</sub>/σ<sub>v</sub> = 2.32. <b>These are not the headline numbers</b>: PI-CON's KE here is the late-window (t ≳ 3.3) mean and u/v/ω are the t = 5 snapshot, both matched to the forward-CFD forecast — the main-result KE MAPE 5.71 % and u rel-L₂ 13.65 % are means over the whole t ∈ [0, 5] window.
+</div>
 </Card>
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
