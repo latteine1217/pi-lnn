@@ -1169,6 +1169,10 @@ Paper-grade findings：
 .m22 .dv { font-size: 0.8rem; font-weight: 700; text-align: center; }
 .m22 .good { color: #7F1084; }
 .m22 .bad  { color: #E97132; }
+.rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 5px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
+.rg .k { font-size: 0.72rem; color: #374151; }
+.rg .n { font-size: 0.78rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
+.rg .tot { border-top: 1px solid #E5E0EC; padding-top: 5px; margin-top: 2px; }
 </style>
 
 <div class="grid grid-cols-5 gap-3 mt-1">
@@ -1206,24 +1210,24 @@ Paper-grade findings：
 <div class="col-span-2 space-y-2 text-xs">
 
 <Card>
-<LabelTiny>Main effects (about B0)</LabelTiny>
-<div class="mt-1 leading-tight">
-Cross-attention&nbsp; <b style="color:#7F1084;">−1.20 pp</b> (dominant lever)<br/>
-CfC&nbsp; <b style="color:#E97132;">+1.00 pp</b> (worse alone)<br/>
-Interaction&nbsp; <b style="color:#7F1084;">−2.32 pp</b> (largest term)
+<LabelTiny>KE decomposition &nbsp;<span class="opacity-60">(pp)</span></LabelTiny>
+<div class="rg">
+<div class="k">cross-attention</div><div class="n" style="color:#7F1084;">−1.20</div>
+<div class="k">CfC</div><div class="n" style="color:#E97132;">+1.00</div>
+<div class="k">CfC × cross-attention</div><div class="n" style="color:#7F1084;">−2.32</div>
+<div class="k tot">total &nbsp;B3 − B0</div><div class="n tot">−2.52</div>
 </div>
-<div class="text-[10px] mt-1" style="color:#6B7280;">
-Sum = −2.52 pp → B3 = 5.71 %. Additive on the absolute scale.
-</div>
+<div class="mt-2 text-[10px]" style="color:#6B7280;">Additive about the B0 reference cell (8.23 %); interaction outweighs either main effect.</div>
 </Card>
 
 <Card>
-<LabelTiny>Multi-seed t-test (n = 5)</LabelTiny>
-<div class="mt-1 leading-tight">
-B3 KE&nbsp; <b>5.71 ± 0.11%</b><br/>
-B0 KE&nbsp; 8.23 ± 0.22%<br/>
-Gap&nbsp; <b style="color:#7F1084;">−2.52 pp (−30.6 % relative)</b>,&nbsp; p = <b>3.0×10⁻⁷</b>
+<LabelTiny>Welch t-test &nbsp;<span class="opacity-60">(n = 5 seeds)</span></LabelTiny>
+<div class="rg">
+<div class="k">B3 &nbsp;PI-CON</div><div class="n" style="color:#7F1084;">5.71 ± 0.11 %</div>
+<div class="k">B0 &nbsp;vanilla DeepONet</div><div class="n">8.23 ± 0.22 %</div>
+<div class="k tot">gap</div><div class="n tot" style="color:#7F1084;">−30.6 % rel</div>
 </div>
+<div class="mt-2 text-[10px]" style="color:#6B7280;">t = 22.9 · p = 3.0×10⁻⁷ · Cohen's d = 14.5</div>
 </Card>
 
 </div>
