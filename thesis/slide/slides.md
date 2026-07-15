@@ -1687,55 +1687,52 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 
 <NavBar active="results" />
 
-<SectionTag>§ DNS-free engineering pipeline · LES-derived sensor placement</SectionTag>
+<SectionTag>§ Results · sensor placement axis (O3)</SectionTag>
 
 # DNS-free placement is competitive, not oracle-equivalent
 
-<div class="grid grid-cols-5 gap-3 mt-1">
-
-<div class="col-span-3">
-
-<div class="text-xs" style="color:#6B7280;">
-Same B3, 1024 collocation, 20 k iterations, n = 5 seeds.
-</div>
-
 <style>
-.pl { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 8px;
+.pl { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 12px;
       font-variant-numeric: tabular-nums; }
-.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.62rem;
-         padding: 0 8px 6px 8px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
+.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.64rem;
+         padding: 0 12px 7px 12px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
 .pl th:first-child { text-align: left; }
-.pl td { padding: 7px 8px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
+.pl td { padding: 10px 12px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
 .pl td:first-child { text-align: left; color: #1F1B2E; }
 .pl tr.main td { background: rgba(127, 16, 132, 0.09); font-weight: 700; color: #7F1084; }
 .pl .no  { color: #7F1084; font-weight: 700; }
 .pl .yes { color: #E97132; font-weight: 700; }
+.pl .sub { font-weight: 400; color: #9CA3AF; font-size: 0.86em; }
 </style>
+
+<div class="text-xs mt-1" style="color:#6B7280;">
+Same B3 backbone, 1024 collocation, 20 k iterations, n = 5 · sensor values always come from the K = 100 positions only.
+</div>
 
 <table class="pl">
 <thead>
 <tr>
 <th>Placement strategy</th>
-<th>DNS full field<br/>to place?</th>
+<th>DNS full field to place?</th>
 <th>KE MAPE (%)</th>
 <th>u / v rel-L₂ (%)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="main">
-<td>LES T = 50 &nbsp;<span style="font-weight:400; color:#9CA3AF;">main pipeline</span></td>
+<td>LES T = 50 &nbsp;<span class="sub">main pipeline</span></td>
 <td class="no">No</td>
 <td>5.71 ± 0.11</td>
 <td>13.65 / 17.52</td>
 </tr>
 <tr>
-<td>DNS QR-pivot &nbsp;<span style="color:#9CA3AF;">oracle</span></td>
+<td>DNS QR-pivot &nbsp;<span class="sub">oracle</span></td>
 <td class="yes">Yes</td>
 <td><b>4.68 ± 0.06</b></td>
 <td>15.34 / 18.10</td>
 </tr>
 <tr>
-<td>Random uniform &nbsp;<span style="color:#9CA3AF;">fallback</span></td>
+<td>Random uniform &nbsp;<span class="sub">no-effort fallback</span></td>
 <td class="no">No</td>
 <td>7.95 ± 0.68</td>
 <td>17.20 / 21.62</td>
@@ -1743,25 +1740,54 @@ Same B3, 1024 collocation, 20 k iterations, n = 5 seeds.
 </tbody>
 </table>
 
-<div class="mt-3 text-xs leading-snug" style="color:#374151;">
-The oracle wins <b>KE</b>; LES placement wins <b>pointwise L₂</b> — and needs no DNS. Random stays under the 10 % target but costs <b style="color:#E97132;">+2.24 pp</b> of KE.
-</div>
+<div class="grid grid-cols-3 gap-4 mt-5 text-xs">
 
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>A trade, not a win</LabelTiny>
+<div class="mt-1 leading-snug" style="color:#374151;">
+The oracle takes <b>KE</b>. LES takes <b>pointwise L₂</b> — and needs no DNS field to place.
 </div>
+</Card>
 
-<div class="col-span-2">
-<img :src="'/images/les_T50_vs_dns_spectrum.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 280px; width: 100%; object-fit: contain;" />
-<div class="text-[10px] mt-1" style="color:#6B7280;">
-Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2× on k ∈ [2, N/3]; the LES tail steepens from SGS dissipation.
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Placement is worth 2.24 pp</LabelTiny>
+<div class="mt-1 leading-snug" style="color:#374151;">
+LES over random: <b style="color:#7F1084;">−2.24 pp</b> of KE for one cheap LES run.
 </div>
+</Card>
+
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Reliability, not feasibility</LabelTiny>
+<div class="mt-1 leading-snug" style="color:#374151;">
+Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the spread from training seeds (± 0.11). All three clear 10 %.
 </div>
+</Card>
 
 </div>
 
 <FooterLogos />
 
 <!--
-[Sensor placement transferability · 2min] 這張改為 EXP-245 vs EXP-271 fair comparison。重點是 trade-off：DNS oracle KE 4.68 ± 0.06 比 LES 5.71 ± 0.11 好；但 LES 的 pointwise u/v/ω L2 較好。Random placement 5 seeds = 7.95 ± 0.68，證明沒有 placement effort 仍 engineering-grade，但 variance 比 training seed 大 6.2×。論文 main story：完整 LES → QR-pivot → 量測 → 重建 pipeline 不需 DNS；DNS 只作 offline benchmark。
+[Placement · 2min] O3 位置軸。表格即證據 —— 論文 §placement (sec:placement_analysis)
+本身也是純表格、無圖。
+
+欄位語意取自 chapter04.tex:347 的「DNS full field for placement?」（Yes/No），一欄即可，
+不需要 pre-deployment cost + engineering deployable 兩欄互相重複。
+數字：chapter04.tex:351 / :386（random u 17.20±1.42, v 21.62±2.07）、tab:main_metrics。
+
+三張卡：
+1. trade-off —— oracle 贏 KE、LES 贏 pointwise L₂（chapter04:357），不可寫成 LES 全面勝。
+2. −2.24 pp —— LES 相對 random 的 KE 增益（chapter04:45 原文；實算 7.95 − 5.71 = 2.24）。
+3. variance —— ± 0.68（跨 5 種佈點）vs ± 0.11（跨 training seed）＝ 6.2×，對應
+   chapter04:45「reduces placement-induced variance roughly sixfold」。這是 O3
+   「placement 影響 reliability 不影響 feasibility」的量化依據，三者皆 < 10 % 門檻。
+
+⚠️ 已移除原本右欄的 les_T50_vs_dns_spectrum.png：
+   (a) 它回答「這個 LES 好不好」，屬 slide 12 的範圍；本頁講 placement 結果，該圖不支撐本頁主張。
+   (b) 其 caption「Leading POD modes overlap within 2× on k ∈ [2, N/3]」正是
+       thesis/CLAUDE.md 明列的 LES 禁項 ——「不可拿 LES 能譜與 DNS 比對當 gate；
+       friction 使兩者能量平衡不同，物理上不可能通過，吻合也不構成 LES 品質證據」。
+   同一條 gate 亦仍掛在 thesis chapter03.tex:208 的 tab:les_params，待處理。
 -->
 
 
