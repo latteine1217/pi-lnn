@@ -1887,68 +1887,69 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 
 <SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Everything degrades — nothing crosses the line
+# Noise is the smallest lever you have
 
 <style>
-/* Slidev 的 per-slide style 區塊有 scope；slide 20 的 .bg2 不會跨頁生效，此處需自帶。
-   註：此註解內不可出現字面的 style 標籤，SFC parser 會誤判為新標籤開頭。 */
-.bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px;
-       align-items: baseline; margin-top: 6px; margin-bottom: 0; }
-.bg2 .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
-.bg2 .v { font-size: 0.71rem; color: #1F1B2E; line-height: 1.3; white-space: nowrap; }
+/* per-slide 樣式有 scope，此頁自帶。註解內不可出現字面的 style 標籤。 */
+.ns { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px;
+      align-items: baseline; margin-top: 6px; margin-bottom: 0; }
+.ns .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
+.ns .v { font-size: 0.72rem; color: #1F1B2E; font-variant-numeric: tabular-nums; }
 </style>
 
 <script setup>
-const NOISE = [0, 1, 3, 5, 10]
-const noiseData = {
-  labels: NOISE.map(n => `${n} %`),
-  datasets: [
-    { label: 'KE MAPE', data: [5.71, 5.745, 5.807, 5.916, 6.080],
-      borderColor: '#7F1084', backgroundColor: '#7F1084', tension: 0.25,
-      pointRadius: 4, pointHoverRadius: 5, borderWidth: 2.4, order: 1 },
-    { label: 'Engineering threshold', data: NOISE.map(() => 10),
-      borderColor: '#E97132', borderDash: [6, 4], borderWidth: 2,
-      pointRadius: 0, fill: false, order: 2 },
-  ],
+const leverData = {
+  labels: ['Seed-to-seed (n = 5)', 'Noise  0 → 10 %', 'Placement  LES → random', 'Architecture  B3 → B0'],
+  datasets: [{
+    label: 'Δ KE (percentage points)',
+    data: [0.11, 0.37, 2.24, 2.52],
+    backgroundColor: ['#C9C6D0', '#7F1084', '#E97132', '#E97132'],
+    barThickness: 22,
+  }],
 }
-const noiseOpts = {
+const leverOpts = {
+  indexAxis: 'y',
   scales: {
-    y: { title: { display: true, text: 'KE MAPE (%, lower is better)', color: '#7F1084' },
-         min: 0, max: 11, ticks: { stepSize: 2 } },
-    x: { title: { display: true, text: 'Additive Gaussian noise (% of per-channel sensor std)', color: '#6B7280' } },
+    x: { title: { display: true, text: 'Δ KE (percentage points)', color: '#6B7280' },
+         min: 0, max: 2.8, ticks: { stepSize: 0.5 } },
+    y: { ticks: { color: '#374151', font: { size: 10.5 } }, grid: { display: false } },
   },
-  plugins: { legend: { display: true, position: 'top', align: 'end' } },
+  plugins: { legend: { display: false } },
 }
 </script>
+
+<div class="text-sm mt-1" style="color:#374151;">
+Same baseline (KE 5.71 %), same protocol, all n = 5 — what actually moves the number.
+</div>
 
 <div class="grid grid-cols-5 gap-4 mt-2">
 
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>KE vs sensor noise &nbsp;<span class="opacity-60">(n = 5 per level, final protocol)</span></LabelTiny>
-<ChartCanvas type="line" :data="noiseData" :options="noiseOpts" height="170px" />
-<div class="foot mt-1">At 10 % noise the KE error still sits <b style="color:#7F1084;">3.9 pp</b> below the threshold.</div>
+<LabelTiny>What moves KE</LabelTiny>
+<ChartCanvas type="bar" :data="leverData" :options="leverOpts" height="165px" />
+<div class="foot mt-1">Noise sits <b style="color:#7F1084;">6×</b> below placement and <b style="color:#7F1084;">7×</b> below architecture — barely above seed scatter.</div>
 </Card>
 </div>
 
 <div class="col-span-2 space-y-2">
 
 <Card style="padding-top: 0.55rem; padding-bottom: 0.55rem;">
-<LabelTiny>0 % → 10 % noise &nbsp;<span class="opacity-60">(n = 5)</span></LabelTiny>
-<div class="bg2">
-<div class="k">KE MAPE</div><div class="v">5.71 → 6.08 %&nbsp; <span style="color:#E97132;">+6.5 %</span></div>
-<div class="k">u rel-L₂</div><div class="v">13.65 → 14.49 %&nbsp; <span style="color:#E97132;">+6.2 %</span></div>
-<div class="k">v rel-L₂</div><div class="v">17.52 → 18.77 %&nbsp; <span style="color:#E97132;">+7.1 %</span></div>
-<div class="k">ω rel-L₂</div><div class="v">41.79 → 43.47 %&nbsp; <span style="color:#E97132;">+4.0 %</span></div>
-<div class="k">div ratio</div><div class="v">0.39 → 0.46 %&nbsp; <span style="color:#E97132;">+17.7 %</span></div>
+<LabelTiny>Noise series &nbsp;<span class="opacity-60">(n = 5 per level)</span></LabelTiny>
+<div class="ns">
+<div class="k">0 % (clean)</div><div class="v">5.71 ± 0.11 %</div>
+<div class="k">1 %</div><div class="v">5.75 ± 0.08 %</div>
+<div class="k">3 %</div><div class="v">5.81 ± 0.03 %</div>
+<div class="k">5 %</div><div class="v">5.92 ± 0.08 %</div>
+<div class="k">10 %</div><div class="v">6.08 ± 0.21 %</div>
 </div>
-<div class="mt-2 text-[10px]" style="color:#6B7280;">Monotone in the aggregate — every metric worsens.</div>
+<div class="mt-2 text-[10px]" style="color:#6B7280;">Monotone: u, v, ω and divergence all worsen too (ω +4.0 %, div +17.7 % relative).</div>
 </Card>
 
 <Card style="padding-top: 0.55rem; padding-bottom: 0.55rem;">
 <LabelTiny>Reliability, not feasibility</LabelTiny>
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-Noise moves the result; it does not move it <b>out of the engineering band</b>.
+Every level stays under the <b>10 %</b> target. Spend the effort on <b style="color:#E97132;">placement</b>, not on cleaner sensors.
 </div>
 </Card>
 
@@ -1959,24 +1960,28 @@ Noise moves the result; it does not move it <b>out of the engineering band</b>.
 <FooterLogos />
 
 <!--
-[Noise robustness · 1.5min] O3 噪音軸。主視覺改為折線 + 橘色虛線門檻：這頁的主張是
-「離 10% 門檻還有 3.9 pp 餘裕」，餘裕必須畫出來才成立。舊版長條圖只有五根差不多高的柱、
-門檻根本沒畫，看不出在主張什麼。
+[Noise robustness · 1.5min] O3 噪音軸。
 
-數字：EXP-290 noise robustness, final protocol, n=5（experiment_log_v2:1507-1514）
-1%/3%/5%/10% = 5.745±0.082 / 5.807±0.030 / 5.916±0.083 / 6.080±0.208；
-clean 0% = EXP-245 5.71±0.11。對應 thesis chapter04 tab (chapter04.tex:438) 與 :443。
+⚠️ 前一版把 noise 5 個 level 畫成折線 + 10% 門檻線 —— 五點擠在 5.7–6.1、門檻在 10，
+線是平的、誰都沒碰到，等於在畫一個沒有內容的圖。「差距太小」本身才是發現，但要跟
+別的槓桿比才看得出來。
 
-⚠️ 舊版寫「low-band recovery unaffected」「highly robust」與 log:1516 的
-「clearly worsens pointwise/vorticity/divergence metrics」不一致。實測 0→10%：
-KE +6.5% / u +6.2% / v +7.1% / ω +4.0% / div +17.7% 相對退化，全部單調變差。
-已改為「Everything degrades — nothing crosses the line」，右卡列出全部五項退化幅度。
-論文 chapter04:443 用詞為「The aggregate trend is monotone: increasing sensor noise raises
-KE error, pointwise error, vorticity error, and divergence ratio.」——與此一致。
+主視覺改為 lever 對照（橫向長條，這裡是四個類別量值的比較，長條圖是對的形式；
+slide 26 的冪律則不是）。全部同 baseline 5.71 %、同協定、n=5：
+  seed-to-seed ±0.11 (EXP-245 std)
+  noise 0→10 %  +0.37 (EXP-290, experiment_log_v2:1507-1514)
+  placement LES→random +2.24 (chapter04:45 / :351，random 7.95 ± 0.68)
+  architecture B3→B0   +2.52 (tab 4.6)
+→ noise 比 placement 小 6.1×、比架構小 6.8×，只有 seed 雜訊的 3.4×。
 
-⚠️ 不要用舊的 single-seed 10k noise 表（experiment_log_v2 §6, EXP-258~261, KE 6.92→7.14）。
-log:1516 明載已被 EXP-290 n=5 取代；chapter04:443 稱其為「older single-seed
-regularisation artefact」。但 §6 各列仍標 ACTIVE_REFERENCE，state 檔待清理。
+講法：「噪音是你最不用擔心的那個。要投資就投在佈點，不是在買更乾淨的感測器。」
+呼應 chapter04:357 原話「placement changes reliability more than feasibility」。
+
+誠實面：右卡仍列出 noise 單調變差（ω +4.0 %、div +17.7 % 相對），不寫 unaffected；
+與 experiment_log_v2:1516「clearly worsens pointwise/vorticity/divergence metrics」一致。
+
+⚠️ 不要用舊的 single-seed 10k noise 表（§6, EXP-258~261, KE 6.92→7.14）：log:1516 明載
+已被 EXP-290 n=5 取代，chapter04:443 稱其為 older single-seed regularisation artefact。
 -->
 
 
