@@ -795,16 +795,10 @@ an analog, not an algorithmic equivalent
 <Card>
 <LabelTiny>SOAP + SCHEDULE-FREE &nbsp;<span class="opacity-50">[Wang 2025, Defazio 2024]</span></LabelTiny>
 
-<div class="mt-3 leading-snug">
-<b>SOAP</b> · Shampoo-style 2nd-order preconditioner · approximates the Hessian, applies Adam <i>in the preconditioner eigenbasis</i> · <span class="opacity-70">recomputed every 2 steps</span>
-</div>
-
-<div class="mt-3 leading-snug">
-<b>Schedule-Free</b> · Polyak–Ruppert averaging, no explicit lr decay · outputs the running average, not the last iterate
-</div>
-
-<div class="mt-3 leading-snug">
-<b>Why both</b>&nbsp;·&nbsp; Re = 10⁴ anisotropic valleys · Adam zigzags · SOAP overshoots · SF averaging stabilises second-order trajectory
+<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
+<b style="color:#7F1084;">SOAP</b><span>Shampoo-style <b>2nd-order preconditioner</b> · Adam in the preconditioner eigenbasis</span>
+<b style="color:#7F1084;">Schedule-Free</b><span>Polyak–Ruppert averaging · no lr decay</span>
+<b style="color:#7F1084;">Why both</b><span>anisotropic valleys at Re = 10⁴ · Adam zigzags, SOAP overshoots, SF averaging stabilises</span>
 </div>
 
 <div class="mt-3 px-3 py-2 rounded text-xs leading-snug" style="background: rgba(127,16,132,0.06);">
@@ -821,14 +815,9 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 </div>
 
-<div class="mt-3 leading-snug">
-
-recomputed every 1 000 steps w.r.t. the trunk output layer θ_r · weights normalised by w_d^target to suppress absolute scale drift · EMA(0.9).
-
-</div>
-
-<div class="mt-3 leading-snug">
-<b>Why</b> · hand-tuned w brittle (too small ⇒ data overfit, too large ⇒ near-zero collapse) · GradNorm equalises <b>gradient-norm magnitude</b> across {data, NS-u, NS-v, cont}.
+<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
+<b style="color:#7F1084;">Every 1 000 steps</b><span>equalise <b>gradient-norm magnitude</b> across {data, NS-u, NS-v, cont}</span>
+<b style="color:#7F1084;">Why</b><span>hand-tuned weights are brittle — too small ⇒ data overfit, too large ⇒ near-zero collapse</span>
 </div>
 </Card>
 
