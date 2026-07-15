@@ -511,17 +511,17 @@ Vanilla DeepONet branch ingests a fixed-grid snapshot · our sensors = unevenly 
 <LabelTiny>① LIQUID NEURAL NETWORK (LNN) [Hasani 2021]</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug">
-Hidden state h(t) ∈ ℝ<sup>d</sup> evolves by an ODE · natural fit for an irregular sensor clock · but an ODE solver in the autograd graph is expensive:
+Hidden state h relaxes toward a target A · the <b>decay rate depends on the input</b> — a "liquid" time constant that suits an irregular clock:
 </div>
 
 <div class="mt-2" style="font-size: 0.7em;">
 
-$$\frac{d h}{dt} = -\Bigl[\tfrac{1}{\tau} + f(h, x, t;\theta)\Bigr] \odot h + f(h, x, t;\theta) \odot A$$
+$$\frac{d h}{dt} = -\underbrace{\Bigl[\tfrac{1}{\tau} + f(\cdot)\Bigr]}_{\text{input-dependent rate}} \odot\, h \;+\; f(\cdot) \odot A$$
 
 </div>
 
-<div class="mt-2 text-xs" style="color:#6B7280;">
-τ, A learnable per-dim · f(·) is a small MLP.
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+τ, A learnable per-dim · f(·) a small MLP · <b style="color:#E97132;">✗ an ODE solver inside the autograd graph is expensive</b>
 </div>
 </Card>
 
@@ -529,17 +529,21 @@ $$\frac{d h}{dt} = -\Bigl[\tfrac{1}{\tau} + f(h, x, t;\theta)\Bigr] \odot h + f(
 <LabelTiny>② CfC — closed-form solution of the LNN ODE [Hasani 2022]</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug">
-Analytical update over (t, t + Δt) — no ODE solver, O(1) per step, autograd survives through PDE Jacobians:
+Same dynamics solved analytically — <b>a gate σ that blends two candidate states</b>:
 </div>
 
 <div class="mt-2" style="font-size: 0.7em;">
 
-$$h(t + \Delta t) = \sigma\!\left(-f \Delta t\right) \odot g(h, x;\theta_g) + \left[1 - \sigma(-f \Delta t)\right] \odot h$$
+$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2, \qquad \sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
 
 </div>
 
-<div class="mt-2 text-xs" style="color:#6B7280;">
-σ(·) gating · g(·) update target · gap closed: branch now reads a true time signal at any Δt.
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#7F1084;">Δt enters the gate</b> → a longer silence shifts the blend toward the relaxed state.
+</div>
+
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+<b style="color:#0F2D52;">✓ no ODE solver</b> · O(1) per step · autograd survives through PDE Jacobians.
 </div>
 </Card>
 
