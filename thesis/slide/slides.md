@@ -2340,7 +2340,7 @@ PI-CON cuts pointwise u rel-L₂ by <b style="color:#7F1084;">47–74 % relative
 <div class="text-xs leading-snug space-y-1.5" style="color:#374151;">
 <div>Main baseline (LES_T50, 20 k, n=5): KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ~4 %</div>
 <div>Cross-attention the dominant lever: <b>−2.52 pp</b> vs B0 (p = 3.0×10⁻⁷)</div>
-<div>Single forward pass · full trajectory <b>≈20×</b> faster than DNS solve (9.7 min vs 3.27 h) · one-time setup 2.2× cheaper</div>
+<div>Any (x, t) in a <b>single forward pass</b>; a full trajectory reconstructs <b>several-fold</b> faster than re-solving the DNS<span style="color:#9CA3AF;"> — margin mixes GPU vs CPU, and is not the engineering case</span></div>
 </div>
 </Card>
 
@@ -2395,40 +2395,61 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <SectionTag>§ Conclusion · limitations</SectionTag>
 
-# Four limitations bound the scope of these results
+# Five limitations bound the scope of these results
 
-<div class="grid grid-cols-2 gap-4 mt-3 text-sm">
+<div class="grid grid-cols-2 gap-3 mt-2 text-xs">
 
-<Card>
-<LabelTiny>① REALISTIC SENSOR ERRORS REMAIN OPEN</LabelTiny>
-<div class="mt-1 leading-snug">Additive Gaussian tested to 10 %, engineering-grade · bias, drift, dropout, correlated noise, calibration errors remain open.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>① The clock was never irregular</LabelTiny>
+<div class="mt-1 leading-snug">The CfC branch is adopted to read <b>unevenly clocked</b> sensors — but the Kolmogorov benchmark samples <b style="color:#E97132;">uniformly</b> (Δt<sub>s</sub> = 0.025). That capability is <b>untested here</b>.</div>
 </Card>
 
-<Card>
-<LabelTiny>② PERIODIC-DOMAIN VALIDATION</LabelTiny>
-<div class="mt-1 leading-snug">Cylinder wake: preliminary support · airfoils, internal flows, mixing layers not yet validated.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>② Realistic sensor errors remain open</LabelTiny>
+<div class="mt-1 leading-snug">Additive Gaussian tested to 10 % at n = 5 · bias, drift, dropout, correlated channel noise, calibration error remain open.</div>
 </Card>
 
-<Card>
-<LabelTiny>③ SINGLE FORCING FORM</LabelTiny>
-<div class="mt-1 leading-snug">Validated case: Kolmogorov body forcing · wall-driven / inflow-driven flows need case-specific re-training.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>③ Periodic domain, single forcing</LabelTiny>
+<div class="mt-1 leading-snug">Doubly periodic Ω = [0,1]², body force f<span class="raw">ₓ</span> = A sin(2πk<sub>f</sub>y). Cylinder wake is a preliminary extension; airfoils, internal flows, wall-driven cases need revalidation.</div>
 </Card>
 
-<Card>
-<LabelTiny>④ GENERALITY AND CFD-RIGOUR GAPS</LabelTiny>
-<div class="mt-1 leading-snug">Single-trajectory at fixed Re · mean profiles, Reynolds stresses, TKE budget closure, classical sensor-projection CFD baselines remain future validation.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>④ Single trajectory, single-seed cross-Re</LabelTiny>
+<div class="mt-1 leading-snug">One DNS realisation at fixed Re; the Re = 10⁶ case is <b>single-seed and retuned</b> — feasibility, not a multi-seed benchmark.</div>
 </Card>
 
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>⑤ CFD-rigour gaps</LabelTiny>
+<div class="mt-1 leading-snug">Mean profiles, Reynolds stresses and TKE-budget closure are only partly reported; classical sensor-projection CFD baselines remain future validation.</div>
+</Card>
+
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;" class="flex items-center">
+<div class="leading-snug text-xs" style="color:#6B7280;">
+K = 100 is an <b style="color:#7F1084;">engineering success regime</b> — not a universal operator-generalisation claim.
 </div>
+</Card>
 
-<div class="mt-4 text-center">
-<Pill>K = 100 is an engineering success regime, not a universal operator-generalisation claim.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Limitations · 1.5min] 五點限制：①Gaussian noise 已做 n=5，但真實 sensor bias/drift/dropout/correlated noise 未做 ②periodic domain only — cylinder wake KE 3.5% 已驗但 airfoil/channel/mixing layer 未驗 ③single forcing form — Kolmogorov body force, wall/inflow flows 需 case by case 重訓 ④K=100 hard ceiling — info-theoretic, 需更多 sensor 或 prior 才能突破 ⑤single trajectory / Re=10^6 single-seed — 跨 IC 或跨 Re 的 operator generalisation 還沒驗證。
+[Limitations · 1.5min] 對應 thesis §5.3（該節共 7 條：Observation noise / Geometry scope /
+Forcing form / Acceptance metrics / Per-case fitting and single-seed cross-Re / CFD-rigour
+gaps / Diagnostic boundaries）。投影片壓成 5 條：Geometry 與 Forcing 合為 ③，
+Acceptance metrics 與 Diagnostic boundaries 屬細節、留給提問。
+
+⚠️ ① 是本次新增，且 thesis §5.3 目前「沒有」這一條 —— 需回頭補進論文。依據：
+chapter01.tex:114 自承「a capability retained here even though the controlled Kolmogorov
+benchmark samples uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在
+irregular clock（「Discrete RNNs (GRU, LSTM) cannot absorb such irregular sampling」）；
+論文標題亦是「Physics-Constrained Continuous-Time Reconstruction」。
+即：標題與架構選擇的核心賣點，在本研究中從未被實驗觸及，而 §Conclusion 未揭露。
+先自己講，比被問出來好；對應的實驗已列入 slide 32 ①。
+
+這也解釋了 slide 18 的 2×2：CfC 單獨使用 +1.00 pp（變差）是預期的 —— 均勻時鐘下
+Δt 為定值，CfC 的 Δt 閘門（chapter02:212）吃不到變異，退化成多帶參數的 gated RNN。
 -->
 
 ---
@@ -2437,56 +2458,61 @@ O3 位置&噪音軸 — DNS/LES/random KE 4.68/5.71/7.95% 皆 <10%，σ_placemen
 
 <SectionTag>§ Conclusion · future work</SectionTag>
 
-# Four directions, each closing one limitation
+# Five directions, each closing one limitation
 
-<div class="grid grid-cols-2 gap-4 mt-3 text-sm">
+<div class="grid grid-cols-2 gap-3 mt-2 text-xs">
 
-<Card>
-<LabelTiny>① CROSS-RE MULTI-SEED&nbsp;<span class="opacity-60">(highest priority)</span></LabelTiny>
-<div class="mt-1 leading-snug">Re = 10⁶ from single seed to n ≥ 3, then test Re ≥ 10⁷ — closes the fixed-Re, single-trajectory limit.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>① Put the clock to work &nbsp;<span class="opacity-60">(closes ①)</span></LabelTiny>
+<div class="mt-1 leading-snug">Re-run at <b>irregular sensor clocks</b> — dropped packets, per-group cadences — against a GRU with Δt concatenated. Needs <b>no new DNS</b>: a mask on the existing 201 frames. This is the test the title rests on.</div>
 </Card>
 
-<Card>
-<LabelTiny>② SENSOR-BUDGET SCALING&nbsp;<span class="opacity-60">(K = 200 / 400 preliminary ✓)</span></LabelTiny>
-<div class="mt-1 leading-snug">K = 50 / 100 / 200 / 400 at matched budget; test k<sub>max</sub> ≈ √(K/π) — turns the K-trend into a law.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>② Cross-Re multi-seed &nbsp;<span class="opacity-60">(closes ④)</span></LabelTiny>
+<div class="mt-1 leading-snug">Re = 10⁶ from single seed to n ≥ 3, then Re ≥ 10⁷ — turns feasibility into a benchmark.</div>
 </Card>
 
-<Card>
-<LabelTiny>③ REALISTIC SENSOR-ERROR MODEL</LabelTiny>
-<div class="mt-1 leading-snug">Beyond additive Gaussian: bias, drift, dropout, correlated channel noise, and calibration error.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>③ Sensor-budget scaling at matched budget</LabelTiny>
+<div class="mt-1 leading-snug">K = 50 / 100 / 200 / 400 with collocation held fixed <span style="color:#9CA3AF;">(K = 400 currently uses 512, not 1024)</span> — turns the three-point trend into a law.</div>
 </Card>
 
-<Card>
-<LabelTiny>④ WALL-BOUNDED GEOMETRIES + CFD BASELINE</LabelTiny>
-<div class="mt-1 leading-snug">Cylinder → airfoil → channel, plus a classical forward-CFD baseline from divergence-projected sensor ICs.</div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>④ Realistic sensor-error model &nbsp;<span class="opacity-60">(closes ②)</span></LabelTiny>
+<div class="mt-1 leading-snug">Beyond additive Gaussian: bias, drift, dropout, correlated channel noise, calibration error.</div>
 </Card>
 
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<LabelTiny>⑤ Wall-bounded geometries + CFD baseline &nbsp;<span class="opacity-60">(closes ③, ⑤)</span></LabelTiny>
+<div class="mt-1 leading-snug">Cylinder → airfoil → channel, plus 4D-Var on the forward-CFD baseline and the CFD-rigour statistics.</div>
+</Card>
+
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;" class="flex items-center">
+<div class="leading-snug text-xs" style="color:#6B7280;">
+① is cheapest and closest to the claim; ② is the one that raises the ceiling. The rest widen <b>scope</b>, not feasibility.
 </div>
+</Card>
 
-<div class="mt-4 text-center">
-<Pill>Cross-Re multi-seed comes first — the other three widen scope, not feasibility.</Pill>
 </div>
 
 <FooterLogos />
 
 <!--
-[Future work · 1.5min] 5 個 future direction：
-① 最高 — Re=10^6 從 single-seed 升到 n≥3，確認跨 Re seed variance
-② Sensor-budget scaling — K=50 補低端、K=400 補 matched training budget；K=100/200/400 目前只作 trend，不作強統計 claim
-③ Realistic sensor-error model — EXP-290 已完成 additive Gaussian n=5；下一步 bias/drift/dropout/correlated/calibration
-④ Wall-bounded geometries — cylinder → airfoil/channel
-⑤ Forward-CFD / 4D-Var baseline audit — 若要放強 baseline，需要重新 audit 或 rerun
+[Future work · 1.5min] 對應 thesis §5.4（該節 6 條：Sensor-budget scaling / Cross-Reynolds
+multi-seed / Realistic sensor-error model / Wall-bounded and obstacle geometries with
+multi-modal fusion / 4D-Var on the forward-CFD baseline and pressure-supported
+reconstruction / Cross-case generalisation and the training–simulation crossover）。
+投影片壓成 5 條並與 slide 31 的限制編號對齊（每條標「closes ⓘ」）。
 
-[Q&A] 常見問題提示：
-- 主 baseline 是哪個？→ EXP-245 (LES_T50 + 1024 physics points + B3 1-head, 20k, n=5, KE 5.71 ± 0.11%) — 工程可遷移配置
-- EXP-241_b 5.97% 是不是 over-fit？→ historical DNS-oracle single-seed protocol evidence；主線不靠這個數據
-- DNS oracle vs LES proxy gap？→ EXP-271 vs EXP-245 是 trade-off：DNS oracle KE 4.68 ± 0.06 較好，LES pointwise u/v/ω 較好
-- K=100 怎麼選？→ QR-pivot on DNS climatology (oracle) / LES-derived POD modes (engineering)
-- Sensor noise model? → EXP-290 已完成 additive Gaussian 1/3/5/10% n=5；真實 bias/drift/dropout/correlated noise 未做
-- AL hyperparams? → ρ=0.1 continuity-only 是 EXP-245 n=5 主 recipe；EXP-292 multi-constraint AL 是 final-protocol single-seed diagnostic，不能升主結論
-- Why CfC not LSTM? → 連續時間 + ODE-aligned hidden state，autograd 對 t 平滑
-- Cylinder transferable? → 是，CEXP-002 KE 3.5% (CEXP-001 51% with BC loss fix)
-- 為什麼 forcing-mode amp 是好指標？→ k_f=2 是能量注入點，沒抓對就沒下游 cascade
+⚠️ ① 為本次新增，thesis §5.4 目前沒有這一條 —— 需回頭補進論文，與 §5.3 的新限制配套。
+它是最便宜的一項（既有 201 frames 上加時間軸 mask，不需新 DNS），卻直接檢驗論文標題
+「Continuous-Time」與 CfC 的存在理由。對照組建議 GRU + Δt concat：若不規則時鐘下 CfC
+主效應仍為正、或 B3 − B2 gap 未擴大，則 CfC 的 continuous-time 賣點在此問題上不成立，
+誠實的動作是換掉 CfC 並改標題。
+
+③ 的括號揭露 K = 400 目前用 512 collocation（chapter04.tex:276 caption 明載），這正是
+chapter04:318 說「the three-point curve should not be read as a strict fit」的原因；
+matched budget 才能把趨勢變成定律。
 -->
 
 ---
