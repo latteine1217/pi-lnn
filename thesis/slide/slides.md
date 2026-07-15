@@ -693,15 +693,12 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 </Card>
 
 <Card>
-<LabelTiny>LES VERIFICATION &nbsp;<span class="opacity-60">(EXP-221, the trajectory used for placement)</span></LabelTiny>
+<LabelTiny>LES VERIFICATION</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug grid grid-cols-2 gap-x-3 gap-y-1">
-<div><b>‖∇·ū‖<sub>max</sub></b></div><div><b style="color:#0F2D52;">&lt; 10⁻¹⁰</b> ✓</div>
-<div><b>KE plateau</b></div><div><b style="color:#0F2D52;">&lt; 5 %</b> ✓</div>
-<div><b>T<sub>end</sub> / t<sub>eddy</sub></b></div><div><b style="color:#0F2D52;">26.5</b> ✓</div>
-<div><b>Independent samples</b></div><div><b style="color:#0F2D52;">≈ 17</b> ✓</div>
-<div><b>Spectral overlap</b></div><div><b style="color:#0F2D52;">within 2×</b> on k ∈ [2, N/3]</div>
-<div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b></div><div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b style="color:#0F2D52;">placement only</b>, not training truth</div>
+<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
+<div><b style="color:#0F2D52;">Resolution, stability and statistical convergence verified</b> against the LES criteria ✓ <span style="color:#6B7280;">(full table in backup)</span></div>
+<div><b>Statistical window</b>&nbsp; T<sub>end</sub> = 50 s ≈ <b style="color:#7F1084;">26.5 eddy-turnover times</b> — enough for converged POD modes</div>
+<div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b>, not training truth</div>
 </div>
 </Card>
 
