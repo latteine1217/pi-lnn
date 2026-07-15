@@ -614,6 +614,7 @@ $$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^{\top} - \lambda\,|r|}{
 <div>· K, V = CfC-encoded sensor tokens</div>
 <div>· |r|<sub>ij</sub> = √(‖x<sub>q,i</sub> − x<sub>s,j</sub>‖² + ε)&nbsp;<span style="color:#6B7280;">smooth norm, ε = 10⁻⁸</span></div>
 <div>· λ learnable — distant sensors get down-weighted (built-in proximity prior)</div>
+<div>· <b>Causal lookup</b> — query reads sensors only up to t<sub>q</sub> → streaming-deployable</div>
 </div>
 </Card>
 
@@ -631,7 +632,7 @@ $$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j, \quad w_j \propto \e
 </div>
 
 <div><b>Cross-attention with |r| bias</b> learns the kernel shape (softmax QK<sup>⊤</sup>) and bandwidth (λ) — no hand-picked σ.</div>
-<div><b>Causal masking</b>&nbsp;·&nbsp; future sensor times invisible → streaming-deployable.</div>
+<div>The kernel is <b>fitted to the sensors + PDE</b>, not chosen a priori.</div>
 </div>
 </Card>
 
