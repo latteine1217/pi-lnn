@@ -621,16 +621,21 @@ $$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^{\top} - \lambda\,|r|}{
 <Card>
 <LabelTiny>② CFD ANALOGUE — LEARNABLE RBF INTERPOLANT</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug space-y-2">
+<div class="mt-2 text-xs leading-snug">An RBF interpolant uses a fixed kernel:</div>
 
-<div>An RBF interpolant uses a fixed kernel:</div>
+<div class="mt-2" style="font-size: 0.7em;">
 
-<div style="font-size: 0.8em;">
-
-$$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j, \quad w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
+$$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j$$
 
 </div>
 
+<div class="mt-1" style="font-size: 0.7em;">
+
+$$w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
+
+</div>
+
+<div class="mt-2 text-xs leading-snug space-y-2">
 <div><b>Cross-attention with |r| bias</b> learns the kernel shape (softmax QK<sup>⊤</sup>) and bandwidth (λ) — no hand-picked σ.</div>
 <div>The kernel is <b>fitted to the sensors + PDE</b>, not chosen a priori.</div>
 </div>
