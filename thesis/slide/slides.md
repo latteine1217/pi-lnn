@@ -525,57 +525,62 @@ const gateOpts = {
 }
 </script>
 
-<div class="grid grid-cols-2 gap-5 mt-2">
+<div class="grid grid-cols-5 gap-4 mt-2">
+
+<div class="col-span-3 space-y-2">
 
 <Card>
 <LabelTiny>① LIQUID NEURAL NETWORK (LNN) [Hasani 2021]</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug">
-Hidden state h relaxes toward a target A · the <b>decay rate depends on the input</b> — a "liquid" time constant that suits an irregular clock:
+<div class="mt-1 text-xs leading-snug">
+h relaxes toward a target A · the <b>decay rate depends on the input</b> — a "liquid" time constant:
 </div>
 
-<div class="mt-2" style="font-size: 0.7em;">
+<div class="mt-1" style="font-size: 0.6em;">
 
 $$\frac{d h}{dt} = -\underbrace{\Bigl[\tfrac{1}{\tau} + f(\cdot)\Bigr]}_{\text{input-dependent rate}} \odot\, h \;+\; f(\cdot) \odot A$$
 
 </div>
 
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-τ, A learnable per-dim · f(·) a small MLP · <b style="color:#E97132;">✗ an ODE solver inside the autograd graph is expensive</b>
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
+τ, A learnable · f(·) a small MLP · <b style="color:#E97132;">✗ ODE solver in autograd is expensive</b>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>② CfC — closed-form solution of the LNN ODE [Hasani 2022]</LabelTiny>
+<LabelTiny>② CfC — closed-form solution [Hasani 2022]</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug">
+<div class="mt-1 text-xs leading-snug">
 Same dynamics solved analytically — <b>a gate σ that blends two candidate states</b>:
 </div>
 
-<div class="mt-2" style="font-size: 0.7em;">
+<div class="mt-1" style="font-size: 0.6em;">
 
-$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2$$
+$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2, \qquad \sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
 
-</div>
-
-<div class="mt-1" style="font-size: 0.7em;">
-
-$$\sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
-
-</div>
-
-<div class="mt-1 mx-auto" style="max-width: 200px;">
-<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="86px" />
-</div>
-
-<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · short gap → <b style="color:#7F1084;">σ → 1</b> · long gap → <b style="color:#7F1084;">σ → 0</b> (relaxed)
 </div>
 
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-<b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe through PDE Jacobians
+f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe
 </div>
 </Card>
+
+</div>
+
+<div class="col-span-2">
+<Card>
+<LabelTiny>How the gate behaves</LabelTiny>
+
+<div class="mt-2">
+<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="150px" />
+</div>
+
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+short gap → <b style="color:#7F1084;">σ → 1</b> → f<sub>1</sub> (fast)<br/>
+long gap → <b style="color:#7F1084;">σ → 0</b> → f<sub>2</sub> (relaxed)
+</div>
+</Card>
+</div>
 
 </div>
 
