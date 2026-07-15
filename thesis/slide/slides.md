@@ -505,6 +505,26 @@ CfC 內部公式、cross-attn 內部公式留 backup slides，這張只講 narra
 Vanilla DeepONet branch ingests a fixed-grid snapshot · our sensors = unevenly clocked <b>time series</b> → replace the branch with a closed-form continuous-time RNN.
 </div>
 
+<script setup>
+const gateX = Array.from({ length: 31 }, (_, i) => i * 0.2)
+const gateData = {
+  labels: gateX.map(d => d.toFixed(1)),
+  datasets: [{
+    data: gateX.map(dt => 1 / (1 + Math.exp(dt - 2))),
+    borderColor: '#7F1084', pointRadius: 0, fill: false,
+  }],
+}
+const gateOpts = {
+  scales: {
+    x: { title: { display: true, text: 'time gap Δt', color: '#6B7280', font: { size: 9 } },
+         ticks: { maxTicksLimit: 4, color: '#6B7280', font: { size: 9 } } },
+    y: { title: { display: true, text: 'gate σ', color: '#7F1084', font: { size: 9 } },
+         min: 0, max: 1, ticks: { stepSize: 0.5, color: '#6B7280', font: { size: 9 } } },
+  },
+  plugins: { legend: { display: false } },
+}
+</script>
+
 <div class="grid grid-cols-2 gap-5 mt-2">
 
 <Card>
@@ -534,16 +554,26 @@ Same dynamics solved analytically — <b>a gate σ that blends two candidate sta
 
 <div class="mt-2" style="font-size: 0.7em;">
 
-$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2, \qquad \sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
+$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2$$
 
 </div>
 
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#7F1084;">Δt enters the gate</b> → a longer silence shifts the blend toward the relaxed state.
+<div class="mt-1" style="font-size: 0.7em;">
+
+$$\sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
+
+</div>
+
+<div class="mt-1">
+<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="68px" />
+</div>
+
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
+f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · short gap → <b style="color:#7F1084;">σ → 1</b> · long gap → <b style="color:#7F1084;">σ → 0</b> (relaxed)
 </div>
 
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-<b style="color:#0F2D52;">✓ no ODE solver</b> · O(1) per step · autograd survives through PDE Jacobians.
+<b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe through PDE Jacobians
 </div>
 </Card>
 
