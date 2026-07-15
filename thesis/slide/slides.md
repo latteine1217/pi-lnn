@@ -1843,7 +1843,7 @@ KE-as-misleading。
 # The cutoff moves right with the sensors
 
 <div class="text-sm mt-1" style="color:#374151;">
-Where PI-CON departs from DNS follows the sensor Nyquist <span style="text-transform:none;">k<sub>max</sub> = √(K/π)</span> — higher fidelity comes from <b style="color:#7F1084;">bandwidth expansion</b>, not architecture search.
+Where PI-CON departs from DNS follows the sensor Nyquist <span class="raw">k<sub>max</sub> = √(K/π)</span> — higher fidelity comes from <b style="color:#7F1084;">bandwidth expansion</b>, not architecture search.
 </div>
 
 <Card style="padding: 0.45rem 0.6rem;" class="mt-2">
@@ -1894,8 +1894,6 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
       font-variant-numeric: tabular-nums; }
 .nz th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.58rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 10px 5px 10px; border-bottom: 1px solid #D8D2E0; }
-/* uppercase 會把 ω 轉成 Ω（流體符號系統中兩者不同義），數學符號需豁免。 */
-.nz th .raw { text-transform: none; }
 .nz th:first-child { text-align: left; }
 .nz td { padding: 5px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right; }
 .nz td:first-child { text-align: left; color: #6B7280; white-space: nowrap; }

@@ -85,6 +85,19 @@
   display: inline-block;
 }
 
+/* Maths escape hatch for every uppercase label in the deck.
+   text-transform: uppercase rewrites lowercase Greek — ω→Ω, π→Π, ν→Ν, σ→Σ, τ→Τ —
+   and in this deck's notation those are different quantities (ω vorticity vs Ω domain;
+   π the constant vs Π a product). Any symbol sitting inside an uppercase label must be
+   wrapped:  <LabelTiny>Nyquist <span class="raw">√(K/π)</span></LabelTiny>
+   Declared globally with !important so it also wins inside component-scoped and
+   per-slide-scoped rules, whose attribute selectors would otherwise out-specify it.
+   Guard: scripts/check_slide_greek.py — run it after adding an uppercase label. */
+.raw,
+.raw * {
+  text-transform: none !important;
+}
+
 /* Hide only the page-number / goto-dialog chrome in normal slide view.
    Navigation controls (含 side-editor 編輯按鈕) 走 Slidev 預設 hover-to-show，
    不在這裡用 display:none 強制隱藏，否則整個 .slidev-icon-btn 都會消失，
