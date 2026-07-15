@@ -1756,55 +1756,81 @@ Fig.&nbsp; LES T = 50 vs DNS E(k) at t = 5. Leading POD modes overlap within 2×
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · vs forward-CFD from sensor-IC</SectionTag>
+<SectionTag>§ Results · vs an open-loop forward-CFD forecast</SectionTag>
 
-# Why a solver-from-sensor-IC is not enough — bounded statistics survive, phase decorrelates
+# Same energy at every scale — and no shared structure
 
-<div class="mt-3 text-sm">
+<style>
+.fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
+      align-items: baseline; margin-top: 8px; margin-bottom: 0; }
+.fc .hd { font-size: 0.57rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
+.fc .k  { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
+.fc .v  { font-size: 0.72rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc .bad { color: #E97132; font-weight: 700; }
+.fc .good { color: #7F1084; font-weight: 700; }
+</style>
 
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Method</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">KE rel-err (%)</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">u rel-L₂ (%)</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">v rel-L₂ (%)</th>
-      <th class="text-left py-2 px-2" style="color:#7F1084;">Phase preserved?</th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 0.85rem;">
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-2 px-2"><b>PI-CON (ours)</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">1.62 ± 0.09</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">7.28</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">16.38</b></td>
-      <td class="py-2 px-2"><b style="color:#7F1084;">Yes</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-2 px-2">Forward-CFD from sensor IC<br/><span class="opacity-60 text-xs">POD-rank-40 IC → ETDRK4 to t = 5</span></td>
-      <td class="py-2 px-2" style="color:#0F2D52;">3.85</td>
-      <td class="py-2 px-2" style="color:#E97132;">152.8</td>
-      <td class="py-2 px-2" style="color:#E97132;">203.9</td>
-      <td class="py-2 px-2" style="color:#E97132;">No (chaos decorrelation)</td>
-    </tr>
-  </tbody>
-</table>
+<div class="grid grid-cols-5 gap-4 mt-2">
+
+<div class="col-span-3">
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Radial energy spectrum at t = 5</LabelTiny>
+<img :src="'/images/forward_cfd_spectrum_t5.png'" class="mt-1" style="width: 100%; object-fit: contain;" />
+</Card>
+</div>
+
+<div class="col-span-2 space-y-2">
+
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>At t = 5 &nbsp;<span class="opacity-60">(Re = 10⁴, K = 100)</span></LabelTiny>
+<div class="fc">
+<div></div><div class="hd">Forward-CFD</div><div class="hd">PI-CON</div>
+<div class="k">KE rel-err</div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
+<div class="k">u rel-L₂</div><div class="v bad">152.8 %</div><div class="v good">7.28 ± 0.14 %</div>
+<div class="k">v rel-L₂</div><div class="v bad">203.9 %</div><div class="v good">16.38 ± 0.34 %</div>
+<div class="k">ω rel-L₂</div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
+<div class="k">σ<sub>u</sub>/σ<sub>v</sub></div><div class="v bad">0.90</div><div class="v good">2.30</div>
+</div>
+<div class="mt-2 text-[10px]" style="color:#6B7280;">DNS anisotropy σ<sub>u</sub>/σ<sub>v</sub> = 2.32.</div>
+</Card>
+
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>KE alone mis-ranks</LabelTiny>
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
+</div>
+</Card>
 
 </div>
 
-<div class="mt-2 text-[11px]" style="color:#6B7280;">
-Both consume the same K = 100 sensors at t = 0 and are compared at t = 5; the forward-CFD forecast is integrated freely with no later sensor assimilation, while PI-CON ingests the full sensor time series.
 </div>
 
-<div class="mt-3 text-xs leading-snug" style="color:#374151;">
-<span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-Forward-CFD: <b>KE-competitive via bounded statistics only</b> · <b>on the attractor at a decorrelated phase</b> (u, v rel-L₂ <b style="color:#E97132;">≥ 150 %</b>) · <b>KE alone mis-ranks</b> · PI-CON <b>re-conditions on the sensor stream</b> → wins both (matched t = 5)
+<div class="mt-3 text-[10px] leading-snug" style="color:#6B7280;">
+Open-loop reference, not a matched assimilation baseline: the forecast builds a divergence-free field from the K = 100 sensors at t = 0, then integrates freely with nothing assimilated after. It also uses <b>200 DNS snapshots offline</b> for its POD-rank-40 basis — more information than PI-CON, which sees only the sensor stream.
 </div>
 
 <FooterLogos />
 
 <!--
-[forward-CFD 對照 · 1.5min] 委員第一個反射問題「為何不直接 forward CFD」的正面回答。matched t=5 比較（thesis appendix07 tab:forward_cfd）：forward-CFD KE 3.85% 看似 KE-competitive（bounded stats 近 DNS），但 PI-CON t=5 snapshot KE 1.62% 反而更好；u/v rel-L₂ 152.8%/203.9% vs 7.28%/16.38%（≥12×）證明 forward-CFD 相位全丟（chaos decorrelation）。重點：KE 單看會誤判，matched 下 PI-CON 兩者皆贏。呼應 §Conclusion ④ KE-as-misleading。兩者皆吃同 K=100 sensors@t=0，forward-CFD open-loop（不再吃 sensor），PI-CON 全程 re-condition。
+[Forward-CFD · 2min] 委員第一反射問題「為何不直接 forward CFD」的正面回答。
+主視覺＝能譜重疊圖（thesis/figures/results/forward_cfd_spectrum_t5.png；論文未引用此圖，
+appendix07 只有 tab:forward_cfd 表）。
+
+講法：先指圖 ——「DNS 與 forward-CFD 的能譜在兩個多 decade 上幾乎完全重疊，每個尺度的
+能量都一樣」；再指右表 ——「但 u rel-L₂ 是 152.8%」。統計上分不出、逐點上毫無關係，
+這正是 KE 誤導排序的原因：KE 只差 2.4×，pointwise 差 21×。呼應 §Conclusion ④
+KE-as-misleading。
+
+σ_u/σ_v = 0.90 是額外一擊：forward-CFD 連 Kolmogorov 流的各向異性都弄丟了
+（DNS 2.32、PI-CON 2.30），所以它不只是「統計對、相位錯」，連 second-order statistic
+都偏了。
+
+數字全部出自 appendix07 tab:forward_cfd（appendix07.tex:106-113）。
+算術：3.85/1.62 = 2.38 → 2.4×；152.8/7.28 = 21.0 → 21×。
+
+⚠️ 必講的 caveat（appendix07:85, 100 明載）：這是 open-loop forecast reference，
+不是 matched assimilation baseline；且 forward-CFD 另外用了 200 張 DNS snapshot
+離線建 POD 基底 —— 它拿的資訊比 PI-CON 多，pointwise 仍崩掉。不可宣稱這是公平對打。
 -->
 
 
