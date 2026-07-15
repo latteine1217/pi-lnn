@@ -196,36 +196,90 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 # Positioning against prior work
 
-<div class="text-sm mt-1" style="color:#6B7280;">
-The only fair comparison · <b>same regime</b> — sparse sensors + PDE, no DNS full field.
-</div>
+<style>
+.lit { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; }
+.lit th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.58rem; text-transform: uppercase;
+          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.lit td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
+.lit tr.ours td { background: #F7EDF8; border-bottom: none; }
+.lit .fam { font-size: 0.68rem; color: #1F1B2E; }
+.lit .cite { color: #A9A4B4; font-size: 0.86em; }
+.lit .no { color: #E97132; }
+.lit .yes { color: #7F1084; font-weight: 700; }
+.lit .na { color: #C9C6D0; }
+</style>
 
-<div class="mt-4 px-5 py-4 rounded-lg" style="background: rgba(127,16,132,0.07); border: 1px solid #E5E0EC;">
-<div class="text-xs uppercase tracking-widest mb-3" style="color:#7F1084;">Same regime · sensor + Navier–Stokes only</div>
-<div class="grid grid-cols-11 gap-3 items-center text-sm">
-<div class="col-span-5">
-<b>Mo &amp; Magri 2025</b>&nbsp;<span class="opacity-50 text-xs">[Mo &amp; Magri 2025]</span><br/>
-<span style="color:#6B7280;">physics-constrained CNN</span><br/>
-KE MAPE&nbsp; <b style="color:#E97132;">~ 23 %</b>
-</div>
-<div class="col-span-1 text-center text-2xl" style="color:#7F1084;">→</div>
-<div class="col-span-5">
-<b style="color:#7F1084;">PI-CON (ours)</b><br/>
-<span style="color:#6B7280;">DeepONet + CfC + cross-attention</span><br/>
-KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b>&nbsp;<span class="text-xs">(n = 5)</span>
-</div>
-</div>
-<div class="mt-3 text-sm" style="color:#374151;"><b>Architecture, not supervision</b>, drives the gain · same sensors, same physics · ~23 % → 5.71 %</div>
-</div>
+<table class="lit">
+<thead>
+<tr>
+<th style="width: 31%;">Surveyed family</th>
+<th style="width: 21%;">Gap 1 · no DNS full field</th>
+<th style="width: 21%;">Gap 2 · reads sparse sensors</th>
+<th style="width: 18%;">Gap 3 · query-anywhere</th>
+<th style="width: 9%;">Re</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="fam">POD · DMD · QR-pivot · DA <span class="cite">[Sirovich 1987 · Schmid 2010 · Manohar 2018 · Asch 2016]</span></td>
+<td class="no">✗ offline trajectory</td>
+<td class="na">—</td>
+<td class="no">✗</td>
+<td class="na">—</td>
+</tr>
+<tr>
+<td class="fam">SHRED · FLRNet · Energy Transformer <span class="cite">[Williams 2024 · Nguyen 2024 · Zhang 2025]</span></td>
+<td class="no">✗ full-field loss</td>
+<td class="yes">✓</td>
+<td class="no">✗ grid</td>
+<td class="na">—</td>
+</tr>
+<tr>
+<td class="fam">Senseiver · FLRONet <span class="cite">[Santos 2023 · Vo Dang 2024]</span></td>
+<td class="no">✗ full CFD fields</td>
+<td class="yes">✓</td>
+<td class="yes">✓</td>
+<td class="na">—</td>
+</tr>
+<tr>
+<td class="fam">DeepONet · FNO · PINO <span class="cite">[Lu 2021 · Li 2021a · Li 2021b]</span></td>
+<td class="no">✗ paired fields</td>
+<td class="no">✗ dense grid input</td>
+<td class="yes">✓</td>
+<td class="na">—</td>
+</tr>
+<tr>
+<td class="fam">PINN · PirateNet <span class="cite">[Raissi 2019 · Wang 2024]</span></td>
+<td class="yes">✓</td>
+<td class="no">✗ loss term only</td>
+<td class="yes">✓</td>
+<td>~10⁴</td>
+</tr>
+<tr>
+<td class="fam">Mo &amp; Magri · Kelshaw · Parfenyev <span class="cite">[Mo 2025 · Kelshaw 2022 · Parfenyev 2024]</span></td>
+<td class="yes">✓</td>
+<td class="yes">✓</td>
+<td class="no">✗ fixed mesh</td>
+<td class="no">34–10³</td>
+</tr>
+<tr class="ours">
+<td class="fam"><b style="color:#7F1084;">PI-CON (ours)</b> <span class="cite">DeepONet + CfC + cross-attention</span></td>
+<td class="yes">✓</td>
+<td class="yes">✓</td>
+<td class="yes">✓</td>
+<td class="yes">10⁴</td>
+</tr>
+</tbody>
+</table>
 
-<div class="grid grid-cols-2 gap-6 mt-4 text-xs">
-<Card>
-<LabelTiny style="color:#DC2626;">Not a fair yardstick — trains on DNS</LabelTiny>
-<div class="mt-1 leading-snug">FLRNet · Senseiver · SHRED · few-% error — but <b>need the full DNS field</b>.</div>
+<div class="grid grid-cols-2 gap-5 mt-3 text-xs">
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Closest same-regime prior work</LabelTiny>
+<div class="mt-1 leading-snug">Mo &amp; Magri, physics-constrained CNN · KE MAPE <b style="color:#E97132;">~ 23 %</b> → PI-CON <b style="color:#7F1084;">5.71 ± 0.11 %</b> <span style="color:#6B7280;">(n = 5)</span>. Same sensors, same physics.</div>
 </Card>
-<Card>
-<LabelTiny style="color:#E97132;">KE alone is misleading</LabelTiny>
-<div class="mt-1 leading-snug">RBF / IDW / trig-LSQ · <b>lower KE</b> — but pointwise <b style="color:#E97132;">u L₂ 26–53 %</b> vs PI-CON <b style="color:#7F1084;">13.65 %</b>.</div>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Gap 4 · sensing configuration</LabelTiny>
+<div class="mt-1 leading-snug">All surveyed work reports one fixed setup. Count · placement · noise stay <b>unmapped</b> — the sensing study.</div>
 </Card>
 </div>
 
