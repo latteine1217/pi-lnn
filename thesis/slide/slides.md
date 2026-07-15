@@ -1696,43 +1696,56 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <div class="col-span-3">
 
 <div class="text-xs" style="color:#6B7280;">
-Same B3, 1024 collocation, 20 k iterations, n = 5 seeds · DNS oracle wins KE · LES placement wins pointwise L₂.
+Same B3, 1024 collocation, 20 k iterations, n = 5 seeds.
 </div>
 
-<table class="w-full mt-2 text-xs" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Placement strategy</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Pre-deployment cost</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">KE MAPE (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">u / v / ω L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Engineering deployable?</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>LES_N=256 T=50</b> (n = 5, main pipeline)</td>
-      <td class="py-1 px-2">LES, no DNS</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">5.71 ± 0.11</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">13.65 / 17.52 / 41.79</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">✓ (paper main)</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">DNS QR-pivot oracle (n = 5)</td>
-      <td class="py-1 px-2">Full DNS field</td>
-      <td class="py-1 px-2"><b>4.68 ± 0.06</b></td>
-      <td class="py-1 px-2">15.34 / 18.10 / 42.41</td>
-      <td class="py-1 px-2">✗ (requires DNS)</td>
-    </tr>
-    <tr>
-      <td class="py-1 px-2">Random uniform K = 100 (LES-free fallback)</td>
-      <td class="py-1 px-2">None</td>
-      <td class="py-1 px-2">7.95 ± 0.68 <span class="opacity-60">(5 placements)</span></td>
-      <td class="py-1 px-2">higher variance</td>
-      <td class="py-1 px-2">✓ (no pre-deployment input)</td>
-    </tr>
-  </tbody>
+<style>
+.pl { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 8px;
+      font-variant-numeric: tabular-nums; }
+.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.62rem;
+         padding: 0 8px 6px 8px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
+.pl th:first-child { text-align: left; }
+.pl td { padding: 7px 8px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
+.pl td:first-child { text-align: left; color: #1F1B2E; }
+.pl tr.main td { background: rgba(127, 16, 132, 0.09); font-weight: 700; color: #7F1084; }
+.pl .no  { color: #7F1084; font-weight: 700; }
+.pl .yes { color: #E97132; font-weight: 700; }
+</style>
+
+<table class="pl">
+<thead>
+<tr>
+<th>Placement strategy</th>
+<th>DNS full field<br/>to place?</th>
+<th>KE MAPE (%)</th>
+<th>u / v rel-L₂ (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="main">
+<td>LES T = 50 &nbsp;<span style="font-weight:400; color:#9CA3AF;">main pipeline</span></td>
+<td class="no">No</td>
+<td>5.71 ± 0.11</td>
+<td>13.65 / 17.52</td>
+</tr>
+<tr>
+<td>DNS QR-pivot &nbsp;<span style="color:#9CA3AF;">oracle</span></td>
+<td class="yes">Yes</td>
+<td><b>4.68 ± 0.06</b></td>
+<td>15.34 / 18.10</td>
+</tr>
+<tr>
+<td>Random uniform &nbsp;<span style="color:#9CA3AF;">fallback</span></td>
+<td class="no">No</td>
+<td>7.95 ± 0.68</td>
+<td>17.20 / 21.62</td>
+</tr>
+</tbody>
 </table>
+
+<div class="mt-3 text-xs leading-snug" style="color:#374151;">
+The oracle wins <b>KE</b>; LES placement wins <b>pointwise L₂</b> — and needs no DNS. Random stays under the 10 % target but costs <b style="color:#E97132;">+2.24 pp</b> of KE.
+</div>
 
 </div>
 
