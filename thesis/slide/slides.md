@@ -355,7 +355,7 @@ None of the seven surveyed works states a parameter count; the Reynolds number i
 .hh { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
 .hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.63rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.hh td { padding: 5px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
+.hh td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.22; }
 .hh tr.ours td { background: #F7EDF8; border-bottom: none; }
 .hh .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .hh .no { color: #E97132; }
@@ -372,7 +372,7 @@ The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">
 <th style="width: 17%;">Work</th>
 <th style="width: 22%;">Architecture</th>
 <th style="width: 8%;">Re</th>
-<th style="width: 13%;">Measurements</th>
+<th style="width: 15%;">Probes<br/>(fixed)</th>
 <th style="width: 13%;">Sensors as input</th>
 <th style="width: 13%;">Readout</th>
 <th style="width: 14%;">NS residual</th>
@@ -383,7 +383,7 @@ The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">
 <td class="who">Mo &amp; Magri 2025</td>
 <td>PC-DualConvNet · U-Net + Fourier branch</td>
 <td class="no">34</td>
-<td class="no">230 <span style="color:#9CA3AF;">(≈0.9 %)</span></td>
+<td class="no">230</td>
 <td class="yes">✓</td>
 <td class="no">128² fixed</td>
 <td class="no">finite difference</td>
@@ -401,7 +401,7 @@ The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">
 <td class="who">Parfenyev et al. 2024</td>
 <td>PINN · coordinate MLP 7 × 250</td>
 <td class="no">1.3×10³</td>
-<td class="no">3×10⁴ <span style="color:#9CA3AF;">(≈0.2 %)</span></td>
+<td class="no">none — <span style="color:#9CA3AF;">3×10⁴ scattered (r, t) samples</span></td>
 <td class="no">✗ loss term only</td>
 <td class="yes">query-anywhere</td>
 <td class="yes">autodiff</td>
@@ -418,16 +418,16 @@ The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">
 </tbody>
 </table>
 
-<div class="grid grid-cols-3 gap-4 mt-4 text-xs">
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<div class="grid grid-cols-3 gap-4 mt-3 text-xs">
+<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>Reynolds number</LabelTiny>
 <div class="mt-1 leading-snug">Nearest is <b style="color:#E97132;">7.7×</b> lower; the CNN pair sit <b style="color:#E97132;">300×</b> lower.</div>
 </Card>
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Sensor budget</LabelTiny>
-<div class="mt-1 leading-snug">Parfenyev needs <b style="color:#E97132;">300×</b> more points; Mo &amp; Magri <b style="color:#E97132;">2.3×</b>.</div>
+<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
+<LabelTiny>Measurement model</LabelTiny>
+<div class="mt-1 leading-snug">Mo &amp; Magri need <b style="color:#E97132;">2.3×</b> our probes. Parfenyev has none — it samples <b>(r, t) at random</b>, which no rig can install.</div>
 </Card>
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>Nobody has both</LabelTiny>
 <div class="mt-1 leading-snug">Query-anywhere <b>and</b> sensors-as-input <b>and</b> Re = 10⁴ — the empty cell.</div>
 </Card>
