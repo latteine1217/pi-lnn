@@ -192,91 +192,50 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · the seven research lines</SectionTag>
+<SectionTag>§ Literature review · what blocks each line</SectionTag>
 
-# What has been tried, and what blocks each
+# Nothing on the shelf survives the field constraint
 
 <style>
-.lines { width: 100%; border-collapse: collapse; font-size: 0.63rem; margin-top: 8px; margin-bottom: 0; }
-.lines th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.56rem; text-transform: uppercase;
-            letter-spacing: 0.04em; padding: 0 8px 5px 8px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.lines td { padding: 4px 8px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
-.lines .line { font-size: 0.68rem; color: #1F1B2E; font-weight: 600; }
-.lines .works { color: #6B7280; }
-.lines .sup { color: #374151; }
-.lines .lim { color: #E97132; }
-.lines tr.ours td { background: #F7EDF8; border-bottom: none; }
-.lines tr.ours .lim { color: #7F1084; font-weight: 700; }
+.blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
+.blk .lbl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; white-space: nowrap; padding: 11px 0; }
+.blk .fam { font-size: 0.7rem; color: #6B7280; line-height: 1.35; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
+.blk .lbl { border-bottom: 1px solid #F1EDF5; }
+.need { color: #E97132; font-weight: 700; }
 </style>
 
-<table class="lines">
-<thead>
-<tr>
-<th style="width: 15%;">Research line</th>
-<th style="width: 25%;">Representative works</th>
-<th style="width: 24%;">Supervision regime</th>
-<th style="width: 36%;">Structural limitation</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="line">ROM &amp; sparse identification</td>
-<td class="works">POD [Sirovich 1987] · DMD [Schmid 2010] · SINDy [Brunton 2016] · QR-pivot [Manohar 2018]</td>
-<td class="sup">Offline DNS trajectory</td>
-<td class="lim">Needs offline trajectory; linear basis</td>
-</tr>
-<tr>
-<td class="line">Data assimilation</td>
-<td class="works">4D-Var · EnKF [Asch 2016] · B-PINN [Yang 2021]</td>
-<td class="sup">Forward solver + sensor</td>
-<td class="lim">Adjoint cost; HMC scaling at high Re</td>
-</tr>
-<tr>
-<td class="line">Deep super-resolution / ROM</td>
-<td class="works">Fukami 2019 · Maulik 2021</td>
-<td class="sup">Paired DNS supervision</td>
-<td class="lim">Paired DNS required; no PDE consistency</td>
-</tr>
-<tr>
-<td class="line">Operator learning</td>
-<td class="works">DeepONet [Lu 2021] · FNO [Li 2021] · Galerkin / OFormer [Cao 2021 · Li 2023]</td>
-<td class="sup">Paired field supervision</td>
-<td class="lim">Dense-input forward operators; not sparse inverse</td>
-</tr>
-<tr>
-<td class="line">Stabilized PINNs</td>
-<td class="works">Wang 2022 · 2024 (PirateNet) · 2025 (SOAP)</td>
-<td class="sup">PDE-only (no sensor)</td>
-<td class="lim">Forward focus; MLP backbone underuses the sensor trajectory</td>
-</tr>
-<tr>
-<td class="line">Liquid NN / continuous-time</td>
-<td class="works">LTC [Hasani 2021] · CfC [Hasani 2022] · Neural / Latent ODE [Chen 2018 · Rubanova 2019]</td>
-<td class="sup">Paired sequence supervision (no PDE)</td>
-<td class="lim">Not applied to PDE or fluid reconstruction</td>
-</tr>
-<tr>
-<td class="line">Sparse-sensor with physics</td>
-<td class="works">Mo &amp; Magri 2025 · Kelshaw 2022 · Parfenyev 2024 · SHRED [Williams 2024] · Senseiver [Santos 2023]</td>
-<td class="sup">Sensor-only with PDE <span style="color:#9CA3AF;">(first three)</span> vs. DNS-paired with priors <span style="color:#9CA3AF;">(others)</span></td>
-<td class="lim">Sensor-only-with-PDE works are grid-based at Re ≲ 10³; no query-anywhere continuous-time operator at high Re</td>
-</tr>
-</tbody>
-</table>
+<div class="text-xs mt-1" style="color:#6B7280;">Seven research lines <span class="opacity-70">(thesis Table 1.1)</span> — each blocked by <b>one</b> thing a real rig cannot supply.</div>
 
-<div class="mt-3 text-[10px]" style="color:#6B7280;">
-Ordered classical → recent, algorithm-only → physics-aware. Each line is blocked on its own by the right-hand column; §Motivation consolidates these into four gaps.
+<div class="blk">
+
+<div class="lbl">Needs a <span class="need">reference field</span></div>
+<div class="fam">POD · DMD · QR-pivot <span class="opacity-70">[Sirovich 1987 · Schmid 2010 · Manohar 2018]</span> · Fukami 2019 · Maulik 2021 · DeepONet · FNO <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet <span class="opacity-70">[Williams 2024 · Santos 2023 · Nguyen 2024]</span></div>
+
+<div class="lbl">Needs a <span class="need">solver in the loop</span></div>
+<div class="fam">4D-Var · EnKF <span class="opacity-70">[Asch 2016]</span> · B-PINN <span class="opacity-70">[Yang 2021]</span> — adjoint cost, HMC scaling at high Re</div>
+
+<div class="lbl">Never <span class="need">reads the sensors</span></div>
+<div class="fam">PINN · PirateNet · SOAP <span class="opacity-70">[Raissi 2019 · Wang 2024 · 2025]</span> — sensors enter as a loss term, never as input</div>
+
+<div class="lbl">Never met a <span class="need">PDE</span></div>
+<div class="fam">LTC · CfC <span class="opacity-70">[Hasani 2021 · 2022]</span> · Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> — control and time-series only</div>
+
+</div>
+
+<div class="mt-4 px-4 py-3 rounded-lg" style="background: rgba(127,16,132,0.06); border: 1px solid #E5E0EC;">
+<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">Closest — sensor + PDE, no full field</span>
+<div class="mt-1 text-sm" style="color:#374151;">Mo &amp; Magri 2025 · Kelshaw 2022 · Parfenyev 2024 — but <b style="color:#E97132;">fixed mesh</b> at <b style="color:#E97132;">Re ≲ 10³</b>.</div>
 </div>
 
 <FooterLogos />
 
 <!--
-[Literature review 1/2 · 2min] 直接對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)：
-七條研究線 × 代表作 / 監督範式 / 結構性限制。講法：由上而下＝古典到最新、純演算法到 physics-aware。
-每一列的「結構性限制」欄都是它單獨無法解決工程可部署設定的原因。最後一列是最接近的工作，
-其中 Mo & Magri / Kelshaw / Parfenyev 是唯三同 regime（sensor + PDE，無 DNS 全場）。
-下一頁把這些限制收斂成四個 Gap 並指出 PI-CON 佔的 cell。
-注意：他人方法的參數量 thesis 未記載，不可臆造；若要放需回原文查。
+[Literature review 1/2 · 1.5min] 對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)，
+但不逐條列七行——論文自己說那七條線是要被 consolidate 成四個 Gap 的（chapter01:21），
+重點是「卡在哪」不是「有幾條」。故按卡點分四組：需要參考場 / 需要 solver / 不讀 sensor /
+沒碰過 PDE。底部條為唯三同 regime 的最接近工作。完整七行表在 thesis Table 1.1，
+被問細節時翻論文。次頁給四個 Gap 與 PI-CON 佔的 cell。
+注意：他人方法參數量 thesis 未載，不可臆造。
 -->
 
 ---
