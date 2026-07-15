@@ -192,6 +192,97 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
+<SectionTag>§ Literature review · the seven research lines</SectionTag>
+
+# What has been tried, and what blocks each
+
+<style>
+.lines { width: 100%; border-collapse: collapse; font-size: 0.63rem; margin-top: 8px; margin-bottom: 0; }
+.lines th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.56rem; text-transform: uppercase;
+            letter-spacing: 0.04em; padding: 0 8px 5px 8px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.lines td { padding: 4px 8px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
+.lines .line { font-size: 0.68rem; color: #1F1B2E; font-weight: 600; }
+.lines .works { color: #6B7280; }
+.lines .sup { color: #374151; }
+.lines .lim { color: #E97132; }
+.lines tr.ours td { background: #F7EDF8; border-bottom: none; }
+.lines tr.ours .lim { color: #7F1084; font-weight: 700; }
+</style>
+
+<table class="lines">
+<thead>
+<tr>
+<th style="width: 15%;">Research line</th>
+<th style="width: 25%;">Representative works</th>
+<th style="width: 24%;">Supervision regime</th>
+<th style="width: 36%;">Structural limitation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="line">ROM &amp; sparse identification</td>
+<td class="works">POD [Sirovich 1987] · DMD [Schmid 2010] · SINDy [Brunton 2016] · QR-pivot [Manohar 2018]</td>
+<td class="sup">Offline DNS trajectory</td>
+<td class="lim">Needs offline trajectory; linear basis</td>
+</tr>
+<tr>
+<td class="line">Data assimilation</td>
+<td class="works">4D-Var · EnKF [Asch 2016] · B-PINN [Yang 2021]</td>
+<td class="sup">Forward solver + sensor</td>
+<td class="lim">Adjoint cost; HMC scaling at high Re</td>
+</tr>
+<tr>
+<td class="line">Deep super-resolution / ROM</td>
+<td class="works">Fukami 2019 · Maulik 2021</td>
+<td class="sup">Paired DNS supervision</td>
+<td class="lim">Paired DNS required; no PDE consistency</td>
+</tr>
+<tr>
+<td class="line">Operator learning</td>
+<td class="works">DeepONet [Lu 2021] · FNO [Li 2021] · Galerkin / OFormer [Cao 2021 · Li 2023]</td>
+<td class="sup">Paired field supervision</td>
+<td class="lim">Dense-input forward operators; not sparse inverse</td>
+</tr>
+<tr>
+<td class="line">Stabilized PINNs</td>
+<td class="works">Wang 2022 · 2024 (PirateNet) · 2025 (SOAP)</td>
+<td class="sup">PDE-only (no sensor)</td>
+<td class="lim">Forward focus; MLP backbone underuses the sensor trajectory</td>
+</tr>
+<tr>
+<td class="line">Liquid NN / continuous-time</td>
+<td class="works">LTC [Hasani 2021] · CfC [Hasani 2022] · Neural / Latent ODE [Chen 2018 · Rubanova 2019]</td>
+<td class="sup">Paired sequence supervision (no PDE)</td>
+<td class="lim">Not applied to PDE or fluid reconstruction</td>
+</tr>
+<tr>
+<td class="line">Sparse-sensor with physics</td>
+<td class="works">Mo &amp; Magri 2025 · Kelshaw 2022 · Parfenyev 2024 · SHRED [Williams 2024] · Senseiver [Santos 2023]</td>
+<td class="sup">Sensor-only with PDE <span style="color:#9CA3AF;">(first three)</span> vs. DNS-paired with priors <span style="color:#9CA3AF;">(others)</span></td>
+<td class="lim">Sensor-only-with-PDE works are grid-based at Re ≲ 10³; no query-anywhere continuous-time operator at high Re</td>
+</tr>
+</tbody>
+</table>
+
+<div class="mt-3 text-[10px]" style="color:#6B7280;">
+Ordered classical → recent, algorithm-only → physics-aware. Each line is blocked on its own by the right-hand column; §Motivation consolidates these into four gaps.
+</div>
+
+<FooterLogos />
+
+<!--
+[Literature review 1/2 · 2min] 直接對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)：
+七條研究線 × 代表作 / 監督範式 / 結構性限制。講法：由上而下＝古典到最新、純演算法到 physics-aware。
+每一列的「結構性限制」欄都是它單獨無法解決工程可部署設定的原因。最後一列是最接近的工作，
+其中 Mo & Magri / Kelshaw / Parfenyev 是唯三同 regime（sensor + PDE，無 DNS 全場）。
+下一頁把這些限制收斂成四個 Gap 並指出 PI-CON 佔的 cell。
+注意：他人方法的參數量 thesis 未記載，不可臆造；若要放需回原文查。
+-->
+
+---
+
+<NavBar active="background" />
+
 <SectionTag>§ Literature review · where PI-CON sits</SectionTag>
 
 # Positioning against prior work
