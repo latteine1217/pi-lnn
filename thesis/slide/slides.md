@@ -1271,15 +1271,9 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 <div class="col-span-3 space-y-2">
 
-<div>
 <img :src="'/images/field_comparison_t5.png'" class="rounded-lg border mt-1" style="border-color:#E5E0EC; width: 100%; object-fit: contain; max-height: 280px;" />
-<div class="text-[10px] mt-0.5" style="color:#6B7280;">Velocity field at t = 5. Rows: u (m/s), v (m/s); columns: DNS, PI-CON, signed error. Axes: x, y on Ω = [0, 1]² m².</div>
-</div>
 
-<div>
 <img :src="'/images/vorticity_comparison_t5.png'" class="rounded-lg border mt-1" style="border-color:#E5E0EC; width: 100%; object-fit: contain; max-height: 140px;" />
-<div class="text-[10px] mt-0.5" style="color:#6B7280;">Vorticity ω (1/s) at t = 5. Left: DNS, middle: PI-CON, right: signed error.</div>
-</div>
 
 </div>
 
