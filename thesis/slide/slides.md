@@ -1295,38 +1295,44 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 # Where the error sits and why — K = 100 information bound
 
-<div class="grid grid-cols-5 gap-4 mt-3 text-xs">
+<style>
+.bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 6px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
+.bg2 .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
+.bg2 .v { font-size: 0.73rem; color: #1F1B2E; line-height: 1.3; }
+</style>
+
+<div class="grid grid-cols-5 gap-4 mt-3">
+
+<div class="col-span-3">
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Band-resolved relative error vs time &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
+<img :src="'/images/band_energy_rel_error_vs_time.png'" class="mt-1" style="width: 100%; object-fit: contain;" />
+</Card>
+</div>
 
 <div class="col-span-2 space-y-2">
 
 <Card>
-<LabelTiny>KEY METRICS</LabelTiny>
-<div class="mt-1 leading-tight">
-<b>EXP-245 main</b> (LES_T50, 20 k, n=5)<br/>
-KE MAPE&nbsp; <b style="color:#7F1084;">5.71 ± 0.11 %</b><br/>
-ω rel-L₂&nbsp; 41.79 ± 0.12 %<br/>
-div ratio&nbsp; <b style="color:#7F1084;">0.39 ± 0.006 %</b><br/>
-<span style="color:#6B7280;">Low-band error remains single-digit.</span>
+<LabelTiny>Key metrics &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
+<div class="bg2">
+<div class="k">KE MAPE</div><div class="v"><b style="color:#7F1084;">5.71 ± 0.11 %</b></div>
+<div class="k">ω rel-L₂</div><div class="v">41.79 ± 0.12 %</div>
+<div class="k">div ratio</div><div class="v"><b style="color:#7F1084;">0.39 ± 0.006 %</b></div>
 </div>
 </Card>
 
+<Card>
+<LabelTiny>Why KE 5.7 % but <span class="raw">ω</span> 41.8 %</LabelTiny>
+<div class="bg2">
+<div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error ≈ 4 %</div>
+<div class="k">Mid / high k</div><div class="v">saturate at 100 %</div>
 </div>
-
-<div class="col-span-3 space-y-2">
-
-<Card>
-<LabelTiny>① REFERENCE → PREDICTION</LabelTiny>
-<div class="mt-1 leading-snug">DNS: k<sub>f</sub> = 2 forcing, ω range ≈ ±30 · PI-CON recovers dominant vortex pairs + k<sub>f</sub> phase · small scales smoothed.</div>
+<div class="mt-1 text-[10px]" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
 </Card>
 
 <Card>
-<LabelTiny>② ERROR FIELD — structural, not stochastic</LabelTiny>
-<div class="mt-1 leading-snug">Error on <b>high-shear edges</b>, not random noise · ω rel-L₂ dominated by mid/high-k modes.</div>
-</Card>
-
-<Card>
-<LabelTiny>③ INTERPRETATION</LabelTiny>
-<div class="mt-1 leading-snug">Sensor-information ceiling at K = 100 · k<sub>max</sub><sup>sensor</sup> ≈ 5.64 · architecture tweaks cannot recover unseen bandwidth.</div>
+<LabelTiny>Ceiling</LabelTiny>
+<div class="mt-2 text-xs leading-snug" style="color:#374151;">Sensor Nyquist <b style="color:#7F1084;">k<sub>max</sub> ≈ 5.64</b> — architecture cannot recover unseen bandwidth.</div>
 </Card>
 
 </div>
@@ -1591,7 +1597,7 @@ const ksOpts = {
 
 <div class="col-span-2 space-y-2 text-xs">
 <Card>
-<LabelTiny>Sensor Nyquist k<sub>max</sub> = √(K/π)</LabelTiny>
+<LabelTiny>Sensor Nyquist <span class="raw">k<sub>max</sub> = √(K/π)</span></LabelTiny>
 <div class="mt-2 leading-snug">
 <div>· K = 100 → k<sub>max</sub> ≈ <b>5.64</b></div>
 <div>· K = 200 → k<sub>max</sub> ≈ <b>7.98</b></div>
