@@ -1154,53 +1154,66 @@ Paper-grade findings：
 
 <SectionTag>§ Architectural value · 2×2 ablation + baselines</SectionTag>
 
-# Cross-attention is the dominant lever — 2×2 ablation at n = 5 seeds
+# Cross-attention is the dominant lever
 
-<script setup>
-import arch from './data/arch_ablation.json'
-import seed from './data/multi_seed.json'
-
-const archData = {
-  labels: arch.map(a => `${a.id}\n${a.name}`),
-  datasets: [
-    {
-      label: 'KE MAPE (%)',
-      data: arch.map(a => a.ke),
-      backgroundColor: arch.map(a => a.id === 'B3' ? '#7F1084' : '#E97132'),
-      barThickness: 28,
-    },
-  ],
-}
-const archOpts = {
-  scales: {
-    y: { title: { display: true, text: 'KE MAPE (%, lower is better)', color: '#7F1084' }, suggestedMin: 5, suggestedMax: 10 },
-    x: { ticks: { font: { size: 8 } } },
-  },
-  plugins: { legend: { display: false } },
-}
-</script>
+<style>
+.m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 7px; align-items: center; margin-top: 10px; margin-bottom: 0; }
+.m22 .hd { font-size: 0.68rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.m22 .rl { font-size: 0.72rem; color: #6B7280; white-space: nowrap; }
+.m22 .mg { font-size: 0.62rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
+.m22 .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
+.m22 .cell.best { border-color: #7F1084; background: #FAF3FB; }
+.m22 .id { display: block; font-size: 0.6rem; color: #9CA3AF; letter-spacing: 0.05em; }
+.m22 .val { display: block; font-size: 1.05rem; font-weight: 700; color: #1F1B2E; line-height: 1.15; }
+.m22 .cell.best .val { color: #7F1084; }
+.m22 .dv { font-size: 0.8rem; font-weight: 700; text-align: center; }
+.m22 .good { color: #7F1084; }
+.m22 .bad  { color: #E97132; }
+</style>
 
 <div class="grid grid-cols-5 gap-3 mt-1">
 
 <div class="col-span-3">
 <Card>
-<LabelTiny>Architectural ablation · 5-seed mean of KE MAPE</LabelTiny>
-<ChartCanvas type="bar" :data="archData" :options="archOpts" height="190px" />
-<div class="foot mt-1">B3 = CfC + cross-attention · CfC alone (B1) trails B0 → cross-attention is the dominant standalone lever.</div>
+<LabelTiny>2×2 ablation · KE MAPE (%, n = 5, lower is better)</LabelTiny>
+
+<div class="m22">
+<div></div>
+<div class="hd">no cross-attn</div>
+<div class="hd">+ cross-attn</div>
+<div class="mg">Δ from<br/>cross-attn</div>
+
+<div class="rl">no CfC</div>
+<div class="cell"><span class="id">B0</span><span class="val">8.23</span></div>
+<div class="cell"><span class="id">B2</span><span class="val">7.03</span></div>
+<div class="dv good">−1.20</div>
+
+<div class="rl">+ CfC</div>
+<div class="cell"><span class="id">B1</span><span class="val">9.23</span></div>
+<div class="cell best"><span class="id">B3 &nbsp;PI-CON</span><span class="val">5.71</span></div>
+<div class="dv good">−3.52</div>
+
+<div class="mg">Δ from CfC</div>
+<div class="dv bad">+1.00</div>
+<div class="dv good">−1.32</div>
+<div></div>
+</div>
+
+<div class="foot mt-2">Bottom row flips sign: CfC costs <b style="color:#E97132;">+1.00</b> alone, buys <b style="color:#7F1084;">−1.32</b> with cross-attention.</div>
 </Card>
 </div>
 
 <div class="col-span-2 space-y-2 text-xs">
 
 <Card>
-<LabelTiny>KE decomposition · main effects (about B0)</LabelTiny>
+<LabelTiny>Main effects (about B0)</LabelTiny>
 <div class="mt-1 leading-tight">
-Cross-attention&nbsp; <b style="color:#7F1084;">−1.20 pp</b> (main lever)<br/>
+Cross-attention&nbsp; <b style="color:#7F1084;">−1.20 pp</b> (dominant lever)<br/>
 CfC&nbsp; <b style="color:#E97132;">+1.00 pp</b> (worse alone)<br/>
-Interaction&nbsp; <b style="color:#7F1084;">−2.32 pp</b>
+Interaction&nbsp; <b style="color:#7F1084;">−2.32 pp</b> (largest term)
 </div>
 <div class="text-[10px] mt-1" style="color:#6B7280;">
-About B0 = 8.23 %; sum = −2.52 pp → B3 = 5.71 %. ANOVA additivity holds on the absolute scale.
+Sum = −2.52 pp → B3 = 5.71 %. Additive on the absolute scale.
 </div>
 </Card>
 
