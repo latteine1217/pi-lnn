@@ -1269,12 +1269,14 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 </div>
 
-<div class="col-span-3 space-y-2">
+<div class="col-span-3">
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
 
-<img :src="'/images/field_comparison_t5.png'" class="rounded-lg border mt-1" style="border-color:#E5E0EC; width: 100%; object-fit: contain; max-height: 280px;" />
+<img :src="'/images/field_comparison_t5.png'" style="width: 100%; object-fit: contain;" />
 
-<img :src="'/images/vorticity_comparison_t5.png'" class="rounded-lg border mt-1" style="border-color:#E5E0EC; width: 100%; object-fit: contain; max-height: 140px;" />
+<img :src="'/images/vorticity_comparison_t5.png'" class="mt-1" style="width: 100%; object-fit: contain;" />
 
+</Card>
 </div>
 
 </div>
