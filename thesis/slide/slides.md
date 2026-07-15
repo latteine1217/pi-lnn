@@ -759,12 +759,13 @@ $$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
 <Card>
 <LabelTiny>CFD ANALOGUE &amp; OBSERVED EFFECT</LabelTiny>
 
-<div class="mt-3 leading-snug">
-<b>SIMPLE / PISO</b> (classical CFD) · incompressibility via an <b>elliptic Poisson equation</b> for pressure correction p' · non-local, pointwise, exact on the grid.
+<div class="mt-3 text-sm" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
+<b style="color:#7F1084;">SIMPLE / PISO</b><span>pressure-correction Poisson · <b>exact, pointwise</b> on the grid</span>
+<b style="color:#7F1084;">Our AL (λ)</b><span>gradient ascent on the mean residual · <b>in expectation</b>, not pointwise</span>
 </div>
 
-<div class="mt-3 leading-snug">
-Our λ · <b>Lagrange-multiplier analog</b>, not algorithmically equivalent · scalar updated by gradient ascent on the mean residual · constraint enforced <b>in expectation</b> over collocation points, not pointwise.
+<div class="mt-2 text-xs" style="color:#6B7280;">
+an analog, not an algorithmic equivalent
 </div>
 
 <div class="mt-3">
