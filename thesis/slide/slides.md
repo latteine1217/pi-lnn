@@ -835,7 +835,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <SectionTag>§ Hyperparameters · physical setup &amp; model</SectionTag>
 
-# Configuration parameters (1 of 2)
+# Configuration — what the setup rests on
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
@@ -850,13 +850,12 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <div class="cfg-col">
 
 <Card>
-<LabelTiny>Flow</LabelTiny>
+<LabelTiny>Flow &amp; DNS reference</LabelTiny>
 <div class="pgrid">
 <div class="k">Domain &amp; BC</div><div class="v">Ω = [0, 1]² dimensionless, doubly-periodic</div>
-<div class="k">Characteristic scales</div><div class="v">L<sup>*</sup> = U<sup>*</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
-<div class="k">Reynolds number</div><div class="v">Re = U<sup>*</sup>L<sup>*</sup>/ν<sup>*</sup> = 10⁴ ⇒ ν = 10⁻⁴</div>
-<div class="k">Forcing &amp; window</div><div class="v">A = 0.1, k<sub>f</sub> = 2, T = 5 (≈ 2.51 t<sub>eddy</sub>)</div>
-<div class="k">DNS solver</div><div class="v"><b>Run 1024²</b> ↓×4 → <b>Stored 256²</b> · ETDRK4 fp64 · Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201)</div>
+<div class="k">Reynolds number</div><div class="v"><b>Re = 10⁴</b> ⇒ ν = 10⁻⁴</div>
+<div class="k">Forcing &amp; window</div><div class="v">A = 0.1, k<sub>f</sub> = 2 · T = 5</div>
+<div class="k">DNS</div><div class="v"><b>Run 1024²</b> ↓×4 → <b>stored 256²</b> · ETDRK4 fp64</div>
 </div>
 </Card>
 
@@ -873,27 +872,30 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <div class="cfg-col">
 
 <Card>
-<LabelTiny>Network architecture</LabelTiny>
+<LabelTiny>Model</LabelTiny>
 <div class="pgrid">
-<div class="k">d<sub>model</sub> · d<sub>time</sub></div><div class="v">256 · 16</div>
-<div class="k">d<sub>emb</sub> (Fourier)</div><div class="v">128, harmonics = 16, σ = 2.0 learnable</div>
-<div class="k">Branch (sensor encoder)</div><div class="v">spatial CfC × 1 + temporal CfC × 1 <span class="cite">[Hasani 2022]</span></div>
-<div class="k">Token self-attn</div><div class="v">2 layers × 1 head, dim = 256</div>
-<div class="k">Trunk (query MLP)</div><div class="v">1 layer × 256 hidden, operator rank = 256</div>
-<div class="k">Readout (decoder)</div><div class="v">cross-attn, 1 head, |r| bias <span class="cite">[Vaswani 2017]</span></div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Model size &amp; evaluation</LabelTiny>
-<div class="pgrid">
-<div class="k">Total parameters</div><div class="v"><b>3.14 M</b> (B3 PI-CON)</div>
+<div class="k">Architecture</div><div class="v">DeepONet + CfC branch + cross-attention readout</div>
+<div class="k">Size</div><div class="v">d<sub>model</sub> = 256 · <b>3.14 M</b> parameters</div>
 <div class="k">Query grid</div><div class="v">128² (DNS 256²/4, avoids Nyquist)</div>
 </div>
 </Card>
 
+<Card>
+<LabelTiny>Training</LabelTiny>
+<div class="pgrid">
+<div class="k">Supervision</div><div class="v"><b>sensor MSE + NS residual only</b></div>
+<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free · lr = 10⁻³ · AL ρ = 0.1</div>
+<div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b></div>
+<div class="k">Hardware</div><div class="v">RTX 3090 · ~2 h 45 m per seed</div>
+</div>
+</Card>
+
 </div>
 
+</div>
+
+<div class="mt-3 text-xs" style="color:#6B7280;">
+Full hyperparameter tables (embedding dims, attention heads, GradNorm schedule, DNS time-stepping) in backup.
 </div>
 
 <FooterLogos />
@@ -903,12 +905,14 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 -->
 
 ---
+disabled: true
+---
 
 <NavBar active="method" />
 
-<SectionTag>§ Hyperparameters · training &amp; reproducibility</SectionTag>
+<SectionTag>§ Backup · full hyperparameter tables</SectionTag>
 
-# Configuration parameters (2 of 2)
+# Configuration parameters — full reference
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
@@ -921,6 +925,27 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <div class="grid grid-cols-2 gap-6 mt-4">
 
 <div class="cfg-col">
+
+<Card>
+<LabelTiny>Flow &amp; DNS (full)</LabelTiny>
+<div class="pgrid">
+<div class="k">Characteristic scales</div><div class="v">L<sup>*</sup> = U<sup>*</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
+<div class="k">DNS time-stepping</div><div class="v">Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201) · T = 5 ≈ 2.51 t<sub>eddy</sub></div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Network architecture (full)</LabelTiny>
+<div class="pgrid">
+<div class="k">d<sub>model</sub> · d<sub>time</sub></div><div class="v">256 · 16</div>
+<div class="k">d<sub>emb</sub> (Fourier)</div><div class="v">128, harmonics = 16, σ = 2.0 learnable</div>
+<div class="k">Branch (sensor encoder)</div><div class="v">spatial CfC × 1 + temporal CfC × 1 <span class="cite">[Hasani 2022]</span></div>
+<div class="k">Token self-attn</div><div class="v">2 layers × 1 head, dim = 256</div>
+<div class="k">Trunk (query MLP)</div><div class="v">1 layer × 256 hidden, operator rank = 256</div>
+<div class="k">Readout (decoder)</div><div class="v">cross-attn, 1 head, |r| bias <span class="cite">[Vaswani 2017]</span></div>
+</div>
+</Card>
+
 
 <Card>
 <LabelTiny>SOAP optimiser <span class="cite">[Wang 2025]</span></LabelTiny>
