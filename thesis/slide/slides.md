@@ -506,7 +506,7 @@ Vanilla DeepONet branch ingests a fixed-grid snapshot · our sensors = unevenly 
 </div>
 
 <script setup>
-const gateX = Array.from({ length: 31 }, (_, i) => i * 0.2)
+const gateX = Array.from({ length: 31 }, (_, i) => i * 0.15)
 const gateData = {
   labels: gateX.map(d => d.toFixed(1)),
   datasets: [{
@@ -564,8 +564,8 @@ $$\sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
 
 </div>
 
-<div class="mt-1">
-<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="68px" />
+<div class="mt-1 mx-auto" style="max-width: 200px;">
+<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="86px" />
 </div>
 
 <div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
