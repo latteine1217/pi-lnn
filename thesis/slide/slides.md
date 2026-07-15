@@ -223,8 +223,8 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 </div>
 
 <div class="mt-4 px-4 py-3 rounded-lg" style="background: rgba(127,16,132,0.06); border: 1px solid #E5E0EC;">
-<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">Closest — sensor + PDE, no full field</span>
-<div class="mt-1 text-sm" style="color:#374151;">Mo &amp; Magri 2025 · Kelshaw 2022 · Parfenyev 2024 — but <b style="color:#E97132;">fixed mesh</b> at <b style="color:#E97132;">Re ≲ 10³</b>.</div>
+<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">Exactly three works survive — sensor + PDE, no full field</span>
+<div class="mt-1 text-sm" style="color:#374151;">Mo &amp; Magri 2025 · Kelshaw et al. 2022 · Parfenyev et al. 2024 — every one at <b style="color:#E97132;">Re ≤ 1.3×10³</b>. <span style="color:#6B7280;">Head to head next.</span></div>
 </div>
 
 <FooterLogos />
@@ -242,101 +242,113 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · where PI-CON sits</SectionTag>
+<SectionTag>§ Literature review · the same-regime works, head to head</SectionTag>
 
-# Positioning against prior work
+# The three works in our regime — and where each stops
 
 <style>
-.lit { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; }
-.lit th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.58rem; text-transform: uppercase;
-          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.lit td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
-.lit tr.ours td { background: #F7EDF8; border-bottom: none; }
-.lit .fam { font-size: 0.68rem; color: #1F1B2E; }
-.lit .cite { color: #A9A4B4; font-size: 0.86em; }
-.lit .no { color: #E97132; }
-.lit .yes { color: #7F1084; font-weight: 700; }
-.lit .na { color: #C9C6D0; }
+.hh { width: 100%; border-collapse: collapse; font-size: 0.66rem; margin-top: 10px; margin-bottom: 0; }
+.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.57rem; text-transform: uppercase;
+         letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.hh td { padding: 5px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.25; }
+.hh tr.ours td { background: #F7EDF8; border-bottom: none; }
+.hh .who { font-size: 0.68rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.hh .no { color: #E97132; }
+.hh .yes { color: #7F1084; font-weight: 700; }
 </style>
 
-<table class="lit">
+<div class="text-xs mt-1" style="color:#6B7280;">
+Sensor measurements + PDE residual, <b>no full reference field</b> — the thesis survey finds <b style="color:#7F1084;">exactly three</b> such works. All three are here.
+</div>
+
+<table class="hh">
 <thead>
 <tr>
-<th style="width: 31%;">Surveyed family</th>
-<th style="width: 21%;">Gap 1 · no DNS full field</th>
-<th style="width: 21%;">Gap 2 · reads sparse sensors</th>
-<th style="width: 18%;">Gap 3 · query-anywhere</th>
-<th style="width: 9%;">Re</th>
+<th style="width: 17%;">Work</th>
+<th style="width: 22%;">Architecture</th>
+<th style="width: 8%;">Re</th>
+<th style="width: 13%;">Measurements</th>
+<th style="width: 13%;">Sensors as input</th>
+<th style="width: 13%;">Readout</th>
+<th style="width: 14%;">NS residual</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td class="fam">POD · DMD · QR-pivot · DA <span class="cite">[Sirovich 1987 · Schmid 2010 · Manohar 2018 · Asch 2016]</span></td>
-<td class="no">✗ offline trajectory</td>
-<td class="na">—</td>
-<td class="no">✗</td>
-<td class="na">—</td>
+<td class="who">Mo &amp; Magri 2025</td>
+<td>PC-DualConvNet · U-Net + Fourier branch</td>
+<td class="no">34</td>
+<td class="no">230 <span style="color:#9CA3AF;">(≈0.9 %)</span></td>
+<td class="yes">✓</td>
+<td class="no">128² fixed</td>
+<td class="no">finite difference</td>
 </tr>
 <tr>
-<td class="fam">SHRED · FLRNet · Energy Transformer <span class="cite">[Williams 2024 · Nguyen 2024 · Zhang 2025]</span></td>
-<td class="no">✗ full-field loss</td>
+<td class="who">Kelshaw et al. 2022</td>
+<td>VDSR (VGG-style CNN) + bicubic upsample</td>
+<td class="no">34</td>
+<td>100 <span style="color:#9CA3AF;">(10×10)</span></td>
 <td class="yes">✓</td>
-<td class="no">✗ grid</td>
-<td class="na">—</td>
+<td class="no">150² fixed</td>
+<td class="no">pseudospectral</td>
 </tr>
 <tr>
-<td class="fam">Senseiver · FLRONet <span class="cite">[Santos 2023 · Vo Dang 2024]</span></td>
-<td class="no">✗ full CFD fields</td>
-<td class="yes">✓</td>
-<td class="yes">✓</td>
-<td class="na">—</td>
-</tr>
-<tr>
-<td class="fam">DeepONet · FNO · PINO <span class="cite">[Lu 2021 · Li 2021a · Li 2021b]</span></td>
-<td class="no">✗ paired fields</td>
-<td class="no">✗ dense grid input</td>
-<td class="yes">✓</td>
-<td class="na">—</td>
-</tr>
-<tr>
-<td class="fam">PINN · PirateNet <span class="cite">[Raissi 2019 · Wang 2024]</span></td>
-<td class="yes">✓</td>
+<td class="who">Parfenyev et al. 2024</td>
+<td>PINN · coordinate MLP 7 × 250</td>
+<td class="no">1.3×10³</td>
+<td class="no">3×10⁴ <span style="color:#9CA3AF;">(≈0.2 %)</span></td>
 <td class="no">✗ loss term only</td>
-<td class="yes">✓</td>
-<td>~10⁴</td>
-</tr>
-<tr>
-<td class="fam">Mo &amp; Magri · Kelshaw · Parfenyev <span class="cite">[Mo 2025 · Kelshaw 2022 · Parfenyev 2024]</span></td>
-<td class="yes">✓</td>
-<td class="yes">✓</td>
-<td class="no">✗ fixed mesh</td>
-<td class="no">34–10³</td>
+<td class="yes">query-anywhere</td>
+<td class="yes">autodiff</td>
 </tr>
 <tr class="ours">
-<td class="fam"><b style="color:#7F1084;">PI-CON (ours)</b> <span class="cite">DeepONet + CfC + cross-attention</span></td>
-<td class="yes">✓</td>
-<td class="yes">✓</td>
-<td class="yes">✓</td>
+<td class="who"><b style="color:#7F1084;">PI-CON (ours)</b></td>
+<td><b>DeepONet + CfC + cross-attention</b></td>
 <td class="yes">10⁴</td>
+<td class="yes">100</td>
+<td class="yes">✓</td>
+<td class="yes">query-anywhere</td>
+<td class="yes">autodiff</td>
 </tr>
 </tbody>
 </table>
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-xs">
+<div class="grid grid-cols-3 gap-4 mt-4 text-xs">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Closest same-regime prior work</LabelTiny>
-<div class="mt-1 leading-snug">Mo &amp; Magri, physics-constrained CNN · KE MAPE <b style="color:#E97132;">~ 23 %</b> → PI-CON <b style="color:#7F1084;">5.71 ± 0.11 %</b> <span style="color:#6B7280;">(n = 5)</span>. Same sensors, same physics.</div>
+<LabelTiny>Reynolds number</LabelTiny>
+<div class="mt-1 leading-snug">Nearest is <b style="color:#E97132;">7.7×</b> lower; the CNN pair sit <b style="color:#E97132;">300×</b> lower.</div>
 </Card>
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Gap 4 · sensing configuration</LabelTiny>
-<div class="mt-1 leading-snug">All surveyed work reports one fixed setup. Count · placement · noise stay <b>unmapped</b> — the sensing study.</div>
+<LabelTiny>Sensor budget</LabelTiny>
+<div class="mt-1 leading-snug">Parfenyev needs <b style="color:#E97132;">300×</b> more points; Mo &amp; Magri <b style="color:#E97132;">2.3×</b>.</div>
+</Card>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>Nobody has both</LabelTiny>
+<div class="mt-1 leading-snug">Query-anywhere <b>and</b> sensors-as-input <b>and</b> Re = 10⁴ — the empty cell.</div>
 </Card>
 </div>
 
 <FooterLogos />
 
 <!--
-[Literature review · direct comparison · 1.5min] 重點：同 regime 比 — Mo & Magri 2025 (~23%) → ours (5.71 ± 0.11%)。Classical interpolation 用 EXP-295：trig/RBF 可有低 KE，但 u/v/ω pointwise 很差，所以不能只看 KE。底部 DNS-supervised methods 數字漂亮但不能比，因為 deployment 沒 DNS。
+[Literature review 2/2 · 2min] 逐篇 head-to-head，每一格皆有原文出處（2026-07-15 查證）：
+- Mo & Magri 2025 (arXiv 2409.00260): Re=34、80 input + 150 general sensors (≈0.9%)、
+  128² grid、PC-DualConvNet (U-Net + Fourier branch)、residual 用 2nd/4th-order FD。
+  原文報 relative ℓ₂ 5.51 ± 0.34 %（非 KE MAPE）。
+- Kelshaw 2022 (arXiv 2210.17319): ν=1/34、10×10=100 觀測、150² grid、VDSR + bicubic、
+  可微 pseudospectral residual。
+- Parfenyev 2024 (arXiv 2404.01193): Re≈1.3×10³、Ndata=3×10⁴ (≈0.2%)、coordinate MLP
+  7×250、autodiff residual、scattered 量測。
+窮盡性：chapter01:99 界定同 regime 者恰為三篇，此表即全集。
+
+⚠️ 兩個已知問題（尚未修 thesis）：
+1. 舊版本頁曾寫「Mo & Magri KE MAPE ~23% → ours 5.71%」——該 23% 全 repo 無來源，
+   原文亦無近似值（唯一「over 20%」是其 loss 變體間的相對比較）。已移除。
+   chapter04:39 本就聲明不採用未經本協定重跑的他人數字為證據。
+2. chapter01:99 稱三篇「each returns a fixed mesh」且「rather than continuous
+   automatic differentiation」——對 Parfenyev 為誤述（它是 coordinate MLP + autodiff）。
+   需修論文。
+不要在口試宣稱與 Mo & Magri 的 head-to-head 數值優勢：指標不同、Re 差 300 倍。
 -->
 
 ---
