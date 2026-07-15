@@ -247,110 +247,100 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 # DNS-supervised methods — the hidden cost
 
 <style>
-.dns { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
-.dns th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.63rem; text-transform: uppercase;
-          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.dns td { padding: 3px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.2; }
-.dns tr.ours td { background: #F7EDF8; border-bottom: none; }
+/* 一個強調色，一個意思：橘色只標「loss 對著什麼擬合」—— 這頁唯一的論點。
+   其餘欄位一律中性，否則每格都是重點就等於沒有重點。 */
+.dns { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 12px; margin-bottom: 0; }
+.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.63rem; text-transform: uppercase;
+          letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.dns th.key { color: #E97132; }
+.dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
 .dns .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.dns .no { color: #E97132; }
-.dns .yes { color: #7F1084; font-weight: 700; }
-.dns .ns { color: #C9C6D0; font-style: italic; }
+.dns .who span { font-weight: 400; color: #9CA3AF; }
+.dns td.key { color: #E97132; font-weight: 600; }
+.dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
+.dns tr.ours .who { color: #7F1084; }
+.dns tr.ours td.key { color: #7F1084; font-weight: 700; }
 </style>
 
 <div class="text-xs mt-1" style="color:#6B7280;">
-Query-anywhere or sensor-reading designs exist — but every one is trained against a reference field it will not have on a rig.
+Query-anywhere and sensor-reading designs both exist — every one of them is trained against a reference field the rig will not have.
 </div>
 
 <table class="dns">
 <thead>
 <tr>
-<th style="width: 17%;">Work</th>
-<th style="width: 22%;">Architecture</th>
-<th style="width: 16%;">Case · Re</th>
-<th style="width: 11%;">Sensors</th>
-<th style="width: 22%;">What the loss is fitted to</th>
-<th style="width: 12%;">Readout</th>
+<th style="width: 20%;">Work</th>
+<th style="width: 27%;">Architecture</th>
+<th style="width: 18%;">Case</th>
+<th style="width: 35%;" class="key">What the loss is fitted to</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td class="who">SHRED <span style="color:#9CA3AF; font-weight:400;">Williams 2024</span></td>
+<td class="who">SHRED <span>Williams 2024</span></td>
 <td>Stacked LSTM + shallow FC decoder</td>
-<td>Isotropic turb. (JHTDB) · <span class="ns">Re not stated</span></td>
-<td>1–50</td>
-<td class="no">Full state · ‖x − H(y)‖₂</td>
-<td class="no">Fixed grid</td>
+<td>Isotropic turbulence (JHTDB)</td>
+<td class="key">The full state · ‖x − H(y)‖₂</td>
 </tr>
 <tr>
-<td class="who">Senseiver <span style="color:#9CA3AF; font-weight:400;">Santos 2023</span></td>
+<td class="who">Senseiver <span>Santos 2023</span></td>
 <td>Perceiver IO · cross-attention to latent</td>
-<td><span class="ns">Re not stated</span></td>
-<td>flexible</td>
-<td class="no">"A dense set of observations is needed to train"</td>
-<td class="yes">Query-anywhere</td>
+<td>—</td>
+<td class="key">“A dense set of observations is needed to train”</td>
 </tr>
 <tr>
-<td class="who">FLRNet <span style="color:#9CA3AF; font-weight:400;">Nguyen 2024</span></td>
-<td>Conv VAE + Fourier features + MLP 5 × 128</td>
-<td>Cylinder · <span class="no">Re 300–10³</span></td>
-<td>8 · 16 · 32</td>
-<td class="no">Full field · VAE + perceptual loss</td>
-<td class="no">Fixed 128×256</td>
+<td class="who">FLRNet <span>Nguyen 2024</span></td>
+<td>Conv VAE + Fourier features + MLP</td>
+<td>Cylinder, Re 300–10³</td>
+<td class="key">The full field · VAE + perceptual loss</td>
 </tr>
 <tr>
-<td class="who">FLRONet <span style="color:#9CA3AF; font-weight:400;">Vo Dang 2024</span></td>
-<td>FNO branch (d = 64) + 3-layer MLP trunk</td>
-<td>Cylinder (CFDBench) · <span class="ns">Re not stated</span></td>
-<td>32</td>
-<td class="no">Paired CFD fields</td>
-<td class="yes">Query-anywhere</td>
+<td class="who">FLRONet <span>Vo Dang 2024</span></td>
+<td>FNO branch + MLP trunk</td>
+<td>Cylinder (CFDBench)</td>
+<td class="key">Paired CFD fields</td>
 </tr>
 <tr class="ours">
-<td class="who"><b style="color:#7F1084;">PI-CON (ours)</b></td>
-<td><b>DeepONet + CfC + cross-attention</b></td>
-<td>Kolmogorov · <b class="yes">Re 10⁴</b></td>
-<td class="yes">100</td>
-<td class="yes">Sensor MSE + NS residual only</td>
-<td class="yes">Query-anywhere</td>
+<td class="who">PI-CON <span>ours</span></td>
+<td>DeepONet + CfC + cross-attention</td>
+<td>Kolmogorov, Re 10⁴</td>
+<td class="key">Sensor MSE + NS residual only</td>
 </tr>
 </tbody>
 </table>
 
-<div class="grid grid-cols-2 gap-5 mt-2 text-xs">
-<Card style="padding-top: 0.4rem; padding-bottom: 0.4rem;">
-<LabelTiny>Their accuracy is not the point</LabelTiny>
-<div class="mt-1 leading-snug">Few-% error is real — but it is bought with the one thing a rig never has. <b>Not a fair yardstick.</b></div>
-</Card>
-<Card style="padding-top: 0.4rem; padding-bottom: 0.4rem;">
-<LabelTiny>Strip the reference field</LabelTiny>
-<div class="mt-1 leading-snug">Every row above falls away, and <b style="color:#7F1084;">exactly three</b> published works remain. <span style="color:#6B7280;">Those three, next.</span></div>
-</Card>
+<div class="mt-5 text-sm" style="color:#374151;">
+Their few-% error is real — and bought with the one thing a rig never has. Strip the reference field and <b style="color:#7F1084;">exactly three</b> published works remain. <span style="color:#9CA3AF;">Those three, next.</span>
 </div>
 
-<div class="mt-1 text-[10px]" style="color:#9CA3AF;">
+<div class="mt-2 text-[10px]" style="color:#C9C6D0;">
 None of the seven surveyed works states a parameter count; the Reynolds number is unstated in three of the four above.
 </div>
 
 <FooterLogos />
 
 <!--
-[Literature review 2/3 · 1.5min] DNS-supervised 組逐篇，每格皆有原文出處（2026-07-15 查證）：
-- SHRED (arXiv 2301.12011): stacked LSTM + shallow FC decoder；loss 原文為
-  「minimize reconstruction loss ∑ᵢ ‖xᵢ − H̃({yⱼ})‖₂」——對全場 state 監督；
-  案例 JHTDB isotropic turbulence (1024³, 350² cutout) / SST / ozone；Re 未報；1–50 sensors。
-- Senseiver (Nature MI 2023, s42256-023-00746-x): cross-attention 編碼進 latent（Perceiver IO 系）；
-  OSTI 摘要原文「a dense set of observations is needed to train」；Re / sensor 數未報；
-  正文付費牆，未能查證更多。
-- FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier mapping (m=4, σ=5) + MLP 5×128；
-  loss 為 VAE reconstruction + perceptual；cylinder Re 300–1000；8/16/32 sensors；固定 128×256。
-- FLRONet (arXiv 2412.08009): FNO branch (d=64, kh=24, kw=48) + 3-layer MLP trunk，dot-product fusion；
-  cylinder (CFDBench)，Re 未報；32 sensors；輸出可在任意 (x,t) 求值。
-  ⚠️ 其 loss 定義原文未明述；「Paired CFD fields」一格依 chapter01:101 之論述填入，非原文直引。
+[Literature review 2/3 · 1.5min] 這頁只有一個論點：它們全都對著 reference field 擬合。
+故只有一個欄位帶色（橘＝loss 對著什麼擬合），其餘中性。前一版 7 種文字顏色、橘色同時
+用在 supervision / Re / readout 三種意思上 —— 每格都是重點就等於沒有重點。
 
-講法：這組數字漂亮但不可比 —— 它們用「現場沒有的東西」換來的。
-兩個查證副產品可講：(1) 七篇無一報參數量（故本簡報比較架構而非規模）；
-(2) Re 有三篇未報，DNS-supervised 這條線根本不以高 Re 為訴求。
+已移除 Readout 與 Sensors 欄：readout 是 slide 7 的軸（Parfenyev 的 query-anywhere 在那裡
+才有意義）；sensor 數在此頁不承擔論點。Re 併入 Case 欄，未報者留白（—），不特別標色 ——
+那是缺席，不是警訊。
+
+逐格出處（2026-07-15 查證）：
+- SHRED (arXiv 2301.12011): stacked LSTM + shallow FC decoder；loss 原文
+  「minimize reconstruction loss ∑ᵢ‖xᵢ − H̃({yⱼ})‖₂」→ 對全場 state 監督；JHTDB isotropic
+  turbulence；Re 未報。
+- Senseiver (Nature MI 2023): Perceiver IO 系 cross-attention 編碼進 latent；OSTI 摘要原文
+  「a dense set of observations is needed to train」；Re / sensor 數未報；正文付費牆。
+- FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier (m=4, σ=5) + MLP 5×128；
+  loss = VAE reconstruction + perceptual；cylinder Re 300–1000。
+- FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench；
+  Re 未報。⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，
+  非原文直引。
+
+底部交棒：exactly three 的揭曉在此頁，slide 5 不再提前宣告、slide 7 不再重述。
 -->
 
 ---
