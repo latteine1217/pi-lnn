@@ -601,20 +601,30 @@ Vanilla DeepONet inner product has no spatial prior linking a query to nearby se
 <div class="grid grid-cols-2 gap-5 mt-2">
 
 <Card>
-<LabelTiny>① ATTENTION WITH PHYSICAL DISTANCE BIAS [Vaswani 2017]</LabelTiny>
+<LabelTiny>① ATTENTION WITH ISOTROPIC DISTANCE BIAS [Vaswani 2017]</LabelTiny>
 
 <div class="mt-2" style="font-size: 0.7em;">
 
-$$\text{Attn}(Q, K, V) = \text{softmax}\!\left(\frac{Q K^{\top} - \lambda\,|r|}{\sqrt{d_k}}\right) V$$
+$$A_{qk} = \mathrm{softmax}_k\!\left(\frac{Q_q^{\top} K_k}{\sqrt{d_{\text{hidden}}}} + b_{qk}\right)$$
 
 </div>
 
-<div class="mt-2 text-xs leading-snug space-y-0.5">
-<div>· Q = Fourier embedding of query (x, t)</div>
-<div>· K, V = CfC-encoded sensor tokens</div>
-<div>· |r|<sub>ij</sub> = √(‖x<sub>q,i</sub> − x<sub>s,j</sub>‖² + ε)&nbsp;<span style="color:#6B7280;">smooth norm, ε = 10⁻⁸</span></div>
-<div>· λ learnable — distant sensors get down-weighted (built-in proximity prior)</div>
-<div>· <b>Causal lookup</b> — query reads sensors only up to t<sub>q</sub> → streaming-deployable</div>
+<div class="mt-1" style="font-size: 0.7em;">
+
+$$b_{qk} = \mathrm{MLP}_{\text{relpos}}\bigl(|r|_{qk}\bigr)$$
+
+</div>
+
+<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:10px; row-gap:4px; align-items:baseline;">
+<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier embedding of (x, t)</span>
+<b style="color:#7F1084;">K<sub>k</sub>, V<sub>k</sub></b><span>CfC-encoded sensor tokens</span>
+<b style="color:#7F1084;">|r|<sub>qk</sub></b><span>√(‖x<sub>q</sub> − x<sub>k</sub>‖² + ε) · smooth norm, ε = 10⁻⁸</span>
+<b style="color:#7F1084;">b<sub>qk</sub></b><span>learned distance bias → distant sensors down-weighted</span>
+<b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dimension · softmax scaling</span>
+</div>
+
+<div class="mt-2 text-xs leading-snug" style="color:#374151;">
+<b>Causal lookup</b> — query reads sensors only up to t<sub>q</sub> → streaming-deployable
 </div>
 </Card>
 
@@ -636,7 +646,7 @@ $$w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
 </div>
 
 <div class="mt-2 text-xs leading-snug space-y-2">
-<div><b>Cross-attention with |r| bias</b> learns the kernel shape (softmax QK<sup>⊤</sup>) and bandwidth (λ) — no hand-picked σ.</div>
+<div><b>Cross-attention with |r| bias</b> learns the distance→weight map itself (the b<sub>qk</sub> MLP) — no hand-picked σ.</div>
 <div>The kernel is <b>fitted to the sensors + PDE</b>, not chosen a priori.</div>
 </div>
 </Card>
