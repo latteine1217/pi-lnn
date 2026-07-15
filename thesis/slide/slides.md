@@ -1002,49 +1002,55 @@ disabled: true
 
 # How error and physics consistency are computed
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
+<style>
+.ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px; align-items: baseline; margin-top: 10px; }
+.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
+.ngrid .def { color: #374151; font-size: 0.78rem; line-height: 1.3; }
+.eqbox { border-left: 2px solid #E5E0EC; padding-left: 12px; margin: 4px 0 2px 0; font-size: 0.72em; }
+</style>
+
+<div class="grid grid-cols-2 gap-5 mt-3">
 
 <Card>
 <LabelTiny>FIELD ERROR METRICS &nbsp;<span class="opacity-60">(offline DNS benchmark only)</span></LabelTiny>
 
-<div class="mt-2 text-xs leading-snug space-y-2" style="color:#374151;">
-<div>
-<b>Global rel-L₂</b> over t ∈ [0, T]:
-<div class="mt-1" style="font-size: 0.78em;">
+<div class="eqbox">
 
-$$\mathrm{rel}\,L_2(\phi) \,=\, \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{\|\phi_{\text{DNS}}\|_2}, \quad \phi \in \{u, v, \omega\}$$
+$$\mathrm{rel}\,L_2(\phi) = \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{\|\phi_{\text{DNS}}\|_2}, \quad \phi \in \{u, v, \omega\}$$
 
 </div>
-</div>
-<div><b>rel-L∞</b> pointwise max error / DNS max.</div>
-<div><b>t★ = 5 rel-L₂</b> final-snapshot error.</div>
-<div><b>KE(t)</b> 1/2∫Ω(u²+v²)dx.</div>
-<div><b>div L₂(t)</b> ‖∂x u + ∂y v‖₂.</div>
+
+<div class="ngrid">
+<div class="sym">rel-L₂</div><div class="def">global, over t ∈ [0, T]</div>
+<div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
+<div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
+<div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
+<div class="sym">div L₂(t)</div><div class="def">‖∂<sub>x</sub>u + ∂<sub>y</sub>v‖₂</div>
 </div>
 
 <div class="mt-3 text-[10px]" style="color:#6B7280;">
-Derivatives: 4th-order central differences on 128² eval grid; div L₂ uses the DNS FD floor as reference.
+4th-order central differences on 128² eval grid; div L₂ referenced to the DNS FD floor.
 </div>
 </Card>
 
 <Card>
 <LabelTiny>TRAINING LOSS &nbsp;<span class="opacity-60">(GradNorm-balanced [Chen 2018])</span></LabelTiny>
 
-<div class="mt-2" style="font-size: 0.78em;">
+<div class="eqbox">
 
 $$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathcal{L}_{\text{NS},u} + w_{\text{NS},v}\,\mathcal{L}_{\text{NS},v} + w_c\,\mathcal{L}_{\text{cont}}$$
 
 </div>
 
-<div class="mt-3 text-xs leading-snug space-y-2" style="color:#374151;">
-<div><b>Data term</b> MSE on the K = 100 measured sensor channels.</div>
-<div><b>Momentum</b> R<sub>u</sub>, R<sub>v</sub> from incompressible NS at collocation points.</div>
-<div><b>Continuity</b> ∇·u at collocation points, promoted by AL update.</div>
-<div><b>Balancing</b> GradNorm keeps data and physics terms comparable.</div>
+<div class="ngrid">
+<div class="sym">ℒ<sub>data</sub></div><div class="def">MSE on the K = 100 sensor channels</div>
+<div class="sym">ℒ<sub>NS,u</sub> , ℒ<sub>NS,v</sub></div><div class="def">NS momentum residual at collocation points</div>
+<div class="sym">ℒ<sub>cont</sub></div><div class="def">∇·u, promoted by AL update</div>
+<div class="sym">w<sub>d</sub> , w<sub>NS</sub> , w<sub>c</sub></div><div class="def">GradNorm-balanced weights</div>
 </div>
 
-<div class="mt-2 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
-<b style="color:#7F1084;">Invariant</b>&nbsp;·&nbsp; DNS field never enters the loss ℒ.
+<div class="mt-3 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
+<b style="color:#7F1084;">Invariant</b>&nbsp;·&nbsp; DNS field never enters ℒ.
 </div>
 </Card>
 
