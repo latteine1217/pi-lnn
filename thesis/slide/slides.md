@@ -223,8 +223,8 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 </div>
 
 <div class="mt-4 px-4 py-3 rounded-lg" style="background: rgba(127,16,132,0.06); border: 1px solid #E5E0EC;">
-<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">Exactly three works survive — sensor + PDE, no full field</span>
-<div class="mt-1 text-sm" style="color:#374151;">Mo &amp; Magri 2025 · Kelshaw et al. 2022 · Parfenyev et al. 2024 — every one at <b style="color:#E97132;">Re ≤ 1.3×10³</b>. <span style="color:#6B7280;">Head to head next.</span></div>
+<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">The low-error methods are all in row one</span>
+<div class="mt-1 text-sm" style="color:#374151;">SHRED · Senseiver · FLRNet post few-% error — by <b style="color:#E97132;">reading the reference field</b> the rig will not have. <span style="color:#6B7280;">What that buys them, next.</span></div>
 </div>
 
 <FooterLogos />
@@ -317,15 +317,19 @@ Query-anywhere or sensor-reading designs exist — but every one is trained agai
 </tbody>
 </table>
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-xs">
-<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
+<div class="grid grid-cols-2 gap-5 mt-2 text-xs">
+<Card style="padding-top: 0.4rem; padding-bottom: 0.4rem;">
 <LabelTiny>Their accuracy is not the point</LabelTiny>
 <div class="mt-1 leading-snug">Few-% error is real — but it is bought with the one thing a rig never has. <b>Not a fair yardstick.</b></div>
 </Card>
-<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
-<LabelTiny>What none of them report</LabelTiny>
-<div class="mt-1 leading-snug"><b>Parameter counts</b> — none of the seven surveyed works states one. <b>Reynolds number</b> — unstated in three.</div>
+<Card style="padding-top: 0.4rem; padding-bottom: 0.4rem;">
+<LabelTiny>Strip the reference field</LabelTiny>
+<div class="mt-1 leading-snug">Every row above falls away, and <b style="color:#7F1084;">exactly three</b> published works remain. <span style="color:#6B7280;">Those three, next.</span></div>
 </Card>
+</div>
+
+<div class="mt-1 text-[10px]" style="color:#9CA3AF;">
+None of the seven surveyed works states a parameter count; the Reynolds number is unstated in three of the four above.
 </div>
 
 <FooterLogos />
@@ -369,7 +373,7 @@ Query-anywhere or sensor-reading designs exist — but every one is trained agai
 </style>
 
 <div class="text-xs mt-1" style="color:#6B7280;">
-Sensor measurements + PDE residual, <b>no full reference field</b> — the thesis survey finds <b style="color:#7F1084;">exactly three</b> such works. All three are here.
+The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">Sensor measurements + PDE residual, no full reference field — the survey finds no others.</span>
 </div>
 
 <table class="hh">
