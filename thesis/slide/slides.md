@@ -1838,55 +1838,46 @@ KE-as-misleading。
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · sensor count axis (O2) · K-scaling</SectionTag>
+<SectionTag>§ Results · sensor count axis (O2)</SectionTag>
 
-# Sensor count sets the recoverable resolution — K-scaling
+# The cutoff moves right with the sensors
 
-<script setup>
-const ksData = {
-  labels: ['K = 100', 'K = 200', 'K = 400'],
-  datasets: [{ label: 'KE MAPE (%)', data: [5.90, 2.47, 1.76], backgroundColor: ['#A24FAB', '#7F1084', '#5C0A60'], barThickness: 46 }],
-}
-const ksOpts = {
-  scales: { y: { title: { display: true, text: 'KE MAPE (%, lower is better)', color: '#7F1084' }, suggestedMin: 0, suggestedMax: 7 } },
-  plugins: { legend: { display: false } },
-}
-</script>
+<div class="text-sm mt-1" style="color:#374151;">
+Where PI-CON departs from DNS follows the sensor Nyquist <span style="text-transform:none;">k<sub>max</sub> = √(K/π)</span> — higher fidelity comes from <b style="color:#7F1084;">bandwidth expansion</b>, not architecture search.
+</div>
 
-<div class="grid grid-cols-5 gap-5 mt-3">
-
-<div class="col-span-3">
-<Card>
-<LabelTiny>KE vs sensor count K (single-seed, 20 k)</LabelTiny>
-<ChartCanvas type="bar" :data="ksData" :options="ksOpts" height="210px" />
-<div class="foot mt-1">KE drops ~70 % (K = 100 → 400) · ratios (0.42, 0.30) follow the 1/K prediction within 20 %.</div>
+<Card style="padding: 0.45rem 0.6rem;" class="mt-2">
+<img :src="'/images/spectrum_k_scaling_triptych.png'"
+     style="display: block; margin: 0 auto; max-width: 94%; height: auto;" />
 </Card>
-</div>
 
-<div class="col-span-2 space-y-2 text-xs">
-<Card>
-<LabelTiny>Sensor Nyquist <span class="raw">k<sub>max</sub> = √(K/π)</span></LabelTiny>
-<div class="mt-2 leading-snug">
-<div>· K = 100 → k<sub>max</sub> ≈ <b>5.64</b></div>
-<div>· K = 200 → k<sub>max</sub> ≈ <b>7.98</b></div>
-<div>· K = 400 → k<sub>max</sub> ≈ <b>11.28</b></div>
-</div>
-</Card>
-<Card>
-<LabelTiny>Take-away</LabelTiny>
-<div class="mt-2 leading-snug">
-Effective cutoff tracks √(K/π) · <b>sensor budget, not architecture</b>, is the lever for higher fidelity.<br/>
-<span style="color:#6B7280;">Preliminary trend — single-seed, retuned config; K = 100 here = 5.90 % (seed 42) vs n = 5 baseline 5.71 %.</span>
-</div>
-</Card>
-</div>
-
+<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
+Single-seed at the final protocol, read as a trend rather than a fit: K = 100 is the seed-42 run (the n = 5 mean is 5.71 %), and the K = 400 run uses 512 collocation points instead of 1024.
 </div>
 
 <FooterLogos />
 
 <!--
-[K-scaling · 1.5min] O2 數量軸的實證圖。K=100/200/400 → KE 5.90/2.47/1.76%，cutoff 隨 √(K/π) 右移。也是 spectral-bias 反駁：若是模型 spectral bias，加 sensor 不會改善高頻；K-scaling 改善證明 ceiling 是 sensor 資訊量。誠實標 single-seed preliminary、K=100 5.90 (seed42) vs 5.71 (n=5)。
+[K-scaling · 1.5min] O2 數量軸。主視覺＝三連能譜（scripts/plot_spectrum_k_scaling_triptych.py，
+投影片專用；論文用 fig:k_scaling_spectra 的三張 subfigure）。講法：指綠線 —— 5.64 → 7.98 →
+11.28 一路右移，而藍色 PI-CON 正好在綠線處脫離黑色 DNS，三格都是。這就是 chapter04:169
+「the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling」。
+KE 5.90 / 2.47 / 1.76 % 已標進 panel 標題（出處 tab:k_scaling_nyquist, chapter04.tex:285）。
+
+也是 spectral-bias 反駁：若 ceiling 來自模型的 spectral bias，加 sensor 不會讓 cutoff 右移；
+它右移了，所以 ceiling 是 sensor 資訊量而非架構。
+
+⚠️ 舊版用 KE 長條圖是錯的證據形式：主張是頻寬/冪律，長條圖畫不出斜率。實測 log-log
+局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)、整體擬合 −0.87，三點不在一直線上；
+若改畫 log-log 會當場暴露。頻譜圖才是論文真正的主張。
+
+⚠️ 舊版寫「ratios (0.42, 0.30) follow the 1/K prediction within 20%」比論文更硬且丟了
+caveat。chapter04:318 原文是「within 20% of this scaling estimate」，並明載「Because the
+K=400 run uses fewer collocation points, the three-point curve should not be read as a
+strict fit」。1/K 係由 k_max ∝ √K 推得（cutoff 以上未解析能量 ∝ k_max⁻² ∝ 1/K），屬
+scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。被追問再給 ratio。
+
+資料：EXP-269 (K=200)、EXP-270 (K=400, collo=512) 見 experiment_log_v2:493-494。
 -->
 
 
@@ -1894,46 +1885,73 @@ Effective cutoff tracks √(K/π) · <b>sensor budget, not architecture</b>, is 
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · sensor noise axis (O3) · robustness</SectionTag>
+<SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Robust to sensor noise up to 10 % — noise series (n = 5)
+# Everything degrades — nothing crosses the line
+
+<style>
+/* Slidev 的 per-slide style 區塊有 scope；slide 20 的 .bg2 不會跨頁生效，此處需自帶。
+   註：此註解內不可出現字面的 style 標籤，SFC parser 會誤判為新標籤開頭。 */
+.bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px;
+       align-items: baseline; margin-top: 6px; margin-bottom: 0; }
+.bg2 .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
+.bg2 .v { font-size: 0.71rem; color: #1F1B2E; line-height: 1.3; white-space: nowrap; }
+</style>
 
 <script setup>
-const nzData = {
-  labels: ['clean', '1 %', '3 %', '5 %', '10 %'],
-  datasets: [{ label: 'KE MAPE (%)', data: [5.71, 5.75, 5.81, 5.92, 6.08], backgroundColor: '#7F1084', barThickness: 40 }],
+const NOISE = [0, 1, 3, 5, 10]
+const noiseData = {
+  labels: NOISE.map(n => `${n} %`),
+  datasets: [
+    { label: 'KE MAPE', data: [5.71, 5.745, 5.807, 5.916, 6.080],
+      borderColor: '#7F1084', backgroundColor: '#7F1084', tension: 0.25,
+      pointRadius: 4, pointHoverRadius: 5, borderWidth: 2.4, order: 1 },
+    { label: 'Engineering threshold', data: NOISE.map(() => 10),
+      borderColor: '#E97132', borderDash: [6, 4], borderWidth: 2,
+      pointRadius: 0, fill: false, order: 2 },
+  ],
 }
-const nzOpts = {
-  scales: { y: { title: { display: true, text: 'KE MAPE (%, lower is better)', color: '#7F1084' }, suggestedMin: 5, suggestedMax: 7 } },
-  plugins: { legend: { display: false } },
+const noiseOpts = {
+  scales: {
+    y: { title: { display: true, text: 'KE MAPE (%, lower is better)', color: '#7F1084' },
+         min: 0, max: 11, ticks: { stepSize: 2 } },
+    x: { title: { display: true, text: 'Additive Gaussian noise (% of per-channel sensor std)', color: '#6B7280' } },
+  },
+  plugins: { legend: { display: true, position: 'top', align: 'end' } },
 }
 </script>
 
-<div class="grid grid-cols-5 gap-5 mt-3">
+<div class="grid grid-cols-5 gap-4 mt-2">
 
 <div class="col-span-3">
-<Card>
-<LabelTiny>KE vs additive Gaussian noise level (n = 5, per-channel std)</LabelTiny>
-<ChartCanvas type="bar" :data="nzData" :options="nzOpts" height="210px" />
-<div class="foot mt-1">KE 5.71 → 6.08 % across 0–10 % noise (+0.37 pp) · well under the 10 % engineering threshold.</div>
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>KE vs sensor noise &nbsp;<span class="opacity-60">(n = 5 per level, final protocol)</span></LabelTiny>
+<ChartCanvas type="line" :data="noiseData" :options="noiseOpts" height="170px" />
+<div class="foot mt-1">At 10 % noise the KE error still sits <b style="color:#7F1084;">3.9 pp</b> below the threshold.</div>
 </Card>
 </div>
 
-<div class="col-span-2 space-y-2 text-xs">
-<Card>
+<div class="col-span-2 space-y-2">
+
+<Card style="padding-top: 0.55rem; padding-bottom: 0.55rem;">
+<LabelTiny>0 % → 10 % noise &nbsp;<span class="opacity-60">(n = 5)</span></LabelTiny>
+<div class="bg2">
+<div class="k">KE MAPE</div><div class="v">5.71 → 6.08 %&nbsp; <span style="color:#E97132;">+6.5 %</span></div>
+<div class="k">u rel-L₂</div><div class="v">13.65 → 14.49 %&nbsp; <span style="color:#E97132;">+6.2 %</span></div>
+<div class="k">v rel-L₂</div><div class="v">17.52 → 18.77 %&nbsp; <span style="color:#E97132;">+7.1 %</span></div>
+<div class="k">ω rel-L₂</div><div class="v">41.79 → 43.47 %&nbsp; <span style="color:#E97132;">+4.0 %</span></div>
+<div class="k">div ratio</div><div class="v">0.39 → 0.46 %&nbsp; <span style="color:#E97132;">+17.7 %</span></div>
+</div>
+<div class="mt-2 text-[10px]" style="color:#6B7280;">Monotone in the aggregate — every metric worsens.</div>
+</Card>
+
+<Card style="padding-top: 0.55rem; padding-bottom: 0.55rem;">
 <LabelTiny>Reliability, not feasibility</LabelTiny>
-<div class="mt-2 leading-snug">
-<div>· 10 % sensor-std noise → KE <b>6.08 ± 0.21 %</b></div>
-<div>· degradation only +0.37 percentage points</div>
-<div>· low-band recovery unaffected (high band already sensor-bound)</div>
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+Noise moves the result; it does not move it <b>out of the engineering band</b>.
 </div>
 </Card>
-<Card>
-<LabelTiny>Take-away</LabelTiny>
-<div class="mt-2 leading-snug">
-PI-CON <b>highly robust</b> to realistic additive sensor noise · engineering-grade across the tested range.
-</div>
-</Card>
+
 </div>
 
 </div>
@@ -1941,7 +1959,24 @@ PI-CON <b>highly robust</b> to realistic additive sensor noise · engineering-gr
 <FooterLogos />
 
 <!--
-[noise robustness · 1.5min] O3 噪音軸實證。clean/1/3/5/10% → KE 5.71/5.75/5.81/5.92/6.08% (n=5)。到 10% 僅 +0.37pp，仍 < 10% engineering threshold。noise 影響的是 low-band，high-band 已被 K=100 Nyquist 限制。
+[Noise robustness · 1.5min] O3 噪音軸。主視覺改為折線 + 橘色虛線門檻：這頁的主張是
+「離 10% 門檻還有 3.9 pp 餘裕」，餘裕必須畫出來才成立。舊版長條圖只有五根差不多高的柱、
+門檻根本沒畫，看不出在主張什麼。
+
+數字：EXP-290 noise robustness, final protocol, n=5（experiment_log_v2:1507-1514）
+1%/3%/5%/10% = 5.745±0.082 / 5.807±0.030 / 5.916±0.083 / 6.080±0.208；
+clean 0% = EXP-245 5.71±0.11。對應 thesis chapter04 tab (chapter04.tex:438) 與 :443。
+
+⚠️ 舊版寫「low-band recovery unaffected」「highly robust」與 log:1516 的
+「clearly worsens pointwise/vorticity/divergence metrics」不一致。實測 0→10%：
+KE +6.5% / u +6.2% / v +7.1% / ω +4.0% / div +17.7% 相對退化，全部單調變差。
+已改為「Everything degrades — nothing crosses the line」，右卡列出全部五項退化幅度。
+論文 chapter04:443 用詞為「The aggregate trend is monotone: increasing sensor noise raises
+KE error, pointwise error, vorticity error, and divergence ratio.」——與此一致。
+
+⚠️ 不要用舊的 single-seed 10k noise 表（experiment_log_v2 §6, EXP-258~261, KE 6.92→7.14）。
+log:1516 明載已被 EXP-290 n=5 取代；chapter04:443 稱其為「older single-seed
+regularisation artefact」。但 §6 各列仍標 ACTIVE_REFERENCE，state 檔待清理。
 -->
 
 
