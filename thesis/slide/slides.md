@@ -516,18 +516,17 @@ const gateData = {
 }
 const gateOpts = {
   scales: {
-    x: { title: { display: true, text: 'time gap Δt', color: '#6B7280', font: { size: 9 } },
-         ticks: { maxTicksLimit: 4, color: '#6B7280', font: { size: 9 } } },
-    y: { title: { display: true, text: 'gate σ', color: '#7F1084', font: { size: 9 } },
-         min: 0, max: 1, ticks: { stepSize: 0.5, color: '#6B7280', font: { size: 9 } } },
+    x: { title: { display: true, text: 'Δt →', color: '#6B7280', font: { size: 8 } },
+         ticks: { display: false }, grid: { display: false } },
+    y: { title: { display: true, text: 'σ', color: '#7F1084', font: { size: 8 } },
+         min: 0, max: 1, ticks: { stepSize: 1, color: '#6B7280', font: { size: 8 } },
+         grid: { display: false } },
   },
   plugins: { legend: { display: false } },
 }
 </script>
 
-<div class="grid grid-cols-5 gap-4 mt-2">
-
-<div class="col-span-3 space-y-2">
+<div class="grid grid-cols-2 gap-5 mt-2">
 
 <Card>
 <LabelTiny>① LIQUID NEURAL NETWORK (LNN) [Hasani 2021]</LabelTiny>
@@ -560,27 +559,20 @@ $$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2, \qquad \sigma = \
 
 </div>
 
-<div class="mt-1 text-xs leading-snug" style="color:#374151;">
-f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe
+<div class="mt-2 flex items-center gap-3">
+<div style="width: 104px; flex: none;">
+<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="54px" />
 </div>
-</Card>
-
-</div>
-
-<div class="col-span-2">
-<Card>
-<LabelTiny>How the gate behaves</LabelTiny>
-
-<div class="mt-2">
-<ChartCanvas type="line" :data="gateData" :options="gateOpts" height="150px" />
-</div>
-
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+<div class="text-xs leading-snug" style="color:#6B7280;">
 short gap → <b style="color:#7F1084;">σ → 1</b> → f<sub>1</sub> (fast)<br/>
 long gap → <b style="color:#7F1084;">σ → 0</b> → f<sub>2</sub> (relaxed)
 </div>
-</Card>
 </div>
+
+<div class="mt-2 text-xs leading-snug" style="color:#374151;">
+f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe
+</div>
+</Card>
 
 </div>
 
