@@ -100,7 +100,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 # What classical inverse methods require
 
 <div class="mt-3 text-base leading-snug" style="color:#374151;">
-Classical inverse methods — Proper Orthogonal Decomposition (POD)-ROM · 4D-Var · ensemble Kalman filtering — each needs one ingredient the field cannot supply:
+Classical inverse methods — Proper Orthogonal Decomposition (POD) Reduced-Order Model (ROM) · four-dimensional variational assimilation (4D-Var) · ensemble Kalman filter (EnKF) — each needs one ingredient the field cannot supply:
 </div>
 
 <div class="grid grid-cols-2 gap-6 mt-5">
@@ -1417,87 +1417,13 @@ $$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathc
 
 <NavBar active="results" />
 
-<SectionTag>§ Main result · multi-seed comparison against fair baselines</SectionTag>
+<SectionTag>§ Results · main result · architectural value</SectionTag>
 
-# Main result — every variant at n = 5
+# Main result — 2×2 ablation at n = 5
 
-<div class="mt-1 text-xs" style="color:#6B7280;">
-Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (DNS-free)</b> · 1024 collocation · 20 k iterations · <b>all rows n = 5 seeds</b>
+<div class="text-[10px] mt-1" style="color:#6B7280;">
+Re = 10⁴ · K = 100 · LES-derived QR-pivot placement (DNS-free) · 1024 collocation · 20 k iterations · all cells n = 5 seeds
 </div>
-
-<div class="mt-2 text-xs">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Variant (rank by KE)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">KE MAPE (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">u rel-L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">ω rel-L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Params</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>B3&nbsp; PI-CON (CfC + cross-attn)</b></td>
-      <td class="py-1 px-2"><b>5.71 ± 0.11</b></td>
-      <td class="py-1 px-2"><b>13.65</b></td>
-      <td class="py-1 px-2"><b>41.79</b></td>
-      <td class="py-1 px-2">3.14M</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">B2&nbsp; Cross-attn only (no CfC)</td>
-      <td class="py-1 px-2">7.03 ± 0.14</td>
-      <td class="py-1 px-2">14.64</td>
-      <td class="py-1 px-2">44.32</td>
-      <td class="py-1 px-2">2.74M</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">B0&nbsp; Vanilla DeepONet</td>
-      <td class="py-1 px-2">8.23 ± 0.22</td>
-      <td class="py-1 px-2">15.42</td>
-      <td class="py-1 px-2">45.44</td>
-      <td class="py-1 px-2">1.28M</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">B1&nbsp; CfC only (no cross-attn)</td>
-      <td class="py-1 px-2">9.23 ± 0.51</td>
-      <td class="py-1 px-2">18.05</td>
-      <td class="py-1 px-2">51.14</td>
-      <td class="py-1 px-2">3.14M</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="text-xs mt-2 leading-snug" style="color:#374151;">
-<span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-B3 vs B0 <b style="color:#7F1084;">−2.52 pp</b> on KE · cross-attention the dominant lever, CfC via interaction · ω rel-L₂ a derivative diagnostic, KE the engineering metric.
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Main result table · 2min] 論文 2×2 ablation，全 n=5 一致 setup (LES_T50 + 1024 collo + 20k)，按 KE 排序：
-🥇 B3 PI-CON (CfC + cross-attn): 5.71 ± 0.11 % — main baseline
-B2 cross-attn only: 7.03 ± 0.14 %
-B0 Vanilla DeepONet: 8.23 ± 0.22 %
-B1 CfC only: 9.23 ± 0.51 % ← 比 B0 還差
-Paper-grade findings：
-- B1 (CfC only) 比 B0 差 → CfC 單獨無益，只透過 interaction 生效；cross-attention 才是 dominant standalone lever
-- B3 vs B0：−2.52 percentage points, t=22.9, p=3.0×10⁻⁷, Cohen d=14.5
-- KE decomposition about B0=8.23：cross-attn main −1.20、CfC main +1.00、interaction −2.32、sum −2.52
-- PINN single-seed sweep 已移出主表（論文不採此口徑）；如委員問可走 backup
--->
-
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Results · architectural value</SectionTag>
-
-# 2×2 ablation — the dominant lever
 
 <style>
 .m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 5px; align-items: center; margin-top: 6px; margin-bottom: 0; }
@@ -1761,40 +1687,46 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 
 <SectionTag>§ Results · EXP-245 baseline (B3 + LES_T50, 1024 collo)</SectionTag>
 
-# Temporal & spectral diagnostics
+# Temporal diagnostics
 
-<div class="grid grid-cols-3 gap-3 mt-2">
+<div class="grid grid-cols-2 gap-4 mt-3">
 
 <Card>
 <LabelTiny>Kinetic energy KE(t) — units: m²/s²</LabelTiny>
-<img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay · IC warm-up t &lt; 2 s.</div>
+<img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay 0.161 → 0.122 · IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
 <LabelTiny>Velocity rel-L₂ error u, v — dimensionless</LabelTiny>
-<img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · v &gt; u: forcing acts on u.</div>
-</Card>
-
-<Card>
-<LabelTiny>Energy spectrum E(k) at t = 5 — units: m³/s²</LabelTiny>
-<img :src="'/images/energy_spectrum.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Wavenumber k (1/m) · low band recovered · drop at k ≈ <b>5.64</b>.</div>
+<img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
+<div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · ~30 % at IC → single-digit · ±1σ band.</div>
 </Card>
 
 </div>
 
-<div class="mt-3 grid grid-cols-3 gap-3 text-sm">
-  <BulletRow>k ≤ 5 (within √(K/π)) carries <b>~99%</b> of E → rel-err <b style="color:#7F1084;">~4%</b></BulletRow>
-  <BulletRow>k ∈ (5, 16] and k &gt; 16 → rel-err <b style="color:#E97132;">saturates near 100%</b></BulletRow>
-  <BulletRow>Divergence ratio <b style="color:#7F1084;">0.39%</b> — resolved-bandwidth FD floor (active AL)</BulletRow>
+<div class="mt-2 text-xs" style="color:#374151;">
+Divergence ratio <b style="color:#7F1084;">0.39 %</b> — at the resolved-bandwidth FD floor (AL active) <span style="color:#C9C6D0;">·</span> spectral cutoff → next slide
 </div>
 
 <FooterLogos />
 
 <!--
-[Temporal & Spectral · 2min] 三張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay 0.161→0.122 m²/s²）、velocity rel-L₂ u/v(t)（~30%→single-digit, v>u, ±1σ band n=5）、E(k) at t=5（low band k≤5 recovered, mid/high 在 k≈5.64 = K=100 sensor-Nyquist 掉落）。div ratio 0.39% 接近 resolved-bandwidth FD floor。
+[Temporal diagnostics · 1.5min] 兩張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay
+0.161→0.122 m²/s²）、velocity rel-L₂ u/v(t)（~30%→single-digit, ±1σ band n=5）。
+div ratio 0.39% 接近 resolved-bandwidth FD floor。
+
+⚠️ 2026-07-16 改動：原本三張圖並排（KE / uv / E(k)），每張只有 1/3 寬，但 PNG 內的
+label 與 legend 字級是照全寬設計的，縮到 1/3 後委員看不清。改為兩張並排（max-height
+180 → 270px），每張面積約 2 倍。
+
+移除的 E(k) at t=5 並未損失論證：K-scaling 頁（下一張）的三連能譜已含 K=100 的
+E(k) 與 Nyquist 截止線，且那張是專門為投影片畫的（字級較大），本來就比這張清楚。
+band-resolved 的 k≤5 / mid-high 飽和數字則在「Error structure」頁的 key metrics。
+若要恢復三圖，正解是重畫 PNG 加大字級，不是把圖再縮小。
+
+⚠️ 已移除「v > u: forcing acts on u」—— 該歸因全 thesis 查無，且 cross-attention 的
+isotropic kernel 是未排除的競爭解釋（見已停用的 velocity-error backup 頁）。
 -->
 
 ---
@@ -2015,7 +1947,7 @@ KE-as-misleading。
 .fb .trap { color: #E97132; font-weight: 700; }
 </style>
 
-<div class="grid gap-4 mt-1" style="grid-template-columns: 1.35fr 0.65fr;">
+<div class="grid gap-4 mt-1" style="grid-template-columns: 1.62fr 0.38fr;">
 
 <div>
 <table class="fb">
@@ -2027,15 +1959,15 @@ KE-as-misleading。
   </thead>
   <tbody>
     <tr>
-      <td class="m">RBF multiquadric <span style="color:#9CA3AF;">(<span class="raw">ε</span> = 10)</span></td>
+      <td class="m">Radial basis function (RBF) <span style="color:#9CA3AF;">multiquadric, <span class="raw">ε</span> = 10</span></td>
       <td class="trap">5.08</td><td>30.02</td><td>34.43</td><td>58.33</td>
     </tr>
     <tr>
-      <td class="m">IDW <span style="color:#9CA3AF;">(p = 2)</span></td>
+      <td class="m">Inverse distance weighting (IDW) <span style="color:#9CA3AF;">p = 2</span></td>
       <td>66.66</td><td>52.88</td><td>62.02</td><td>81.89</td>
     </tr>
     <tr>
-      <td class="m">Div-free trig. LSQ <span style="color:#9CA3AF;">(k<sub>max</sub> = 5)</span></td>
+      <td class="m">Divergence-free trigonometric least squares <span style="color:#9CA3AF;">k<sub>max</sub> = 5</span></td>
       <td class="trap">4.42</td><td>25.87</td><td>31.96</td><td>63.41</td>
     </tr>
     <tr class="ours">
