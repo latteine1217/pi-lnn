@@ -1705,10 +1705,6 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 
 </div>
 
-<div class="mt-2 text-xs" style="color:#374151;">
-Divergence ratio <b style="color:#7F1084;">0.39 %</b> — at the resolved-bandwidth FD floor (AL active) <span style="color:#C9C6D0;">·</span> spectral cutoff → next slide
-</div>
-
 <FooterLogos />
 
 <!--
@@ -2496,57 +2492,65 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 
 <NavBar active="summary" />
 
-<SectionTag>§ Conclusion · limitations</SectionTag>
+<SectionTag>§ Conclusion · limitations and next steps</SectionTag>
 
-# Five limitations
+# What is open — and what closes it
 
 <style>
-.lm { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 10px; }
-.lm .num { font-size: 1.05rem; font-weight: 700; color: #E97132; line-height: 1; padding: 9px 0; }
-.lm .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
-.lm .ttl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; }
-.lm .det { font-size: 0.78rem; color: #6B7280; margin-top: 2px; line-height: 1.3; }
-.ar { color: #C9C6D0; font-weight: 400; }
+.lx { width: 100%; border-collapse: collapse; margin-top: 8px; }
+.lx th { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+         padding: 0 8px 4px 8px; border-bottom: 1px solid #D8D2E0; text-align: left; }
+.lx td { padding: 6px 8px; border-bottom: 1px solid #F1EDF5; vertical-align: top; }
+.lx .lim { font-size: 0.78rem; color: #1F1B2E; font-weight: 600; width: 42%; }
+.lx .lim span { font-weight: 400; color: #9CA3AF; font-size: 0.92em; }
+.lx .arw { color: #C9C6D0; width: 12px; padding: 6px 0; }
+.lx .fix { font-size: 0.78rem; color: #374151; }
+.lx .fix b { color: #7F1084; }
 </style>
 
-<div class="lm">
+<table class="lx">
+<thead><tr><th style="color:#E97132;">Limitation</th><th></th><th style="color:#7F1084;">What closes it</th></tr></thead>
+<tbody>
+<tr>
+<td class="lim">Uniform clock only <span>— CfC's raison d'être untested</span></td>
+<td class="arw">→</td>
+<td class="fix">Mask the existing 201 frames <span style="color:#C9C6D0;">·</span> vs GRU + Δt <span style="color:#C9C6D0;">·</span> <b>no new DNS</b></td>
+</tr>
+<tr>
+<td class="lim">Additive Gaussian noise only</td>
+<td class="arw">→</td>
+<td class="fix">Bias <span style="color:#C9C6D0;">·</span> drift <span style="color:#C9C6D0;">·</span> dropout <span style="color:#C9C6D0;">·</span> correlated channels <span style="color:#C9C6D0;">·</span> calibration</td>
+</tr>
+<tr>
+<td class="lim">Periodic domain, single forcing <span>— cylinder preliminary</span></td>
+<td class="arw">→</td>
+<td class="fix">Cylinder → airfoil → channel <span style="color:#C9C6D0;">·</span> multi-modal fusion</td>
+</tr>
+<tr>
+<td class="lim">Cross-Re single seed, retuned</td>
+<td class="arw">→</td>
+<td class="fix">Re = 10⁶ at n ≥ 3, then Re ≥ 10⁷ <span style="color:#C9C6D0;">·</span> feasibility → benchmark</td>
+</tr>
+<tr>
+<td class="lim">K-scaling = 3-point trend <span>— K = 400 uses 512 collocation</span></td>
+<td class="arw">→</td>
+<td class="fix">Matched-budget sweep K = 50 / 100 / 200 / 400</td>
+</tr>
+<tr>
+<td class="lim">Per-case fitting <span>— no cross-case generality</span></td>
+<td class="arw">→</td>
+<td class="fix">One operator over many scenes <span style="color:#C9C6D0;">·</span> training–simulation crossover</td>
+</tr>
+<tr>
+<td class="lim">CFD-rigour gaps</td>
+<td class="arw">→</td>
+<td class="fix">Reynolds stresses <span style="color:#C9C6D0;">·</span> TKE budget <span style="color:#C9C6D0;">·</span> 4D-Var baseline <span style="color:#C9C6D0;">·</span> pressure</td>
+</tr>
+</tbody>
+</table>
 
-<div class="num">①</div>
-<div class="body">
-<div class="ttl">Temporal sampling · <span style="color:#E97132;">uniform clock only</span></div>
-<div class="det">CfC adopted for uneven clocks <span class="ar">→</span> benchmark samples uniformly <span class="ar">→</span> capability untested <span class="ar">·</span> <b style="color:#E97132;">FW ①</b></div>
-</div>
-
-<div class="num">②</div>
-<div class="body">
-<div class="ttl">Noise model · additive Gaussian only</div>
-<div class="det">open: bias <span class="ar">·</span> drift <span class="ar">·</span> dropout <span class="ar">·</span> correlated channels <span class="ar">·</span> calibration <span class="ar">·</span> <b style="color:#E97132;">FW ④</b></div>
-</div>
-
-<div class="num">③</div>
-<div class="body">
-<div class="ttl">Geometry · periodic domain, single forcing</div>
-<div class="det">cylinder wake = preliminary <span class="ar">·</span> airfoil / internal / wall-driven <span class="ar">→</span> revalidate <span class="ar">·</span> <b style="color:#E97132;">FW ⑤</b></div>
-</div>
-
-<div class="num">④</div>
-<div class="body">
-<div class="ttl">Cross-Re · one trajectory, single seed</div>
-<div class="det">Re = 10⁶ single-seed + retuned <span class="ar">→</span> feasibility, not benchmark <span class="ar">·</span> <b style="color:#E97132;">FW ②</b></div>
-</div>
-
-<div class="num">⑤</div>
-<div class="body">
-<div class="ttl">CFD rigour · gaps remain</div>
-<div class="det">Reynolds stresses <span class="ar">·</span> TKE-budget closure <span class="ar">·</span> classical CFD baselines <span class="ar">·</span> <b style="color:#E97132;">FW ⑤</b></div>
-</div>
-
-</div>
-
-<div class="mt-3 px-3 py-2 rounded" style="background: rgba(233,113,50,0.07); border-left: 3px solid #E97132;">
-<div class="text-xs" style="color:#374151;">
-Scope <span class="ar">·</span> K = 100 <span class="ar">·</span> Re = 10⁴ <span class="ar">·</span> 2-D periodic Kolmogorov <span class="ar">→</span> <b>cross-case generality not demonstrated</b>
-</div>
+<div class="mt-2 text-xs" style="color:#374151;">
+Scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov <span style="color:#C9C6D0;">→</span> the top row is the cheapest and tests the title
 </div>
 
 <FooterLogos />
