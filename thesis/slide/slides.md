@@ -816,33 +816,37 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 # Cross-attention — closing the "sparse-to-dense" gap
 
 <div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet's inner product is global — no spatial prior linking a query to the nearest sensors · cross-attention with an isotropic distance bias gives sparse-to-dense field readout at any query.
+Vanilla DeepONet's inner product is global — no spatial prior linking a query to the nearest sensors.
 </div>
 
-<div class="grid grid-cols-2 gap-5 mt-2">
+<div class="grid gap-5 mt-2" style="grid-template-columns: 1.32fr 0.68fr;">
 
 <Card>
 <LabelTiny>① DISTANCE-BIASED CROSS-ATTENTION [Vaswani 2017]</LabelTiny>
 
-<div class="mt-2" style="font-size: 0.7em;">
+<div class="mt-2 text-xs leading-snug"><b>Score</b> each sensor against the query:</div>
 
-$$\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
-
-</div>
-
-<div class="mt-1" style="font-size: 0.7em;">
+<div class="mt-1" style="font-size: 0.62em;">
 
 $$A_{qk} = \mathrm{softmax}_k\!\left(\frac{\mathbf{Q}_q^{\top} \mathbf{K}_k}{\sqrt{d_{\text{hidden}}}} + b_{qk}\right)$$
 
 </div>
 
-<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:10px; row-gap:3px; align-items:baseline;">
-<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · a residual MLP refines the sum</span>
-<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier embedding of (x<sub>q</sub>, t<sub>q</sub>)</span>
-<b style="color:#7F1084;">K<sub>k</sub>, V<sub>k</sub></b><span>CfC-encoded sensor tokens · sensor k at x<sub>k</sub></span>
-<b style="color:#7F1084;">r<sub>qk</sub></b><span>√(‖x<sub>q</sub> − x<sub>k</sub>‖² + ε) · torus-folded, smooth norm, ε = 10⁻⁸</span>
-<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(LayerNorm(r<sub>qk</sub>)) · distant sensors down-weighted</span>
+<div class="mt-1 text-xs leading-snug"><b>Retrieve</b> a blend of what they carry:</div>
+
+<div class="mt-1" style="font-size: 0.62em;">
+
+$$\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
+
+</div>
+
+<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:10px; row-gap:2px; align-items:baseline;">
+<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier embedding of (x, t)</span>
+<b style="color:#7F1084;">K<sub>k</sub></b><span>sensor <b>key</b> · what the query is scored against</span>
+<b style="color:#7F1084;">V<sub>k</sub></b><span>sensor <b>value</b> · what the query retrieves</span>
+<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(r<sub>qk</sub>) · r<sub>qk</sub> = smoothed torus distance</span>
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dimension · softmax scaling</span>
+<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · residual MLP refines the sum</span>
 </div>
 
 </Card>
@@ -850,22 +854,22 @@ $$A_{qk} = \mathrm{softmax}_k\!\left(\frac{\mathbf{Q}_q^{\top} \mathbf{K}_k}{\sq
 <Card>
 <LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock {t<sub>n</sub>} returns the most recent stamp not exceeding t<sub>q</sub>:</div>
+<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock:</div>
 
-<div class="mt-2" style="font-size: 0.58em;">
+<div class="mt-1" style="font-size: 0.58em;">
 
 $$n^*(q) = \mathrm{clamp}\bigl(\mathrm{searchsorted}(\{t_n\},\, t_q) - 1,\; 0,\; N_t - 1\bigr)$$
 
 </div>
 
-<div class="mt-2 text-xs leading-snug" style="color:#374151;">
-Query accesses sensor information only up to t<sub>q</sub> · filtering causality → <b style="color:#0F2D52;">streaming-deployable</b>
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+Query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b>
 </div>
 
-<div class="mt-3 text-xs leading-snug"><b>Isotropic, not directional (r<sub>x</sub>, r<sub>y</sub>)</b> — a deliberate modelling simplification.</div>
+<div class="mt-4 text-xs leading-snug"><b>Isotropic distance, not directional (r<sub>x</sub>, r<sub>y</sub>)</b></div>
 
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-Kolmogorov forcing f<sub>x</sub> = A sin(2πk<sub>f</sub>y) makes the flow anisotropic — but a directional bias would encode the QR-pivot sensors' non-uniform x-distribution as a spurious directional term. An isotropic distance admits no such mechanism.
+The flow is anisotropic — yet a directional bias would learn the QR-pivot sensors' non-uniform x-distribution as spurious direction.
 </div>
 </Card>
 
