@@ -12,7 +12,7 @@
 .tag-chip {
   display: inline-block;
   padding: 0.2rem 0.6rem;
-  font-size: 0.72rem;
+  font-size: 0.83rem;
   border-radius: 0.35rem;
   background: var(--color-primary-tint, rgba(127, 16, 132, 0.08));
   color: var(--color-primary, #7F1084);

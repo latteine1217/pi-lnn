@@ -157,7 +157,7 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 
 <Card style="background: rgba(127,16,132,0.05);">
 <LabelTiny>NEURAL OPERATOR&nbsp;<span class="opacity-60">(DeepONet) [Lu 2021]</span></LabelTiny>
-<div class="mt-3 flex items-center justify-center gap-2" style="font-family:'JetBrains Mono',monospace; font-size:0.82rem; color:#7F1084;">
+<div class="mt-3 flex items-center justify-center gap-2" style="font-family:'JetBrains Mono',monospace; font-size: 0.83rem; color:#7F1084;">
 <div style="display:grid; grid-template-columns:max-content max-content; column-gap:6px; row-gap:3px; text-align:right;">
 <span>sensors {y(t<sub>k</sub>)} →</span><span style="text-align:left;"><b>branch</b></span>
 <span>query (x, t) →</span><span style="text-align:left;"><b>trunk</b></span>
@@ -165,7 +165,7 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 <div style="font-size:2.1rem; line-height:0.85; font-weight:200;">}</div>
 <div>→&nbsp;<b>u(x, t)</b></div>
 </div>
-<div class="text-center" style="font-size:0.62rem; color:#6B7280;">inner product of branch &amp; trunk bases</div>
+<div class="text-center" style="font-size: 0.83rem; color:#6B7280;">inner product of branch &amp; trunk bases</div>
 <div class="mt-4 text-sm leading-snug" style="color:#374151;">
 Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch reads the whole sensor trajectory</b> · trunk queries any point · one network serves new sensor streams
 </div>
@@ -199,7 +199,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
 .blk .lbl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; white-space: nowrap; padding: 11px 0; }
-.blk .fam { font-size: 0.78rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
+.blk .fam { font-size: 0.83rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
 .blk .lbl { border-bottom: 1px solid #F1EDF5; }
 .need { color: #E97132; font-weight: 700; }
 </style>
@@ -248,12 +248,12 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <style>
 /* 一個強調色，一個意思：橘色只標「loss 對著什麼擬合」—— 這頁唯一的論點。
    其餘欄位一律中性，否則每格都是重點就等於沒有重點。 */
-.dns { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 12px; margin-bottom: 0; }
-.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.63rem; text-transform: uppercase;
+.dns { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 12px; margin-bottom: 0; }
+.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.83rem; text-transform: uppercase;
           letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .dns th.key { color: #E97132; }
 .dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
-.dns .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.dns .who { font-size: 0.83rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .dns .who span { font-weight: 400; color: #9CA3AF; }
 .dns td.key { color: #E97132; font-weight: 600; }
 .dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
@@ -347,12 +347,12 @@ None of the seven surveyed works states a parameter count; the Reynolds number i
 # Same-regime works — head to head
 
 <style>
-.hh { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 10px; margin-bottom: 0; }
-.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.63rem; text-transform: uppercase;
+.hh { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 10px; margin-bottom: 0; }
+.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .hh td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.22; }
 .hh tr.ours td { background: #F7EDF8; border-bottom: none; }
-.hh .who { font-size: 0.8rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.hh .who { font-size: 0.83rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .hh .no { color: #E97132; }
 .hh .yes { color: #7F1084; font-weight: 700; }
 </style>
@@ -1039,7 +1039,7 @@ an analog, not an algorithmic equivalent
 
 <div class="mt-3 pt-2" style="border-top: 1px solid #E5E0EC;">
 <LabelTiny>Is the constraint doing anything?</LabelTiny>
-<div class="mt-1" style="display:grid; grid-template-columns:1fr max-content; column-gap:12px; row-gap:4px; align-items:baseline; font-size:0.72rem; font-variant-numeric:tabular-nums;">
+<div class="mt-1" style="display:grid; grid-template-columns:1fr max-content; column-gap:12px; row-gap:4px; align-items:baseline; font-size: 0.83rem; font-variant-numeric:tabular-nums;">
 <span style="color:#6B7280;">DNS, full cascade</span><span style="color:#9CA3AF;">1.04 %</span>
 <span style="color:#6B7280;">DNS, band-limited to k ≤ 16</span><span style="color:#9CA3AF;">0.38 %</span>
 <span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
@@ -1116,10 +1116,10 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.78rem; line-height: 1.32; margin-top: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.83rem; line-height: 1.32; margin-top: 10px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
-.pgrid .cite { color: #9CA3AF; font-size: 0.9em; }
+.pgrid .cite { color: #9CA3AF; }
 </style>
 
 <div class="grid grid-cols-2 gap-6 mt-4">
@@ -1193,10 +1193,10 @@ disabled: true
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.78rem; line-height: 1.32; margin-top: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.83rem; line-height: 1.32; margin-top: 10px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
-.pgrid .cite { color: #9CA3AF; font-size: 0.9em; }
+.pgrid .cite { color: #9CA3AF; }
 </style>
 
 <div class="grid grid-cols-2 gap-6 mt-4">
@@ -1281,8 +1281,8 @@ disabled: true
 
 <style>
 .ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px; align-items: baseline; margin-top: 10px; }
-.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.8rem; white-space: nowrap; }
-.ngrid .def { color: #374151; font-size: 0.78rem; line-height: 1.3; }
+.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.83rem; white-space: nowrap; }
+.ngrid .def { color: #374151; font-size: 0.83rem; line-height: 1.3; }
 .eqbox { border-left: 2px solid #E5E0EC; padding-left: 12px; margin: 4px 0 2px 0; font-size: 0.72em; }
 </style>
 
@@ -1436,20 +1436,20 @@ Paper-grade findings：
 
 <style>
 .m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 7px; align-items: center; margin-top: 10px; margin-bottom: 0; }
-.m22 .hd { font-size: 0.68rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
-.m22 .rl { font-size: 0.72rem; color: #6B7280; white-space: nowrap; }
-.m22 .mg { font-size: 0.62rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
+.m22 .hd { font-size: 0.83rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.m22 .rl { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
+.m22 .mg { font-size: 0.83rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
 .m22 .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
 .m22 .cell.best { border-color: #7F1084; background: #FAF3FB; }
-.m22 .id { display: block; font-size: 0.6rem; color: #9CA3AF; letter-spacing: 0.05em; }
+.m22 .id { display: block; font-size: 0.83rem; color: #9CA3AF; letter-spacing: 0.05em; }
 .m22 .val { display: block; font-size: 1.05rem; font-weight: 700; color: #1F1B2E; line-height: 1.15; }
 .m22 .cell.best .val { color: #7F1084; }
-.m22 .dv { font-size: 0.8rem; font-weight: 700; text-align: center; }
+.m22 .dv { font-size: 0.83rem; font-weight: 700; text-align: center; }
 .m22 .good { color: #7F1084; }
 .m22 .bad  { color: #E97132; }
 .rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 5px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
-.rg .k { font-size: 0.72rem; color: #374151; }
-.rg .n { font-size: 0.78rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
+.rg .k { font-size: 0.83rem; color: #374151; }
+.rg .n { font-size: 0.83rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
 .rg .tot { border-top: 1px solid #E5E0EC; padding-top: 5px; margin-top: 2px; }
 </style>
 
@@ -1574,8 +1574,8 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 <style>
 .bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
-.bg2 .k { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
-.bg2 .v { font-size: 0.73rem; color: #1F1B2E; line-height: 1.3; }
+.bg2 .k { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
+.bg2 .v { font-size: 0.83rem; color: #1F1B2E; line-height: 1.3; }
 </style>
 
 <div class="grid grid-cols-5 gap-4 mt-3">
@@ -1609,11 +1609,6 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 <div class="mt-1 text-xs" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
 </Card>
 
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Ceiling</LabelTiny>
-<div class="mt-2 text-xs leading-snug" style="color:#374151;">Sensor Nyquist <b style="color:#7F1084;">k<sub>max</sub> ≈ 5.64</b> — architecture cannot recover unseen bandwidth.</div>
-</Card>
-
 </div>
 
 </div>
@@ -1621,7 +1616,10 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 <FooterLogos />
 
 <!--
-[Vorticity error interpretation · 2min] 左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
+[Vorticity error interpretation · 2min] 口述接回第 8 頁：「k ≤ 5 這條線就是第 8 頁的 sensor Nyquist
+k_max ≈ 5.64；越過它 modes 比 measurements 多，架構補不回來。」原本這裡有張 Ceiling 卡寫同樣的
+5.64 與同樣的結論，與第 8 頁逐字重複、且右欄已擠爆，故移除改為口述。
+左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
 -->
 
 ---
@@ -1704,19 +1702,19 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <Card>
 <LabelTiny>Kinetic energy KE(t) — units: m²/s²</LabelTiny>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS chaotic decay 0.161 → 0.122 m²/s² · IC warm-up t &lt; 2 s · within ~7 % of DNS for t ≥ 2.5 s.</div>
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay · IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
 <LabelTiny>Velocity rel-L₂ error u, v — dimensionless</LabelTiny>
 <img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">rel-L₂ ~30% (IC) → single-digit · time-avg u <b>13.65%</b>, v <b>17.52%</b> (n = 5) · v &gt; u: forcing on u, v a derived response.</div>
+<div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · v &gt; u: forcing acts on u.</div>
 </Card>
 
 <Card>
 <LabelTiny>Energy spectrum E(k) at t = 5 — units: m³/s²</LabelTiny>
 <img :src="'/images/energy_spectrum.png'" class="rounded mt-1" style="max-height: 180px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Axis: wavenumber k (1/m) · low band (k ≤ 5) recovered · mid/high drop at k ≈ <b>5.64</b> = K = 100 sensor-Nyquist ceiling.</div>
+<div class="foot mt-1">Wavenumber k (1/m) · low band recovered · drop at k ≈ <b>5.64</b>.</div>
 </Card>
 
 </div>
@@ -1742,9 +1740,9 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 # DNS-free placement — competitive, not equivalent
 
 <style>
-.pl { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 12px;
+.pl { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 12px;
       font-variant-numeric: tabular-nums; }
-.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.64rem;
+.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.83rem;
          padding: 0 12px 7px 12px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
 .pl th:first-child { text-align: left; }
 .pl td { padding: 10px 12px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
@@ -1752,7 +1750,7 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 .pl tr.main td { background: rgba(127, 16, 132, 0.09); font-weight: 700; color: #7F1084; }
 .pl .no  { color: #7F1084; font-weight: 700; }
 .pl .yes { color: #E97132; font-weight: 700; }
-.pl .sub { font-weight: 400; color: #9CA3AF; font-size: 0.86em; }
+.pl .sub { font-weight: 400; color: #9CA3AF; }
 </style>
 
 <div class="text-xs mt-1" style="color:#6B7280;">
@@ -1852,9 +1850,9 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
       align-items: baseline; margin-top: 8px; margin-bottom: 0; }
-.fc .hd { font-size: 0.57rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
-.fc .k  { font-size: 0.7rem; color: #6B7280; white-space: nowrap; }
-.fc .v  { font-size: 0.72rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc .hd { font-size: 0.83rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
+.fc .k  { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
+.fc .v  { font-size: 0.83rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fc .bad { color: #E97132; font-weight: 700; }
 .fc .good { color: #7F1084; font-weight: 700; }
 </style>
@@ -1896,13 +1894,16 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 
 </div>
 
-<div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
-Open-loop reference, not a matched assimilation baseline: the forecast builds a divergence-free field from the K = 100 sensors at t = 0, then integrates freely with nothing assimilated after. It also uses <b>200 DNS snapshots offline</b> for its POD-rank-40 basis — more information than PI-CON, which sees only the sensor stream.
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b> — more than PI-CON's sensor stream.
 </div>
 
 <FooterLogos />
 
 <!--
+[Forward-CFD · 2min] 底部 note 精簡後的完整口徑：forward-CFD 從 K=100 sensor 在 t=0 建 divergence-free 場，
+之後自由積分、不再 assimilate 任何資料（open-loop）；且它用了 200 個 DNS snapshots offline 建 POD-rank-40 basis
+—— 比 PI-CON（只看 sensor stream）多得多的資訊。所以這不是公平的 matched-assimilation baseline，是誠實揭露 forward-CFD 的優勢。
 [Forward-CFD · 2min] 圖下小字精簡後的完整口徑（原註記字太小已縮）：
   DNS anisotropy σ_u/σ_v = 2.32。此頁 KE 是 late-window (t ≳ 3.3) mean、u/v/ω 是 t=5 snapshot，
   兩者都對齊 forward-CFD forecast 的比較窗；main-result 的 KE MAPE 5.71%、u rel-L₂ 13.65%
@@ -1988,9 +1989,9 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 # Sensor noise — reliability, not feasibility
 
 <style>
-.nz { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 14px; margin-bottom: 0;
+.nz { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 14px; margin-bottom: 0;
       font-variant-numeric: tabular-nums; }
-.nz th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.62rem; text-transform: uppercase;
+.nz th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 12px 6px 12px; border-bottom: 1px solid #D8D2E0; white-space: nowrap; }
 .nz th:first-child { text-align: left; }
 .nz th.worst { color: #1F1B2E; }
@@ -1998,7 +1999,7 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 .nz .raw { text-transform: none; }
 .nz td { padding: 9px 12px; border-bottom: 1px solid #F1EDF5; color: #9CA3AF; text-align: right; }
 .nz td.m { text-align: left; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.nz td.m .tgt { font-weight: 400; color: #9CA3AF; font-size: 0.82em; }
+.nz td.m .tgt { font-weight: 400; color: #9CA3AF; }
 .nz td.worst { color: #1F1B2E; font-weight: 700; background: #FAFAFC; }
 .nz td.delta { color: #E97132; font-weight: 700; border-left: 1px solid #E5E0EC; }
 .nz tr.head td { color: #7F1084; }
@@ -2335,7 +2336,7 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 .ct .num { font-size: 1.5rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 14px 0; }
 .ct .body { padding: 12px 0; border-bottom: 1px solid #F1EDF5; }
 .ct .ttl { font-size: 0.9rem; font-weight: 700; color: #1F1B2E; }
-.ct .det { font-size: 0.76rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.ct .det { font-size: 0.83rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
 .ct .sec .num, .ct .sec .ttl { color: #9CA3AF; }
 </style>
 
@@ -2398,10 +2399,10 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 <style>
 .ob { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 18px; row-gap: 0;
       align-items: center; margin-top: 16px; }
-.ob .tag { font-size: 0.6rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
+.ob .tag { font-size: 0.83rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
 .ob .body { padding: 13px 0; border-bottom: 1px solid #F1EDF5; }
 .ob .ttl { font-size: 0.92rem; font-weight: 700; color: #1F1B2E; }
-.ob .det { font-size: 0.78rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
+.ob .det { font-size: 0.83rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
 .ob .ok { font-size: 1.4rem; color: #16A34A; font-weight: 700; }
 </style>
 
@@ -2466,7 +2467,7 @@ O3 tab:placement_strategy_new + chapter04:438。
 .lm .num { font-size: 1.05rem; font-weight: 700; color: #E97132; line-height: 1; padding: 9px 0; }
 .lm .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
 .lm .ttl { font-size: 0.88rem; font-weight: 700; color: #1F1B2E; }
-.lm .det { font-size: 0.75rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.lm .det { font-size: 0.83rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
 </style>
 
 <div class="lm">
@@ -2857,7 +2858,7 @@ Deployable backbone must integrate:&nbsp;
       <th class="text-left py-1 px-2" style="color:#7F1084;">Deployable?</th>
     </tr>
   </thead>
-  <tbody style="font-size: 0.74rem;">
+  <tbody style="font-size: 0.83rem;">
     <tr style="border-bottom: 1px solid #E5E0EC;">
       <td class="py-1 px-2">Classical ROM + DA</td>
       <td class="py-1 px-2">POD [Sirovich 1987], QR-pivot [Manohar 2018], 4D-Var [Asch 2016]</td>

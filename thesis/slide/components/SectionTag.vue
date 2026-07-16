@@ -14,7 +14,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.7rem;
+  font-size: 0.83rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--color-primary, #7F1084);

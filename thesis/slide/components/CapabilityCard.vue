@@ -54,7 +54,7 @@ defineProps({
 }
 .cap-icon  { font-size: 1.125rem; color: var(--color-accent, #E97132); }
 .cap-label {
-  font-size: 0.7rem;
+  font-size: 0.83rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-muted, #6B7280);

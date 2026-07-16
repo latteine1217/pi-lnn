@@ -69,7 +69,7 @@
 
 /* small footnote text */
 .foot {
-  font-size: 0.7rem;
+  font-size: 0.83rem;
   color: var(--color-muted);
   letter-spacing: 0.02em;
 }
@@ -119,12 +119,12 @@
 .fw .num { font-size: 1.2rem; font-weight: 700; color: var(--color-primary); line-height: 1; padding: 12px 0; }
 .fw .body { padding: 10px 0; border-bottom: 1px solid #F1EDF5; }
 .fw .ttl { font-size: 0.92rem; font-weight: 700; color: var(--color-ink); }
-.fw .det { font-size: 0.76rem; color: var(--color-muted); margin-top: 4px; line-height: 1.38; }
-.fw .cl { font-size: 0.6rem; color: var(--color-accent); font-weight: 700; letter-spacing: 0.04em; }
+.fw .det { font-size: 0.83rem; color: var(--color-muted); margin-top: 4px; line-height: 1.38; }
+.fw .cl { font-size: 0.83rem; color: var(--color-accent); font-weight: 700; letter-spacing: 0.04em; }
 
 /* ── Presentation legibility floor ──────────────────────────────────────
    口試投影片字級不得太小（教授要求 ≥ 14pt；1 slide px ≈ 0.98pt）。
    card 描述用的 text-xs 預設 0.75rem = 12px ≈ 11.8pt，全面抬到 0.83rem
    ≈ 13.0pt。行高同步放大，否則放大的字會互相擠壓。
    逐頁溢出後以「精簡文字」處理，不是把字改回小。 */
-.slidev-layout .text-xs { font-size: 0.83rem !important; line-height: 1.18rem !important; }
+.slidev-layout .text-xs { font-size: 0.83rem !important; line-height: 1.14rem !important; }
