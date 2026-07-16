@@ -199,7 +199,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
 .blk .lbl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; white-space: nowrap; padding: 11px 0; }
-.blk .fam { font-size: 0.83rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
+.blk .fam { font-size: 0.90rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
 .blk .lbl { border-bottom: 1px solid #F1EDF5; }
 .need { color: #E97132; font-weight: 700; }
 </style>
@@ -248,12 +248,12 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <style>
 /* 一個強調色，一個意思：橘色只標「loss 對著什麼擬合」—— 這頁唯一的論點。
    其餘欄位一律中性，否則每格都是重點就等於沒有重點。 */
-.dns { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 12px; margin-bottom: 0; }
-.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.83rem; text-transform: uppercase;
+.dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
+.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
           letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .dns th.key { color: #E97132; }
 .dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
-.dns .who { font-size: 0.83rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.dns .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .dns .who span { font-weight: 400; color: #9CA3AF; }
 .dns td.key { color: #E97132; font-weight: 600; }
 .dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
@@ -347,12 +347,12 @@ None of the seven surveyed works states a parameter count; the Reynolds number i
 # Same-regime works — head to head
 
 <style>
-.hh { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 10px; margin-bottom: 0; }
-.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
+.hh { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 10px; margin-bottom: 0; }
+.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.90rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .hh td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.22; }
 .hh tr.ours td { background: #F7EDF8; border-bottom: none; }
-.hh .who { font-size: 0.83rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.hh .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .hh .no { color: #E97132; }
 .hh .yes { color: #7F1084; font-weight: 700; }
 </style>
@@ -822,7 +822,7 @@ Inner product is global — no spatial prior linking a query to nearby sensors. 
 <div class="grid gap-5 mt-2" style="grid-template-columns: 1.12fr 0.88fr;">
 
 <Card>
-<LabelTiny>① DISTANCE-BIASED CROSS-ATTENTION [Vaswani 2017]</LabelTiny>
+<LabelTiny>① ATTENTION READOUT [Vaswani 2017]</LabelTiny>
 
 <div class="mt-1 text-xs leading-snug"><b style="color:#7F1084;">① Score</b> · <b style="color:#7F1084;">② Retrieve</b></div>
 
@@ -840,13 +840,11 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 
 <div class="mt-1 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:1px; align-items:baseline;">
 <b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b> · Fourier (x, t)</span>
-<b style="color:#7F1084;">b<sub>qk</sub></b><span>distance bias · MLP<sub>relpos</sub>(r<sub>qk</sub>)</span>
+<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(r<sub>qk</sub>) · r<sub>qk</sub> = smoothed torus distance</span>
 <b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b> · W<sub>K</sub> · scored</span>
-<b style="color:#7F1084;">r<sub>qk</sub></b><span>smoothed torus distance</span>
-<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b> · W<sub>V</sub> · retrieved</span>
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim · softmax scaling</span>
+<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b> · W<sub>V</sub> · retrieved</span>
 <b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · residual MLP</span>
-<b style="color:#7F1084;">A<sub>qk</sub></b><span>weight of sensor k for query q</span>
 </div>
 
 </Card>
@@ -854,7 +852,7 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 <Card>
 <LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-1 text-xs leading-snug"><b>Causal lookup</b> — query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b></div>
+<div class="mt-1 text-xs leading-snug"><b>Causal lookup</b> → <b style="color:#0F2D52;">streaming-deployable</b></div>
 
 <svg viewBox="0 0 300 60" class="w-full mt-1">
   <rect x="6" y="16" width="181" height="21" fill="#7F1084" opacity="0.08" rx="2"/>
@@ -1116,7 +1114,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.83rem; line-height: 1.32; margin-top: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.90rem; line-height: 1.32; margin-top: 10px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
@@ -1193,7 +1191,7 @@ disabled: true
 
 <style>
 .cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.83rem; line-height: 1.32; margin-top: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.90rem; line-height: 1.32; margin-top: 10px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
@@ -1281,8 +1279,8 @@ disabled: true
 
 <style>
 .ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px; align-items: baseline; margin-top: 10px; }
-.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.83rem; white-space: nowrap; }
-.ngrid .def { color: #374151; font-size: 0.83rem; line-height: 1.3; }
+.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.90rem; white-space: nowrap; }
+.ngrid .def { color: #374151; font-size: 0.90rem; line-height: 1.3; }
 .eqbox { border-left: 2px solid #E5E0EC; padding-left: 12px; margin: 4px 0 2px 0; font-size: 0.72em; }
 </style>
 
@@ -1436,20 +1434,20 @@ Paper-grade findings：
 
 <style>
 .m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 7px; align-items: center; margin-top: 10px; margin-bottom: 0; }
-.m22 .hd { font-size: 0.83rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
-.m22 .rl { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
-.m22 .mg { font-size: 0.83rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
+.m22 .hd { font-size: 0.90rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
+.m22 .rl { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
+.m22 .mg { font-size: 0.90rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
 .m22 .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
 .m22 .cell.best { border-color: #7F1084; background: #FAF3FB; }
-.m22 .id { display: block; font-size: 0.83rem; color: #9CA3AF; letter-spacing: 0.05em; }
+.m22 .id { display: block; font-size: 0.90rem; color: #9CA3AF; letter-spacing: 0.05em; }
 .m22 .val { display: block; font-size: 1.05rem; font-weight: 700; color: #1F1B2E; line-height: 1.15; }
 .m22 .cell.best .val { color: #7F1084; }
-.m22 .dv { font-size: 0.83rem; font-weight: 700; text-align: center; }
+.m22 .dv { font-size: 0.90rem; font-weight: 700; text-align: center; }
 .m22 .good { color: #7F1084; }
 .m22 .bad  { color: #E97132; }
 .rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 5px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
-.rg .k { font-size: 0.83rem; color: #374151; }
-.rg .n { font-size: 0.83rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
+.rg .k { font-size: 0.90rem; color: #374151; }
+.rg .n { font-size: 0.90rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
 .rg .tot { border-top: 1px solid #E5E0EC; padding-top: 5px; margin-top: 2px; }
 </style>
 
@@ -1574,8 +1572,8 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 
 <style>
 .bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
-.bg2 .k { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
-.bg2 .v { font-size: 0.83rem; color: #1F1B2E; line-height: 1.3; }
+.bg2 .k { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
+.bg2 .v { font-size: 0.90rem; color: #1F1B2E; line-height: 1.3; }
 </style>
 
 <div class="grid grid-cols-5 gap-4 mt-3">
@@ -1740,9 +1738,9 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 # DNS-free placement — competitive, not equivalent
 
 <style>
-.pl { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 12px;
+.pl { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px;
       font-variant-numeric: tabular-nums; }
-.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.83rem;
+.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.90rem;
          padding: 0 12px 7px 12px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
 .pl th:first-child { text-align: left; }
 .pl td { padding: 10px 12px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
@@ -1850,9 +1848,9 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
       align-items: baseline; margin-top: 8px; margin-bottom: 0; }
-.fc .hd { font-size: 0.83rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
-.fc .k  { font-size: 0.83rem; color: #6B7280; white-space: nowrap; }
-.fc .v  { font-size: 0.83rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc .hd { font-size: 0.90rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
+.fc .k  { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
+.fc .v  { font-size: 0.90rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fc .bad { color: #E97132; font-weight: 700; }
 .fc .good { color: #7F1084; font-weight: 700; }
 </style>
@@ -1989,9 +1987,9 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 # Sensor noise — reliability, not feasibility
 
 <style>
-.nz { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 14px; margin-bottom: 0;
+.nz { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; margin-bottom: 0;
       font-variant-numeric: tabular-nums; }
-.nz th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
+.nz th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.90rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 12px 6px 12px; border-bottom: 1px solid #D8D2E0; white-space: nowrap; }
 .nz th:first-child { text-align: left; }
 .nz th.worst { color: #1F1B2E; }
@@ -2336,7 +2334,7 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 .ct .num { font-size: 1.5rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 14px 0; }
 .ct .body { padding: 12px 0; border-bottom: 1px solid #F1EDF5; }
 .ct .ttl { font-size: 0.9rem; font-weight: 700; color: #1F1B2E; }
-.ct .det { font-size: 0.83rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.ct .det { font-size: 0.90rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
 .ct .sec .num, .ct .sec .ttl { color: #9CA3AF; }
 </style>
 
@@ -2399,10 +2397,10 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 <style>
 .ob { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 18px; row-gap: 0;
       align-items: center; margin-top: 16px; }
-.ob .tag { font-size: 0.83rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
+.ob .tag { font-size: 0.90rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
 .ob .body { padding: 13px 0; border-bottom: 1px solid #F1EDF5; }
 .ob .ttl { font-size: 0.92rem; font-weight: 700; color: #1F1B2E; }
-.ob .det { font-size: 0.83rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
+.ob .det { font-size: 0.90rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
 .ob .ok { font-size: 1.4rem; color: #16A34A; font-weight: 700; }
 </style>
 
@@ -2467,7 +2465,7 @@ O3 tab:placement_strategy_new + chapter04:438。
 .lm .num { font-size: 1.05rem; font-weight: 700; color: #E97132; line-height: 1; padding: 9px 0; }
 .lm .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
 .lm .ttl { font-size: 0.88rem; font-weight: 700; color: #1F1B2E; }
-.lm .det { font-size: 0.83rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.lm .det { font-size: 0.90rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
 </style>
 
 <div class="lm">

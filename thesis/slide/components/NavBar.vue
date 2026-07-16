@@ -54,7 +54,7 @@ const tabs = [
   background: rgba(127, 16, 132, 0.12);
   color: var(--color-primary, #7F1084);
   font-family: Arial, 'Helvetica Neue', sans-serif;
-  font-size: 0.83rem;
+  font-size: 0.90rem;
   font-weight: 700;
   letter-spacing: 0.04em;
 }

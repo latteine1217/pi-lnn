@@ -14,7 +14,7 @@
 
 <style scoped>
 .label-tiny {
-  font-size: 0.83rem;
+  font-size: 0.90rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #6B7280;
