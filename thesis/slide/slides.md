@@ -826,7 +826,7 @@ Inner product is global — no spatial prior linking a query to nearby sensors. 
 
 <div class="mt-2 text-xs leading-snug"><b>Score</b> each sensor against the query:</div>
 
-<div class="mt-1" style="font-size: 1.14em;">
+<div class="mt-1" style="font-size: 0.95em;">
 
 $$A_{qk} = \mathrm{softmax}_k\!\left(\mathbf{Q}_q^{\top} \mathbf{K}_k \big/ \sqrt{d_{\text{hidden}}} \;+\; b_{qk}\right)$$
 
@@ -834,7 +834,7 @@ $$A_{qk} = \mathrm{softmax}_k\!\left(\mathbf{Q}_q^{\top} \mathbf{K}_k \big/ \sqr
 
 <div class="mt-1 text-xs leading-snug"><b>Retrieve</b> a blend of what they carry:</div>
 
-<div class="mt-1" style="font-size: 1.14em;">
+<div class="mt-1" style="font-size: 0.95em;">
 
 $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
 
