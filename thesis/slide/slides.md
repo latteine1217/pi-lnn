@@ -559,7 +559,7 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 <div class="mt-5 px-3 py-2 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
 <div class="text-xs uppercase tracking-widest mb-1" style="color:#7F1084;">Contribution</div>
 <div class="text-sm leading-snug" style="color:#374151;">
-<b>PI-CON</b> · CfC branch + distance-biased cross-attention + AL-continuity. Among surveyed methods, the only one to combine <b>query-anywhere continuous-time</b> evaluation with <b>sensor-only-with-physics</b> training at Re = 10⁴.
+<b>PI-CON</b> · CfC branch + distance-biased cross-attention + augmented-Lagrangian continuity. Among surveyed methods, the only one to combine <b>query-anywhere continuous-time</b> evaluation with <b>sensor-only-with-physics</b> training at Re = 10⁴.
 </div>
 </div>
 
@@ -693,7 +693,7 @@ graph LR
 <div class="mt-1 leading-snug">Query (x, t) → nearby sensors · sparse-to-dense field readout at any query.</div>
 </Card>
 <Card>
-<LabelTiny>AL-continuity</LabelTiny>
+<LabelTiny>Augmented Lagrangian</LabelTiny>
 <div class="mt-1 leading-snug">Adaptive penalty on ∇·u · incompressibility as an active constraint, not a soft residual.</div>
 </Card>
 </div>
@@ -952,7 +952,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <div class="grid grid-cols-2 gap-5 mt-3 text-sm">
 
 <Card>
-<LabelTiny>AUGMENTED LAGRANGIAN ON CONTINUITY</LabelTiny>
+<LabelTiny>AUGMENTED LAGRANGIAN (AL) ON CONTINUITY</LabelTiny>
 
 <div class="mt-3 text-base" style="font-size: 1em;">
 
