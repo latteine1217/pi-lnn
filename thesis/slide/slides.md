@@ -819,7 +819,7 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 Inner product is global — no spatial prior linking a query to nearby sensors. <b style="color:#0F2D52;">Q</b> from the trunk, <b style="color:#D97757;">K</b>, <b style="color:#D97757;">V</b> from the sensor tokens — hence <i>cross</i>, not self.
 </div>
 
-<div class="grid gap-5 mt-2" style="grid-template-columns: 1.32fr 0.68fr;">
+<div class="grid gap-5 mt-2" style="grid-template-columns: 1.12fr 0.88fr;">
 
 <Card>
 <LabelTiny>① DISTANCE-BIASED CROSS-ATTENTION [Vaswani 2017]</LabelTiny>
@@ -843,9 +843,9 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 <div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:2px; align-items:baseline;">
 <b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b> · Fourier (x, t)</span>
 <b style="color:#7F1084;">b<sub>qk</sub></b><span>distance bias · MLP<sub>relpos</sub>(r<sub>qk</sub>)</span>
-<b style="color:#D97757;">K<sub>k</sub></b><span>from the <b style="color:#D97757;">sensor token</b> · W<sub>K</sub></span>
+<b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b> · W<sub>K</sub> · scored</span>
 <b style="color:#7F1084;">r<sub>qk</sub></b><span>smoothed torus distance</span>
-<b style="color:#D97757;">V<sub>k</sub></b><span>the <b style="color:#D97757;">same token</b> · W<sub>V</sub> · what q retrieves</span>
+<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b> · W<sub>V</sub> · retrieved</span>
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim · softmax scaling</span>
 <b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · residual MLP</span>
 <b style="color:#7F1084;">A<sub>qk</sub></b><span>weight of sensor k for query q</span>
@@ -856,50 +856,51 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 <Card>
 <LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock</div>
+<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b></div>
 
-<svg viewBox="0 0 300 56" class="w-full mt-1">
-  <rect x="6" y="16" width="181" height="20" fill="#7F1084" opacity="0.07" rx="2"/>
-  <line x1="6" y1="36" x2="294" y2="36" stroke="#D1D5DB" stroke-width="1"/>
+<svg viewBox="0 0 300 60" class="w-full mt-1">
+  <rect x="6" y="16" width="181" height="21" fill="#7F1084" opacity="0.08" rx="2"/>
+  <line x1="6" y1="37" x2="286" y2="37" stroke="#D1D5DB" stroke-width="1"/>
+  <polygon points="286,33 295,37 286,41" fill="#D1D5DB"/>
+  <text x="284" y="28" style="font-size:12px;font-style:italic" fill="#9CA3AF">t</text>
   <g fill="#7F1084">
-    <circle cx="24" cy="36" r="3"/><circle cx="51" cy="36" r="3"/><circle cx="78" cy="36" r="3"/>
-    <circle cx="105" cy="36" r="3"/><circle cx="132" cy="36" r="3"/><circle cx="159" cy="36" r="3"/>
+    <circle cx="24" cy="37" r="3.4"/><circle cx="51" cy="37" r="3.4"/><circle cx="78" cy="37" r="3.4"/>
+    <circle cx="105" cy="37" r="3.4"/><circle cx="132" cy="37" r="3.4"/><circle cx="159" cy="37" r="3.4"/>
   </g>
-  <g fill="none" stroke="#D1D5DB" stroke-width="1.5">
-    <circle cx="214" cy="36" r="3"/><circle cx="241" cy="36" r="3"/><circle cx="268" cy="36" r="3"/>
+  <g fill="#fff" stroke="#D1D5DB" stroke-width="1.5">
+    <circle cx="214" cy="37" r="3.4"/><circle cx="241" cy="37" r="3.4"/><circle cx="268" cy="37" r="3.4"/>
   </g>
-  <line x1="187" y1="13" x2="187" y2="45" stroke="#D97757" stroke-width="2"/>
+  <line x1="187" y1="12" x2="187" y2="45" stroke="#D97757" stroke-width="2"/>
   <text x="191" y="21" style="font-size:12px;font-weight:700" fill="#D97757">query t<tspan style="font-size:9px" dy="2">q</tspan></text>
-  <text x="6" y="53" style="font-size:12px;font-weight:700" fill="#7F1084">reads these</text>
-  <text x="210" y="53" style="font-size:12px" fill="#9CA3AF">not visible</text>
+  <text x="6" y="55" style="font-size:12px;font-weight:700" fill="#7F1084">reads these</text>
+  <text x="208" y="55" style="font-size:12px" fill="#9CA3AF">future — hidden</text>
 </svg>
-
-<div class="text-[10px] mt-1" style="color:#0F2D52;"><b>→ streaming-deployable</b></div>
 
 <div class="mt-3 text-xs leading-snug"><b>Isotropic bias</b> — distance decides, direction does not</div>
 
-<svg viewBox="0 0 300 92" class="w-full mt-1">
+<svg viewBox="0 0 300 104" class="w-full mt-1">
   <g fill="none" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="3 2">
-    <circle cx="72" cy="44" r="15"/><circle cx="72" cy="44" r="28"/><circle cx="72" cy="44" r="41"/>
+    <circle cx="70" cy="46" r="18"/><circle cx="70" cy="46" r="34"/>
   </g>
-  <circle cx="72" cy="44" r="3.5" fill="#D97757"/>
-  <g fill="#7F1084">
-    <circle cx="86" cy="35" r="5" opacity="0.95"/><circle cx="57" cy="30" r="4" opacity="0.7"/>
-    <circle cx="96" cy="62" r="2.8" opacity="0.45"/><circle cx="40" cy="60" r="2.4" opacity="0.35"/>
-    <circle cx="105" cy="22" r="1.8" opacity="0.22"/>
+  <g stroke="#C9B3D6" stroke-width="1">
+    <line x1="70" y1="46" x2="98" y2="27"/><line x1="70" y1="46" x2="38" y2="58"/>
   </g>
-  <text x="4" y="88" style="font-size:12px;font-weight:700" fill="#0F2D52">same distance, same bias</text>
-  <g transform="translate(228,44)">
-    <ellipse rx="42" ry="15" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="3 2"/>
-    <line x1="-16" y1="-16" x2="16" y2="16" stroke="#9CA3AF" stroke-width="2.5"/>
-    <line x1="16" y1="-16" x2="-16" y2="16" stroke="#9CA3AF" stroke-width="2.5"/>
+  <text x="84" y="41" style="font-size:12px;font-style:italic" fill="#9CA3AF">r</text>
+  <text x="50" y="61" style="font-size:12px;font-style:italic" fill="#9CA3AF">r</text>
+  <circle cx="98" cy="27" r="5.5" fill="#7F1084"/>
+  <circle cx="38" cy="58" r="5.5" fill="#7F1084"/>
+  <circle cx="70" cy="46" r="3.5" fill="#D97757"/>
+  <text x="70" y="99" style="font-size:12px;font-weight:700" fill="#0F2D52" text-anchor="middle">same r, same bias</text>
+  <g transform="translate(230,46) rotate(-34)">
+    <ellipse rx="40" ry="13" fill="#9CA3AF" opacity="0.12"/>
+    <ellipse rx="40" ry="13" fill="none" stroke="#D1D5DB" stroke-width="1.2" stroke-dasharray="3 2"/>
   </g>
-  <text x="228" y="88" style="font-size:12px" fill="#9CA3AF" text-anchor="middle">directional</text>
+  <circle cx="258" cy="27" r="7.5" fill="#9CA3AF" opacity="0.9"/>
+  <circle cx="198" cy="58" r="2.4" fill="#9CA3AF" opacity="0.55"/>
+  <circle cx="230" cy="46" r="3.5" fill="#D97757"/>
+  <text x="230" y="99" style="font-size:12px" fill="#9CA3AF" text-anchor="middle">direction decides</text>
 </svg>
 
-<div class="text-[10px] mt-1 leading-snug" style="color:#6B7280;">
-A directional bias would learn the sensors' non-uniform x-layout as spurious direction.
-</div>
 </Card>
 
 </div>
