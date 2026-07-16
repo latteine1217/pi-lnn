@@ -2003,11 +2003,11 @@ KE-as-misleading。
 # Classical interpolation — lower KE, worse field
 
 <style>
-.fb { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
-.fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
-         letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.fb { width: 100%; border-collapse: collapse; font-size: 1.02rem; margin-top: 16px; }
+.fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.86rem; text-transform: uppercase;
+         letter-spacing: 0.04em; padding: 0 10px 8px 10px; border-bottom: 1px solid #D8D2E0; }
 .fb th.m { text-align: left; }
-.fb td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
+.fb td { padding: 15px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
          font-variant-numeric: tabular-nums; }
 .fb td.m { text-align: left; color: #1F1B2E; white-space: nowrap; }
 .fb tr.ours td { background: #F7EDF8; border-bottom: none; font-weight: 700; }
@@ -2022,7 +2022,7 @@ KE-as-misleading。
   <thead>
     <tr>
       <th class="m">Method &nbsp;<span style="font-weight:400; text-transform:none; letter-spacing:0;">(same K = 100 sensors, no DNS access)</span></th>
-      <th>KE %</th><th>u L₂ %</th><th>v L₂ %</th><th><span class="raw">ω</span> L₂ %</th>
+      <th>KE %<br/><span style="font-weight:400; text-transform:none; letter-spacing:0; color:#E97132;">lower ≠ better</span></th><th>u L₂ %</th><th>v L₂ %</th><th><span class="raw">ω</span> L₂ %</th>
     </tr>
   </thead>
   <tbody>
@@ -2048,26 +2048,20 @@ KE-as-misleading。
 <div class="foot mt-2">Source · appendix <span class="raw">tab:fair_baselines</span> · same LES-derived K = 100 sensors as the main baseline.</div>
 </div>
 
-<div class="space-y-2">
+<div class="space-y-3">
 
 <Card>
-<LabelTiny>The KE trap</LabelTiny>
+<LabelTiny>Cause</LabelTiny>
 <div class="mt-2 text-xs leading-snug">
-Two baselines post <b style="color:#E97132;">lower KE</b> than ours — while reconstructing the field <b>2×</b> worse pointwise.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Why</LabelTiny>
-<div class="mt-2 text-xs leading-snug">
-Interpolation contracts velocity toward the <b>inter-sensor mean</b> · KE lands near DNS for the wrong reason.
+Contraction toward the <b>inter-sensor mean</b>
 </div>
 </Card>
 
 <Card>
 <LabelTiny>u rel-L₂ reduction</LabelTiny>
 <div class="mt-2 text-xs leading-snug">
-<b style="color:#7F1084;">47.2 %</b> vs trig. LSQ · <b style="color:#7F1084;">74.2 %</b> vs IDW
+<b style="color:#7F1084;">47.2 %</b> vs trig. LSQ<br/>
+<b style="color:#7F1084;">74.2 %</b> vs IDW
 </div>
 </Card>
 
@@ -2270,51 +2264,53 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted sparse sensors; additive Gaussian noise tested separately up to 10 % sensor std.
 </div>
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
+<style>
+.band { position: relative; height: 30px; border-radius: 4px; overflow: hidden;
+        display: grid; grid-template-columns: 41.6% 58.4%; margin-top: 8px; }
+.band .lo { background: rgba(127,16,132,0.16); border: 1px solid #7F1084; border-right: none;
+            border-radius: 4px 0 0 4px; display: flex; align-items: center; justify-content: center; }
+.band .hi { background: repeating-linear-gradient(45deg, #F4F4F6, #F4F4F6 4px, #EAEAEE 4px, #EAEAEE 8px);
+            border: 1px solid #D8D2E0; border-left: 2px solid #E97132; border-radius: 0 4px 4px 0;
+            display: flex; align-items: center; justify-content: center; }
+.band .lbl { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; }
+.kx { display: grid; grid-template-columns: 41.6% 58.4%; font-size: 0.58rem; color: #9CA3AF; margin-top: 2px; }
+.kx b { color: #E97132; }
+.ul { font-size: 0.78rem; line-height: 1.45; }
+.ul .h { font-weight: 700; }
+.ar { color: #C9C6D0; font-weight: 400; }
+</style>
+
+<div class="band">
+  <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED · k ≤ 5.64 · 98.9 % of energy</span></div>
+  <div class="hi"><span class="lbl" style="color:#9CA3AF;">UNOBSERVED · k &gt; 5.64</span></div>
+</div>
+<div class="kx"><span>k = 1</span><span><b>k<sub>max</sub> = √(K/π) = 5.64</b> <span class="ar">→</span> sensor Nyquist, not architecture</span></div>
+
+<div class="grid grid-cols-2 gap-5 mt-3">
 
 <Card>
-<LabelTiny style="color:#16A34A;">✓ SUPPORTED AT K = 100</LabelTiny>
-<div class="mt-2 space-y-2 leading-snug">
-  <div>
-    <b style="color:#7F1084;">KE & mean-flow monitoring</b><br>
-    <span class="text-xs" style="color:#6B7280;">KE MAPE <b>5.71 ± 0.11 %</b> · low band single-digit error</span>
-  </div>
-  <div>
-    <b style="color:#7F1084;">Phase-locked control at k<sub>f</sub></b><br>
-    <span class="text-xs" style="color:#6B7280;">amplitude ratio ≈ 0.99 · phase error ≲ 0.09 rad</span>
-  </div>
-  <div>
-    <b style="color:#7F1084;">Incompressibility check</b><br>
-    <span class="text-xs" style="color:#6B7280;">div ratio <b>0.39 %</b> · resolved-bandwidth FD floor</span>
-  </div>
-  <div>
-    <b style="color:#7F1084;">Streaming deployment</b><br>
-    <span class="text-xs" style="color:#6B7280;">causal · arbitrary query frequency</span>
-  </div>
+<LabelTiny style="color:#16A34A;">✓ SUPPORTED · K = 100</LabelTiny>
+<div class="ul mt-2" style="color:#374151;">
+<div><span class="h" style="color:#7F1084;">KE &amp; mean-flow monitoring</span> <span class="ar">→</span> 5.71 ± 0.11 %</div>
+<div><span class="h" style="color:#7F1084;">Phase-locked control</span> <span class="ar">@</span> k<sub>f</sub> <span class="ar">→</span> amp 0.99 <span class="ar">·</span> phase ≲ 0.09 rad</div>
+<div><span class="h" style="color:#7F1084;">Incompressibility check</span> <span class="ar">→</span> div 0.39 % <span class="ar">=</span> FD floor</div>
+<div><span class="h" style="color:#7F1084;">Streaming deployment</span> <span class="ar">→</span> causal <span class="ar">·</span> any query rate</div>
 </div>
 </Card>
 
 <Card>
-<LabelTiny style="color:#DC2626;">✗ OUT OF SCOPE AT K = 100</LabelTiny>
-<div class="mt-3 space-y-3 leading-snug">
-  <div>
-    <b style="color:#E97132;">Small-scale turbulence statistics</b><br>
-    <span class="text-xs" style="color:#6B7280;">high-order moments beyond k<sub>max</sub><sup>sensor</sup> = 5.64</span>
-  </div>
-  <div>
-    <b style="color:#E97132;">Fine vorticity filaments</b><br>
-    <span class="text-xs" style="color:#6B7280;">ω is diagnostic, not observable</span>
-  </div>
-  <div>
-    <b style="color:#E97132;">Acoustic / shock localisation</b><br>
-    <span class="text-xs" style="color:#6B7280;">needs denser or multi-modal sensors</span>
-  </div>
+<LabelTiny style="color:#DC2626;">✗ OUT OF SCOPE · K = 100</LabelTiny>
+<div class="ul mt-2" style="color:#374151;">
+<div><span class="h" style="color:#E97132;">Small-scale statistics</span> <span class="ar">→</span> high-order moments <span class="ar">&gt;</span> k<sub>max</sub></div>
+<div><span class="h" style="color:#E97132;">Fine vorticity filaments</span> <span class="ar">→</span> ω = diagnostic, not observable</div>
+<div><span class="h" style="color:#E97132;">Acoustic / shock localisation</span> <span class="ar">→</span> needs denser / multi-modal</div>
+<div class="mt-1" style="color:#9CA3AF;">fix <span class="ar">=</span> more sensors, <b>not</b> a bigger network</div>
 </div>
 </Card>
 
 </div>
 
-<div class="mt-1 text-center">
+<div class="mt-2 text-center">
 <Pill>70.7 ms encoder · 31k queries/s · full-field not real-time (CPU/MPS)</Pill>
 </div>
 
@@ -2568,93 +2564,6 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 
 <NavBar active="summary" />
 
-<SectionTag>§ Conclusion · summary</SectionTag>
-
-# Three objectives — three answers
-
-<style>
-.obg { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 12px; row-gap: 9px; align-items: center; }
-.obg .t { font-size: 0.72rem; font-weight: 700; color: #9CA3AF; }
-.obg .d { font-size: 0.8rem; color: #1F1B2E; line-height: 1.3; }
-.obg .ok { font-size: 1.05rem; color: #16A34A; font-weight: 700; }
-</style>
-
-<script setup>
-const P1 = '#7F1084', P2 = '#B563B9', NV = '#0F2D52'
-const obData = {
-  labels: [
-    ['O1', 'PI-CON baseline'],
-    ['O2', 'K = 400'], ['O2', 'K = 200'], ['O2', 'K = 100'],
-    ['O3', 'DNS-oracle'], ['O3', 'LES (main)'], ['O3', 'random'], ['O3', 'noise 10 %'],
-  ],
-  datasets: [{
-    data: [5.71, 1.76, 2.47, 5.90, 4.68, 5.71, 7.95, 6.08],
-    backgroundColor: [P1, P2, P2, P2, NV, NV, NV, NV],
-    borderRadius: 2, barPercentage: 0.72,
-  }],
-}
-const obOpts = {
-  indexAxis: 'y',
-  scales: {
-    x: { min: 0, max: 10, title: { display: true, text: 'KE MAPE (%) — right edge = 10 % engineering target',
-         color: '#E97132', font: { size: 10, weight: 'bold' } },
-         ticks: { color: '#6B7280', font: { size: 9 } }, grid: { color: '#F1EDF5' } },
-    y: { ticks: { color: '#374151', font: { size: 9 } }, grid: { display: false } },
-  },
-  plugins: { legend: { display: false },
-    tooltip: { callbacks: { label: c => c.parsed.x + ' %' } } },
-}
-</script>
-
-<div class="grid gap-4 mt-2 items-start" style="grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.55fr);">
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<ChartCanvas type="bar" :data="obData" :options="obOpts" height="248px" />
-</Card>
-
-<div class="space-y-2">
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<div class="obg">
-<div class="t">O1</div><div class="d"><b>Accurate &amp; fast</b> · one forward pass per query</div><div class="ok">✓</div>
-<div class="t">O2</div><div class="d"><b>Count sets resolution</b> · cutoff tracks √(K/π)</div><div class="ok">✓</div>
-<div class="t">O3</div><div class="d"><b>Placement &amp; noise set reliability</b>, not feasibility</div><div class="ok">✓</div>
-</div>
-</Card>
-
-<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
-<div class="text-xs leading-snug" style="color:#374151;">
-<b style="color:#7F1084;">Eight configurations, none crosses.</b> The spread is <b>reliability</b>; the target is <b>feasibility</b>.
-</div>
-</Card>
-
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Summary · 1.5min] 三個 objective 三個答案。對應 thesis §5.1（chapter05.tex:11-13）。
-
-舊版 O1 卡 63 字（全 deck 最重），三頁合計 168 字。壓成每列「標題 + 一行數字」約 60 字。
-
-⚠️ 已從 O1 移除「full trajectory ≈20× faster than DNS solve (9.7 min vs 3.27 h)」：
-(a) 算術雖對（196.2 / 9.7 = 20.2），但 thesis §Conclusion (chapter05:11) 只寫
-    「several-fold faster」，chapter04:493 更明載該 margin「mixes hardware (GPU training
-    against the CPU DNS solve) and **is not the engineering case for the operator**」。
-(b) 推理成本的正確表述已在 slide 28（70.7 ms encoder / 31k sparse queries per second /
-    full-field query 非即時），不需在 summary 重複一個更弱的版本。
-被問到速度時翻 slide 28，不要在這裡給 20×。
-
-數字出處：O1 tab:main_metrics + fig:band_err；O2 tab:k_scaling_nyquist；
-O3 tab:placement_strategy_new + chapter04:438。
--->
-
----
-
-<NavBar active="summary" />
-
 <SectionTag>§ Conclusion · limitations</SectionTag>
 
 # Five limitations
@@ -2663,46 +2572,49 @@ O3 tab:placement_strategy_new + chapter04:438。
 .lm { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 10px; }
 .lm .num { font-size: 1.05rem; font-weight: 700; color: #E97132; line-height: 1; padding: 9px 0; }
 .lm .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
-.lm .ttl { font-size: 0.88rem; font-weight: 700; color: #1F1B2E; }
-.lm .det { font-size: 0.90rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
+.lm .ttl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; }
+.lm .det { font-size: 0.78rem; color: #6B7280; margin-top: 2px; line-height: 1.3; }
+.ar { color: #C9C6D0; font-weight: 400; }
 </style>
 
 <div class="lm">
 
 <div class="num">①</div>
 <div class="body">
-<div class="ttl">Temporal sampling</div>
-<div class="det">CfC is adopted to read unevenly clocked sensors — the benchmark samples <b style="color:#E97132;">uniformly</b>. Untested here.</div>
+<div class="ttl">Temporal sampling · <span style="color:#E97132;">uniform clock only</span></div>
+<div class="det">CfC adopted for uneven clocks <span class="ar">→</span> benchmark samples uniformly <span class="ar">→</span> capability untested <span class="ar">·</span> <b style="color:#E97132;">FW ①</b></div>
 </div>
 
 <div class="num">②</div>
 <div class="body">
-<div class="ttl">Only additive Gaussian noise</div>
-<div class="det">Bias, drift, dropout, correlated channels, calibration error remain open.</div>
+<div class="ttl">Noise model · additive Gaussian only</div>
+<div class="det">open: bias <span class="ar">·</span> drift <span class="ar">·</span> dropout <span class="ar">·</span> correlated channels <span class="ar">·</span> calibration <span class="ar">·</span> <b style="color:#E97132;">FW ④</b></div>
 </div>
 
 <div class="num">③</div>
 <div class="body">
-<div class="ttl">Periodic domain, single forcing</div>
-<div class="det">Cylinder wake is preliminary · airfoils, internal and wall-driven flows need revalidation.</div>
+<div class="ttl">Geometry · periodic domain, single forcing</div>
+<div class="det">cylinder wake = preliminary <span class="ar">·</span> airfoil / internal / wall-driven <span class="ar">→</span> revalidate <span class="ar">·</span> <b style="color:#E97132;">FW ⑤</b></div>
 </div>
 
 <div class="num">④</div>
 <div class="body">
-<div class="ttl">One trajectory, single-seed cross-Re</div>
-<div class="det">The Re = 10⁶ case is single-seed and retuned — feasibility, not a benchmark.</div>
+<div class="ttl">Cross-Re · one trajectory, single seed</div>
+<div class="det">Re = 10⁶ single-seed + retuned <span class="ar">→</span> feasibility, not benchmark <span class="ar">·</span> <b style="color:#E97132;">FW ②</b></div>
 </div>
 
 <div class="num">⑤</div>
 <div class="body">
-<div class="ttl">CFD-rigour gaps</div>
-<div class="det">Reynolds stresses, TKE-budget closure and classical CFD baselines remain future validation.</div>
+<div class="ttl">CFD rigour · gaps remain</div>
+<div class="det">Reynolds stresses <span class="ar">·</span> TKE-budget closure <span class="ar">·</span> classical CFD baselines <span class="ar">·</span> <b style="color:#E97132;">FW ⑤</b></div>
 </div>
 
 </div>
 
-<div class="mt-3 text-center">
-<Pill>Cross-case generality is not demonstrated.</Pill>
+<div class="mt-3 px-3 py-2 rounded" style="background: rgba(233,113,50,0.07); border-left: 3px solid #E97132;">
+<div class="text-xs" style="color:#374151;">
+Scope <span class="ar">·</span> K = 100 <span class="ar">·</span> Re = 10⁴ <span class="ar">·</span> 2-D periodic Kolmogorov <span class="ar">→</span> <b>cross-case generality not demonstrated</b>
+</div>
 </div>
 
 <FooterLogos />
@@ -2727,37 +2639,70 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 
 <NavBar active="summary" />
 
-<SectionTag>§ Conclusion · future work 1/2</SectionTag>
+<SectionTag>§ Conclusion · future work</SectionTag>
 
-# Closing the claims
+# Future work
 
-<div class="fw">
+<style>
+.fwg { display: grid; grid-template-columns: max-content 1fr; column-gap: 10px; row-gap: 0; }
+.fwg .n { font-size: 0.9rem; font-weight: 700; color: #7F1084; padding: 7px 0; }
+.fwg .b { padding: 6px 0; border-bottom: 1px solid #F1EDF5; }
+.fwg .t { font-size: 0.8rem; font-weight: 700; color: #1F1B2E; }
+.fwg .d { font-size: 0.72rem; color: #6B7280; margin-top: 1px; line-height: 1.3; }
+.fwg .lim { font-size: 0.6rem; font-weight: 700; color: #E97132; letter-spacing: 0.04em; }
+.hdr { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+</style>
 
-<div class="num">①</div>
-<div class="body">
-<div class="cl">CLOSES LIMITATION ①</div>
-<div class="ttl">Irregular-clock validation</div>
-<div class="det">Re-run on <b>irregular sensor clocks</b> against a GRU with Δt concatenated. A mask on the existing 201 frames — <b style="color:#7F1084;">no new DNS</b>. This is the test the title rests on.</div>
+<div class="grid grid-cols-2 gap-5 mt-2">
+
+<div>
+<div class="hdr mb-1" style="color:#7F1084;">Close the claims <span style="color:#9CA3AF; font-weight:400;">— no new scope</span></div>
+<div class="fwg">
+<div class="n">①</div>
+<div class="b">
+<div class="lim">LIM ①</div>
+<div class="t">Irregular-clock validation</div>
+<div class="d">mask existing 201 frames <span class="ar">→</span> vs GRU + Δt <span class="ar">·</span> <b style="color:#7F1084;">no new DNS</b> <span class="ar">·</span> tests the title</div>
+</div>
+<div class="n">②</div>
+<div class="b">
+<div class="lim">LIM ④</div>
+<div class="t">Cross-Re multi-seed</div>
+<div class="d">Re = 10⁶ <span class="ar">→</span> n ≥ 3 <span class="ar">→</span> Re ≥ 10⁷ <span class="ar">·</span> feasibility <span class="ar">→</span> benchmark</div>
+</div>
+<div class="n">③</div>
+<div class="b">
+<div class="lim">K-SCALING</div>
+<div class="t">Matched-budget sensor sweep</div>
+<div class="d">K = 50 / 100 / 200 / 400 <span class="ar">·</span> collocation fixed <span style="color:#9CA3AF;">(K = 400 now 512)</span></div>
+</div>
+</div>
 </div>
 
-<div class="num">②</div>
-<div class="body">
-<div class="cl">CLOSES LIMITATION ④</div>
-<div class="ttl">Cross-Re multi-seed</div>
-<div class="det">Re = 10⁶ from single seed to n ≥ 3, then Re ≥ 10⁷ — turns feasibility into a benchmark.</div>
+<div>
+<div class="hdr mb-1" style="color:#0F2D52;">Widen the scope <span style="color:#9CA3AF; font-weight:400;">— feasibility unchanged</span></div>
+<div class="fwg">
+<div class="n" style="color:#0F2D52;">④</div>
+<div class="b">
+<div class="lim">LIM ②</div>
+<div class="t">Realistic sensor-error model</div>
+<div class="d">bias <span class="ar">·</span> drift <span class="ar">·</span> dropout <span class="ar">·</span> correlated noise <span class="ar">·</span> calibration</div>
+</div>
+<div class="n" style="color:#0F2D52;">⑤</div>
+<div class="b">
+<div class="lim">LIM ③ ⑤</div>
+<div class="t">Wall-bounded geometries + 4D-Var baseline</div>
+<div class="d">cylinder <span class="ar">→</span> airfoil <span class="ar">→</span> channel <span class="ar">·</span> multi-modal fusion <span class="ar">·</span> pressure support</div>
+</div>
+<div class="n" style="color:#0F2D52;">⑥</div>
+<div class="b">
+<div class="lim">DEPLOYMENT</div>
+<div class="t">Cross-case generalisation · training–simulation crossover</div>
+<div class="d">one operator, many scenes <span class="ar">·</span> where re-training &gt; solving</div>
+</div>
+</div>
 </div>
 
-<div class="num">③</div>
-<div class="body">
-<div class="cl">EXTENDS THE K-SCALING SWEEP</div>
-<div class="ttl">Sensor-budget scaling at matched budget</div>
-<div class="det">K = 50 / 100 / 200 / 400 with collocation held fixed <span style="color:#9CA3AF;">(K = 400 currently uses 512, not 1024)</span>.</div>
-</div>
-
-</div>
-
-<div class="mt-5 text-center">
-<Pill>Masking the existing 201-frame trajectories supplies the test without a new reference solve.</Pill>
 </div>
 
 <FooterLogos />
@@ -2774,55 +2719,6 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 正是 chapter04:318 說「the three-point curve should not be read as a strict fit」的原因。
 另：實測 log-log 局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)，三點不在一直線上，
 matched budget 才能判斷那是真的彎還是 collocation 造成的。
--->
-
----
-
-<NavBar active="summary" />
-
-<SectionTag>§ Conclusion · future work 2/2</SectionTag>
-
-# Widening the scope
-
-<div class="fw">
-
-<div class="num">④</div>
-<div class="body">
-<div class="cl">CLOSES LIMITATION ②</div>
-<div class="ttl">Realistic sensor-error model</div>
-<div class="det">Bias, drift, dropout, correlated channel noise, calibration error — beyond additive Gaussian.</div>
-</div>
-
-<div class="num">⑤</div>
-<div class="body">
-<div class="cl">CLOSES LIMITATIONS ③ ⑤</div>
-<div class="ttl">Wall-bounded geometries, and 4D-Var on the forward-CFD baseline</div>
-<div class="det">Cylinder → airfoil → channel, with multi-modal fusion · 4D-Var on the forward-CFD baseline and pressure support.</div>
-</div>
-
-<div class="num">⑥</div>
-<div class="body">
-<div class="cl">THE DEPLOYMENT QUESTION</div>
-<div class="ttl">Cross-case generalisation, and where training stops paying</div>
-<div class="det">One operator over many scenes, and the crossover at which re-training costs more than simply solving the flow.</div>
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Future work 2/2 · 1.5min] 這頁三項是擴張適用範圍，非補強既有主張。
-
-對應 thesis §5.4 剩下三條（chapter05.tex §5.4）：Realistic sensor-error model /
-Wall-bounded and obstacle geometries with multi-modal fusion / 4D-Var on the forward-CFD
-baseline and pressure-supported reconstruction / Cross-case generalisation and the
-training–simulation crossover。⑤ 合併了 geometries 與 4D-Var 兩條（同屬「換場景就要有
-能打的對照」）。
-
-⑥ 是舊版投影片漏掉的一條，論文有：training–simulation crossover 是這個方法的部署邊界
-—— 若重訓比直接解流場還貴，operator 就沒有工程理由。與 slide 30 移除的 20× speedup
-呼應：那個 margin 混了 GPU/CPU，真正該回答的是這個 crossover。
 -->
 
 ---
