@@ -1692,13 +1692,13 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <div class="grid grid-cols-2 gap-4 mt-3">
 
 <Card>
-<LabelTiny>Kinetic energy KE(t) — units: m²/s²</LabelTiny>
+<LabelTiny>Kinetic energy KE(t)</LabelTiny>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
 <div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay 0.161 → 0.122 · IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
-<LabelTiny>Velocity rel-L₂ error u, v — dimensionless</LabelTiny>
+<LabelTiny>Velocity rel-L₂ error u, v</LabelTiny>
 <img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
 <div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · ~30 % at IC → single-digit · ±1σ band.</div>
 </Card>
@@ -2423,7 +2423,7 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 
 <SectionTag>§ Conclusion · contributions</SectionTag>
 
-# Contributions — and what each answers
+# Contributions
 
 <style>
 .ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 0; margin-top: 10px; }
@@ -2491,9 +2491,9 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 
 <NavBar active="summary" />
 
-<SectionTag>§ Conclusion · limitations and next steps</SectionTag>
+<SectionTag>§ Conclusion · limitations and future work</SectionTag>
 
-# What is open — and what closes it
+# Limitations and future work
 
 <style>
 .lx { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -2508,7 +2508,7 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 </style>
 
 <table class="lx">
-<thead><tr><th style="color:#E97132;">Limitation</th><th></th><th style="color:#7F1084;">What closes it</th></tr></thead>
+<thead><tr><th style="color:#E97132;">Limitation</th><th></th><th style="color:#7F1084;">Future work</th></tr></thead>
 <tbody>
 <tr>
 <td class="lim">Uniform clock only <span>— CfC's raison d'être untested</span></td>
@@ -2549,7 +2549,7 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 </table>
 
 <div class="mt-2 text-xs" style="color:#374151;">
-Scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov <span style="color:#C9C6D0;">→</span> the top row is the cheapest and tests the title
+Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov <span style="color:#C9C6D0;">·</span> cross-case generality not demonstrated
 </div>
 
 <FooterLogos />
