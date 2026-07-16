@@ -32,14 +32,8 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 <div class="mt-6 text-sm" style="color:#4B5563;">
   2-D Kolmogorov flow at <b style="color:#7F1084;">Re = 10⁴</b>,
   reconstructed from <b style="color:#7F1084;">100 velocity sensors</b>,
-  with NS residual as the only physics signal — no DNS supervision in training.
-</div>
-
-<div class="mt-6 flex gap-2">
-  <TagChip>Sparse-Sensor</TagChip>
-  <TagChip>DeepONet + CfC</TagChip>
-  <TagChip>Physics-informed</TagChip>
-  <TagChip>2-D Kolmogorov</TagChip>
+  with Navier–Stokes (NS) residual as the only physics signal —
+  no Direct Numerical Simulation (DNS) supervision in training.
 </div>
 
 </div>
@@ -101,12 +95,12 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <NavBar active="background" />
 
-<SectionTag>§ Background · why classical methods stall</SectionTag>
+<SectionTag>§ Background · what classical methods require</SectionTag>
 
-# Classical methods — where they stall
+# What classical inverse methods require
 
 <div class="mt-3 text-base leading-snug" style="color:#374151;">
-Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering — each needs one ingredient the field cannot supply:
+Classical inverse methods — Proper Orthogonal Decomposition (POD)-ROM · 4D-Var · ensemble Kalman filtering — each needs one ingredient the field cannot supply:
 </div>
 
 <div class="grid grid-cols-2 gap-6 mt-5">
@@ -126,7 +120,7 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 </div>
 
 <div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">What remains</b> · learn the prior from sparse sensors + PDE · no reference field, no online solver → neural operator with a physics residual
+<b style="color:#7F1084;">Implication</b> · learn the prior from sparse sensors + PDE · no reference field, no online solver → neural operator with a physics residual
 </div>
 
 <FooterLogos />
@@ -146,7 +140,7 @@ Classical inverse methods — POD-ROM · 4D-Var · ensemble Kalman filtering —
 <div class="grid grid-cols-2 gap-6 mt-4">
 
 <Card>
-<LabelTiny>PLAIN PINN&nbsp;<span class="opacity-60">[Raissi 2019]</span></LabelTiny>
+<LabelTiny>PLAIN PHYSICS-INFORMED NEURAL NETWORK (PINN)&nbsp;<span class="opacity-60">[Raissi 2019]</span></LabelTiny>
 <div class="mt-3 text-center" style="font-family:'JetBrains Mono',monospace; font-size:0.95rem; color:#0F2D52;">
 (x, t)&nbsp; →&nbsp; network&nbsp; →&nbsp; u
 </div>
@@ -174,7 +168,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 </div>
 
 <div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">The deciding factor</b> · operator branch lets a <b>sparse sensor history</b> — not just a coordinate — drive the reconstruction · PI-CON = operator + differentiable PDE residual
+<b style="color:#7F1084;">Why an operator</b> · operator branch lets a <b>sparse sensor history</b> — not just a coordinate — drive the reconstruction · <b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork (<b style="color:#7F1084;">PI-CON</b>) = operator + differentiable PDE residual
 </div>
 
 <FooterLogos />
@@ -192,9 +186,9 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · what blocks each line</SectionTag>
+<SectionTag>§ Literature review · four gaps</SectionTag>
 
-# Four blockers, seven research lines
+# Four gaps across seven research lines
 
 <style>
 .blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
@@ -208,7 +202,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <div class="blk">
 
 <div class="lbl">Needs a <span class="need">reference field</span></div>
-<div class="fam">POD · DMD · QR-pivot <span class="opacity-70">[Sirovich 1987 · Schmid 2010 · Manohar 2018]</span> · Fukami 2019 · Maulik 2021 · DeepONet · FNO <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet <span class="opacity-70">[Williams 2024 · Santos 2023 · Nguyen 2024]</span></div>
+<div class="fam">POD · Dynamic Mode Decomposition (DMD) · QR-pivot <span class="opacity-70">[Sirovich 1987 · Schmid 2010 · Manohar 2018]</span> · Fukami 2019 · Maulik 2021 · Deep Operator Network (DeepONet) · Fourier Neural Operator (FNO) <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet <span class="opacity-70">[Williams 2024 · Santos 2023 · Nguyen 2024]</span></div>
 
 <div class="lbl">Needs a <span class="need">solver in the loop</span></div>
 <div class="fam">4D-Var · EnKF <span class="opacity-70">[Asch 2016]</span> · B-PINN <span class="opacity-70">[Yang 2021]</span> — adjoint cost, HMC scaling at high Re</div>
@@ -217,7 +211,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <div class="fam">PINN · PirateNet · SOAP <span class="opacity-70">[Raissi 2019 · Wang 2024 · 2025]</span> — sensors enter as a loss term, never as input</div>
 
 <div class="lbl">Never met a <span class="need">PDE</span></div>
-<div class="fam">LTC · CfC <span class="opacity-70">[Hasani 2021 · 2022]</span> · Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> — control and time-series only</div>
+<div class="fam">LTC · Closed-form Continuous-time (CfC) <span class="opacity-70">[Hasani 2021 · 2022]</span> · Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> — control and time-series only</div>
 
 </div>
 
@@ -229,6 +223,11 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <FooterLogos />
 
 <!--
+[Literature review 1/2 · 口述（表下敘事與註記已刪，字太小）：
+「這些方法都報 few-percent error，但全都對著 full reference field 訓練；surveyed works 裡只有三篇
+不用 reference field —— 下一頁就是那三篇。」
+「七篇 surveyed works 沒有一篇報 parameter count；上表四篇裡有三篇未報 Reynolds number。」
+  —— 委員問「為何不比參數量 / Re」時照此答。
 [Literature review 1/2 · 1.5min] 對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)，
 但不逐條列七行——論文自己說那七條線是要被 consolidate 成四個 Gap 的（chapter01:21），
 重點是「卡在哪」不是「有幾條」。故按卡點分四組：需要參考場 / 需要 solver / 不讀 sensor /
@@ -241,9 +240,9 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · the accurate ones, and what they cost</SectionTag>
+<SectionTag>§ Literature review · training supervision in prior work</SectionTag>
 
-# DNS-supervised methods — the hidden cost
+# What prior methods are trained against
 
 <style>
 /* 一個強調色，一個意思：橘色只標「loss 對著什麼擬合」—— 這頁唯一的論點。
@@ -285,7 +284,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 </tr>
 <tr>
 <td class="who">FLRNet <span>Nguyen 2024</span></td>
-<td>Conv VAE + Fourier features + MLP</td>
+<td>Convolutional neural network (CNN) VAE + Fourier features + multilayer perceptron (MLP)</td>
 <td>Cylinder, Re 300–10³</td>
 <td class="key">The full field · VAE + perceptual loss</td>
 </tr>
@@ -304,13 +303,6 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 </tbody>
 </table>
 
-<div class="mt-5 text-sm" style="color:#374151;">
-Their few-% error is real — and bought with the one thing a rig never has. Strip the reference field and <b style="color:#7F1084;">exactly three</b> published works remain. <span style="color:#9CA3AF;">Those three, next.</span>
-</div>
-
-<div class="mt-2 text-xs" style="color:#C9C6D0;">
-None of the seven surveyed works states a parameter count; the Reynolds number is unstated in three of the four above.
-</div>
 
 <FooterLogos />
 
@@ -412,15 +404,15 @@ None of the seven surveyed works states a parameter count; the Reynolds number i
 <div class="grid grid-cols-3 gap-4 mt-3 text-xs">
 <Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>Reynolds number</LabelTiny>
-<div class="mt-1 leading-snug">Nearest is <b style="color:#E97132;">7.7×</b> lower; the CNN pair sit <b style="color:#E97132;">300×</b> lower.</div>
+<div class="mt-1 leading-snug">Nearest <b style="color:#E97132;">7.7×</b> lower · CNN pair <b style="color:#E97132;">300×</b> lower</div>
 </Card>
 <Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
 <LabelTiny>Measurement model</LabelTiny>
-<div class="mt-1 leading-snug">Mo &amp; Magri need <b style="color:#E97132;">2.3×</b> our probes. Parfenyev has none — it samples <b>(r, t) at random</b>, which no rig can install.</div>
+<div class="mt-1 leading-snug">Mo &amp; Magri <b style="color:#E97132;">2.3×</b> our probes · Parfenyev: none, random <b>(r, t)</b></div>
 </Card>
 <Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
-<LabelTiny>Nobody has both</LabelTiny>
-<div class="mt-1 leading-snug">Query-anywhere <b>and</b> sensors-as-input <b>and</b> Re = 10⁴ — the empty cell.</div>
+<LabelTiny>No surveyed work combines all three</LabelTiny>
+<div class="mt-1 leading-snug">Query-anywhere · sensors-as-input · Re = 10⁴</div>
 </Card>
 </div>
 
@@ -480,27 +472,21 @@ At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5
 <div class="mt-1 text-xs leading-snug">
 DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b style="color:#7F1084;">98.9 %</b> · 200 → 99.7 % · 400 → 99.9 %
 </div>
-<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-the ceiling bites the tail, not the energy-dominant bulk
-</div>
 </Card>
 
 </div>
 
 <div class="col-span-3">
 <img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
-<div class="text-xs mt-1" style="color:#6B7280;">DNS energy spectrum (a) and cumulative fraction (b); dashed lines mark k<sub>max</sub> = √(K/π), markers locate the energy inside the band for K = 100 / 200 / 400.</div>
+<div class="foot mt-1">DNS energy spectrum (a) · cumulative fraction (b) · dashed line = k<sub>max</sub> = √(K/π)</div>
 </div>
 
-</div>
-
-<div class="mt-2 px-4 py-2 rounded text-sm leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">More sensors, not a bigger network</b> · the limit is information, not architecture.
 </div>
 
 <FooterLogos />
 
 <!--
+[Sensor budget · 2min] 口述收尾（底部 banner 已刪）：「解法是加 sensor，不是加大網路 —— 限制來自資訊，不是架構。」
 [Sensor budget · 2min] 兩個視角量化 K=100 觀測能力：①linear system — y = Cu rank-deficient, 650× underdetermined ②CS bound — M ≥ O(s log(N/s)), s≈328 (db4 wavelet), full recovery 需 ~5000 sensors, K=100 差 50×。Implication 精準化：full-field recovery 結構上不可能；productive scope 是 low-band sub-recovery (Nyquist k_max ≈ 5.64) + physics prior 在 null-space 上 regularise。後續 Results 用 sensor Nyquist 與 K-scaling 量化此 scope。
 -->
 
@@ -550,10 +536,10 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 
 </div>
 
-<div class="mt-5 px-3 py-2 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
+<div class="mt-2 px-3 py-2 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
 <div class="text-xs uppercase tracking-widest mb-1" style="color:#7F1084;">Contribution</div>
 <div class="text-sm leading-snug" style="color:#374151;">
-<b>PI-CON</b> · CfC branch + distance-biased cross-attention + augmented-Lagrangian continuity. Among surveyed methods, the only one to combine <b>query-anywhere continuous-time</b> evaluation with <b>sensor-only-with-physics</b> training at Re = 10⁴.
+<b>PI-CON</b> · CfC branch + distance-biased cross-attention + augmented-Lagrangian continuity · among surveyed methods the only <b>query-anywhere</b> + <b>sensor-only-with-physics</b> at Re = 10⁴.
 </div>
 </div>
 
@@ -573,57 +559,38 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 
 <NavBar active="method" />
 
-<SectionTag>§ Application case · 2-D Kolmogorov · Re = 10⁴ · K = 100 sensors</SectionTag>
+<SectionTag>§ Application case · the Kolmogorov flow</SectionTag>
 
-# 2-D Kolmogorov benchmark — setup at a glance
+# Kolmogorov flow at <span style="color:#7F1084;">Re = 10⁴</span>
 
-<div class="grid grid-cols-5 gap-4 mt-2">
+<div class="grid grid-cols-2 gap-5 mt-4 items-stretch">
 
-<div class="col-span-3 space-y-2">
+<div class="flex justify-center items-center">
+  <img :src="'/images/kolmogorov_dns_vorticity_re10000_t5.png'"
+       class="rounded-lg border" style="border-color:#E5E0EC; max-height: 320px; width: auto;" />
+</div>
+
+<div class="space-y-3">
 
 <Card>
-<LabelTiny>2-D INCOMPRESSIBLE NS + KOLMOGOROV FORCING</LabelTiny>
-<div class="mt-2" style="font-size: 0.72em;">
-
-$$\nabla\!\cdot\!\mathbf{u} = 0$$
-
-$$\partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} = -\nabla p + \nu\,\nabla^2 \mathbf{u} + \mathbf{f}$$
-
-$$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
-
+<LabelTiny>Governing equations · incompressible Navier–Stokes</LabelTiny>
+<div class="mt-3 text-center" style="color:#0F2D52; font-size: 0.95rem; line-height: 1.7;">
+∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + ν∇²<b>u</b> + <b>f</b><br/>
+∇·<b>u</b> = 0
 </div>
-<div class="mt-1 text-xs leading-snug space-y-0.5" style="color:#374151;">
-<div><b>Domain</b>&nbsp; doubly-periodic Ω = [0,1]²</div>
-<div><b>Re</b>&nbsp; UL/ν = 10⁴ · ν = 10⁻⁴ · A = 0.1 · k<sub>f</sub> = 2</div>
+<div class="mt-3 space-y-1 text-xs">
+<BulletRow><b>Forcing</b> · <b>f</b> = (A sin(2πk<sub>f</sub> y), 0) · A = 0.1 m/s², k<sub>f</sub> = 2 m⁻¹</BulletRow>
+<BulletRow><b>Domain</b> · Ω = [0, 1]² m², doubly-periodic</BulletRow>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>DNS SOLVER &amp; SPARSE-SENSOR PROBLEM</LabelTiny>
-<div class="mt-2 text-xs leading-snug space-y-0.5">
-<div><b>Solver</b>&nbsp; pseudo-spectral + 2/3 dealiasing; ETDRK4 fp64</div>
-<div><b>Grid</b>&nbsp; run <b style="color:#7F1084;">1024²</b> · stored <b>256²</b> · Δt<sub>s</sub> = 0.025 · N<sub>t</sub> = 201</div>
-<div class="pt-1" style="border-top: 1px solid #E5E0EC;"><b style="color:#7F1084;">K = 100</b> (u, v) QR-pivot probes → query (u, v, p) at any (x, t)</div>
-<div><b style="color:#7F1084;">Training</b>&nbsp; sensor MSE + NS residual only</div>
+<LabelTiny>Reynolds number · two, reported separately</LabelTiny>
+<div class="mt-3 space-y-1 text-xs">
+<BulletRow><b>Control</b> · Re ≡ UL/ν = <b style="color:#7F1084;">10⁴</b> — prescribed</BulletRow>
+<BulletRow><b>Injection-scale</b> · Re<sub>f</sub> ≡ U<sub>rms</sub>λ<sub>f</sub>/ν ≈ <b>2.5×10³</b> — measured</BulletRow>
 </div>
 </Card>
-
-</div>
-
-<div class="col-span-2 space-y-2">
-
-<Card>
-<LabelTiny>DNS VERIFICATION</LabelTiny>
-<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution and turbulence statistics verified</b> against the standard CFD criteria ✓ <span style="color:#6B7280;">(full table in backup)</span></div>
-<div class="pt-1" style="border-top: 1px solid #E5E0EC;"><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnover times</b></div>
-</div>
-</Card>
-
-<div>
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 150px; width: 100%; object-fit: contain;" />
-<div class="text-xs mt-1" style="color:#6B7280;">Fig. 1.&nbsp; QR-pivot K = 100 placement on ω(<b>x</b>, t = 5).</div>
-</div>
 
 </div>
 
@@ -632,8 +599,101 @@ $$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
 <FooterLogos />
 
 <!--
-[Setup · 2min] 教授要求補 CFD 必要參數：
-- Governing equations + BC（雙週期）+ 特徵 L, U, Re 定義（UL/ν）
+[The case · 1.5min] 新增頁（2026-07-16）。教授九點要求「case 要交代 governing equation / forcing / Re 定義」。
+數字逐條對應 thesis chapter03.tex:11-31（\paragraph{Governing equations and characteristic scales.}）
+與 tab:dns_params（chapter03.tex:47-54）：
+- NS 方程 = eq:ns_dim (ch03:13-19)；forcing f = (A sin(2π k_f y), 0)ᵀ (ch03:20)
+- A = 0.1 m/s²、k_f = 2 m⁻¹ (tab:dns_params ch03:53-54)
+- λ_f = 1/k_f = 0.5 m、U_rms = √(2·KE̅) = 0.503 m/s = eq:char_scales (ch03:23-24)
+- 控制 Re ≡ UL/ν = 10⁴，L = box edge = 1 m、U = 1 m/s、ν = 10⁻⁴ m²/s；原文明講
+  「prescribed through ν rather than derived from the realised flow」(ch03:20)
+- 診斷 Re_f ≡ U_rms λ_f/ν ≈ 2.5×10³ = eq:re_inj (ch03:29)
+
+== 口述（頁面刻意不印）==
+指圖：「二維 Kolmogorov flow，t=5 渦度場，256² stored grid（軸是格點 index）。
+forcing 尺度的渦捲夾著薄剪切層 —— 那些細結構就是 K=100 看不到的部分。」
+「最接近的同 regime 工作 Mo & Magri 2025 做同一個 case，但在 Re=34。」(chapter01.tex:99)
+Re 兩個為何不同（被問才展開，本頁真正的火力）：
+「控制 Re 透過 ν 指定，不是量出來的；量出來的注入尺度 Re_f ≈ 2.5×10³。
+差約 4 倍是因為 U_rms(0.503) < U(1)：受迫紊流飽和在參考速度以下。ch03:31 明載兩者分開報。」
+
+== 版面 ==
+沿用 slides-r3.md:249-316 骨架：對半、圖佔一半置中、圖下不放 caption、兩卡共 4 條 BulletRow。
+方程用純文字（非 LaTeX $$）壓低密度。本 deck 無 Caption 元件（r3 有），底部不放 micro caption。
+★ 記號已全數移除：論文用 ★ 區分有/無因次，本頁不做無因次化推導，★ 無作用且渲染成搶眼黑星，
+並會與上方無星號的方程形成同頁兩套記號。
+
+⚠️ 不可宣稱 statistically steady / sustained：本 DNS 無阻尼、只積分到 t=5，KE 實際 0.161 → 0.122
+衰減，T/t_eddy = 2.51 已誠實揭露為短窗 (ch03:113)。頁面只寫 forcing 的形式，不碰穩態。
+⚠️ 「為何選 Kolmogorov」thesis 無明文 rationale，不編理由；只陳述 Mo & Magri 同 case 之事實。
+⚠️ 不講「forcing 只作用在 u 所以 v 較難重建」—— 該歸因全 thesis 查無，且 cross-attention 的
+isotropic kernel 是未排除的競爭解釋（見已停用的 velocity-error backup 頁）。
+
+⚠️⚠️ 版面沿用舊 Corning 面試稿 slides-r3.md，但**數據一律不採用**，五處與本論文矛盾：
+  1. r3「Domain [0, 2π]²」→ 論文 Ω = [0,1]²（ch03:12, 20）
+  2. r3「Re = U·L/ν, L = 2π/k_f」→ 論文 L = box edge = 1 m（ch03:20）。不同 convention，
+     混用會讓 λ_f = 0.5 m 與 k_f = 2 對不上
+  3. r3「F = sin(k_f y) x̂」→ 漏振幅 A = 0.1 與 sin 內的 2π（ch03:20, tab:dns_params）
+  4. r3「forced, statistically stationary」→ 本 DNS 是衰減短瞬態，見上
+  5. r3「clear inertial subrange」→ ch03:113 原文「the [0,1]² box admits **no extended
+     inertial range** at this Re」，尾段斜率 −4.61 比 Kraichnan k⁻³ 更陡。直接相反
+另：r3 通篇「sub-DNS divergence」為 thesis/CLAUDE.md 明列禁項，不可回收。
+r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorticity_re10000_t5.png。
+-->
+
+---
+
+<NavBar active="method" />
+
+<SectionTag>§ Application case · numerical setup · Re = 10⁴ · K = 100 sensors</SectionTag>
+
+# 2-D Kolmogorov benchmark — setup at a glance
+
+<div class="grid gap-4 mt-2" style="grid-template-columns: 0.86fr 1.14fr;">
+
+<div class="space-y-2">
+
+<Card>
+<LabelTiny>DNS REFERENCE SOLVER</LabelTiny>
+<div class="mt-2 text-xs leading-snug space-y-0.5">
+<div><b>Solver</b>&nbsp; pseudo-spectral · 2/3 dealiasing · ETDRK4 fp64</div>
+<div><b>Grid</b>&nbsp; run <b style="color:#7F1084;">1024²</b> · stored <b>256²</b></div>
+<div><b>Sampling</b>&nbsp; Δt<sub>s</sub> = 0.025 s · N<sub>t</sub> = 201</div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>DNS VERIFICATION</LabelTiny>
+<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
+<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓ <span style="color:#6B7280;">(backup)</span></div>
+<div><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnovers</b></div>
+</div>
+</Card>
+
+</div>
+
+<div class="space-y-2">
+<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
+<LabelTiny>QR-pivot K = 100 placement on <span class="raw">ω</span>(x, t = 5)</LabelTiny>
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded mt-1" style="width: 100%; max-height: 228px; object-fit: contain;" />
+</Card>
+
+<Card>
+<LabelTiny>SPARSE-SENSOR PROBLEM</LabelTiny>
+<div class="mt-2 text-xs leading-snug">
+<b style="color:#7F1084;">K = 100</b> (u, v) QR-pivot probes → query (u, v, p) at any (x, t)
+</div>
+</Card>
+</div>
+
+</div>
+
+<FooterLogos />
+
+<!--
+[Setup · 1.5min] 教授要求補 CFD 必要參數。本頁只講「數值設定」。
+⚠️ Governing equations / forcing / Re 定義那張卡已於 2026-07-16 移除 —— 改由前一頁
+（"Kolmogorov flow at Re = 10⁴"）專責，兩頁曾重複。不要再把方程加回本頁。
 - DNS algorithm：pseudo-spectral with 2/3 dealiasing [Orszag 1971; Boyd 2001] + ETDRK4 fp64 [Cox–Matthews 2002; Kassam–Trefethen 2005]
 - Grid 256²、Δt = 2.5e-4、snapshot Δt_s = 0.025、N_t = 201、T = 5
 - DNS verification 3 條件：k_max·η = 1.91 ≥ 1.5 (Pope 2000) ✓、KE plateau + CFL ≈ 0.18 < 0.5 ✓、T/t_eddy = 2.51 turnovers ⚠（誠實揭露 statistical window 有限，靠 multi-seed 彌補）
@@ -649,10 +709,6 @@ $$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
 
 
 # Three additions to DeepONet
-<div class="text-xs opacity-70 -mt-1 mb-2">
-DeepONet needs three changes to become a sparse inverse-flow operator — the result is <b>PI-CON</b> (<b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork).
-</div>
-
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
 
 ```mermaid {scale: 0.66}
@@ -715,10 +771,6 @@ CfC 內部公式、cross-attn 內部公式留 backup slides，這張只講 narra
 <SectionTag>§ Method · CfC branch (closing the time-signal gap)</SectionTag>
 
 # CfC — closing the "time-signal" gap in vanilla DeepONet
-
-<div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet branch ingests a fixed-grid snapshot · our sensors = unevenly clocked <b>time series</b> → replace the branch with a closed-form continuous-time RNN.
-</div>
 
 <script setup>
 const gateX = Array.from({ length: 31 }, (_, i) => i * 0.15)
@@ -800,7 +852,8 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 <FooterLogos />
 
 <!--
-[CfC introduction · backup 1min] 教授九點 (9) — CFD lab 不重 AI 細節：把 CfC 介紹改成「補 vanilla DeepONet 的 time-signal 缺口」narrative。
+[CfC introduction · backup 1min] 口述開場（標題下小字已刪）：「vanilla DeepONet 的 branch 吃固定 grid snapshot，
+我們的 sensor 是不等間隔取樣的 time series，所以把 branch 換成 closed-form continuous-time RNN。」 教授九點 (9) — CFD lab 不重 AI 細節：把 CfC 介紹改成「補 vanilla DeepONet 的 time-signal 缺口」narrative。
 頂部一句話：vanilla DeepONet branch 吃固定 grid snapshot，我們的 sensor 是 irregular time series，所以換成 closed-form continuous-time RNN。
 卡 1：LNN ODE 形式 + 為何 vanilla ODE solver 在 autograd 內貴。
 卡 2：CfC analytical closed-form + O(1) per step + autograd 安全。
@@ -814,10 +867,6 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 <SectionTag>§ Method · cross-attention readout (closing the sparse-to-dense gap)</SectionTag>
 
 # Cross-attention — closing the "sparse-to-dense" gap
-
-<div class="text-xs opacity-70 mb-2">
-Inner product is global — no spatial prior linking a query to nearby sensors. <b style="color:#0F2D52;">Q</b> from the trunk, <b style="color:#D97757;">K</b>, <b style="color:#D97757;">V</b> from the sensor tokens — hence <i>cross</i>, not self.
-</div>
 
 <div class="grid gap-5 mt-2" style="grid-template-columns: 1.12fr 0.88fr;">
 
@@ -910,7 +959,8 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 <FooterLogos />
 
 <!--
-[Cross-attention introduction · backup 1min] 少談 Transformer 內部細節，照 thesis §2.3 的骨架講：
+[Cross-attention introduction · backup 1min] 口述開場（標題下小字已刪）：「inner product 是 global、沒有 spatial prior；
+Q 來自 trunk，K 與 V 來自 sensor token —— 所以是 cross 不是 self。」（chapter02:290-292） 少談 Transformer 內部細節，照 thesis §2.3 的骨架講：
 「Two modifications adapt it to fluid reconstruction: an isotropic relative-position bias and a causal lookup over sensor time.」(chapter02:257)
 頂部一句話：vanilla DeepONet inner product 是 global、沒 spatial prior，所以換成 cross-attention 做 sparse-to-dense readout（chapter02:135 原話）。
 卡 1：機制 — 先 Score（A_qk = softmax(QK/√d + b_qk)）再 Retrieve（Σ A_qk V_k → c_branch）。
@@ -934,7 +984,7 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 
 <NavBar active="method" />
 
-<SectionTag>§ Method · LES proxy for sensor placement (DNS-free pipeline)</SectionTag>
+<SectionTag>§ Method · Large-Eddy Simulation (LES) proxy</SectionTag>
 
 # LES proxy — DNS-free sensor placement
 
@@ -963,8 +1013,8 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <LabelTiny>LES VERIFICATION</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution, stability and statistical convergence verified</b> against the LES criteria ✓ <span style="color:#6B7280;">(full table in backup)</span></div>
-<div><b>Statistical window</b>&nbsp; T<sub>end</sub> = 50 s ≈ <b style="color:#7F1084;">26.5 eddy-turnover times</b> — enough for converged POD modes</div>
+<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓ <span style="color:#6B7280;">(backup)</span></div>
+<div><b>Statistical window</b>&nbsp; T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b style="color:#7F1084;">11.7</b> ≥ 10 · N<sub>eff</sub> = 5.8</div>
 <div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b>, not training truth</div>
 </div>
 </Card>
@@ -973,7 +1023,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <div class="col-span-2">
 <img :src="'/images/les_T50_vorticity_with_sensors.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 360px; width: 100%; object-fit: contain;" />
-<div class="text-xs mt-2" style="color:#6B7280;">Fig. 2.&nbsp; LES vorticity with K = 100 QR-pivot sensors. DNS is not used in this branch.</div>
+<div class="foot mt-1">Fig. 2 · LES vorticity with K = 100 QR-pivot sensors</div>
 </div>
 
 </div>
@@ -983,7 +1033,19 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <!--
 [LES generation · 2min] 教授九點 (4) (5) 落實：LES 也要把 CFD 重要參數寫清楚 + 解析度/穩定度判斷標準。
 左卡 1 — filtered NS + Domain/BC（雙週期，與 DNS 一致）+ SGS closure（Bardina scale-similarity [Bardina 1980; Sagaut 2006] + spectral hyperviscosity）+ Solver（pseudo-spectral + 2/3 dealiasing, RK2 Heun fp64；DNS 才用 ETDRK4）+ N=256, T_end=50, cost ≈ 1/16 DNS
-左卡 2 — convergence/穩定度四條件，標題改成「When is the LES good enough for placement?」更貼近 CFD 實驗室問法：incompressibility、KE plateau、T/t_eddy ≥ 5 (EXP-221 達 26.5)、spectral overlap within 2× DNS on k ∈ [2, N/3]。結尾交代「placement 只需 leading POD modes align」說明為何不要求 pointwise match。
+左卡 2 — LES 品質三條 gate（CLAUDE.md LES_Quality_Requirements）。2026-07-16 用
+scripts/check_les_quality.py 對 data/les/kolmogorov_les_Re10000_N256_T50_standalone.npy 實測，全過：
+  [1] incompressibility  max‖∇·u‖ = 2.29e-13 < 1e-10（solver fp64 診斷值，非從 float32 場重算）
+  [2] no aliasing pile-up  譜末端衰減比 5.14e32 > 1e6
+  [3] statistical window  τ_int = 4.28 → T_end/τ_int = 11.68 ≥ 10、N_eff = 5.84
+⚠ 以下三個舊 gate 已被證偽，禁止再講（CLAUDE.md LES_Quality_Anti_Patterns）：
+  ✗「T/t_eddy ≥ 5、EXP-221 達 26.5」—— LES 帶 linear friction −r·u，KE 由 forcing–friction 平衡主導，
+     時間尺度是 1/(2r) = 17.5，比 eddy time (~2–3.5) 長一個數量級。用錯時間尺度。
+  ✗「KE plateau / rel_change(KE) < 5%」—— 回看窗由 save_interval 決定，結構上不可能失敗。
+  ✗「spectral overlap within 2× DNS on k ∈ [2, N/3]」—— LES 有 friction、DNS 沒有，能量平衡不同；
+     實測 k ∈ [2,85] 全帶 0/84 個波數落在 [0.5,2] 內，物理上不可能通過。
+被問「統計窗夠不夠」答 τ_int，不要答 eddy-turnover。
+「placement 只需 leading POD modes align」仍可講，說明為何不要求與 DNS pointwise match。
 底部 Pill 用 final fair-comparison 口徑：LES placement 是 EXP-245 main pipeline，KE 5.71 ± 0.11%；不要再用舊 placement-ablation 的 12.36% / 9.40% 作主張。
 -->
 
@@ -993,32 +1055,32 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <SectionTag>§ Training · closing the physics-consistency gap</SectionTag>
 
-# Augmented Lagrangian on ∇·u — Lagrangian analog of pressure projection
+# Augmented Lagrangian on ∇·u
 
 <div class="grid grid-cols-2 gap-5 mt-3 text-sm">
 
 <Card>
 <LabelTiny>AUGMENTED LAGRANGIAN (AL) ON CONTINUITY</LabelTiny>
 
-<div class="mt-3 text-base" style="font-size: 1em;">
+<div class="mt-2" style="font-size: 0.82em;">
 
 $$\mathcal{L}_{\text{AL}} \;=\; \mathcal{L} + \lambda\,C \;+\; \tfrac{\rho}{2}\,C^2,$$
 
 </div>
 
-<div class="mt-2 text-base" style="font-size: 1em;">
+<div class="mt-1" style="font-size: 0.82em;">
 
 $$C \,=\, \mathbb{E}_{\text{collocation}}\big[(\partial_x u + \partial_y v)^2\big],$$
 
 </div>
 
-<div class="mt-3 text-base" style="font-size: 1em;">
+<div class="mt-1" style="font-size: 0.82em;">
 
 $$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
 
 </div>
 
-<div class="mt-3 text-xs" style="color:#6B7280;">
+<div class="mt-2 text-xs" style="color:#6B7280;">
 ρ = 0.1 (penalty), λ_clip = 10 (max dual variable).<br>λ grows when continuity is violated, decays once C is small.
 </div>
 </Card>
@@ -1043,7 +1105,7 @@ an analog, not an algorithmic equivalent
 <span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
 </div>
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Driven to the finite-difference floor its resolved scales permit — <b>not</b> below DNS. Raising ρ tightens it further (0.39 → 0.28 % at ρ = 1) and costs field accuracy: the knob is live.
+Driven to the finite-difference floor its resolved scales permit — <b>not</b> below DNS. Raising ρ to 1 tightens divergence to 0.28 % at a cost in field accuracy.
 </div>
 </div>
 
@@ -1169,9 +1231,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 </div>
 
-<div class="mt-3 text-xs" style="color:#6B7280;">
-Full hyperparameter tables (embedding dims, attention heads, GradNorm schedule, DNS time-stepping) in backup.
-</div>
+<div class="foot mt-2">Full hyperparameter tables in backup.</div>
 
 <FooterLogos />
 
@@ -1278,9 +1338,9 @@ disabled: true
 # Error metrics & training loss
 
 <style>
-.ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px; align-items: baseline; margin-top: 10px; }
-.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.90rem; white-space: nowrap; }
-.ngrid .def { color: #374151; font-size: 0.90rem; line-height: 1.3; }
+.ngrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 4px; align-items: baseline; margin-top: 6px; }
+.ngrid .sym { color: #7F1084; font-weight: 600; font-size: 0.82rem; white-space: nowrap; }
+.ngrid .def { color: #374151; font-size: 0.82rem; line-height: 1.25; }
 .eqbox { border-left: 2px solid #E5E0EC; padding-left: 12px; margin: 4px 0 2px 0; font-size: 0.72em; }
 </style>
 
@@ -1300,13 +1360,11 @@ $$\mathrm{rel}\,L_2(\phi) = \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{
 <div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
 <div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
 <div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
-<div class="sym">KE MAPE</div><div class="def">time-mean of |KE<sub>pred</sub> − KE<sub>DNS</sub>| / KE<sub>DNS</sub> over t ∈ [0, T] · <span style="color:#9CA3AF;">also written KE rel-err</span></div>
+<div class="sym">KE MAPE</div><div class="def">Kinetic-Energy Mean Absolute Percentage Error · time-mean of |KE<sub>pred</sub> − KE<sub>DNS</sub>| / KE<sub>DNS</sub></div>
 <div class="sym">div ratio</div><div class="def">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></div>
 </div>
 
-<div class="mt-3 text-xs" style="color:#6B7280;">
-4th-order central differences on 128² eval grid; div L₂ referenced to the DNS FD floor.
-</div>
+<div class="foot mt-2">4th-order central differences on 128² grid · div L₂ vs DNS FD floor.</div>
 </Card>
 
 <Card>
@@ -1538,7 +1596,6 @@ Paper-grade findings：
 </Card>
 
 <div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
-Colourbar: DNS &amp; PI-CON share ±max; error scaled independently.<br/>
 Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, metrics n = 5.
 </div>
 
@@ -1559,6 +1616,8 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 <FooterLogos />
 
 <!--
+[Field reconstruction · 口述（caption 已刪，只留 source）：colourbar 上 DNS 與 PI-CON 共用 ±max，
+error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此答。
 [Field reconstruction · 2.5min] 合併版：左 title + key observations bullet (k_f mode recovered, mid/high k smoothed, error on high-shear edges, u/v < ω error)，右上 velocity 6-panel (u/v × DNS/PI-CON/Error) + 右下 vorticity 3-col。Speaker：「展示主結果視覺面 — 先看 velocity 場（u/v）DNS 與 PI-CON 視覺幾乎一致，error magnitude 小；再看 vorticity 場是 derivative quantity，amplifies error 但仍 capture 主結構。Error 集中 high-shear edges 是 sensor Nyquist 上限造成。Velocity 圖高度 = vorticity 兩倍（2 row vs 1 row），讓單 panel 視覺等大。」
 -->
 
@@ -1789,7 +1848,7 @@ Same B3 backbone, 1024 collocation, 20 k iterations, n = 5 · sensor values alwa
 <div class="grid grid-cols-3 gap-4 mt-5 text-xs">
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>A trade, not a win</LabelTiny>
+<LabelTiny>KE and pointwise L₂ trade off</LabelTiny>
 <div class="mt-1 leading-snug" style="color:#374151;">
 The oracle takes <b>KE</b>. LES takes <b>pointwise L₂</b> — and needs no DNS field to place.
 </div>
@@ -1892,9 +1951,7 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 
 </div>
 
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b> — more than PI-CON's sensor stream.
-</div>
+<div class="foot mt-2">Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b>.</div>
 
 <FooterLogos />
 
@@ -2055,7 +2112,7 @@ Additive Gaussian noise, per-channel, as a fraction of each sensor's standard de
 </table>
 
 <div class="mt-4 text-sm" style="color:#374151;">
-Every row climbs — noise is not free. None of them crosses: at the field worst case KE still sits <b style="color:#7F1084;">3.9 pp</b> under target. <b>Reliability, not feasibility.</b>
+All metrics degrade monotonically in the aggregate; none exceeds the 10 % target. At the worst case tested, KE sits <b style="color:#7F1084;">3.9 percentage points</b> under target. <b>Reliability, not feasibility.</b>
 </div>
 
 <div class="mt-2 text-xs" style="color:#9CA3AF;">
@@ -2430,7 +2487,7 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 </div>
 
 <div class="mt-6 text-center">
-<Pill>A tool, and the sensing study that tells you what to buy next.</Pill>
+<Pill>PI-CON, and a sensing-configuration study of count, placement, and noise.</Pill>
 </div>
 
 <FooterLogos />
@@ -2472,7 +2529,7 @@ O3 tab:placement_strategy_new + chapter04:438。
 
 <div class="num">①</div>
 <div class="body">
-<div class="ttl">The clock was never irregular</div>
+<div class="ttl">Temporal sampling</div>
 <div class="det">CfC is adopted to read unevenly clocked sensors — the benchmark samples <b style="color:#E97132;">uniformly</b>. Untested here.</div>
 </div>
 
@@ -2503,7 +2560,7 @@ O3 tab:placement_strategy_new + chapter04:438。
 </div>
 
 <div class="mt-3 text-center">
-<Pill>K = 100 is an engineering success regime — not a generalisation claim.</Pill>
+<Pill>Cross-case generality is not demonstrated.</Pill>
 </div>
 
 <FooterLogos />
@@ -2537,7 +2594,7 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 <div class="num">①</div>
 <div class="body">
 <div class="cl">CLOSES LIMITATION ①</div>
-<div class="ttl">Put the clock to work</div>
+<div class="ttl">Irregular-clock validation</div>
 <div class="det">Re-run on <b>irregular sensor clocks</b> against a GRU with Δt concatenated. A mask on the existing 201 frames — <b style="color:#7F1084;">no new DNS</b>. This is the test the title rests on.</div>
 </div>
 
@@ -2550,7 +2607,7 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 
 <div class="num">③</div>
 <div class="body">
-<div class="cl">MAKES THE K-TREND A LAW</div>
+<div class="cl">EXTENDS THE K-SCALING SWEEP</div>
 <div class="ttl">Sensor-budget scaling at matched budget</div>
 <div class="det">K = 50 / 100 / 200 / 400 with collocation held fixed <span style="color:#9CA3AF;">(K = 400 currently uses 512, not 1024)</span>.</div>
 </div>
@@ -2558,7 +2615,7 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 </div>
 
 <div class="mt-5 text-center">
-<Pill>① is the cheapest and the closest to the title.</Pill>
+<Pill>Masking the existing 201-frame trajectories supplies the test without a new reference solve.</Pill>
 </div>
 
 <FooterLogos />
@@ -2597,7 +2654,7 @@ matched budget 才能判斷那是真的彎還是 collocation 造成的。
 <div class="num">⑤</div>
 <div class="body">
 <div class="cl">CLOSES LIMITATIONS ③ ⑤</div>
-<div class="ttl">Wall-bounded geometries, and a CFD baseline that fights back</div>
+<div class="ttl">Wall-bounded geometries, and 4D-Var on the forward-CFD baseline</div>
 <div class="det">Cylinder → airfoil → channel, with multi-modal fusion · 4D-Var on the forward-CFD baseline and pressure support.</div>
 </div>
 
@@ -2608,10 +2665,6 @@ matched budget 才能判斷那是真的彎還是 collocation 造成的。
 <div class="det">One operator over many scenes, and the crossover at which re-training costs more than simply solving the flow.</div>
 </div>
 
-</div>
-
-<div class="mt-5 text-center">
-<Pill>These widen the scope — they do not change feasibility.</Pill>
 </div>
 
 <FooterLogos />
