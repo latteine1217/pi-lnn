@@ -666,7 +666,7 @@ graph LR
   A[K=100 sensors] --> B[CfC branch<br/>continuous-time]
   C[Queries x,t] --> D[Fourier embed] --> M[MLP trunk]
   M --> T[trunk_basis]
-  M --> X((Cross-Attn<br/>+ ‖r‖ bias))
+  M --> X((Cross-Attn<br/>+ distance bias))
   B --> X
   X --> Br[branch_basis]
   T --> F{{Inner<br/>product}}
@@ -822,25 +822,26 @@ Vanilla DeepONet inner product has no spatial prior linking a query to nearby se
 <div class="grid grid-cols-2 gap-5 mt-2">
 
 <Card>
-<LabelTiny>① ATTENTION WITH ISOTROPIC DISTANCE BIAS [Vaswani 2017]</LabelTiny>
+<LabelTiny>① ISOTROPIC DISTANCE BIAS [Vaswani 2017]</LabelTiny>
 
 <div class="mt-2" style="font-size: 0.7em;">
 
-$$\mathrm{branch}_q = \sum_k A_{qk}\, V_k$$
+$$\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
 
 </div>
 
 <div class="mt-1" style="font-size: 0.7em;">
 
-$$A_{qk} = \mathrm{softmax}_k\!\left(\frac{Q_q^{\top} K_k}{\sqrt{d_{\text{hidden}}}} + b_{qk}\right)$$
+$$A_{qk} = \mathrm{softmax}_k\!\left(\frac{\mathbf{Q}_q^{\top} \mathbf{K}_k}{\sqrt{d_{\text{hidden}}}} + b_{qk}\right)$$
 
 </div>
 
-<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:10px; row-gap:4px; align-items:baseline;">
-<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier embedding of (x, t)</span>
-<b style="color:#7F1084;">K<sub>k</sub>, V<sub>k</sub></b><span>CfC-encoded sensor tokens</span>
-<b style="color:#7F1084;">|r|<sub>qk</sub></b><span>√(‖x<sub>q</sub> − x<sub>k</sub>‖² + ε) · smooth norm, ε = 10⁻⁸</span>
-<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(|r|<sub>qk</sub>) · distant sensors down-weighted</span>
+<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:10px; row-gap:3px; align-items:baseline;">
+<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · a residual MLP refines the sum</span>
+<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier embedding of (x<sub>q</sub>, t<sub>q</sub>)</span>
+<b style="color:#7F1084;">K<sub>k</sub>, V<sub>k</sub></b><span>CfC-encoded sensor tokens · sensor k at x<sub>k</sub></span>
+<b style="color:#7F1084;">r<sub>qk</sub></b><span>√(‖x<sub>q</sub> − x<sub>k</sub>‖² + ε) · torus-folded, smooth norm, ε = 10⁻⁸</span>
+<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(LayerNorm(r<sub>qk</sub>)) · distant sensors down-weighted</span>
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dimension · softmax scaling</span>
 </div>
 
