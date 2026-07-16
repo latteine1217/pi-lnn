@@ -83,5 +83,25 @@ def main() -> int:
     return 1
 
 
+# UnoCSS attributify mode 會把 SVG 的 font-size="12" 當成 utility attribute，
+# 生成 [font-size~="12"] { font-size: 3rem }，靜靜地把 12 個單位變成 48px。
+# 實測：文字爆出 viewBox，但 attribute 讀回來仍是 "12" —— 只有 getComputedStyle 看得到。
+FONT_SIZE_ATTR = re.compile(r'<(?:text|tspan)\b[^>]*\bfont-size="')
+
+
+def check_svg_font_size() -> int:
+    """SVG 內用 font-size 屬性 → 被 UnoCSS attributify 劫持。必須改 inline style。"""
+    text = SLIDES.read_text(encoding="utf-8")
+    hits = [text[:m.start()].count("\n") + 1 for m in FONT_SIZE_ATTR.finditer(text)]
+    if not hits:
+        print(f"[svg] OK — no font-size attribute on SVG text ({SLIDES.name})")
+        return 0
+    print(f"[svg] {len(hits)} SVG font-size attribute(s) — UnoCSS attributify will hijack these:\n")
+    for ln in hits:
+        print(f"  slides.md:{ln}")
+    print('\n  Fix: use inline style —  <text style="font-size:12px">')
+    return 1
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main() | check_svg_font_size())

@@ -854,22 +854,49 @@ $$\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{bran
 <Card>
 <LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock:</div>
+<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock</div>
 
-<div class="mt-1" style="font-size: 0.58em;">
+<svg viewBox="0 0 300 56" class="w-full mt-1">
+  <rect x="6" y="16" width="181" height="20" fill="#7F1084" opacity="0.07" rx="2"/>
+  <line x1="6" y1="36" x2="294" y2="36" stroke="#D1D5DB" stroke-width="1"/>
+  <g fill="#7F1084">
+    <circle cx="24" cy="36" r="3"/><circle cx="51" cy="36" r="3"/><circle cx="78" cy="36" r="3"/>
+    <circle cx="105" cy="36" r="3"/><circle cx="132" cy="36" r="3"/><circle cx="159" cy="36" r="3"/>
+  </g>
+  <g fill="none" stroke="#D1D5DB" stroke-width="1.5">
+    <circle cx="214" cy="36" r="3"/><circle cx="241" cy="36" r="3"/><circle cx="268" cy="36" r="3"/>
+  </g>
+  <line x1="187" y1="13" x2="187" y2="45" stroke="#D97757" stroke-width="2"/>
+  <text x="191" y="21" style="font-size:12px;font-weight:700" fill="#D97757">query t<tspan style="font-size:9px" dy="2">q</tspan></text>
+  <text x="6" y="53" style="font-size:12px;font-weight:700" fill="#7F1084">reads these</text>
+  <text x="210" y="53" style="font-size:12px" fill="#9CA3AF">not visible</text>
+</svg>
 
-$$n^*(q) = \mathrm{clamp}\bigl(\mathrm{searchsorted}(\{t_n\},\, t_q) - 1,\; 0,\; N_t - 1\bigr)$$
+<div class="text-[10px] mt-1" style="color:#0F2D52;"><b>→ streaming-deployable</b></div>
 
-</div>
+<div class="mt-3 text-xs leading-snug"><b>Isotropic bias</b> — distance decides, direction does not</div>
 
-<div class="mt-1 text-xs leading-snug" style="color:#374151;">
-Query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b>
-</div>
+<svg viewBox="0 0 300 92" class="w-full mt-1">
+  <g fill="none" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="3 2">
+    <circle cx="72" cy="44" r="15"/><circle cx="72" cy="44" r="28"/><circle cx="72" cy="44" r="41"/>
+  </g>
+  <circle cx="72" cy="44" r="3.5" fill="#D97757"/>
+  <g fill="#7F1084">
+    <circle cx="86" cy="35" r="5" opacity="0.95"/><circle cx="57" cy="30" r="4" opacity="0.7"/>
+    <circle cx="96" cy="62" r="2.8" opacity="0.45"/><circle cx="40" cy="60" r="2.4" opacity="0.35"/>
+    <circle cx="105" cy="22" r="1.8" opacity="0.22"/>
+  </g>
+  <text x="4" y="88" style="font-size:12px;font-weight:700" fill="#0F2D52">same distance, same bias</text>
+  <g transform="translate(228,44)">
+    <ellipse rx="42" ry="15" fill="none" stroke="#D1D5DB" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <line x1="-16" y1="-16" x2="16" y2="16" stroke="#9CA3AF" stroke-width="2.5"/>
+    <line x1="16" y1="-16" x2="-16" y2="16" stroke="#9CA3AF" stroke-width="2.5"/>
+  </g>
+  <text x="228" y="88" style="font-size:12px" fill="#9CA3AF" text-anchor="middle">directional</text>
+</svg>
 
-<div class="mt-4 text-xs leading-snug"><b>Isotropic distance, not directional (r<sub>x</sub>, r<sub>y</sub>)</b></div>
-
-<div class="mt-1 text-xs leading-snug" style="color:#374151;">
-The flow is anisotropic — yet a directional bias would learn the QR-pivot sensors' non-uniform x-distribution as spurious direction.
+<div class="text-[10px] mt-1 leading-snug" style="color:#6B7280;">
+A directional bias would learn the sensors' non-uniform x-layout as spurious direction.
 </div>
 </Card>
 
@@ -883,7 +910,9 @@ The flow is anisotropic — yet a directional bias would learn the QR-pivot sens
 頂部一句話：vanilla DeepONet inner product 是 global、沒 spatial prior，所以換成 cross-attention 做 sparse-to-dense readout（chapter02:135 原話）。
 卡 1：機制 — Σ A_qk V_k → c_branch；A_qk = softmax(QK/√d + b_qk)；b_qk = MLP_relpos(LayerNorm(r_qk))；
       r_qk 先 fold 回環面再取 smooth norm，ε=10⁻⁸ 是為了避免 query 落在 sensor 上時 second-order autograd 出 NaN（chapter02:279）。
-卡 2：兩項 fluid-specific 修改 — (a) causal lookup：binary search 只讀 t ≤ t_q → streaming-deployable；
+卡 2：兩項 fluid-specific 修改，改用圖不用公式（searchsorted/clamp 是實作細節，同心圓是幾何，兩者用文字講都不直觀）。
+      被問實作時再答 chapter02:263 的 n*(q) = clamp(searchsorted({t_n}, t_q, right=True) − 1, 0, N_t − 1)。
+      (a) causal lookup：binary search 只讀 t ≤ t_q → streaming-deployable；
       (b) 為何 isotropic 而非 directional：forcing 讓流場統計非等向，但 directional bias 會把 QR-pivot sensor 的
       非均勻 x 分布學成假的方向性注意力（chapter02:268）。這是被問「為何不用 (r_x, r_y)」時的標準答案。
 移除原本「Self-attention vs cross-attention」對比（純 AI 細節，CFD lab 不感興趣）。
