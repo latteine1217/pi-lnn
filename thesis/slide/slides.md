@@ -674,8 +674,7 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 
 <div class="space-y-2">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>QR-pivot K = 100 placement on <span class="raw">ω</span>(x, t = 5)</LabelTiny>
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded mt-1" style="width: 100%; max-height: 205px; object-fit: contain;" />
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" style="width: 100%; max-height: 232px; object-fit: contain;" />
 </Card>
 
 <Card>
@@ -1692,14 +1691,12 @@ v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
 <div class="grid grid-cols-2 gap-4 mt-3">
 
 <Card>
-<LabelTiny>Kinetic energy KE(t)</LabelTiny>
-<img :src="'/images/kinetic_energy_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
+<img :src="'/images/kinetic_energy_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
 <div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay 0.161 → 0.122 · IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
-<LabelTiny>Velocity rel-L₂ error u, v</LabelTiny>
-<img :src="'/images/uv_error_vs_time.png'" class="rounded mt-1" style="max-height: 232px; width: 100%; object-fit: contain;" />
+<img :src="'/images/uv_error_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
 <div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · ~30 % at IC → single-digit · ±1σ band.</div>
 </Card>
 
@@ -2441,33 +2438,33 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 
 <div class="num">①</div>
 <div class="body">
-<div class="ttl">PI-CON · DeepONet <span class="ar">→</span> sparse-sensor inverse operator</div>
-<div class="det">K = 100 · Re = 10⁴ · sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.11 %</b> <span class="ar">·</span> cross-attention = dominant lever</div>
+<div class="ttl">PI-CON — a sparse-sensor inverse operator</div>
+<div class="det">K = 100, Re = 10⁴, sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.11 %</b></div>
 </div>
 
 <div class="num">②</div>
 <div class="body">
-<div class="ttl">Sensing configuration mapped · count <span class="ar">·</span> placement <span class="ar">·</span> noise</div>
-<div class="det">K 100 <span class="ar">→</span> 400 <span class="ar">→</span> KE <b>5.90 → 1.76 %</b> <span class="ar">·</span> placement σ <b>6×</b> training σ <span class="ar">·</span> noise 10 % <span class="ar">→</span> <b>6.08 %</b></div>
+<div class="ttl">Sensing study — count, placement, noise</div>
+<div class="det">Count sets resolution; placement and noise set reliability</div>
 </div>
 
 <div class="num">③</div>
 <div class="body">
-<div class="ttl">Cross-Reynolds feasibility · one architecture</div>
-<div class="det">Re = 10⁶ · K = 200 <span class="ar">→</span> KE <b>6.10 %</b> <span class="ar">≈</span> Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed extension, not a benchmark</span></div>
+<div class="ttl">Cross-Reynolds feasibility</div>
+<div class="det">Re = 10⁶ <span class="ar">→</span> KE <b>6.10 %</b> <span style="color:#9CA3AF;">(single seed)</span></div>
 </div>
 
 <div class="num" style="color:#9CA3AF;">④</div>
 <div class="body">
-<div class="ttl" style="color:#9CA3AF;">KE alone mis-ranks <span style="color:#C9C6D0; font-weight:400;">· secondary</span></div>
-<div class="det">Interpolation <span class="ar">→</span> lower KE, over-smoothed field <span class="ar">·</span> PI-CON <span class="ar">→</span> pointwise u rel-L₂ <b>−47…−74 %</b></div>
+<div class="ttl" style="color:#9CA3AF;">KE alone mis-ranks <span style="color:#C9C6D0; font-weight:400;">(secondary)</span></div>
+<div class="det">Interpolation posts lower KE with a worse field</div>
 </div>
 
 </div>
 
 <div class="mt-3 px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
-<div class="text-xs leading-snug" style="color:#374151;">
-<b style="color:#7F1084;">Eight sensing configurations</b> <span class="ar">·</span> KE <b>1.76 – 7.95 %</b> <span class="ar">·</span> all under the 10 % target <span class="ar">→</span> spread = <b>reliability</b>, target = <b>feasibility</b>
+<div class="text-xs" style="color:#374151;">
+Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">·</span> all within the 10 % target
 </div>
 </div>
 
@@ -2475,6 +2472,18 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 
 <!--
 [Contributions · 1.5min] 對應 thesis §5.2 的四條（chapter05.tex:18-21）。
+2026-07-16 精簡：頁面只留「一句標題 + 一行結果」，細節數字改口述。
+
+口述（頁面已移除，被問才給）：
+① cross-attention 是 dominant standalone lever，CfC 透過 interaction 生效（2×2 分解：
+   cross-attn −1.20、CfC +1.00、interaction −2.32、total −2.52 pp；p = 3.0×10⁻⁷）
+② 數量：K 100 → 400 使 KE 5.90 → 1.76 %；位置：placement σ ≈ 6× training σ；
+   噪音：10 % → KE 6.08 %。三軸皆在 10 % 門檻內。
+③ Re = 10⁶ 用 K = 200，KE 6.10 % ≈ Re = 10⁴ baseline。chapter05:20 明載
+   「single-seed and should be treated as an extension, not a multi-seed benchmark」——
+   務必主動說是 extension 不是 benchmark。
+④ PI-CON 把 pointwise u rel-L₂ 相對 classical interpolation 降低 47–74 %
+   （chapter04:219, Appendix app:fair_baselines）。這條是次要貢獻，不與前三條等重。
 
 舊版每張卡都是「一句敘述 + 一句數字」雙層結構，敘述那層是講的時候要說的話，不是要印的。
 壓成單行標題 + 單行數字（147 → 約 70 字）。
@@ -2511,63 +2520,62 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 <thead><tr><th style="color:#E97132;">Limitation</th><th></th><th style="color:#7F1084;">Future work</th></tr></thead>
 <tbody>
 <tr>
-<td class="lim">Uniform clock only <span>— CfC's raison d'être untested</span></td>
+<td class="lim">Uniform sensor clock</td>
 <td class="arw">→</td>
-<td class="fix">Mask the existing 201 frames <span style="color:#C9C6D0;">·</span> vs GRU + Δt <span style="color:#C9C6D0;">·</span> <b>no new DNS</b></td>
+<td class="fix">Irregular-clock test on the existing frames</td>
 </tr>
 <tr>
-<td class="lim">Additive Gaussian noise only</td>
+<td class="lim">Gaussian noise only</td>
 <td class="arw">→</td>
-<td class="fix">Bias <span style="color:#C9C6D0;">·</span> drift <span style="color:#C9C6D0;">·</span> dropout <span style="color:#C9C6D0;">·</span> correlated channels <span style="color:#C9C6D0;">·</span> calibration</td>
+<td class="fix">Bias, drift, dropout, calibration</td>
 </tr>
 <tr>
-<td class="lim">Periodic domain, single forcing <span>— cylinder preliminary</span></td>
+<td class="lim">Periodic domain, single forcing</td>
 <td class="arw">→</td>
-<td class="fix">Cylinder → airfoil → channel <span style="color:#C9C6D0;">·</span> multi-modal fusion</td>
+<td class="fix">Wall-bounded geometries</td>
 </tr>
 <tr>
-<td class="lim">Cross-Re single seed, retuned</td>
+<td class="lim">Cross-Re single seed</td>
 <td class="arw">→</td>
-<td class="fix">Re = 10⁶ at n ≥ 3, then Re ≥ 10⁷ <span style="color:#C9C6D0;">·</span> feasibility → benchmark</td>
-</tr>
-<tr>
-<td class="lim">K-scaling = 3-point trend <span>— K = 400 uses 512 collocation</span></td>
-<td class="arw">→</td>
-<td class="fix">Matched-budget sweep K = 50 / 100 / 200 / 400</td>
-</tr>
-<tr>
-<td class="lim">Per-case fitting <span>— no cross-case generality</span></td>
-<td class="arw">→</td>
-<td class="fix">One operator over many scenes <span style="color:#C9C6D0;">·</span> training–simulation crossover</td>
+<td class="fix">Multi-seed at Re = 10⁶</td>
 </tr>
 <tr>
 <td class="lim">CFD-rigour gaps</td>
 <td class="arw">→</td>
-<td class="fix">Reynolds stresses <span style="color:#C9C6D0;">·</span> TKE budget <span style="color:#C9C6D0;">·</span> 4D-Var baseline <span style="color:#C9C6D0;">·</span> pressure</td>
+<td class="fix">Reynolds stresses, TKE budget, 4D-Var baseline</td>
 </tr>
 </tbody>
 </table>
 
-<div class="mt-2 text-xs" style="color:#374151;">
-Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov <span style="color:#C9C6D0;">·</span> cross-case generality not demonstrated
+<div class="mt-3 text-xs" style="color:#374151;">
+Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov
 </div>
 
 <FooterLogos />
 
 <!--
-[Limitations · 1.5min] 對應 thesis §5.3（7 條：Observation noise / Geometry scope /
-Forcing form / Acceptance metrics / Per-case fitting and single-seed cross-Re /
-CFD-rigour gaps / Diagnostic boundaries）。壓成 5 條：Geometry 與 Forcing 併為 ③；
-Acceptance metrics 與 Diagnostic boundaries 屬細節，留給提問。
+[Limitations & future work · 1.5min] 對應 thesis §5.3 + §5.4。原本拆兩頁（限制、未來工作），
+2026-07-16 合併：每條限制的答案就是對應的未來工作，拆開才需要 FW①↔LIM② 互指標籤。
 
-⚠️ ① 為新增，thesis §5.3 目前沒有 —— 需回頭補進論文。依據：chapter01.tex:114 自承
-「a capability retained here even though the controlled Kolmogorov benchmark samples
-uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregular clock；
-論文標題亦是「Continuous-Time」。即標題與架構選擇的核心賣點從未被實驗觸及。
-先自己講比被問出來好；對應實驗在下一頁 ①。
+頁面只印 5 條最重要的；thesis §5.3 實際有 7 條，以下**兩條刻意不印，被問要答得出來**：
+- K-scaling 是三點趨勢，非嚴格擬合：K=400 用 512 collocation 而非 1024
+  （chapter04.tex:276 caption；chapter04:318 原文「should not be read as a strict fit」）。
+  實測 log-log 局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)，三點不在一直線上。
+  補法：matched-budget sweep K = 50/100/200/400。
+- Per-case fitting，無 cross-case generality（chapter05:45）。補法：一個 operator 跨多場景 +
+  training–simulation crossover（重訓比直接解流場貴時，operator 就沒有工程理由）。
+另 thesis 尚有 Acceptance metrics / Diagnostic boundaries 兩條，屬細節。
 
-也解釋 slide 18 的 CfC 單獨 +1.00 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
-Δt 閘門吃不到變異，CfC 退化為多帶參數的 gated RNN，變差是預期而非意外。
+口述（頁面已精簡掉的補述）：
+- 「Uniform sensor clock」：CfC 的存在理由就是讀不規則時鐘，但 benchmark 均勻取樣 →
+  這個能力從未被實驗觸及。補法最便宜：既有 201 frames 加時間軸 mask，對照 GRU + Δt，
+  不需新 DNS。這也直接檢驗論文標題的「Continuous-Time」。
+- 它同時解釋主結果頁 CfC 單獨 +1.00 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
+  Δt 閘門吃不到變異，CfC 退化為多帶參數的 gated RNN，變差是預期而非意外。
+- 「Periodic domain」：cylinder wake 已有初步驗證（Appendix），非全新領域。
+
+⚠️ 「Uniform sensor clock」這條 thesis §5.3 原本沒有，2026-07-16 查證時發現 chapter05.tex:43
+已有對應的 \textbf{Temporal sampling} 條目（先前 note 說「論文沒有」是過時資訊）。
 -->
 
 ---
