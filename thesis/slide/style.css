@@ -70,6 +70,7 @@
 /* small footnote text */
 .foot {
   font-size: 0.83rem;
+  line-height: 1.12rem;
   color: var(--color-muted);
   letter-spacing: 0.02em;
 }
