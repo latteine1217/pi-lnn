@@ -816,13 +816,13 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 # Cross-attention — closing the "sparse-to-dense" gap
 
 <div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet inner product has no spatial prior linking a query to nearby sensors · add a distance-aware attention readout — a learnable analogue of an RBF interpolant.
+Vanilla DeepONet's inner product is global — no spatial prior linking a query to the nearest sensors · cross-attention with an isotropic distance bias gives sparse-to-dense field readout at any query.
 </div>
 
 <div class="grid grid-cols-2 gap-5 mt-2">
 
 <Card>
-<LabelTiny>① ISOTROPIC DISTANCE BIAS [Vaswani 2017]</LabelTiny>
+<LabelTiny>① DISTANCE-BIASED CROSS-ATTENTION [Vaswani 2017]</LabelTiny>
 
 <div class="mt-2" style="font-size: 0.7em;">
 
@@ -845,31 +845,27 @@ $$A_{qk} = \mathrm{softmax}_k\!\left(\frac{\mathbf{Q}_q^{\top} \mathbf{K}_k}{\sq
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dimension · softmax scaling</span>
 </div>
 
-<div class="mt-2 text-xs leading-snug" style="color:#374151;">
-<b>Causal lookup</b> — query reads sensors only up to t<sub>q</sub> → streaming-deployable
-</div>
 </Card>
 
 <Card>
-<LabelTiny>② CFD ANALOGUE — LEARNABLE RBF INTERPOLANT</LabelTiny>
+<LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug">An RBF interpolant uses a fixed kernel:</div>
+<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — binary search on the sensor clock {t<sub>n</sub>} returns the most recent stamp not exceeding t<sub>q</sub>:</div>
 
-<div class="mt-2" style="font-size: 0.7em;">
+<div class="mt-2" style="font-size: 0.58em;">
 
-$$\hat{u}(\mathbf{x}) = \sum_j w_j(\mathbf{x};\sigma)\,u_j$$
-
-</div>
-
-<div class="mt-1" style="font-size: 0.7em;">
-
-$$w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
+$$n^*(q) = \mathrm{clamp}\bigl(\mathrm{searchsorted}(\{t_n\},\, t_q) - 1,\; 0,\; N_t - 1\bigr)$$
 
 </div>
 
-<div class="mt-2 text-xs leading-snug space-y-2">
-<div><b>Cross-attention with |r| bias</b> learns the distance→weight map itself (the b<sub>qk</sub> MLP) — no hand-picked σ.</div>
-<div>The kernel is <b>fitted to the sensors + PDE</b>, not chosen a priori.</div>
+<div class="mt-2 text-xs leading-snug" style="color:#374151;">
+Query accesses sensor information only up to t<sub>q</sub> · filtering causality → <b style="color:#0F2D52;">streaming-deployable</b>
+</div>
+
+<div class="mt-3 text-xs leading-snug"><b>Isotropic, not directional (r<sub>x</sub>, r<sub>y</sub>)</b> — a deliberate modelling simplification.</div>
+
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+Kolmogorov forcing f<sub>x</sub> = A sin(2πk<sub>f</sub>y) makes the flow anisotropic — but a directional bias would encode the QR-pivot sensors' non-uniform x-distribution as a spurious directional term. An isotropic distance admits no such mechanism.
 </div>
 </Card>
 
@@ -878,11 +874,17 @@ $$w_j \propto \exp\!\left(-\tfrac{\|r_j\|^2}{\sigma^2}\right)$$
 <FooterLogos />
 
 <!--
-[Cross-attention introduction · backup 1min] 教授九點 (9) — 用 CFD 熟悉的 RBF interpolant analogy 介紹 cross-attention，少談 Transformer 內部細節。
-頂部一句話：vanilla DeepONet inner product 沒 spatial prior，所以加 distance-aware attention readout — 等價於 learnable RBF interpolant。
-卡 1：attention with |r| bias 公式 + ε=10⁻⁸ smooth norm（避免 query 落在 sensor 上時 second-order autograd NaN）+ λ learnable
-卡 2：CFD analogue — 固定 RBF 用 hand-picked σ，cross-attention 自己學 kernel + bandwidth；causal masking 讓 streaming OK。
+[Cross-attention introduction · backup 1min] 少談 Transformer 內部細節，照 thesis §2.3 的骨架講：
+「Two modifications adapt it to fluid reconstruction: an isotropic relative-position bias and a causal lookup over sensor time.」(chapter02:257)
+頂部一句話：vanilla DeepONet inner product 是 global、沒 spatial prior，所以換成 cross-attention 做 sparse-to-dense readout（chapter02:135 原話）。
+卡 1：機制 — Σ A_qk V_k → c_branch；A_qk = softmax(QK/√d + b_qk)；b_qk = MLP_relpos(LayerNorm(r_qk))；
+      r_qk 先 fold 回環面再取 smooth norm，ε=10⁻⁸ 是為了避免 query 落在 sensor 上時 second-order autograd 出 NaN（chapter02:279）。
+卡 2：兩項 fluid-specific 修改 — (a) causal lookup：binary search 只讀 t ≤ t_q → streaming-deployable；
+      (b) 為何 isotropic 而非 directional：forcing 讓流場統計非等向，但 directional bias 會把 QR-pivot sensor 的
+      非均勻 x 分布學成假的方向性注意力（chapter02:268）。這是被問「為何不用 (r_x, r_y)」時的標準答案。
 移除原本「Self-attention vs cross-attention」對比（純 AI 細節，CFD lab 不感興趣）。
+移除原本「卡 2：CFD analogue — learnable RBF interpolant」：該類比全論文不存在（chapter02 提 RBF 0 次），
+且 RBF 在論文裡只是被打敗的 baseline（chapter04:219，pointwise u rel-L₂ 低 47–74%）— 講它等於自找交叉詰問。
 -->
 
 ---
