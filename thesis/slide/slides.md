@@ -339,10 +339,10 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 # Same-regime works — head to head
 
 <style>
-.hh { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 10px; margin-bottom: 0; }
-.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.90rem; text-transform: uppercase;
-         letter-spacing: 0.04em; padding: 0 7px 5px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.hh td { padding: 4px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.22; }
+.hh { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 6px; margin-bottom: 0; }
+.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.84rem; text-transform: uppercase;
+         letter-spacing: 0.04em; padding: 0 7px 4px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.hh td { padding: 3px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.2; }
 .hh tr.ours td { background: #F7EDF8; border-bottom: none; }
 .hh .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .hh .no { color: #E97132; }
@@ -502,7 +502,7 @@ DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b styl
 Reconstruct 2-D turbulent flow from sparse (u, v) sensors + Navier–Stokes residual, <b style="color:#7F1084;">no DNS field</b> in training · then map how <b style="color:#7F1084;">count, placement, noise</b> govern quality.
 </div>
 
-<div class="mt-5 grid grid-cols-3 gap-4">
+<div class="mt-3 grid grid-cols-3 gap-4">
 
 <Card>
 <LabelTiny style="color:#7F1084;">(O1)&nbsp; ACCURATE &amp; FAST RECONSTRUCTOR</LabelTiny>
@@ -536,8 +536,8 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 
 </div>
 
-<div class="mt-2 px-3 py-2 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
-<div class="text-xs uppercase tracking-widest mb-1" style="color:#7F1084;">Contribution</div>
+<div class="mt-2 px-3 py-1.5 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
+<div class="text-xs uppercase tracking-widest mb-0.5" style="color:#7F1084;">Contribution</div>
 <div class="text-sm leading-snug" style="color:#374151;">
 <b>PI-CON</b> · CfC branch + distance-biased cross-attention + augmented-Lagrangian continuity · among surveyed methods the only <b>query-anywhere</b> + <b>sensor-only-with-physics</b> at Re = 10⁴.
 </div>
@@ -675,7 +675,7 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 <div class="space-y-2">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>QR-pivot K = 100 placement on <span class="raw">ω</span>(x, t = 5)</LabelTiny>
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded mt-1" style="width: 100%; max-height: 228px; object-fit: contain;" />
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded mt-1" style="width: 100%; max-height: 205px; object-fit: contain;" />
 </Card>
 
 <Card>
@@ -1105,7 +1105,7 @@ an analog, not an algorithmic equivalent
 <span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
 </div>
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Driven to the finite-difference floor its resolved scales permit — <b>not</b> below DNS. Raising ρ to 1 tightens divergence to 0.28 % at a cost in field accuracy.
+At the FD floor of its resolved bandwidth — <b>not</b> below DNS.
 </div>
 </div>
 
@@ -1116,7 +1116,11 @@ Driven to the finite-difference floor its resolved scales permit — <b>not</b> 
 <FooterLogos />
 
 <!--
-[Continuity AL · 1.5min] 左卡 AL formulation 完整：penalty C 是 continuity 平方期望、dual ascent λ ← λ + ρC、ρ=0.1 λ_clip=10。右卡 CFD analogue — SIMPLE/PISO 的 pressure correction p' 是 Lagrange multiplier，我們的 λ 用 gradient ascent 取代 Poisson 解；enforce in expectation 而非 exactly on grid。觀測 effect 用 final protocol 說法：EXP-245 divergence ratio 0.39 ± 0.006%，接近 resolved-bandwidth finite-difference floor。
+[Continuity AL · 1.5min] 左卡 AL formulation 完整：penalty C 是 continuity 平方期望、dual ascent λ ← λ + ρC、ρ=0.1 λ_clip=10。
+
+口述（頁面已移除，被問 ρ 才講）：「把 ρ 拉到 1 可以把 divergence 再壓到 0.28%，
+但要付出場精度的代價 —— 這個旋鈕是活的，我們選 0.1 是取平衡。」
+右下三行數字就是「constraint 有沒有在作用」的答案，不需要再用文字複述一次。右卡 CFD analogue — SIMPLE/PISO 的 pressure correction p' 是 Lagrange multiplier，我們的 λ 用 gradient ascent 取代 Poisson 解；enforce in expectation 而非 exactly on grid。觀測 effect 用 final protocol 說法：EXP-245 divergence ratio 0.39 ± 0.006%，接近 resolved-bandwidth finite-difference floor。
 -->
 
 ---
@@ -1175,14 +1179,14 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 # Configuration — what the setup rests on
 
 <style>
-.cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.90rem; line-height: 1.32; margin-top: 10px; }
+.cfg-col { display: flex; flex-direction: column; gap: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 4px; font-size: 0.82rem; line-height: 1.28; margin-top: 6px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
 </style>
 
-<div class="grid grid-cols-2 gap-6 mt-4">
+<div class="grid grid-cols-2 gap-6 mt-3">
 
 <div class="cfg-col">
 
@@ -1223,7 +1227,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <div class="k">Supervision</div><div class="v"><b>sensor MSE + NS residual only</b></div>
 <div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free · lr = 10⁻³ · AL ρ = 0.1</div>
 <div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b></div>
-<div class="k">Hardware</div><div class="v">RTX 3090 · ~2 h 45 m per seed</div>
+<div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB) · ~2 h 45 m per seed</div>
 </div>
 </Card>
 
@@ -1250,14 +1254,14 @@ disabled: true
 # Configuration parameters — full reference
 
 <style>
-.cfg-col { display: flex; flex-direction: column; gap: 14px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 6px; font-size: 0.90rem; line-height: 1.32; margin-top: 10px; }
+.cfg-col { display: flex; flex-direction: column; gap: 10px; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 4px; font-size: 0.82rem; line-height: 1.28; margin-top: 6px; }
 .pgrid .k { color: #6B7280; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
 </style>
 
-<div class="grid grid-cols-2 gap-6 mt-4">
+<div class="grid grid-cols-2 gap-6 mt-3">
 
 <div class="cfg-col">
 
@@ -1315,7 +1319,7 @@ disabled: true
 <LabelTiny>Training &amp; reproducibility</LabelTiny>
 <div class="pgrid">
 <div class="k">Iterations · seeds</div><div class="v">20 000 · <b>n = 5</b> (42, 1, 2, 3, 4)</div>
-<div class="k">Hardware · wall-time</div><div class="v">NVIDIA RTX 3090 · <b>~2 h 45 m</b> per seed (20 k steps, 1024 collocation)</div>
+<div class="k">Hardware · wall-time</div><div class="v"><b style="color:#7F1084;">Single</b> NVIDIA RTX 3090 (24 GB) · <b>~2 h 45 m</b> per seed (20 k steps, 1024 collocation)</div>
 </div>
 </Card>
 
@@ -1355,16 +1359,21 @@ $$\mathrm{rel}\,L_2(\phi) = \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{
 
 </div>
 
+<div class="eqbox" style="border-left-color:#7F1084;">
+
+$$\overline{\mathrm{KE\_MAPE}} = \frac{1}{|T|}\sum_{t}\frac{\bigl|\mathrm{KE}_{\text{pred}}(t) - \mathrm{KE}_{\text{DNS}}(t)\bigr|}{\mathrm{KE}_{\text{DNS}}(t)}$$
+
+</div>
+
 <div class="ngrid">
-<div class="sym">rel-L₂</div><div class="def">global, over t ∈ [0, T]</div>
+<div class="sym">KE MAPE</div><div class="def"><b>headline</b> · t ∈ [0, 5] s · also called <i>KE rel-err</i></div>
+<div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
 <div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
 <div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
-<div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
-<div class="sym">KE MAPE</div><div class="def">Kinetic-Energy Mean Absolute Percentage Error · time-mean of |KE<sub>pred</sub> − KE<sub>DNS</sub>| / KE<sub>DNS</sub></div>
 <div class="sym">div ratio</div><div class="def">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></div>
 </div>
 
-<div class="foot mt-2">4th-order central differences on 128² grid · div L₂ vs DNS FD floor.</div>
+<div class="foot mt-1">4th-order central differences on 128² grid.</div>
 </Card>
 
 <Card>
@@ -1491,27 +1500,27 @@ Paper-grade findings：
 # 2×2 ablation — the dominant lever
 
 <style>
-.m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 7px; align-items: center; margin-top: 10px; margin-bottom: 0; }
-.m22 .hd { font-size: 0.90rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; text-align: center; }
-.m22 .rl { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
-.m22 .mg { font-size: 0.90rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; text-align: center; }
+.m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 5px; align-items: center; margin-top: 6px; margin-bottom: 0; }
+.m22 .hd { font-size: 0.78rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.03em; text-align: center; }
+.m22 .rl { font-size: 0.82rem; color: #6B7280; white-space: nowrap; }
+.m22 .mg { font-size: 0.72rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; text-align: center; }
 .m22 .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
 .m22 .cell.best { border-color: #7F1084; background: #FAF3FB; }
-.m22 .id { display: block; font-size: 0.90rem; color: #9CA3AF; letter-spacing: 0.05em; }
+.m22 .id { display: block; font-size: 0.90rem; color: #9CA3AF; letter-spacing: 0.05em; white-space: nowrap; }
 .m22 .val { display: block; font-size: 1.05rem; font-weight: 700; color: #1F1B2E; line-height: 1.15; }
 .m22 .cell.best .val { color: #7F1084; }
 .m22 .dv { font-size: 0.90rem; font-weight: 700; text-align: center; }
 .m22 .good { color: #7F1084; }
 .m22 .bad  { color: #E97132; }
-.rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 5px; align-items: baseline; margin-top: 8px; margin-bottom: 0; }
+.rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
 .rg .k { font-size: 0.90rem; color: #374151; }
 .rg .n { font-size: 0.90rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
 .rg .tot { border-top: 1px solid #E5E0EC; padding-top: 5px; margin-top: 2px; }
 </style>
 
-<div class="grid grid-cols-5 gap-3 mt-1">
+<div class="grid gap-3 mt-1 items-start" style="grid-template-columns: minmax(0, 1.72fr) minmax(0, 1.28fr);">
 
-<div class="col-span-3">
+<div>
 <Card>
 <LabelTiny>2×2 ablation · KE MAPE (%, n = 5, lower is better)</LabelTiny>
 
@@ -1541,7 +1550,7 @@ Paper-grade findings：
 </Card>
 </div>
 
-<div class="col-span-2 space-y-2 text-xs">
+<div class="space-y-2 text-xs">
 
 <Card>
 <LabelTiny>KE decomposition &nbsp;<span class="opacity-60">(pp)</span></LabelTiny>
@@ -1907,9 +1916,9 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
       align-items: baseline; margin-top: 8px; margin-bottom: 0; }
-.fc .hd { font-size: 0.90rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
-.fc .k  { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
-.fc .v  { font-size: 0.90rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fc .hd { font-size: 0.78rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.04em; text-align: right; }
+.fc .k  { font-size: 0.78rem; color: #6B7280; white-space: nowrap; }
+.fc .v  { font-size: 0.78rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fc .bad { color: #E97132; font-weight: 700; }
 .fc .good { color: #7F1084; font-weight: 700; }
 </style>
@@ -1919,7 +1928,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Radial energy spectrum at t = 5</LabelTiny>
-<img :src="'/images/forward_cfd_spectrum_t5.png'" class="mt-1" style="width: 100%; object-fit: contain;" />
+<img :src="'/images/forward_cfd_spectrum_t5.png'" class="mt-1" style="width: 100%; max-height: 262px; object-fit: contain;" />
 </Card>
 </div>
 
@@ -1935,8 +1944,8 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <div class="k">ω rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
 <div class="k">σ<sub>u</sub>/σ<sub>v</sub> <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">0.90</div><div class="v good">2.30</div>
 </div>
-<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-<b>Not the headline numbers</b> · late-window / t = 5 snapshot, matched to the forward-CFD forecast.
+<div class="mt-1 text-[10px] leading-snug" style="color:#6B7280;">
+<b>Not the headline numbers</b> · late-window / t = 5, matched to the forecast.
 </div>
 </Card>
 
@@ -1951,7 +1960,7 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 
 </div>
 
-<div class="foot mt-2">Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b>.</div>
+<div class="foot mt-1 text-[10px]">Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b>.</div>
 
 <FooterLogos />
 
@@ -1984,6 +1993,109 @@ KE-as-misleading。
 離線建 POD 基底 —— 它拿的資訊比 PI-CON 多，pointwise 仍崩掉。不可宣稱這是公平對打。
 -->
 
+
+---
+
+<NavBar active="results" />
+
+<SectionTag>§ Results · vs classical sensor-only interpolation</SectionTag>
+
+# Classical interpolation — lower KE, worse field
+
+<style>
+.fb { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
+.fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.83rem; text-transform: uppercase;
+         letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.fb th.m { text-align: left; }
+.fb td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
+         font-variant-numeric: tabular-nums; }
+.fb td.m { text-align: left; color: #1F1B2E; white-space: nowrap; }
+.fb tr.ours td { background: #F7EDF8; border-bottom: none; font-weight: 700; }
+.fb .win { color: #7F1084; font-weight: 700; }
+.fb .trap { color: #E97132; font-weight: 700; }
+</style>
+
+<div class="grid gap-4 mt-1" style="grid-template-columns: 1.35fr 0.65fr;">
+
+<div>
+<table class="fb">
+  <thead>
+    <tr>
+      <th class="m">Method &nbsp;<span style="font-weight:400; text-transform:none; letter-spacing:0;">(same K = 100 sensors, no DNS access)</span></th>
+      <th>KE %</th><th>u L₂ %</th><th>v L₂ %</th><th><span class="raw">ω</span> L₂ %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="m">RBF multiquadric <span style="color:#9CA3AF;">(<span class="raw">ε</span> = 10)</span></td>
+      <td class="trap">5.08</td><td>30.02</td><td>34.43</td><td>58.33</td>
+    </tr>
+    <tr>
+      <td class="m">IDW <span style="color:#9CA3AF;">(p = 2)</span></td>
+      <td>66.66</td><td>52.88</td><td>62.02</td><td>81.89</td>
+    </tr>
+    <tr>
+      <td class="m">Div-free trig. LSQ <span style="color:#9CA3AF;">(k<sub>max</sub> = 5)</span></td>
+      <td class="trap">4.42</td><td>25.87</td><td>31.96</td><td>63.41</td>
+    </tr>
+    <tr class="ours">
+      <td class="m">PI-CON <span style="color:#9CA3AF; font-weight:400;">(ours, n = 5)</span></td>
+      <td>5.71</td><td class="win">13.65</td><td class="win">17.52</td><td class="win">41.79</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="foot mt-2">Source · appendix <span class="raw">tab:fair_baselines</span> · same LES-derived K = 100 sensors as the main baseline.</div>
+</div>
+
+<div class="space-y-2">
+
+<Card>
+<LabelTiny>The KE trap</LabelTiny>
+<div class="mt-2 text-xs leading-snug">
+Two baselines post <b style="color:#E97132;">lower KE</b> than ours — while reconstructing the field <b>2×</b> worse pointwise.
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Why</LabelTiny>
+<div class="mt-2 text-xs leading-snug">
+Interpolation contracts velocity toward the <b>inter-sensor mean</b> · KE lands near DNS for the wrong reason.
+</div>
+</Card>
+
+<Card>
+<LabelTiny>u rel-L₂ reduction</LabelTiny>
+<div class="mt-2 text-xs leading-snug">
+<b style="color:#7F1084;">47.2 %</b> vs trig. LSQ · <b style="color:#7F1084;">74.2 %</b> vs IDW
+</div>
+</Card>
+
+</div>
+
+</div>
+
+<FooterLogos />
+
+<!--
+[Classical interpolation · 1.5min] 數字全部出自 thesis/back/appendix07.tex tab:fair_baselines，未改動。
+這是全論文唯一「同 sensor、同指標、同 Re」的數字並排比較 —— 與文獻三篇（Mo & Magri / Kelshaw /
+Parfenyev）的比較是規格對照，不是數值比較（Re 差 7.7× 以上，並排會誤導）。
+
+本頁論點與 Forward-CFD 頁同一條：KE 單獨看會排錯名次。
+- RBF 5.08 / trig-LSQ 4.42 的 KE 都比我們的 5.71 低，但 u rel-L₂ 是我們的 ~2 倍。
+- 原因（appendix07 原文）：classical interpolation 把速度往 inter-sensor mean 收縮，
+  壓低總動能，KE ratio 因為錯的理由靠近 DNS。pointwise u/v L₂ 才揭穿。
+- 三個 baseline 都是 sensor-only（訓練與推論皆不碰 DNS），與 PI-CON 同約束，所以公平。
+- RBF 的 ε=10、trig-LSQ 的 k_max=5 都由 a-priori 尺度定（sensor 間距、K=100 Nyquist），
+  非為了壓低 DNS error 而調 —— 這點被問「你是不是挑弱的對手」時要講。
+
+⚠️ appendix07 另有紀錄：trig-LSQ 在 k_max=8/12、RBF 在壞長度尺度下，誤差會大好幾個數量級。
+   那些不穩定變體「excluded from the main comparison table」—— 我們選的是它們的強項組態，不是弱項。
+   委員若問「為何只列這三列」，照此答。
+
+⚠️ 這三個是通用經典方法，不是某篇論文的方法，appendix07 也沒有 \cite。不要說成「我們贏了某某論文」。
+-->
 
 ---
 
@@ -2158,11 +2270,11 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted sparse sensors; additive Gaussian noise tested separately up to 10 % sensor std.
 </div>
 
-<div class="grid grid-cols-2 gap-5 mt-4 text-sm">
+<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
 
 <Card>
 <LabelTiny style="color:#16A34A;">✓ SUPPORTED AT K = 100</LabelTiny>
-<div class="mt-3 space-y-3 leading-snug">
+<div class="mt-2 space-y-2 leading-snug">
   <div>
     <b style="color:#7F1084;">KE & mean-flow monitoring</b><br>
     <span class="text-xs" style="color:#6B7280;">KE MAPE <b>5.71 ± 0.11 %</b> · low band single-digit error</span>
@@ -2384,47 +2496,56 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 
 <SectionTag>§ Conclusion · contributions</SectionTag>
 
-# Three contributions, one secondary finding
+# Contributions — and what each answers
 
 <style>
-.ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 0; margin-top: 14px; }
-.ct .num { font-size: 1.5rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 14px 0; }
-.ct .body { padding: 12px 0; border-bottom: 1px solid #F1EDF5; }
-.ct .ttl { font-size: 0.9rem; font-weight: 700; color: #1F1B2E; }
-.ct .det { font-size: 0.90rem; color: #6B7280; margin-top: 3px; line-height: 1.35; }
-.ct .sec .num, .ct .sec .ttl { color: #9CA3AF; }
+.ct { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 14px; row-gap: 0; margin-top: 10px; }
+.ct .num { font-size: 1.15rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 10px 0; }
+.ct .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
+.ct .ttl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; }
+.ct .det { font-size: 0.8rem; color: #6B7280; margin-top: 2px; line-height: 1.35; }
+.ct .det b { color: #7F1084; }
+.ct .ob { font-size: 0.66rem; font-weight: 700; color: #16A34A; white-space: nowrap; padding: 8px 0; letter-spacing: 0.04em; }
+.ct .sec .num, .ct .sec .ttl, .ct .sec .ob { color: #9CA3AF; }
+.ar { color: #9CA3AF; font-weight: 400; }
 </style>
 
 <div class="ct">
 
 <div class="num">①</div>
 <div class="body">
-<div class="ttl">PI-CON — DeepONet as a sparse-sensor inverse operator</div>
-<div class="det">KE <b style="color:#7F1084;">5.71 ± 0.11 %</b> · K = 100 · Re = 10⁴ · cross-attention the dominant lever</div>
+<div class="ttl">PI-CON · DeepONet <span class="ar">→</span> sparse-sensor inverse operator</div>
+<div class="det">K = 100 · Re = 10⁴ · sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.11 %</b> <span class="ar">·</span> cross-attention = dominant lever</div>
 </div>
+<div class="ob">O1 ✓</div>
 
 <div class="num">②</div>
 <div class="body">
-<div class="ttl">Sensing configuration mapped — count, placement, noise</div>
-<div class="det">Count sets resolution (K 100 → 400: KE <b>5.90 → 1.76 %</b>) · placement and noise set reliability</div>
+<div class="ttl">Sensing configuration mapped · count <span class="ar">·</span> placement <span class="ar">·</span> noise</div>
+<div class="det">K 100 <span class="ar">→</span> 400 <span class="ar">→</span> KE <b>5.90 → 1.76 %</b> <span class="ar">·</span> placement σ <b>6×</b> training σ <span class="ar">·</span> noise 10 % <span class="ar">→</span> <b>6.08 %</b></div>
 </div>
+<div class="ob">O2 · O3 ✓</div>
 
 <div class="num">③</div>
 <div class="body">
-<div class="ttl">Cross-Reynolds feasibility on one architecture</div>
-<div class="det">Re = 10⁶, K = 200 → KE <b>6.10 %</b> ≈ the Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed, retuned</span></div>
+<div class="ttl">Cross-Reynolds feasibility · one architecture</div>
+<div class="det">Re = 10⁶ · K = 200 <span class="ar">→</span> KE <b>6.10 %</b> <span class="ar">≈</span> Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed, retuned</span></div>
 </div>
+<div class="ob" style="color:#9CA3AF;">extension</div>
 
 <div class="num" style="color:#9CA3AF;">④</div>
 <div class="body">
-<div class="ttl" style="color:#9CA3AF;">Secondary — KE alone mis-ranks</div>
-<div class="det">Interpolation posts lower KE by over-smoothing · PI-CON cuts pointwise u rel-L₂ <b>47–74 %</b></div>
+<div class="ttl" style="color:#9CA3AF;">Secondary · KE alone mis-ranks</div>
+<div class="det">Interpolation <span class="ar">→</span> lower KE, over-smoothed field <span class="ar">·</span> PI-CON <span class="ar">→</span> pointwise u rel-L₂ <b>−47…−74 %</b></div>
 </div>
+<div class="ob" style="color:#9CA3AF;">secondary</div>
 
 </div>
 
-<div class="mt-5 text-center">
-<Pill>Engineering-grade sparse reconstruction without DNS-field supervision.</Pill>
+<div class="mt-3 px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
+<div class="text-xs leading-snug" style="color:#374151;">
+<b style="color:#7F1084;">Eight sensing configurations</b> <span class="ar">·</span> KE <b>1.76 – 7.95 %</b> <span class="ar">·</span> all under the 10 % target <span class="ar">→</span> spread = <b>reliability</b>, target = <b>feasibility</b>
+</div>
 </div>
 
 <FooterLogos />
@@ -2452,42 +2573,63 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 # Three objectives — three answers
 
 <style>
-.ob { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 18px; row-gap: 0;
-      align-items: center; margin-top: 16px; }
-.ob .tag { font-size: 0.90rem; font-weight: 700; color: #9CA3AF; letter-spacing: 0.06em; white-space: nowrap; }
-.ob .body { padding: 13px 0; border-bottom: 1px solid #F1EDF5; }
-.ob .ttl { font-size: 0.92rem; font-weight: 700; color: #1F1B2E; }
-.ob .det { font-size: 0.90rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
-.ob .ok { font-size: 1.4rem; color: #16A34A; font-weight: 700; }
+.obg { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 12px; row-gap: 9px; align-items: center; }
+.obg .t { font-size: 0.72rem; font-weight: 700; color: #9CA3AF; }
+.obg .d { font-size: 0.8rem; color: #1F1B2E; line-height: 1.3; }
+.obg .ok { font-size: 1.05rem; color: #16A34A; font-weight: 700; }
 </style>
 
-<div class="ob">
+<script setup>
+const P1 = '#7F1084', P2 = '#B563B9', NV = '#0F2D52'
+const obData = {
+  labels: [
+    ['O1', 'PI-CON baseline'],
+    ['O2', 'K = 400'], ['O2', 'K = 200'], ['O2', 'K = 100'],
+    ['O3', 'DNS-oracle'], ['O3', 'LES (main)'], ['O3', 'random'], ['O3', 'noise 10 %'],
+  ],
+  datasets: [{
+    data: [5.71, 1.76, 2.47, 5.90, 4.68, 5.71, 7.95, 6.08],
+    backgroundColor: [P1, P2, P2, P2, NV, NV, NV, NV],
+    borderRadius: 2, barPercentage: 0.72,
+  }],
+}
+const obOpts = {
+  indexAxis: 'y',
+  scales: {
+    x: { min: 0, max: 10, title: { display: true, text: 'KE MAPE (%) — right edge = 10 % engineering target',
+         color: '#E97132', font: { size: 10, weight: 'bold' } },
+         ticks: { color: '#6B7280', font: { size: 9 } }, grid: { color: '#F1EDF5' } },
+    y: { ticks: { color: '#374151', font: { size: 9 } }, grid: { display: false } },
+  },
+  plugins: { legend: { display: false },
+    tooltip: { callbacks: { label: c => c.parsed.x + ' %' } } },
+}
+</script>
 
-<div class="tag">O1</div>
-<div class="body">
-<div class="ttl">Accurate and fast reconstructor</div>
-<div class="det">KE <b style="color:#7F1084;">5.71 ± 0.11 %</b>, low band ≈ 4 % · any (x, t) in one forward pass</div>
+<div class="grid gap-4 mt-2 items-start" style="grid-template-columns: minmax(0, 1.45fr) minmax(0, 1.55fr);">
+
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<ChartCanvas type="bar" :data="obData" :options="obOpts" height="248px" />
+</Card>
+
+<div class="space-y-2">
+
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<div class="obg">
+<div class="t">O1</div><div class="d"><b>Accurate &amp; fast</b> · one forward pass per query</div><div class="ok">✓</div>
+<div class="t">O2</div><div class="d"><b>Count sets resolution</b> · cutoff tracks √(K/π)</div><div class="ok">✓</div>
+<div class="t">O3</div><div class="d"><b>Placement &amp; noise set reliability</b>, not feasibility</div><div class="ok">✓</div>
 </div>
-<div class="ok">✓</div>
+</Card>
 
-<div class="tag">O2</div>
-<div class="body">
-<div class="ttl">Count sets the resolution</div>
-<div class="det">K 100 / 200 / 400 → KE <b>5.90 / 2.47 / 1.76 %</b> · cutoff tracks <span class="raw">√(K/π)</span></div>
+<Card style="padding-top: 0.5rem; padding-bottom: 0.5rem;">
+<div class="text-xs leading-snug" style="color:#374151;">
+<b style="color:#7F1084;">Eight configurations, none crosses.</b> The spread is <b>reliability</b>; the target is <b>feasibility</b>.
 </div>
-<div class="ok">✓</div>
-
-<div class="tag">O3</div>
-<div class="body">
-<div class="ttl">Placement and noise set reliability</div>
-<div class="det">DNS / LES / random → <b>4.68 / 5.71 / 7.95 %</b> · noise to 10 % → <b>6.08 %</b> · all under 10 %</div>
-</div>
-<div class="ok">✓</div>
+</Card>
 
 </div>
 
-<div class="mt-6 text-center">
-<Pill>PI-CON, and a sensing-configuration study of count, placement, and noise.</Pill>
 </div>
 
 <FooterLogos />
