@@ -1,0 +1,92 @@
+# configs/exp_301_b3_re1000_les_T100.toml
+# What: EXP-301 — Re=10³ 以最終協定重跑（B3 + LES-derived DNS-free 佈點），single seed 先驗。
+# Why: 舊的 Re=10³ 參考（EXP-230 → legacy exp_030）不可與主線並列：d_model=64、5k steps、
+#      無 AL、無 GradNorm、num_physics_points=32，且用了 CLAUDE.md 現已禁用的 resume_checkpoint。
+#      其 KE 9.61% 比 Re=10⁴ 主線的 5.71% 還差，並非「低 Re 較難」，而是不同世代的方法。
+#      本 config 逐字派生自 EXP-245，僅改動 Re 相關項，使三個 Reynolds number 落在同一協定。
+#
+# 派生 from EXP-245，唯一改動：
+#   - sensor_jsons / sensor_npzs → Re=1000 LES-pivot（LES N=128 T=100 standalone, α=1.8, r_scale=35）
+#   - dns_paths / re_values      → Re=1000 DNS (N=128, 101 frames)
+#   - artifacts_dir              → exp301
+#
+# LES 品質（scripts/check_les_quality.py，全數通過）：
+#   div 7.68e-14 < 1e-10 · 譜末端衰減比 4.33e32 > 1e6 · τ_int 3.68 → T_end/τ_int 27.2 ≥ 10, N_eff 13.6
+# Sensor axis convention：tests/test_sensor_axis_convention.py 已納入（correct 3e-8 vs swap 1.4）
+#
+# Hypothesis: 同協定下 Re=10³ 的 KE MAPE ≤ Re=10⁴ 主線的 5.71%（低 Re 應更易重建）。
+# Falsifiability: 若 KE > 5.71%，則「低 Re 較易」不成立，需檢查 N=128 網格下 1024 collocation
+#                 的密度是否已飽和（DNS 僅 16384 格點，collocation 佔 6.3%，遠高於 Re=10⁴ 的 1.6%）。
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_qrpivot_K100_N128_t0-5_les_n128_T100standalone.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re1000/sensors_qrpivot_qrpivot_K100_N128_t0-5_les_n128_T100standalone_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re1000_N128_T5_ds4.npy"]
+re_values = [1000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re1000-exp301-b3-les-T100-20k"

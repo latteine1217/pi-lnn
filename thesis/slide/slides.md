@@ -69,7 +69,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <div>
 <LabelTiny>Under-determined inverse problem</LabelTiny>
-<div class="mt-1 leading-snug">200 (u, v) readings vs ~1.3×10⁵ unknowns&nbsp;·&nbsp;<b style="color:#7F1084;">≈ 650× under-determined</b></div>
+<div class="mt-1 leading-snug">Recovering N = 65 536 field values from K = 100 probes. Compressed sensing puts exact recovery <b style="color:#7F1084;">an order of magnitude</b> above this budget <span style="color:#9CA3AF;">[Donoho 2006 · Candès 2006]</span> — so the target is the <b>energy-dominant band</b>, not pointwise exactness.</div>
 </div>
 
 <div>
