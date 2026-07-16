@@ -1866,14 +1866,14 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <LabelTiny>Near t = 5 &nbsp;<span class="opacity-60">(Re = 10⁴, K = 100)</span></LabelTiny>
 <div class="fc">
 <div></div><div class="hd">Forward-CFD</div><div class="hd">PI-CON</div>
-<div class="k">KE rel-err <span style="color:#C9C6D0;">late window</span></div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
+<div class="k">KE rel-err <span style="color:#C9C6D0;">t <span class="raw">≳</span> 3.3</span></div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
 <div class="k">u rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">152.8 %</div><div class="v good">7.28 ± 0.14 %</div>
 <div class="k">v rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">203.9 %</div><div class="v good">16.38 ± 0.34 %</div>
 <div class="k">ω rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
 <div class="k">σ<sub>u</sub>/σ<sub>v</sub> <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">0.90</div><div class="v good">2.30</div>
 </div>
 <div class="mt-1 text-[10px] leading-snug" style="color:#6B7280;">
-<b>Not the headline numbers</b> · late-window / t = 5, matched to the forecast.
+<b>Not the headline numbers</b> · KE is the t <span class="raw">≳</span> 3.3 mean, matched to the forecast at t = 5.
 </div>
 </Card>
 
@@ -1898,6 +1898,9 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 —— 比 PI-CON（只看 sensor stream）多得多的資訊。所以這不是公平的 matched-assimilation baseline，是誠實揭露 forward-CFD 的優勢。
 [Forward-CFD · 2min] 圖下小字精簡後的完整口徑（原註記字太小已縮）：
   DNS anisotropy σ_u/σ_v = 2.32。此頁 KE 是 late-window (t ≳ 3.3) mean、u/v/ω 是 t=5 snapshot，
+  為何 KE 用窗平均而非 t=5 單點：evaluator 不存單張 snapshot 的 KE（appendix07:100 caption 原文
+  「the evaluator stores no single-snapshot KE」）。t ≳ 3.3 這個窗是為了對齊 forward-CFD 的 t=5
+  forecast，不是挑對我們有利的區間 —— 委員問「為何兩欄時間窗不同」照此答。
   兩者都對齊 forward-CFD forecast 的比較窗；main-result 的 KE MAPE 5.71%、u rel-L₂ 13.65%
   則是整個 t ∈ [0,5] 窗的均值。委員若追問「這數字跟主結果為何不同」照此回答。
 [Forward-CFD · 2min] 委員第一反射問題「為何不直接 forward CFD」的正面回答。
@@ -2423,7 +2426,7 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 # Contributions — and what each answers
 
 <style>
-.ct { display: grid; grid-template-columns: max-content 1fr max-content; column-gap: 14px; row-gap: 0; margin-top: 10px; }
+.ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 0; margin-top: 10px; }
 .ct .num { font-size: 1.15rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 10px 0; }
 .ct .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
 .ct .ttl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; }
@@ -2441,28 +2444,24 @@ Smoothing = forward + backward CfC, query sees full sensor sequence.
 <div class="ttl">PI-CON · DeepONet <span class="ar">→</span> sparse-sensor inverse operator</div>
 <div class="det">K = 100 · Re = 10⁴ · sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.11 %</b> <span class="ar">·</span> cross-attention = dominant lever</div>
 </div>
-<div class="ob">O1 ✓</div>
 
 <div class="num">②</div>
 <div class="body">
 <div class="ttl">Sensing configuration mapped · count <span class="ar">·</span> placement <span class="ar">·</span> noise</div>
 <div class="det">K 100 <span class="ar">→</span> 400 <span class="ar">→</span> KE <b>5.90 → 1.76 %</b> <span class="ar">·</span> placement σ <b>6×</b> training σ <span class="ar">·</span> noise 10 % <span class="ar">→</span> <b>6.08 %</b></div>
 </div>
-<div class="ob">O2 · O3 ✓</div>
 
 <div class="num">③</div>
 <div class="body">
 <div class="ttl">Cross-Reynolds feasibility · one architecture</div>
-<div class="det">Re = 10⁶ · K = 200 <span class="ar">→</span> KE <b>6.10 %</b> <span class="ar">≈</span> Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed, retuned</span></div>
+<div class="det">Re = 10⁶ · K = 200 <span class="ar">→</span> KE <b>6.10 %</b> <span class="ar">≈</span> Re = 10⁴ baseline <span style="color:#9CA3AF;">· single-seed extension, not a benchmark</span></div>
 </div>
-<div class="ob" style="color:#9CA3AF;">extension</div>
 
 <div class="num" style="color:#9CA3AF;">④</div>
 <div class="body">
-<div class="ttl" style="color:#9CA3AF;">Secondary · KE alone mis-ranks</div>
+<div class="ttl" style="color:#9CA3AF;">KE alone mis-ranks <span style="color:#C9C6D0; font-weight:400;">· secondary</span></div>
 <div class="det">Interpolation <span class="ar">→</span> lower KE, over-smoothed field <span class="ar">·</span> PI-CON <span class="ar">→</span> pointwise u rel-L₂ <b>−47…−74 %</b></div>
 </div>
-<div class="ob" style="color:#9CA3AF;">secondary</div>
 
 </div>
 
@@ -2569,92 +2568,6 @@ uniformly」；chapter02.tex:131/195 把 CfC 的存在理由完全押在 irregul
 
 也解釋 slide 18 的 CfC 單獨 +1.00 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
 Δt 閘門吃不到變異，CfC 退化為多帶參數的 gated RNN，變差是預期而非意外。
--->
-
----
-
-<NavBar active="summary" />
-
-<SectionTag>§ Conclusion · future work</SectionTag>
-
-# Future work
-
-<style>
-.fwg { display: grid; grid-template-columns: max-content 1fr; column-gap: 10px; row-gap: 0; }
-.fwg .n { font-size: 0.9rem; font-weight: 700; color: #7F1084; padding: 7px 0; }
-.fwg .b { padding: 6px 0; border-bottom: 1px solid #F1EDF5; }
-.fwg .t { font-size: 0.8rem; font-weight: 700; color: #1F1B2E; }
-.fwg .d { font-size: 0.72rem; color: #6B7280; margin-top: 1px; line-height: 1.3; }
-.fwg .lim { font-size: 0.6rem; font-weight: 700; color: #E97132; letter-spacing: 0.04em; }
-.hdr { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
-</style>
-
-<div class="grid grid-cols-2 gap-5 mt-2">
-
-<div>
-<div class="hdr mb-1" style="color:#7F1084;">Close the claims <span style="color:#9CA3AF; font-weight:400;">— no new scope</span></div>
-<div class="fwg">
-<div class="n">①</div>
-<div class="b">
-<div class="lim">LIM ①</div>
-<div class="t">Irregular-clock validation</div>
-<div class="d">mask existing 201 frames <span class="ar">→</span> vs GRU + Δt <span class="ar">·</span> <b style="color:#7F1084;">no new DNS</b> <span class="ar">·</span> tests the title</div>
-</div>
-<div class="n">②</div>
-<div class="b">
-<div class="lim">LIM ④</div>
-<div class="t">Cross-Re multi-seed</div>
-<div class="d">Re = 10⁶ <span class="ar">→</span> n ≥ 3 <span class="ar">→</span> Re ≥ 10⁷ <span class="ar">·</span> feasibility <span class="ar">→</span> benchmark</div>
-</div>
-<div class="n">③</div>
-<div class="b">
-<div class="lim">K-SCALING</div>
-<div class="t">Matched-budget sensor sweep</div>
-<div class="d">K = 50 / 100 / 200 / 400 <span class="ar">·</span> collocation fixed <span style="color:#9CA3AF;">(K = 400 now 512)</span></div>
-</div>
-</div>
-</div>
-
-<div>
-<div class="hdr mb-1" style="color:#0F2D52;">Widen the scope <span style="color:#9CA3AF; font-weight:400;">— feasibility unchanged</span></div>
-<div class="fwg">
-<div class="n" style="color:#0F2D52;">④</div>
-<div class="b">
-<div class="lim">LIM ②</div>
-<div class="t">Realistic sensor-error model</div>
-<div class="d">bias <span class="ar">·</span> drift <span class="ar">·</span> dropout <span class="ar">·</span> correlated noise <span class="ar">·</span> calibration</div>
-</div>
-<div class="n" style="color:#0F2D52;">⑤</div>
-<div class="b">
-<div class="lim">LIM ③ ⑤</div>
-<div class="t">Wall-bounded geometries + 4D-Var baseline</div>
-<div class="d">cylinder <span class="ar">→</span> airfoil <span class="ar">→</span> channel <span class="ar">·</span> multi-modal fusion <span class="ar">·</span> pressure support</div>
-</div>
-<div class="n" style="color:#0F2D52;">⑥</div>
-<div class="b">
-<div class="lim">DEPLOYMENT</div>
-<div class="t">Cross-case generalisation · training–simulation crossover</div>
-<div class="d">one operator, many scenes <span class="ar">·</span> where re-training &gt; solving</div>
-</div>
-</div>
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Future work 1/2 · 1.5min] 這頁的三項都是「把已經做出的主張補實」，不是擴張範圍。
-
-⚠️ ① 為新增，thesis §5.4 目前沒有 —— 需與 §5.3 的新限制配套補進論文。它最便宜
-（既有 201 frames 加時間軸 mask，不需新 DNS），卻直接檢驗論文標題「Continuous-Time」
-與 CfC 的存在理由。對照組建議 GRU + Δt concat：若不規則時鐘下 CfC 主效應仍為正，
-或 B3 − B2 gap 未擴大，則該賣點在此問題上不成立，誠實的動作是換掉 CfC 並改標題。
-
-③ 括號揭露 K = 400 目前用 512 collocation（chapter04.tex:276 caption 明載），
-正是 chapter04:318 說「the three-point curve should not be read as a strict fit」的原因。
-另：實測 log-log 局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)，三點不在一直線上，
-matched budget 才能判斷那是真的彎還是 collocation 造成的。
 -->
 
 ---
