@@ -121,3 +121,10 @@
 .fw .ttl { font-size: 0.92rem; font-weight: 700; color: var(--color-ink); }
 .fw .det { font-size: 0.76rem; color: var(--color-muted); margin-top: 4px; line-height: 1.38; }
 .fw .cl { font-size: 0.6rem; color: var(--color-accent); font-weight: 700; letter-spacing: 0.04em; }
+
+/* ── Presentation legibility floor ──────────────────────────────────────
+   口試投影片字級不得太小（教授要求 ≥ 14pt；1 slide px ≈ 0.98pt）。
+   card 描述用的 text-xs 預設 0.75rem = 12px ≈ 11.8pt，全面抬到 0.83rem
+   ≈ 13.0pt。行高同步放大，否則放大的字會互相擠壓。
+   逐頁溢出後以「精簡文字」處理，不是把字改回小。 */
+.slidev-layout .text-xs { font-size: 0.83rem !important; line-height: 1.18rem !important; }

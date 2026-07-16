@@ -204,7 +204,6 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 .need { color: #E97132; font-weight: 700; }
 </style>
 
-<div class="text-xs mt-1" style="color:#6B7280;">The seven surveyed research lines <span class="opacity-70">(thesis Table 1.1)</span> fall into <b>four</b> blockers — each one a thing a real rig cannot supply.</div>
 
 <div class="blk">
 
@@ -261,10 +260,6 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 .dns tr.ours .who { color: #7F1084; }
 .dns tr.ours td.key { color: #7F1084; font-weight: 700; }
 </style>
-
-<div class="text-xs mt-1" style="color:#6B7280;">
-Query-anywhere and sensor-reading designs both exist — every one of them is trained against a reference field the rig will not have.
-</div>
 
 <table class="dns">
 <thead>
@@ -362,10 +357,6 @@ None of the seven surveyed works states a parameter count; the Reynolds number i
 .hh .yes { color: #7F1084; font-weight: 700; }
 </style>
 
-<div class="text-xs mt-1" style="color:#6B7280;">
-The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">Sensor measurements + PDE residual, no full reference field — the survey finds no others.</span>
-</div>
-
 <table class="hh">
 <thead>
 <tr>
@@ -436,7 +427,10 @@ The three that survive, and PI-CON alongside them. <span style="color:#9CA3AF;">
 <FooterLogos />
 
 <!--
-[Literature review 2/2 · 2min] 逐篇 head-to-head，每一格皆有原文出處（2026-07-15 查證）：
+[Literature review 2/2 · 2min] 口述開場（原標題下小字已移除，字太小）：
+「同 regime（sensor + PDE、無 full reference field）survey 只找到這三篇，PI-CON 與它們並列。」
+—— "the survey finds no others" 是回應委員「怎麼知道這是全部」的關鍵，務必口頭講出。
+逐篇 head-to-head，每一格皆有原文出處（2026-07-15 查證）：
 - Mo & Magri 2025 (arXiv 2409.00260): Re=34、80 input + 150 general sensors (≈0.9%)、
   128² grid、PC-DualConvNet (U-Net + Fourier branch)、residual 用 2nd/4th-order FD。
   原文報 relative ℓ₂ 5.51 ± 0.34 %（非 KE MAPE）。
@@ -500,7 +494,7 @@ the ceiling bites the tail, not the energy-dominant bulk
 
 </div>
 
-<div class="mt-3 px-4 py-2 rounded text-sm leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
+<div class="mt-2 px-4 py-2 rounded text-sm leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
 <b style="color:#7F1084;">More sensors, not a bigger network</b> · the limit is information, not architecture.
 </div>
 
@@ -627,8 +621,8 @@ $$\mathbf{f} = \bigl(A\sin(2\pi k_f y),\,0\bigr)$$
 </Card>
 
 <div>
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 200px; width: 100%; object-fit: contain;" />
-<div class="text-[10px] mt-1" style="color:#6B7280;">Fig. 1.&nbsp; QR-pivot K = 100 placement on ω(<b>x</b>, t = 5).</div>
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 150px; width: 100%; object-fit: contain;" />
+<div class="text-xs mt-1" style="color:#6B7280;">Fig. 1.&nbsp; QR-pivot K = 100 placement on ω(<b>x</b>, t = 5).</div>
 </div>
 
 </div>
@@ -698,7 +692,7 @@ graph LR
 </Card>
 </div>
 
-<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
+<div class="text-xs leading-snug" style="color:#6B7280;">
 Fourier trunk + GradNorm balancing · total ≈ 3.14 M parameters.
 </div>
 
@@ -830,7 +824,7 @@ Inner product is global — no spatial prior linking a query to nearby sensors. 
 <Card>
 <LabelTiny>① DISTANCE-BIASED CROSS-ATTENTION [Vaswani 2017]</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug"><b>Score</b> each sensor against the query:</div>
+<div class="mt-1 text-xs leading-snug"><b style="color:#7F1084;">① Score</b> · <b style="color:#7F1084;">② Retrieve</b></div>
 
 <div class="mt-1" style="font-size: 0.95em;">
 
@@ -838,15 +832,13 @@ $$A_{qk} = \mathrm{softmax}_k\!\left(\mathbf{Q}_q^{\top} \mathbf{K}_k \big/ \sqr
 
 </div>
 
-<div class="mt-1 text-xs leading-snug"><b>Retrieve</b> a blend of what they carry:</div>
-
-<div class="mt-1" style="font-size: 0.95em;">
+<div style="font-size: 0.95em;">
 
 $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
 
 </div>
 
-<div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:2px; align-items:baseline;">
+<div class="mt-1 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:1px; align-items:baseline;">
 <b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b> · Fourier (x, t)</span>
 <b style="color:#7F1084;">b<sub>qk</sub></b><span>distance bias · MLP<sub>relpos</sub>(r<sub>qk</sub>)</span>
 <b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b> · W<sub>K</sub> · scored</span>
@@ -862,7 +854,7 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 <Card>
 <LabelTiny>② TWO FLUID-SPECIFIC MODIFICATIONS</LabelTiny>
 
-<div class="mt-2 text-xs leading-snug"><b>Causal lookup</b> — query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b></div>
+<div class="mt-1 text-xs leading-snug"><b>Causal lookup</b> — query reads t ≤ t<sub>q</sub> only → <b style="color:#0F2D52;">streaming-deployable</b></div>
 
 <svg viewBox="0 0 300 60" class="w-full mt-1">
   <rect x="6" y="16" width="181" height="21" fill="#7F1084" opacity="0.08" rx="2"/>
@@ -882,7 +874,7 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
   <text x="208" y="55" style="font-size:12px" fill="#9CA3AF">future — hidden</text>
 </svg>
 
-<div class="mt-3 text-xs leading-snug"><b>Isotropic bias</b> — distance decides, direction does not</div>
+<div class="mt-1 text-xs leading-snug"><b>Isotropic bias</b> — distance decides, direction does not</div>
 
 <svg viewBox="0 0 300 104" class="w-full mt-1">
   <g fill="none" stroke="#E5E7EB" stroke-width="1" stroke-dasharray="3 2">
@@ -910,6 +902,12 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 </Card>
 
 </div>
+
+<style>
+/* 兩條 attention 公式相鄰，KaTeX 自帶的 display margin 疊起來會頂出頁尾。
+   只收這一頁的公式間距，不動別頁（Slidev 會把此 style scope 到本 slide）。 */
+.slidev-page-13 .katex-display { margin: 0.15em 0 !important; }
+</style>
 
 <FooterLogos />
 
@@ -1507,7 +1505,6 @@ Paper-grade findings：
 <div class="k">B0 &nbsp;vanilla DeepONet</div><div class="n">8.23 ± 0.22 %</div>
 <div class="k tot">gap</div><div class="n tot" style="color:#7F1084;">−30.6 % rel</div>
 </div>
-<div class="mt-2 text-[10px]" style="color:#6B7280;">t = 22.9 · p = 3.0×10⁻⁷ · Cohen's d = 14.5</div>
 </Card>
 
 </div>
@@ -1517,7 +1514,7 @@ Paper-grade findings：
 <FooterLogos />
 
 <!--
-[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.20pp（dominant lever）、CfC +1.00pp（worse alone）、interaction −2.32pp、sum −2.52pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.52pp（−30.6% relative）、p=3.0×10⁻⁷。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
+[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.20pp（dominant lever）、CfC +1.00pp（worse alone）、interaction −2.32pp、sum −2.52pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.52pp（−30.6% relative）、t=22.9、p=3.0×10⁻⁷、Cohen's d=14.5（統計顯著性從投影片移來，字太小委員看不清，改口述）。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
 -->
 
 ---
@@ -2142,8 +2139,8 @@ Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted s
 
 </div>
 
-<div class="mt-5 text-center">
-<Pill>70.7 ms encoder · 31k sparse queries/s · full-field query not real-time on CPU/MPS</Pill>
+<div class="mt-1 text-center">
+<Pill>70.7 ms encoder · 31k queries/s · full-field not real-time (CPU/MPS)</Pill>
 </div>
 
 <FooterLogos />
