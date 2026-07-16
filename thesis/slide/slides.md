@@ -816,7 +816,7 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 # Cross-attention — closing the "sparse-to-dense" gap
 
 <div class="text-xs opacity-70 mb-2">
-Vanilla DeepONet's inner product is global — no spatial prior linking a query to the nearest sensors.
+Inner product is global — no spatial prior linking a query to nearby sensors. <b style="color:#0F2D52;">Q</b> from the trunk, <b style="color:#D97757;">K</b>, <b style="color:#D97757;">V</b> from the sensor tokens — hence <i>cross</i>, not self.
 </div>
 
 <div class="grid gap-5 mt-2" style="grid-template-columns: 1.32fr 0.68fr;">
@@ -841,11 +841,11 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 </div>
 
 <div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:2px; align-items:baseline;">
-<b style="color:#7F1084;">Q<sub>q</sub></b><span>query token · Fourier (x, t)</span>
+<b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b> · Fourier (x, t)</span>
 <b style="color:#7F1084;">b<sub>qk</sub></b><span>distance bias · MLP<sub>relpos</sub>(r<sub>qk</sub>)</span>
-<b style="color:#7F1084;">K<sub>k</sub></b><span>sensor <b>key</b> · scored against query</span>
+<b style="color:#D97757;">K<sub>k</sub></b><span>from the <b style="color:#D97757;">sensor token</b> · W<sub>K</sub></span>
 <b style="color:#7F1084;">r<sub>qk</sub></b><span>smoothed torus distance</span>
-<b style="color:#7F1084;">V<sub>k</sub></b><span>sensor <b>value</b> · what q retrieves</span>
+<b style="color:#D97757;">V<sub>k</sub></b><span>the <b style="color:#D97757;">same token</b> · W<sub>V</sub> · what q retrieves</span>
 <b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim · softmax scaling</span>
 <b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · residual MLP</span>
 <b style="color:#7F1084;">A<sub>qk</sub></b><span>weight of sensor k for query q</span>
@@ -910,7 +910,12 @@ A directional bias would learn the sensors' non-uniform x-layout as spurious dir
 [Cross-attention introduction · backup 1min] 少談 Transformer 內部細節，照 thesis §2.3 的骨架講：
 「Two modifications adapt it to fluid reconstruction: an isotropic relative-position bias and a causal lookup over sensor time.」(chapter02:257)
 頂部一句話：vanilla DeepONet inner product 是 global、沒 spatial prior，所以換成 cross-attention 做 sparse-to-dense readout（chapter02:135 原話）。
-卡 1：機制 — Σ A_qk V_k → c_branch；A_qk = softmax(QK/√d + b_qk)；b_qk = MLP_relpos(LayerNorm(r_qk))；
+卡 1：機制 — 先 Score（A_qk = softmax(QK/√d + b_qk)）再 Retrieve（Σ A_qk V_k → c_branch）。
+      為何叫 cross 不叫 self：self-attention 的 Q/K/V 同源，這裡 Q 來自 trunk（查詢點）、
+      K 與 V 來自同一個 sensor token H_q[k] 走 W_K / W_V 兩個投影（chapter02:290-292）。
+      卡上用顏色編碼：Q 深藍（trunk）、K 與 V 橘（sensor token，同源）。
+      √d_hidden 是 softmax 溫度縮放，不是 V；用 \big/ 寫成一行避免根號被 \frac 分母縮小而誤讀成 V。
+      b_qk = MLP_relpos(LayerNorm(r_qk))；
       r_qk 先 fold 回環面再取 smooth norm，ε=10⁻⁸ 是為了避免 query 落在 sensor 上時 second-order autograd 出 NaN（chapter02:279）。
 卡 2：兩項 fluid-specific 修改，改用圖不用公式（searchsorted/clamp 是實作細節，同心圓是幾何，兩者用文字講都不直觀）。
       被問實作時再答 chapter02:263 的 n*(q) = clamp(searchsorted({t_n}, t_q, right=True) − 1, 0, N_t − 1)。
