@@ -308,7 +308,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 Their few-% error is real — and bought with the one thing a rig never has. Strip the reference field and <b style="color:#7F1084;">exactly three</b> published works remain. <span style="color:#9CA3AF;">Those three, next.</span>
 </div>
 
-<div class="mt-2 text-[10px]" style="color:#C9C6D0;">
+<div class="mt-2 text-xs" style="color:#C9C6D0;">
 None of the seven surveyed works states a parameter count; the Reynolds number is unstated in three of the four above.
 </div>
 
@@ -1033,7 +1033,7 @@ $$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
 <b style="color:#7F1084;">Our AL (λ)</b><span>ascent on the mean residual · <b>in expectation</b></span>
 </div>
 
-<div class="mt-1 text-[10px]" style="color:#6B7280;">
+<div class="mt-1 text-xs" style="color:#6B7280;">
 an analog, not an algorithmic equivalent
 </div>
 
@@ -1044,7 +1044,7 @@ an analog, not an algorithmic equivalent
 <span style="color:#6B7280;">DNS, band-limited to k ≤ 16</span><span style="color:#9CA3AF;">0.38 %</span>
 <span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
 </div>
-<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
 Driven to the finite-difference floor its resolved scales permit — <b>not</b> below DNS. Raising ρ tightens it further (0.39 → 0.28 % at ρ = 1) and costs field accuracy: the knob is live.
 </div>
 </div>
@@ -1306,7 +1306,7 @@ $$\mathrm{rel}\,L_2(\phi) = \frac{\|\phi_{\text{pred}} - \phi_{\text{DNS}}\|_2}{
 <div class="sym">div ratio</div><div class="def">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></div>
 </div>
 
-<div class="mt-3 text-[10px]" style="color:#6B7280;">
+<div class="mt-3 text-xs" style="color:#6B7280;">
 4th-order central differences on 128² eval grid; div L₂ referenced to the DNS FD floor.
 </div>
 </Card>
@@ -1404,9 +1404,9 @@ Setup&nbsp;·&nbsp; Re = 10⁴ · K = 100 · <b>LES-derived QR-pivot placement (
   </tbody>
 </table>
 
-<div class="text-[10px] mt-1 leading-snug" style="color:#374151;">
+<div class="text-xs mt-2 leading-snug" style="color:#374151;">
 <span class="uppercase tracking-widest" style="color:#7F1084;">Take-away</span>&nbsp;·&nbsp;
-n = 5, ranked by KE · B3 vs B0 <b>−2.52 pp</b> (t = 22.9, p = 3.0×10⁻⁷) · cross-attention the dominant standalone lever, CfC via interaction · ω rel-L₂ a derivative diagnostic (curl amplifies high-k null-space error); engineering metric = KE.
+B3 vs B0 <b style="color:#7F1084;">−2.52 pp</b> on KE · cross-attention the dominant lever, CfC via interaction · ω rel-L₂ a derivative diagnostic, KE the engineering metric.
 </div>
 
 </div>
@@ -1495,7 +1495,7 @@ Paper-grade findings：
 <div class="k">CfC × cross-attention</div><div class="n" style="color:#7F1084;">−2.32</div>
 <div class="k tot">total &nbsp;B3 − B0</div><div class="n tot">−2.52</div>
 </div>
-<div class="mt-2 text-[10px]" style="color:#6B7280;">Additive about the B0 reference cell (8.23 %); interaction outweighs either main effect.</div>
+<div class="mt-2 text-xs" style="color:#6B7280;">Additive about the B0 reference cell (8.23 %); interaction outweighs either main effect.</div>
 </Card>
 
 <Card>
@@ -1539,7 +1539,7 @@ Paper-grade findings：
 </div>
 </Card>
 
-<div class="mt-3 text-[10px] leading-snug" style="color:#6B7280;">
+<div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
 Colourbar: DNS &amp; PI-CON share ±max; error scaled independently.<br/>
 Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, metrics n = 5.
 </div>
@@ -1606,7 +1606,7 @@ Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, met
 <div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error ≈ 4 %</div>
 <div class="k">Mid / high k</div><div class="v">saturate at 100 %</div>
 </div>
-<div class="mt-1 text-[10px]" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
+<div class="mt-1 text-xs" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
 </Card>
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
@@ -1880,8 +1880,8 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <div class="k">ω rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
 <div class="k">σ<sub>u</sub>/σ<sub>v</sub> <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">0.90</div><div class="v good">2.30</div>
 </div>
-<div class="mt-1 text-[9px] leading-tight" style="color:#6B7280;">
-DNS anisotropy σ<sub>u</sub>/σ<sub>v</sub> = 2.32. <b>These are not the headline numbers</b>: PI-CON's KE here is the late-window (t ≳ 3.3) mean and u/v/ω are the t = 5 snapshot, both matched to the forward-CFD forecast — the main-result KE MAPE 5.71 % and u rel-L₂ 13.65 % are means over the whole t ∈ [0, 5] window.
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
+<b>Not the headline numbers</b> · late-window / t = 5 snapshot, matched to the forward-CFD forecast.
 </div>
 </Card>
 
@@ -1896,13 +1896,17 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 
 </div>
 
-<div class="mt-3 text-[10px] leading-snug" style="color:#6B7280;">
+<div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
 Open-loop reference, not a matched assimilation baseline: the forecast builds a divergence-free field from the K = 100 sensors at t = 0, then integrates freely with nothing assimilated after. It also uses <b>200 DNS snapshots offline</b> for its POD-rank-40 basis — more information than PI-CON, which sees only the sensor stream.
 </div>
 
 <FooterLogos />
 
 <!--
+[Forward-CFD · 2min] 圖下小字精簡後的完整口徑（原註記字太小已縮）：
+  DNS anisotropy σ_u/σ_v = 2.32。此頁 KE 是 late-window (t ≳ 3.3) mean、u/v/ω 是 t=5 snapshot，
+  兩者都對齊 forward-CFD forecast 的比較窗；main-result 的 KE MAPE 5.71%、u rel-L₂ 13.65%
+  則是整個 t ∈ [0,5] 窗的均值。委員若追問「這數字跟主結果為何不同」照此回答。
 [Forward-CFD · 2min] 委員第一反射問題「為何不直接 forward CFD」的正面回答。
 主視覺＝能譜重疊圖（thesis/figures/results/forward_cfd_spectrum_t5.png；論文未引用此圖，
 appendix07 只有 tab:forward_cfd 表）。
@@ -1942,14 +1946,17 @@ Where PI-CON departs from DNS follows the sensor Nyquist <span class="raw">k<sub
      style="display: block; margin: 0 auto; max-width: 94%; height: auto;" />
 </Card>
 
-<div class="mt-2 text-[10px] leading-snug" style="color:#6B7280;">
-Single-seed at the final protocol, read as a trend rather than a fit: K = 100 is the seed-42 run (the n = 5 mean is 5.71 %), and the K = 400 run uses 512 collocation points instead of 1024.
+<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
+Single-seed at the final protocol · read as a trend, not a fit.
 </div>
 
 <FooterLogos />
 
 <!--
-[K-scaling · 1.5min] O2 數量軸。主視覺＝三連能譜（scripts/plot_spectrum_k_scaling_triptych.py，
+[K-scaling · 1.5min] 圖下小字精簡後的完整口徑（原註記字太小已縮）：
+  K=100 是 seed-42 單 run（n=5 mean 為 5.71%）；K=400 run 用 512 collocation points（非 1024）。
+  所以這條 K-scaling 是 single-seed trend，不是 fit。
+O2 數量軸。主視覺＝三連能譜（scripts/plot_spectrum_k_scaling_triptych.py，
 投影片專用；論文用 fig:k_scaling_spectra 的三張 subfigure）。講法：指綠線 —— 5.64 → 7.98 →
 11.28 一路右移，而藍色 PI-CON 正好在綠線處脫離黑色 DNS，三格都是。這就是 chapter04:169
 「the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling」。
@@ -2052,7 +2059,7 @@ Additive Gaussian noise, per-channel, as a fraction of each sensor's standard de
 Every row climbs — noise is not free. None of them crosses: at the field worst case KE still sits <b style="color:#7F1084;">3.9 pp</b> under target. <b>Reliability, not feasibility.</b>
 </div>
 
-<div class="mt-2 text-[10px]" style="color:#9CA3AF;">
+<div class="mt-2 text-xs" style="color:#9CA3AF;">
 KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller than that spread.
 </div>
 
