@@ -536,13 +536,6 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 
 </div>
 
-<div class="mt-2 px-3 py-1.5 rounded" style="background: rgba(127, 16, 132, 0.06); border-left: 3px solid #7F1084;">
-<div class="text-xs uppercase tracking-widest mb-0.5" style="color:#7F1084;">Contribution</div>
-<div class="text-sm leading-snug" style="color:#374151;">
-<b>PI-CON</b> · CfC branch + distance-biased cross-attention + augmented-Lagrangian continuity · among surveyed methods the only <b>query-anywhere</b> + <b>sensor-only-with-physics</b> at Re = 10⁴.
-</div>
-</div>
-
 <FooterLogos />
 
 <!--
@@ -552,7 +545,17 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
   O1 重建器（準＋快）：sensor+PDE only 達 engineering grade，任意點單次前傳。criterion KE<10% n=5 / dominant lever ≥2pp @p<0.01 / 單次前傳 ≥5× 快於 forward-solving。
   O2 數量軸：可重建波數由 sensor 數量決定，非架構。criterion k_max^sensor=√(K/π)≈5.64 @K=100；K=100/200/400 cutoff 隨 √(K/π) 移動。
   O3 位置&噪音軸：placement/noise 影響 reliability 不影響 feasibility。criterion 三 placement 皆 engineering-grade、σ_placement≥3×σ_training；noise 到 10% 仍 engineering-grade。
-底部 Contribution：PI-CON = CfC branch + distance-biased cross-attn + AL-continuity，surveyed operator 中首個結合 query-anywhere continuous-time 與 sensor-only-with-physics @Re=10⁴。具體數值留 §Results / §Conclusion。
+⚠️ 2026-07-16 移除底部的 Contribution 區塊 —— 三重重複：
+(a) 「surveyed 中唯一結合 query-anywhere + sensor-only-with-physics @ Re=10⁴」已在
+    slide 7（Same-regime works）的「No surveyed work combines all three」講過；
+(b) 「PI-CON = CfC branch + cross-attn + AL-continuity」是 slide 12（Three additions
+    to DeepONet）整頁的內容；
+(c) 貢獻條列在 §Conclusion 有專頁。
+本頁專責「要達成什麼 + 怎麼判定失敗」，架構與貢獻留給後面。
+
+口述橋接（頁面不印）：「這三個目標分別由架構、數量軸、位置與噪音軸回答 —— 先看架構。」
+論文 §Objective 結尾有 \paragraph{Contribution}（thesis/CLAUDE.md 要求），那是論文體例；
+投影片有專頁，不需在此重複。
 -->
 
 ---
@@ -665,7 +668,7 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 <Card>
 <LabelTiny>DNS VERIFICATION</LabelTiny>
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓ <span style="color:#6B7280;">(backup)</span></div>
+<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓ <span style="color:#9CA3AF;">full table in appendix</span></div>
 <div><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnovers</b></div>
 </div>
 </Card>
@@ -1012,7 +1015,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <LabelTiny>LES VERIFICATION</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓ <span style="color:#6B7280;">(backup)</span></div>
+<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓ <span style="color:#9CA3AF;">full table in appendix</span></div>
 <div><b>Statistical window</b>&nbsp; T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b style="color:#7F1084;">11.7</b> ≥ 10 · N<sub>eff</sub> = 5.8</div>
 <div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b>, not training truth</div>
 </div>
@@ -1234,7 +1237,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 </div>
 
-<div class="foot mt-2">Full hyperparameter tables in backup.</div>
+<div class="foot mt-2">Full hyperparameter tables in the appendix.</div>
 
 <FooterLogos />
 
@@ -1248,7 +1251,7 @@ disabled: true
 
 <NavBar active="method" />
 
-<SectionTag>§ Backup · full hyperparameter tables</SectionTag>
+<SectionTag>§ Appendix · full hyperparameter tables</SectionTag>
 
 # Configuration parameters — full reference
 
@@ -1630,7 +1633,7 @@ Backup. 停用理由（2026-07-15）：
 
 <NavBar active="results" />
 
-<SectionTag>§ Backup · velocity error analysis</SectionTag>
+<SectionTag>§ Appendix · velocity error analysis</SectionTag>
 
 # Channel-wise interpretation — u, v anisotropy and structural error
 
@@ -2254,7 +2257,7 @@ disabled: true
 
 <NavBar active="results" />
 
-<SectionTag>§ Backup · multi-constraint AL diagnostic · EXP-292</SectionTag>
+<SectionTag>§ Appendix · multi-constraint AL diagnostic · EXP-292</SectionTag>
 
 # NS-momentum AL is mixed, not a promoted main recipe
 
@@ -2584,7 +2587,7 @@ disabled: true
 
 <NavBar active="results" />
 
-<SectionTag>§ Backup · historical physics-sampling diagnostic</SectionTag>
+<SectionTag>§ Appendix · historical physics-sampling diagnostic</SectionTag>
 
 # Historical sampling-budget sweep motivated the final protocol
 
@@ -2680,7 +2683,7 @@ disabled: true
 
 <NavBar active="results" />
 
-<SectionTag>§ Backup · historical Architecture × Placement 2D ablation · EXP-240</SectionTag>
+<SectionTag>§ Appendix · historical Architecture × Placement 2D ablation · EXP-240</SectionTag>
 
 # Historical 2D ablation is not the current placement comparison
 
@@ -2764,9 +2767,9 @@ disabled: true
 
 <NavBar active="summary" />
 
-<SectionTag>§ Backup material</SectionTag>
+<SectionTag>§ Appendix material</SectionTag>
 
-# Backup slides — Q&A reference
+# Appendix — Q&A reference
 
 <div class="mt-12 text-center text-xl" style="color:#6B7280;">
 The following slides cover deeper details on methodology, ablations, and CFD-rigour questions.<br/>
@@ -2991,7 +2994,7 @@ disabled: true
 
 <NavBar active="summary" />
 
-<SectionTag>§ Backup · anticipated Q&A</SectionTag>
+<SectionTag>§ Appendix · anticipated Q&A</SectionTag>
 
 # Defense preparation — CFD-rigour questions
 
