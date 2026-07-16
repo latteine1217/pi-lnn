@@ -756,7 +756,7 @@ const gateOpts = {
 h relaxes toward a target A · the <b>decay rate depends on the input</b> — a "liquid" time constant:
 </div>
 
-<div class="mt-1" style="font-size: 0.6em;">
+<div class="mt-1" style="font-size: 0.95em;">
 
 $$\frac{d h}{dt} = -\underbrace{\Bigl[\tfrac{1}{\tau} + f(\cdot)\Bigr]}_{\text{input-dependent rate}} \odot\, h \;+\; f(\cdot) \odot A$$
 
@@ -774,9 +774,15 @@ $$\frac{d h}{dt} = -\underbrace{\Bigl[\tfrac{1}{\tau} + f(\cdot)\Bigr]}_{\text{i
 Same dynamics solved analytically — <b>a gate σ that blends two candidate states</b>:
 </div>
 
-<div class="mt-1" style="font-size: 0.6em;">
+<div class="mt-1" style="font-size: 0.95em;">
 
-$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2, \qquad \sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
+$$h(t + \Delta t) = \sigma \odot f_1 + (1 - \sigma) \odot f_2$$
+
+</div>
+
+<div class="mt-1" style="font-size: 0.95em;">
+
+$$\sigma = \mathrm{sigmoid}(-\tau_a \Delta t + t_b)$$
 
 </div>
 
