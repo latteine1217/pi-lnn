@@ -661,7 +661,7 @@ DeepONet needs three changes to become a sparse inverse-flow operator — the re
 
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
 
-```mermaid {scale: 0.50}
+```mermaid {scale: 0.66}
 graph LR
   A[K=100 sensors] --> B[CfC branch<br/>continuous-time]
   C[Queries x,t] --> D[Fourier embed] --> M[MLP trunk]
