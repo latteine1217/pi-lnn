@@ -334,95 +334,88 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <NavBar active="background" />
 
-<SectionTag>§ Literature review · the same-regime works, head to head</SectionTag>
+<SectionTag>§ Literature review · same-regime works</SectionTag>
 
-# Same-regime works — head to head
+# Same-regime works
 
 <style>
-.hh { width: 100%; border-collapse: collapse; font-size: 0.84rem; margin-top: 6px; margin-bottom: 0; }
-.hh th { text-align: left; font-weight: 700; color: #6B7280; font-size: 0.84rem; text-transform: uppercase;
-         letter-spacing: 0.04em; padding: 0 7px 4px 7px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.hh td { padding: 3px 7px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.2; }
-.hh tr.ours td { background: #F7EDF8; border-bottom: none; }
-.hh .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.hh .no { color: #E97132; }
-.hh .yes { color: #7F1084; font-weight: 700; }
+.hh { width: 100%; border-collapse: collapse; font-size: 1.02rem; margin-top: 16px; }
+.hh th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.72rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 12px 8px 12px; border-bottom: 1px solid #D8D2E0; }
+.hh td { padding: 13px 12px; border-bottom: 1px solid #F1EDF5; color: #374151; }
+.hh .who { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.hh .who span { display: block; font-weight: 400; color: #9CA3AF; font-size: 0.72em; margin-top: 2px; }
+.hh tr.ours td { background: #F7EDF8; border-bottom: none; color: #7F1084; font-weight: 700; }
 </style>
 
 <table class="hh">
 <thead>
 <tr>
-<th style="width: 17%;">Work</th>
-<th style="width: 22%;">Architecture</th>
-<th style="width: 8%;">Re</th>
-<th style="width: 15%;">Probes<br/>(fixed)</th>
-<th style="width: 13%;">Sensors as input</th>
-<th style="width: 13%;">Readout</th>
-<th style="width: 14%;">NS residual</th>
+<th style="width: 30%;">Work</th>
+<th style="width: 14%;">Re</th>
+<th style="width: 16%;">Probes</th>
+<th style="width: 20%;">Sensors as input</th>
+<th style="width: 20%;">Readout</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td class="who">Mo &amp; Magri 2025</td>
-<td>PC-DualConvNet · U-Net + Fourier branch</td>
-<td class="no">34</td>
-<td class="no">230</td>
-<td class="yes">✓</td>
-<td class="no">128² fixed</td>
-<td class="no">finite difference</td>
+<td class="who">Mo &amp; Magri 2025 <span>PC-DualConvNet</span></td>
+<td>34</td>
+<td>230</td>
+<td>✓</td>
+<td>128² fixed mesh</td>
 </tr>
 <tr>
-<td class="who">Kelshaw et al. 2022</td>
-<td>VDSR (VGG-style CNN) + bicubic upsample</td>
-<td class="no">34</td>
-<td>100 <span style="color:#9CA3AF;">(10×10)</span></td>
-<td class="yes">✓</td>
-<td class="no">150² fixed</td>
-<td class="no">pseudospectral</td>
+<td class="who">Kelshaw et al. 2022 <span>VDSR CNN</span></td>
+<td>34</td>
+<td>100</td>
+<td>✓</td>
+<td>150² fixed mesh</td>
 </tr>
 <tr>
-<td class="who">Parfenyev et al. 2024</td>
-<td>PINN · coordinate MLP 7 × 250</td>
-<td class="no">1.3×10³</td>
-<td class="no">none — <span style="color:#9CA3AF;">3×10⁴ scattered (r, t) samples</span></td>
-<td class="no">✗ loss term only</td>
-<td class="yes">query-anywhere</td>
-<td class="yes">autodiff</td>
+<td class="who">Parfenyev et al. 2024 <span>coordinate-MLP PINN</span></td>
+<td>1.3×10³</td>
+<td>none</td>
+<td>✗ loss term only</td>
+<td>query-anywhere</td>
 </tr>
 <tr class="ours">
-<td class="who"><b style="color:#7F1084;">PI-CON (ours)</b></td>
-<td><b>DeepONet + CfC + cross-attention</b></td>
-<td class="yes">10⁴</td>
-<td class="yes">100</td>
-<td class="yes">✓</td>
-<td class="yes">query-anywhere</td>
-<td class="yes">autodiff</td>
+<td class="who" style="color:#7F1084;">PI-CON (ours) <span style="color:#B98ABD;">DeepONet + CfC</span></td>
+<td>10⁴</td>
+<td>100</td>
+<td>✓</td>
+<td>query-anywhere</td>
 </tr>
 </tbody>
 </table>
 
-<div class="grid grid-cols-3 gap-4 mt-3 text-xs">
-<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
-<LabelTiny>Reynolds number</LabelTiny>
-<div class="mt-1 leading-snug">Nearest <b style="color:#E97132;">7.7×</b> lower · CNN pair <b style="color:#E97132;">300×</b> lower</div>
-</Card>
-<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
-<LabelTiny>Measurement model</LabelTiny>
-<div class="mt-1 leading-snug">Mo &amp; Magri <b style="color:#E97132;">2.3×</b> our probes · Parfenyev: none, random <b>(r, t)</b></div>
-</Card>
-<Card style="padding-top: 0.45rem; padding-bottom: 0.45rem;">
-<LabelTiny>No surveyed work combines all three</LabelTiny>
-<div class="mt-1 leading-snug">Query-anywhere · sensors-as-input · Re = 10⁴</div>
-</Card>
-</div>
-
 <FooterLogos />
 
 <!--
-[Literature review 2/2 · 2min] 口述開場（原標題下小字已移除，字太小）：
+[Literature review 2/2 · 2min] 口述開場：
 「同 regime（sensor + PDE、無 full reference field）survey 只找到這三篇，PI-CON 與它們並列。」
 —— "the survey finds no others" 是回應委員「怎麼知道這是全部」的關鍵，務必口頭講出。
-逐篇 head-to-head，每一格皆有原文出處（2026-07-15 查證）：
+
+== 口述三個 take-away（2026-07-16 從頁面移除的三張卡，改用講的）==
+① Reynolds number：最接近的一篇仍低 7.7×（1.3×10³ vs 10⁴），兩篇 CNN 低 300×（34 vs 10⁴）。
+② Measurement model：Mo & Magri 用 2.3× 於我們的 probe 數（230 vs 100）；
+   Parfenyev 根本沒有固定測站 —— 它抽 3×10⁴ 個隨機 (r, t) 樣本，那是任何 rig 都裝不出來的
+   量測模型（chapter01:99 原文「not one a rig can install」）。
+③ 本頁的落點：**沒有任何 surveyed work 同時做到 query-anywhere + sensors-as-input + Re=10⁴**
+   —— 表格右兩欄加上 Re 欄一起看就是這個結論，指著表講即可，不需要再印一次。
+
+== 表格設計（2026-07-16 重做）==
+原本 7 欄且同一組橘/紫被用在四種不同意思上（Re 的橘、probes 的橘、readout 的橘、
+residual 的橘都代表「比我們差」）—— 每格都是重點就等於沒有重點。現在：
+  - 欄位砍到 5 欄：Work / Re / Probes / Sensors as input / Readout
+  - 移除 Architecture 獨立欄（併為 Work 下的灰色小字）與 NS residual 欄
+    （NS residual 與 Readout 高度相關：query-anywhere 必然是 autodiff，fixed mesh 必然是
+     FD/pseudospectral，多一欄不增資訊；且「都有 PDE residual」正是本頁 same-regime 的前提，
+     已寫在標題下那句）
+  - 顏色只留一個意思：**紫色 = PI-CON 那一列**。其餘全中性。
+
+逐篇出處（2026-07-15 查證）：
 - Mo & Magri 2025 (arXiv 2409.00260): Re=34、80 input + 150 general sensors (≈0.9%)、
   128² grid、PC-DualConvNet (U-Net + Fourier branch)、residual 用 2nd/4th-order FD。
   原文報 relative ℓ₂ 5.51 ± 0.34 %（非 KE MAPE）。
@@ -569,7 +562,7 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 <div class="grid grid-cols-2 gap-5 mt-4 items-stretch">
 
 <div class="flex justify-center items-center">
-  <img :src="'/images/kolmogorov_dns_vorticity_re10000_t5.png'"
+  <img :src="'/images/kolmogorov_dns_vorticity_anim.gif'"
        class="rounded-lg border" style="border-color:#E5E0EC; max-height: 320px; width: auto;" />
 </div>
 
@@ -613,8 +606,29 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 - 診斷 Re_f ≡ U_rms λ_f/ν ≈ 2.5×10³ = eq:re_inj (ch03:29)
 
 == 口述（頁面刻意不印）==
-指圖：「二維 Kolmogorov flow，t=5 渦度場，256² stored grid（軸是格點 index）。
-forcing 尺度的渦捲夾著薄剪切層 —— 那些細結構就是 K=100 看不到的部分。」
+指圖（動畫，t = 0 → 5，41 幀循環）：「二維 Kolmogorov flow 的渦度場。
+forcing 尺度的渦捲夾著薄剪切層，隨時間翻捲 —— 那些細結構就是 K=100 看不到的部分。」
+
+⚠️ 2026-07-16 改用動畫 GIF（原為 t=5 靜態 PNG）。來源：舊 Corning 面試稿
+~/Downloads/slidev-presentation/public/animation_vorticity_re10000.gif，已複製進 public/images/。
+使用前逐項驗證過它與本論文 DNS 同源，非隨手取用：
+  - 頁腳標註 "N=1024 ETD-RK4 fp64 3/2 dealias T=5" → 對應 chapter03 tab:dns_params 的
+    run 1024²、ETDRK4、fp64、T=5（3/2 padding 與 2/3 truncation 是同一件事的兩種說法）
+  - 軸為 0.0–1.0 物理座標 → domain [0,1]²，與 chapter03:12/20 一致
+    （注意：r3 deck 的**文字**寫 [0,2π]² 是錯的，但這張**圖**本身是對的，兩者不要混淆）
+  - 最後一幀 t=5.00 的渦結構與 kolmogorov_dns_vorticity_re10000_t5.png 完全吻合 → 同一次 DNS
+順帶修掉舊靜態圖的缺點：那張的軸是 "x index"/"y index"（格點編號），GIF 是物理座標。
+
+⚠️ 已對原始 GIF 做兩處後製（scripts 無產生腳本，故直接改檔）：
+  1. 裁掉頂端 19 列 —— **原檔的標題帶「Kolmogorov DNS Re=10000」本身就被切掉一截**
+     （實測第 0 列即有 191 px 非白墨），且該標題與投影片 H1 重複。裁掉比留半截字乾淨。
+     保留第 25 列起的 "t = ..." 時間戳（顯示動畫進度）與頁腳的 DNS 參數標註。
+  2. 128 色調色盤 + optimize → 12.0 MB 壓到 4.1 MB，t=5 幀與原檔比對無可見劣化。
+裁切後尺寸 1050 × 956（原 1050 × 975）。
+
+⚠️ .gitignore 未擋此檔 → commit 會進 repo（4.1 MB）。
+⚠️ 匯出 PDF 時 GIF 只會定格第一幀（t = 0，初始細碎場）。若 PDF 版需要有意義的畫面，
+   改用 kolmogorov_dns_vorticity_re10000_t5.png，或接受定格在 t=0。
 「最接近的同 regime 工作 Mo & Magri 2025 做同一個 case，但在 Re=34。」(chapter01.tex:99)
 Re 兩個為何不同（被問才展開，本頁真正的火力）：
 「控制 Re 透過 ν 指定，不是量出來的；量出來的注入尺度 Re_f ≈ 2.5×10³。
@@ -714,18 +728,28 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
 
-```mermaid {scale: 0.58}
+```mermaid {scale: 0.62}
 graph LR
-  A["K=100 sensors<br/><span style='font-size:0.72em;color:#6B7280'>201 × 100 × 2</span>"] --> B["CfC branch<br/>continuous-time<br/><span style='font-size:0.72em;color:#A9BBD0'>201 × 100 × 256</span>"]
-  C["Queries x,t<br/><span style='font-size:0.72em;color:#6B7280'>x, y, t, c</span>"] --> D["Fourier embed<br/><span style='font-size:0.72em;color:#A9BBD0'>128</span>"]
-  D --> M["MLP trunk<br/><span style='font-size:0.72em;color:#A9BBD0'>256</span>"]
-  M --> T["trunk_basis<br/><span style='font-size:0.72em;color:#E2A98C'>3 × 256</span>"]
-  M --> X(("Cross-Attn<br/>+ dist. bias<br/><span style='font-size:0.72em;color:#FBDACB'>100 × 256</span>"))
+  A["K=100 sensors<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>201 × 100 × 2</span>"]
+  B["CfC branch<br/>continuous-time<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>201 × 100 × 256</span>"]
+  C["Queries x,t<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>Nq × 4</span>"]
+  D["Fourier embed<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>Nq × 128</span>"]
+  M["MLP trunk<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>Nq × 256</span>"]
+  T["trunk_basis<br/><span style='font-size:0.8em !important;color:#C2603A !important'>Nq × 3 × 256</span>"]
+  X(("Cross-Attn<br/>+ dist. bias<br/><span style='font-size:0.8em !important;color:#FFEDE4 !important'>Nq × 100 × 256</span>"))
+  Br["branch_basis<br/><span style='font-size:0.8em !important;color:#C2603A !important'>Nq × 3 × 256</span>"]
+  F{{"Inner<br/>product"}}
+  O["u, v, p<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>Nq × 3</span>"]
+  A --> B
+  C --> D
+  D --> M
+  M --> T
+  M --> X
   B --> X
-  X --> Br["branch_basis<br/><span style='font-size:0.72em;color:#E2A98C'>3 × 256</span>"]
-  T --> F{{"Inner<br/>product"}}
+  X --> Br
+  T --> F
   Br --> F
-  F --> O["u, v, p<br/><span style='font-size:0.72em;color:#6B7280'>3</span>"]
+  F --> O
   style F fill:#D97757,color:#fff,stroke:#D97757
   style X fill:#D97757,color:#fff,stroke:#D97757
   style T fill:#FFF7EE,color:#D97757,stroke:#D97757,stroke-dasharray: 3 3
@@ -736,9 +760,14 @@ graph LR
   linkStyle default font-size:9px,color:#6B7280
 ```
 
+<div class="text-[10px] px-1" style="color:#9CA3AF;">
+Tensor shapes · sensor path fixed per trajectory (201 time steps × 100 sensors) · query path batched over
+<b>N<sub>q</sub></b> = 1 024 collocation points per training step, 128² grid at evaluation.
 </div>
 
-<div class="grid grid-cols-3 gap-3 mt-2 text-xs">
+</div>
+
+<div class="grid grid-cols-3 gap-3 mt-1 text-xs">
 <Card>
 <LabelTiny>CfC branch</LabelTiny>
 <div class="mt-1 leading-snug">Reads the irregularly-clocked sensor time signal, not a fixed-grid snapshot · keeps (O1) sensor-only training feasible.</div>
@@ -751,10 +780,6 @@ graph LR
 <LabelTiny>Augmented Lagrangian</LabelTiny>
 <div class="mt-1 leading-snug">Adaptive penalty on ∇·u · incompressibility as an active constraint, not a soft residual.</div>
 </Card>
-</div>
-
-<div class="text-xs leading-snug" style="color:#6B7280;">
-Fourier trunk + GradNorm balancing · total ≈ 3.14 M parameters.
 </div>
 
 <FooterLogos />
