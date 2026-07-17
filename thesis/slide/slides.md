@@ -1694,8 +1694,9 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Why KE 5.7 % but <span class="raw">ω</span> 41.8 %</LabelTiny>
 <div class="bg2">
-<div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error ≈ 4 %</div>
-<div class="k">Mid / high k</div><div class="v">saturate at 100 %</div>
+<div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error <b>2.5 %</b> (median)</div>
+<div class="k">Mid k · 5–16</div><div class="v"><b>53 %</b> — about half the band energy recovered</div>
+<div class="k">High k &gt; 16</div><div class="v"><b>99.9 %</b> — no energy placed in the band</div>
 </div>
 <div class="mt-1 text-xs" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
 </Card>
