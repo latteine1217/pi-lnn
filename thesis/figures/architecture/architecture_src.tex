@@ -15,7 +15,7 @@
 
 \newcommand{\ttl}[1]{\textbf{#1}}
 \newcommand{\btl}[1]{\textcolor{picon}{\textbf{#1}}}
-\newcommand{\sub}[1]{{\footnotesize #1}}
+\newcommand{\sub}[1]{{\small #1}}
 
 \begin{document}%
 \setbox0=\hbox{%
@@ -39,26 +39,26 @@
 
 % ---- branch row ----
 \node[box, text width=2.5cm]  (obs)  at (0,0)      {\ttl{Observations}\\[1pt]\sub{sensor values,\\ positions + time}};
-\node[box, text width=2.7cm]  (spat) at (4.0,0)    {\ttl{Spatial Tokens}\\[1pt]\sub{Fourier/RFF encoding,\\ residual MLP}};
-\node[picon, text width=2.6cm](cfc)  at (8.0,0)    {\btl{CfC Memory}\\[1pt]\sub{token attention,\\ causal scan dt}};
+\node[box, text width=2.7cm]  (spat) at (3.4,0)    {\ttl{Spatial Tokens}\\[1pt]\sub{Fourier/RFF encoding,\\ residual MLP}};
+\node[picon, text width=2.6cm](cfc)  at (6.8,0)    {\btl{CfC Memory}\\[1pt]\sub{token attention,\\ causal scan dt}};
 
 % ---- trunk row ----
-\node[box, text width=2.4cm]  (qry)  at (4.0,-3.2) {\ttl{Query}\\[1pt]\sub{$(x,y,t_q,c)$}};
-\node[box, text width=2.7cm]  (tf)   at (8.0,-3.2) {\ttl{Trunk Feature}\\[1pt]\sub{Fourier + temporal anchor,\\ dt\_to\_query}};
+\node[box, text width=2.4cm]  (qry)  at (3.4,-3.2) {\ttl{Query}\\[1pt]\sub{$(x,y,t_q,c)$}};
+\node[box, text width=2.7cm]  (tf)   at (6.8,-3.2) {\ttl{Trunk Feature}\\[1pt]\sub{Fourier + temporal anchor,\\ dt\_to\_query}};
 
 % ---- interaction ----
-\node[picon, text width=4.0cm](ca)   at (11.8,-1.6){\btl{Cross-Attention Readout}\\[1pt]\sub{Q from trunk, K,V from CfC memory,\\ isotropic distance bias}};
+\node[picon, text width=2.9cm](ca)   at (10.5,-1.6){\btl{Cross-Attention Readout}\\[1pt]\sub{isotropic distance bias}};
 
 % ---- output ----
-\node[box, text width=2.6cm]  (bb)   at (15.8,0.0) {\ttl{Branch Basis}\\[1pt]\sub{query-conditioned context}};
-\node[box, text width=2.6cm]  (tb)   at (15.8,-3.2){\ttl{Trunk Basis}\\[1pt]\sub{component-wise basis}};
-\node[box, text width=2.8cm]  (fus)  at (19.2,-1.6){\ttl{DeepONet Fusion}\\[1pt]\sub{branch $\times$ trunk basis,\\ component-wise output}};
-\node[box, text width=1.7cm]  (fld)  at (22.2,-1.6){\ttl{Field}\\[1pt]\sub{$u,v,p$}};
-\node[picon, text width=3.0cm](loss) at (22.1,-4.6){\btl{Loss}\\[1pt]\sub{AL continuity constraint,\\ sensor MSE + NS residual, GradNorm}};
+\node[box, text width=2.6cm]  (bb)   at (14.0,0.0) {\ttl{Branch Basis}\\[1pt]\sub{query-conditioned context}};
+\node[box, text width=2.6cm]  (tb)   at (14.0,-3.2){\ttl{Trunk Basis}\\[1pt]\sub{component-wise basis}};
+\node[box, text width=2.8cm]  (fus)  at (17.2,-1.6){\ttl{DeepONet Fusion}\\[1pt]\sub{branch $\times$ trunk basis,\\ component-wise output}};
+\node[box, text width=1.7cm]  (fld)  at (20.0,-1.6){\ttl{Field}\\[1pt]\sub{$u,v,p$}};
+\node[picon, text width=3.0cm](loss) at (19.6,-4.6){\btl{Loss}\\[1pt]\sub{AL continuity constraint,\\ sensor MSE + NS residual, GradNorm}};
 
 % ---- optimizer feedback ----
-\node[box, text width=3.2cm]  (mp)   at (12.0,-6.8){\ttl{Model Parameters}\\[1pt]\sub{encoder + CfC + decoder}};
-\node[box, text width=3.2cm]  (opt)  at (17.6,-6.8){\ttl{SOAP + Schedule-Free}\\[1pt]\sub{preconditioned updates}};
+\node[box, text width=3.2cm]  (mp)   at (8.2,-6.8){\ttl{Model Parameters}\\[1pt]\sub{encoder + CfC + decoder}};
+\node[box, text width=3.2cm]  (opt)  at (14.5,-6.8){\ttl{SOAP + Schedule-Free}\\[1pt]\sub{preconditioned updates}};
 
 % ---- badges (straddle top-left corner) ----
 \node[badge] at (cfc.north west)  {1};
@@ -72,8 +72,8 @@
 \end{scope}
 \node[zone] at ([yshift=6pt]blane.north west) {BRANCH PATH: SPARSE SENSOR MEMORY};
 \node[zone] at ([yshift=6pt]tlane.north west) {TRUNK PATH: QUERY FEATURE};
-\node[zone] at (10.2,1.5) {INTERACTION};
-\node[zone] at (14.4,1.5) {OUTPUT AND LOSS};
+\node[zone] at (9.2,1.5) {INTERACTION};
+\node[zone] at (13.0,1.5) {OUTPUT AND LOSS};
 
 % ---- arrows ----
 \draw[arr] (obs) -- (spat);
@@ -102,7 +102,7 @@
   at (5.7,-8.15) {$\mathcal{L} = \mathrm{GradNorm}\!\left(\mathcal{L}_{\mathrm{data}},\,
     \mathcal{L}_{\mathrm{NS},u},\, \mathcal{L}_{\mathrm{NS},v},\, \mathcal{L}_{\mathrm{cont}}\right)
     + \mathcal{L}_{\mathrm{AL}}$};
-\node[font=\sffamily\bfseries\small, text=inkline, anchor=west] at (15.3,-8.15) {Full-field DNS is not used as supervision.};
+\node[font=\sffamily\bfseries\small, text=inkline, anchor=west] at (14.6,-8.15) {Full-field DNS is not used as supervision.};
 
 \end{tikzpicture}%
 }%

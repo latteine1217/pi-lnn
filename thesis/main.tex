@@ -25,6 +25,9 @@
 \usepackage{tabularx}                   % full-width tables
 \usepackage[ruled]{algorithm2e}         % algorithm environment & List of Algorithms
 \usepackage{placeins}                   % \FloatBarrier，避免 float 漂移到後面章節
+\usepackage{rotating}                   % sidewaysfigure：架構圖 722pt 寬，直放於
+                                        % \linewidth(427pt) 會被縮到 0.56×、字掉到 ~5pt；
+                                        % 橫置可用 \textheight(674pt)，scale 回到 0.93。
 \usepackage{csquotes}                   % biblatex 建議；避免 babel/polyglossia quotation warning
 
 % 章節內 caption 風格微調（不覆寫 nthu_thesis.cls 既有的 NTHU 標準）
@@ -34,6 +37,13 @@
 
 \begin{document}
 \pagestyle{plain} % 預設樣式：頁碼置於頁尾置中，頁首為空
+% microtype 的 protrusion 清單含非 ASCII 字元（×、÷、重音字母等）。CJK 環境把非 ASCII
+% 設為 active，因此清單若在 CJK 內首次載入（例如 \url 切換到 tt 字型時）會被當成未定義
+% 控制序列而中止編譯。此處在進入 CJK 前先觸碰各字型，強制清單於安全脈絡載入。
+% 每個字型各自成組（字型指令會累積，串接會要求並不存在的組合）。
+% 不觸碰 \sffamily：本 cls 的 sans 對應 Helvetica (phv)，而 TeX Live basic
+% 未安裝該字型族；正文從未使用 sans，強行觸碰會使整份編譯 fatal。
+\sbox0{{\rmfamily x}{\itshape x}{\bfseries x}{\ttfamily x}}
 \begin{CJK}{UTF8}{bkai}
 \hypersetup{pageanchor=false}
 \pagenumbering{Alph} % 封面區獨立 anchor，避免與 frontmatter roman 頁碼重複

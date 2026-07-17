@@ -129,7 +129,7 @@ Halving the time step at $N=256$ changes the solution by $7.0\times 10^{-6}$ ($1
 \section{LES for DNS-Free Sensor Placement}
 \label{sec:les_placement}
 
-In the LES-derived placement strategy, a low-cost LES on a new scene supplies the POD basis for QR-pivot sensor positions; the physical flow then supplies sensor values. In this controlled study, the DNS substitutes for that physical flow only at the $K$ sensor locations and for offline scoring, not for placement or training. The LES and DNS are independent realisations with the same $Re$, domain, and forcing but different random initial fields, so the LES is used as a statistically converged placement tool rather than as a pointwise trajectory to match. Statistics set the LES horizon, while the DNS reconstruction target remains the shorter window $t\in[0,5]$ (Tables~\ref{tab:dns_params} and~\ref{tab:les_params}).
+In the LES-derived placement strategy, a low-cost LES on a new scene supplies the snapshot ensemble from which column-pivoted QR selects sensor positions; the physical flow then supplies sensor values. In this controlled study, the DNS substitutes for that physical flow only at the $K$ sensor locations and for offline scoring, not for placement or training. The LES and DNS are independent realisations with the same $Re$, domain, and forcing but different random initial fields, so the LES is used as a source of large-scale spatial structure rather than as a pointwise trajectory to match. The LES horizon is an empirical design choice (\S\ref{subsec:les_verification}), while the DNS reconstruction target remains the shorter window $t\in[0,5]$ (Tables~\ref{tab:dns_params} and~\ref{tab:les_params}).
 
 \paragraph{Filtered equations and closure.}
 The LES solves the spatially filtered incompressible Navier--Stokes equations,
@@ -137,10 +137,10 @@ The LES solves the spatially filtered incompressible Navier--Stokes equations,
 \label{eq:filtered_ns}
 \begin{align}
     \nabla\!\cdot\!\bar{\mathbf{u}} &= 0, \label{eq:filtered_cont}\\
-    \partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i &= -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i - \partial_j \tau_{ij}^{\mathrm{SGS}} + f_i, \label{eq:filtered_mom}
+    \partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i &= -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i - \partial_j \tau_{ij}^{\mathrm{SGS}} - r\,\bar{u}_i + f_i, \label{eq:filtered_mom}
 \end{align}
 \end{subequations}
-on the same domain, viscosity, and forcing as the DNS. Equations~\eqref{eq:filtered_cont}--\eqref{eq:filtered_mom} differ from the DNS only through filtering and the SGS stress term. The high-wavenumber SGS drain is a spectral hyperviscosity term, used alone in the reference LES; the low-fidelity variant additionally applies a Bardina scale-similarity term~\cite{Bardina1980, Sagaut2006},
+on the same domain, viscosity, and forcing as the DNS. Beyond filtering and the SGS stress term, \eqref{eq:filtered_mom} carries a large-scale linear friction $-r\,\bar{u}_i$ that the DNS does not. A stand-alone forced two-dimensional run requires such a sink to arrest the inverse cascade and approach a statistically steady state, whereas the DNS is integrated only to $t=5$~s from a prescribed band-limited initial field and needs none. The LES therefore shares the Reynolds number, domain, and forcing of the DNS but not its energy balance: its kinetic energy is set by a forcing--friction equilibrium and sits below the DNS level. It is used as a placement tool, not as a filtered realisation of the DNS trajectory or of its energy content. The high-wavenumber SGS drain is a spectral hyperviscosity term, used alone in the reference LES; the low-fidelity variant additionally applies a Bardina scale-similarity term~\cite{Bardina1980, Sagaut2006},
 \begin{equation}
     \label{eq:bardina_hyperv}
     \begin{aligned}
@@ -148,7 +148,7 @@ on the same domain, viscosity, and forcing as the DNS. Equations~\eqref{eq:filte
     \tau_{ij}^{\mathrm{Bardina}} &= C_B (\widetilde{\bar{u}_i\,\bar{u}_j} - \widetilde{\bar{u}_i}\widetilde{\bar{u}_j})\quad(C_B = 1.0,\ \text{low-fidelity only}),
     \end{aligned}
 \end{equation}
-both chosen over Smagorinsky-type eddy-viscosity, which is poorly justified for 2D turbulence with a forced inverse cascade. The solver shares the DNS spatial discretisation (pseudo-spectral, $2/3$-rule dealiasing, fp64) but advances in time with an explicit second-order Runge--Kutta (RK2) scheme rather than the DNS's ETDRK4, with a conservatively small step ($\Delta t = 10^{-4}$~s, below the explicit hyperviscosity stability limit). It differs from the DNS in SGS closure, grid resolution, and time integrator. Reference and low-fidelity discretisation parameters are listed in Table~\ref{tab:les_params}.
+both chosen over Smagorinsky-type eddy-viscosity, which is poorly justified for 2D turbulence with a forced inverse cascade. The solver is pseudo-spectral in fp64 as the DNS is, but dealiases by the $2/3$ rule rather than the DNS's $3/2$ rule, and advances in time with an explicit second-order Runge--Kutta (RK2) scheme rather than the DNS's ETDRK4, with a conservatively small step ($\Delta t = 10^{-4}$~s, below the explicit hyperviscosity stability limit). It differs from the DNS in SGS closure, large-scale friction, grid resolution, dealiasing rule, and time integrator. Reference and low-fidelity discretisation parameters are listed in Table~\ref{tab:les_params}.
 
 \begin{table}[!htbp]
     \centering
@@ -166,6 +166,7 @@ both chosen over Smagorinsky-type eddy-viscosity, which is poorly justified for 
     \multicolumn{2}{@{}l}{\emph{Governing equation}} \\
     Equation                   & Filtered NS,~\eqref{eq:filtered_ns}; $Re = 10\,000$, $\nu = 10^{-4}$~m$^2$/s \\
     Domain, forcing            & $[0,1]^2$~m$^2$, periodic; $\mathbf{f} = (A\sin 2\pi k_f y, 0)^T$ with $A=0.1$~m/s$^2$, $k_f=2$~m$^{-1}$ \\
+    Large-scale friction $r$   & $2.86\times10^{-2}$~s$^{-1}$~/~$[4.00\times10^{-2}$~s$^{-1}]$; absent from the DNS \\
     \midrule
     \multicolumn{2}{@{}l}{\emph{Sub-grid closure}} \\
     Form                       & hyperviscosity~\eqref{eq:bardina_hyperv}; $+$ Bardina scale-similarity~[low-fidelity] \\
@@ -187,7 +188,9 @@ both chosen over Smagorinsky-type eddy-viscosity, which is poorly justified for 
 
 \paragraph{Verification.}
 \label{subsec:les_verification}
-Table~\ref{tab:les_verification} reports verification against three criterion groups. Spatial resolution targets resolved-band spectral overlap with DNS (within $2\times$ on $k\in[2, N_{\rm LES}/3]$) instead of the Pope-2000 criterion, since the SGS closure absorbs the unresolved stress; time-step stability uses a fixed $\Delta t = 10^{-4}$~s held below the explicit hyperviscosity limit (advective Courant $0.007$); statistical convergence is comfortable at $T_{\rm end}/t_{\rm eddy}=26.5$, with $\bar{\mathrm{KE}}(T)$ plateau within $5\%$ over the last $10$ snapshots, sub-window slope stationarity within $\pm 0.4$ slope units, and $\approx 17$ statistically independent POD samples (above the $\sim 10$-sample leading-mode threshold).
+Table~\ref{tab:les_verification} reports verification against two criterion groups, and states one criterion the reference LES does not meet. Numerical adequacy is met: dealiasing leaves no spectral pile-up, the advective Courant number is $0.007$ at the fixed $\Delta t = 10^{-4}$~s held below the explicit hyperviscosity limit, and incompressibility holds to spectral round-off. No resolved-band spectral comparison against the DNS is reported: the friction term in \eqref{eq:filtered_mom} places the LES on a forcing--friction energy equilibrium that the DNS does not share, so the two spectra are not expected to overlap and agreement would not be evidence of LES quality.
+
+Statistical convergence is not established, and the horizon $T_{\rm end}=50$~s is an empirical design choice rather than a derived one. Turnover coverage is often quoted for such runs ($T_{\rm end}/t_{\rm eddy}=26.5$ here), but the eddy time governs how fast the pattern rearranges, whereas the kinetic-energy level relaxes on the friction time $1/(2r) = 17.5$~s, an order of magnitude longer; $T_{\rm end}=50$~s is $2.9$ such times. A dedicated $T_{\rm end}=400$~s diagnostic at $N_{\rm LES}=128^2$, sharing the reference closure, friction, and dealiasing, gives an integrated autocorrelation time of $\tau_{\rm int}=10.1$~s for the kinetic energy. The horizon therefore spans $T_{\rm end}/\tau_{\rm int}=4.9$, below the $\ge 10$ level this criterion group requires, and under the standard $N_{\rm eff}=T_{\rm end}/2\tau_{\rm int}$ convention it supplies $\approx 2.5$ independent samples of a quantity whose stationary-window spread is $\pm 34\%$. The same diagnostic retains a weak upward energy drift through $t=400$~s, indicating that no horizon reachable at this cost reaches a statistically steady state. What the LES-derived placement achieves against DNS-oracle and random-placement references is reported with the results; that comparison does not rest on the LES being converged.
 
 \begin{table}[!htbp]
     \centering
@@ -205,7 +208,6 @@ Table~\ref{tab:les_verification} reports verification against three criterion gr
     \textbf{Criterion} & \textbf{Threshold} & \textbf{Measured} & \textbf{Verdict} \\
     \midrule
     \multicolumn{4}{@{}l}{\emph{Spatial resolution}} \\
-    Spectral overlap with DNS on $k\in[2, N_{\rm LES}/3]$ & within $2\times$       & within $2\times$ & $\checkmark$ leading modes aligned \\
     Pile-up at $k\to N_{\rm LES}/3$                       & none                   & none             & $\checkmark$ dealiasing intact \\
     \midrule
     \multicolumn{4}{@{}l}{\emph{Time-step adequacy and stability}} \\
@@ -213,16 +215,15 @@ Table~\ref{tab:les_verification} reports verification against three criterion gr
     Hyperviscous stability $\nu_h k_{\max}^{2p}\Delta t$   & $< 1$ (explicit RK2)   & $5\times 10^{-3}$ & $\checkmark$ \\
     Incompressibility $\Vert\nabla\!\cdot\!\bar{\mathbf{u}}\Vert_\infty$ & spectral round-off & $<10^{-10}$ & $\checkmark$ \\
     \midrule
-    \multicolumn{4}{@{}l}{\emph{Statistical window}} \\
-    Turnover coverage $T_{\rm end}/t_{\rm eddy}$          & $\ge 5$ for POD       & $26.5$           & $\checkmark$ $\gg 5$ \\
-    Independent samples $T_{\rm end}/t_{\rm int}$         & $\ge 10$              & $\approx 17$     & $\checkmark$ POD-converged \\
-    KE plateau over last $10$ snapshots                   & rel.\ change $<5\%$   & $<5\%$           & $\checkmark$ spin-up cleared \\
+    \multicolumn{4}{@{}l}{\emph{Statistical window (not met; see text)}} \\
+    Independent KE samples $T_{\rm end}/\tau_{\rm int}$   & $\ge 10$               & $4.9$            & $\times$ $\tau_{\rm int}=10.1$~s measured \\
+    Friction-time coverage $2r\,T_{\rm end}$              & --- (not derived)      & $2.9$            & horizon chosen empirically \\
     \bottomrule
     \end{tabularx}
 \end{table}
 
 \paragraph{Predictability horizon.}
-A same-initial-condition diagnostic bounds the pointwise lifetime of even a reference-grade LES. Initialising the LES from the DNS field and integrating to $t=5$~s keeps velocity relative-$L^2$ below $5\%$ for $0.59\,t_{\rm eddy}$ and below $20\%$ for $1.10\,t_{\rm eddy}$; by $t\approx 4$~s the full-field error peaks near $92\%$ (Fig.~\ref{fig:les_predictability}). Velocity correlation remains above $0.9$ until $\approx 1.5\,t_{\rm eddy}$, while vorticity correlation falls to $\approx 0.1$ by $t\approx 4$~s. Thus even the most favourable matched-IC pair loses pointwise agreement within about one-and-a-half eddy-turnover times; deployable placement must rely on statistically converged POD structure, not matched-time fields.
+A same-initial-condition diagnostic bounds the pointwise lifetime of even a reference-grade LES. Initialising the LES from the DNS field and integrating to $t=5$~s keeps velocity relative-$L^2$ below $5\%$ for $0.59\,t_{\rm eddy}$ and below $20\%$ for $1.10\,t_{\rm eddy}$; by $t\approx 4$~s the full-field error peaks near $92\%$ (Fig.~\ref{fig:les_predictability}). Velocity correlation remains above $0.9$ until $\approx 1.5\,t_{\rm eddy}$, while vorticity correlation falls to $\approx 0.1$ by $t\approx 4$~s. Thus even the most favourable matched-IC pair loses pointwise agreement within about one-and-a-half eddy-turnover times; deployable placement must rely on long-horizon POD structure, not matched-time fields.
 
 \begin{figure}[!htbp]
     \centering
@@ -239,7 +240,7 @@ A same-initial-condition diagnostic bounds the pointwise lifetime of even a refe
 \end{figure}
 
 \paragraph{Spectrum offset.}
-Over $k\in[3,30]$ the same-initial-condition LES and DNS spectra agree (slopes $-4.56$ and $-4.64$; Fig.~\ref{fig:les_vort_compare}b), while LES energy falls below DNS for $k\gtrsim 30$ as hyperviscosity drains small scales. This high-wavenumber offset bounds high-band reconstruction but not QR-pivot placement, which depends on leading POD modes. The placement LES is integrated to $T_{\rm end}=50$ ($26.5\,t_{\rm eddy}$) for that statistical convergence.
+Over $k\in[3,30]$ the same-initial-condition LES and DNS spectra agree (slopes $-4.56$ and $-4.64$; Fig.~\ref{fig:les_vort_compare}b), while LES energy falls below DNS for $k\gtrsim 30$ as hyperviscosity drains small scales. This high-wavenumber offset bounds high-band reconstruction but not QR-pivot placement, which depends on leading POD modes. The placement LES is instead integrated to $T_{\rm end}=50$~s ($26.5\,t_{\rm eddy}$) to sample the attractor over a long horizon rather than a single transient, subject to the statistical-window caveat of \S\ref{subsec:les_verification}.
 
 The LES-derived and DNS-oracle placements both target $K = 100$, differing only in the placement source.
 

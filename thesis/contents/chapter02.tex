@@ -1,11 +1,14 @@
 \chapter{Methodology}
 \label{ch:methodology}
 
-In data-assimilation terms, PI-CON learns a reconstruction operator that maps a sparse observation stream directly to the analysis field, replacing the iterative adjoint-and-solver loop of variational assimilation~\cite{Asch2016DA} with a single forward pass. For the DNS-free placement option, it also replaces the offline DNS trajectory of POD-based reduced-order models~\cite{Manohar2018PNAS} with a low-cost LES. This chapter follows one deployment instance: a statistically converged LES selects sensor positions via QR-pivoting on its POD basis; the physical flow supplies sensor values at those positions; PI-CON trains on the sensor time series and PDE residuals; and the trained operator reconstructs the continuous field on demand. In the controlled experiments below, a DNS field stands in for that real-world flow, sampled at the $K$ sensor positions for training and used as the offline evaluation reference; the full DNS field never enters the training objective. Figure~\ref{fig:architecture} shows the end-to-end signal flow.
+In data-assimilation terms, PI-CON learns a reconstruction operator that maps a sparse observation stream directly to the analysis field, replacing the iterative adjoint-and-solver loop of variational assimilation~\cite{Asch2016DA} with a single forward pass. For the DNS-free placement option, it also replaces the offline DNS trajectory of POD-based reduced-order models~\cite{Manohar2018PNAS} with a low-cost LES. This chapter follows one deployment instance: a long-horizon LES selects sensor positions via QR-pivoting on its POD basis; the physical flow supplies sensor values at those positions; PI-CON trains on the sensor time series and PDE residuals; and the trained operator reconstructs the continuous field on demand. In the controlled experiments below, a DNS field stands in for that real-world flow, sampled at the $K$ sensor positions for training and used as the offline evaluation reference; the full DNS field never enters the training objective. Figure~\ref{fig:architecture} shows the end-to-end signal flow.
 
+% 出血：圖原生 22.9 cm，遠寬於 \linewidth(15 cm)。\makebox 讓它置中並溢出左右
+% margin 到接近滿版（19.5 cm），scale 由 0.59 拉到 0.85，標籤 4.7pt -> 7.7pt。
+% 直放於 \linewidth 會把標籤壓到 ~5pt；圖本身的版面未更動。
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.95\linewidth]{figures/architecture/architecture.pdf}
+    \makebox[\linewidth][c]{\includegraphics[width=1.3\linewidth]{figures/architecture/architecture.pdf}}
     \caption{PI-CON end-to-end signal flow. Grey boxes are the inherited DeepONet backbone; the three blue numbered boxes (1--3) are the additions in this work (1 CfC memory, 2 cross-attention readout, 3 the Augmented-Lagrangian continuity loss). Training uses sensor MSE and Navier--Stokes residuals only; no full-field DNS supervision.}
     \label{fig:architecture}
 \end{figure}
