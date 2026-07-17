@@ -668,7 +668,7 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 <Card>
 <LabelTiny>DNS VERIFICATION</LabelTiny>
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓ <span style="color:#9CA3AF;">full table in appendix</span></div>
+<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓</div>
 <div><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnovers</b></div>
 </div>
 </Card>
@@ -711,19 +711,21 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 
 
 # Three additions to DeepONet
+
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
 
-```mermaid {scale: 0.66}
+```mermaid {scale: 0.58}
 graph LR
-  A[K=100 sensors] --> B[CfC branch<br/>continuous-time]
-  C[Queries x,t] --> D[Fourier embed] --> M[MLP trunk]
-  M --> T[trunk_basis]
-  M --> X((Cross-Attn<br/>+ distance bias))
+  A["K=100 sensors<br/><span style='font-size:0.72em;color:#6B7280'>201 × 100 × 2</span>"] --> B["CfC branch<br/>continuous-time<br/><span style='font-size:0.72em;color:#A9BBD0'>201 × 100 × 256</span>"]
+  C["Queries x,t<br/><span style='font-size:0.72em;color:#6B7280'>x, y, t, c</span>"] --> D["Fourier embed<br/><span style='font-size:0.72em;color:#A9BBD0'>128</span>"]
+  D --> M["MLP trunk<br/><span style='font-size:0.72em;color:#A9BBD0'>256</span>"]
+  M --> T["trunk_basis<br/><span style='font-size:0.72em;color:#E2A98C'>3 × 256</span>"]
+  M --> X(("Cross-Attn<br/>+ dist. bias<br/><span style='font-size:0.72em;color:#FBDACB'>100 × 256</span>"))
   B --> X
-  X --> Br[branch_basis]
-  T --> F{{Inner<br/>product}}
+  X --> Br["branch_basis<br/><span style='font-size:0.72em;color:#E2A98C'>3 × 256</span>"]
+  T --> F{{"Inner<br/>product"}}
   Br --> F
-  F --> O[u, v, p]
+  F --> O["u, v, p<br/><span style='font-size:0.72em;color:#6B7280'>3</span>"]
   style F fill:#D97757,color:#fff,stroke:#D97757
   style X fill:#D97757,color:#fff,stroke:#D97757
   style T fill:#FFF7EE,color:#D97757,stroke:#D97757,stroke-dasharray: 3 3
@@ -731,6 +733,7 @@ graph LR
   style B fill:#0F2D52,color:#fff,stroke:#0F2D52
   style D fill:#0F2D52,color:#fff,stroke:#0F2D52
   style M fill:#0F2D52,color:#fff,stroke:#0F2D52
+  linkStyle default font-size:9px,color:#6B7280
 ```
 
 </div>
@@ -1015,7 +1018,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <LabelTiny>LES VERIFICATION</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓ <span style="color:#9CA3AF;">full table in appendix</span></div>
+<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓</div>
 <div><b>Statistical window</b>&nbsp; T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b style="color:#7F1084;">11.7</b> ≥ 10 · N<sub>eff</sub> = 5.8</div>
 <div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b>, not training truth</div>
 </div>
@@ -1176,49 +1179,32 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <NavBar active="method" />
 
-<SectionTag>§ Hyperparameters · physical setup &amp; model</SectionTag>
+<SectionTag>§ Model and training configuration</SectionTag>
 
-# Configuration — what the setup rests on
+# Model and training configuration
+
+<div class="text-xs mt-1" style="color:#9CA3AF;">
+Flow, DNS, sensors and LES placement are given earlier; this page adds only the model and training values.
+</div>
 
 <style>
-.cfg-col { display: flex; flex-direction: column; gap: 10px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 4px; font-size: 0.82rem; line-height: 1.28; margin-top: 6px; }
-.pgrid .k { color: #6B7280; white-space: nowrap; }
+.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px;
+         font-size: 0.9rem; line-height: 1.35; margin-top: 10px; }
+.pgrid .k { color: #7F1084; font-weight: 600; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
 </style>
 
-<div class="grid grid-cols-2 gap-6 mt-3">
-
-<div class="cfg-col">
-
-<Card>
-<LabelTiny>Flow &amp; DNS reference</LabelTiny>
-<div class="pgrid">
-<div class="k">Domain &amp; BC</div><div class="v">Ω = [0, 1]² dimensionless, doubly-periodic</div>
-<div class="k">Reynolds number</div><div class="v"><b>Re = 10⁴</b> ⇒ ν = 10⁻⁴</div>
-<div class="k">Forcing &amp; window</div><div class="v">A = 0.1, k<sub>f</sub> = 2 · T = 5</div>
-<div class="k">DNS</div><div class="v"><b>Run 1024²</b> ↓×4 → <b>stored 256²</b> · ETDRK4 fp64</div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Sensors</LabelTiny>
-<div class="pgrid">
-<div class="k">Number &amp; channels</div><div class="v"><b>K = 100</b>, (u, v) only</div>
-<div class="k">Placement</div><div class="v"><b style="color:#7F1084;">LES-derived</b> QR-pivot POD basis <span class="cite">[Manohar 2018]</span> — no DNS field</div>
-</div>
-</Card>
-
-</div>
-
-<div class="cfg-col">
+<div class="grid grid-cols-2 gap-6 mt-4">
 
 <Card>
 <LabelTiny>Model</LabelTiny>
 <div class="pgrid">
 <div class="k">Architecture</div><div class="v">DeepONet + CfC branch + cross-attention readout</div>
-<div class="k">Size</div><div class="v">d<sub>model</sub> = 256 · <b>3.14 M</b> parameters</div>
+<div class="k">Width</div><div class="v">d<sub>model</sub> = 256 · d<sub>emb</sub> = 128 (Fourier, 16 harmonics)</div>
+<div class="k">Branch</div><div class="v">spatial CfC × 1 + temporal CfC × 1</div>
+<div class="k">Readout</div><div class="v">cross-attention, 1 head, |r| bias</div>
+<div class="k">Size</div><div class="v"><b>3.14 M</b> parameters</div>
 <div class="k">Query grid</div><div class="v">128² (DNS 256²/4, avoids Nyquist)</div>
 </div>
 </Card>
@@ -1227,112 +1213,37 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 <LabelTiny>Training</LabelTiny>
 <div class="pgrid">
 <div class="k">Supervision</div><div class="v"><b>sensor MSE + NS residual only</b></div>
-<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free · lr = 10⁻³ · AL ρ = 0.1</div>
-<div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b></div>
+<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free · lr = 10⁻³ · warm-up 2 000</div>
+<div class="k">Collocation</div><div class="v">1 024 points per step</div>
+<div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b> (42, 1, 2, 3, 4)</div>
 <div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB) · ~2 h 45 m per seed</div>
 </div>
 </Card>
 
 </div>
 
-</div>
-
-<div class="foot mt-2">Full hyperparameter tables in the appendix.</div>
 
 <FooterLogos />
 
 <!--
-[Hyperparams 1/2 · 1min] §Method 最後的 reproducibility summary (1/2)。物理 + sensors + network 全部集中一頁。Flow: domain, Re, forcing, DNS solver。Sensors: K=100 QR-pivot (u,v only)。Network: d_model=256, d_emb=128, branch CfC, trunk 1-MLP, cross-attn 1 head, 3.14M params。下一張 (12) 講 optimisation + GradNorm + AL + reproducibility (seeds, hardware)。
--->
+[Model & training config · 1min] §Method 最後的 reproducibility summary。
 
----
-disabled: true
----
+⚠️ 2026-07-16 重新設計：原本四張卡，其中兩張半是重複的，已移除 ——
+  - Flow & DNS 卡（domain / Re / forcing / DNS solver / T）→ 已在 slide 10（Kolmogorov
+    flow case：Ω=[0,1]²、A=0.1、k_f=2、Re=UL/ν=10⁴）與 slide 11（setup at a glance：
+    pseudo-spectral + ETDRK4 fp64、run 1024² → stored 256²、Δt_s=0.025、N_t=201）講過。
+  - Sensors 卡（K=100 (u,v)、LES-derived QR-pivot）→ 已在 slide 11 與 slide 15（LES proxy）講過。
+本頁只保留「別處沒有的數值」：model 尺寸與 training 預算。前面各頁講「為什麼」，本頁給「多少」。
 
-<NavBar active="method" />
+頁面所有數值均對照本檔 backup 頁「Configuration parameters — full reference」核對（2026-07-16）：
+d_model=256 · d_emb=128 (Fourier, harmonics=16, σ=2.0 learnable) · branch = spatial CfC ×1 +
+temporal CfC ×1 · trunk = 1 layer × 256 hidden, operator rank 256 · readout = cross-attn 1 head
++ |r| bias · 3.14M params · query grid 128² · lr=10⁻³ warm-up 2000 · 1024 collocation ·
+20 000 iters × n=5 (seeds 42,1,2,3,4) · single RTX 3090 24GB ~2h45m/seed。
 
-<SectionTag>§ Appendix · full hyperparameter tables</SectionTag>
-
-# Configuration parameters — full reference
-
-<style>
-.cfg-col { display: flex; flex-direction: column; gap: 10px; }
-.pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 4px; font-size: 0.82rem; line-height: 1.28; margin-top: 6px; }
-.pgrid .k { color: #6B7280; white-space: nowrap; }
-.pgrid .v { color: #1F1B2E; }
-.pgrid .cite { color: #9CA3AF; }
-</style>
-
-<div class="grid grid-cols-2 gap-6 mt-3">
-
-<div class="cfg-col">
-
-<Card>
-<LabelTiny>Flow &amp; DNS (full)</LabelTiny>
-<div class="pgrid">
-<div class="k">Characteristic scales</div><div class="v">L<sup>*</sup> = U<sup>*</sup> = 1 (nondim.); measured U<sub>rms</sub> = 0.503</div>
-<div class="k">DNS time-stepping</div><div class="v">Δt = 2.5×10⁻⁴ · Δt<sub>s</sub> = 0.025 (N<sub>t</sub> = 201) · T = 5 ≈ 2.51 t<sub>eddy</sub></div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Network architecture (full)</LabelTiny>
-<div class="pgrid">
-<div class="k">d<sub>model</sub> · d<sub>time</sub></div><div class="v">256 · 16</div>
-<div class="k">d<sub>emb</sub> (Fourier)</div><div class="v">128, harmonics = 16, σ = 2.0 learnable</div>
-<div class="k">Branch (sensor encoder)</div><div class="v">spatial CfC × 1 + temporal CfC × 1 <span class="cite">[Hasani 2022]</span></div>
-<div class="k">Token self-attn</div><div class="v">2 layers × 1 head, dim = 256</div>
-<div class="k">Trunk (query MLP)</div><div class="v">1 layer × 256 hidden, operator rank = 256</div>
-<div class="k">Readout (decoder)</div><div class="v">cross-attn, 1 head, |r| bias <span class="cite">[Vaswani 2017]</span></div>
-</div>
-</Card>
-
-
-<Card>
-<LabelTiny>SOAP optimiser <span class="cite">[Wang 2025]</span></LabelTiny>
-<div class="pgrid">
-<div class="k">Learning rate · warm-up</div><div class="v">10⁻³ · 2 000 steps</div>
-<div class="k">β₁, β₂ · precond. freq.</div><div class="v">0.9, 0.999 · every 2 steps</div>
-<div class="k">Schedule-Free</div><div class="v">Polyak averaging, no lr decay <span class="cite">[Defazio 2024]</span></div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>GradNorm balancing <span class="cite">[Chen 2018]</span></LabelTiny>
-<div class="pgrid">
-<div class="k">Update freq. · EMA</div><div class="v">1 000 steps · momentum 0.9</div>
-<div class="k">Init weights</div><div class="v">(w<sub>d</sub>, w<sub>NS,u</sub>, w<sub>NS,v</sub>, w<sub>c</sub>) = (1, 0.01, 0.01, 0.01)</div>
-</div>
-</Card>
-
-</div>
-
-<div class="cfg-col">
-
-<Card>
-<LabelTiny>Augmented Lagrangian <span class="cite">(continuity only)</span></LabelTiny>
-<div class="pgrid">
-<div class="k">Penalty ρ · λ clip</div><div class="v"><b>0.1</b> · 10</div>
-<div class="k">Constraint</div><div class="v">C = 𝔼[(∂<sub>x</sub>u + ∂<sub>y</sub>v)²]</div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Training &amp; reproducibility</LabelTiny>
-<div class="pgrid">
-<div class="k">Iterations · seeds</div><div class="v">20 000 · <b>n = 5</b> (42, 1, 2, 3, 4)</div>
-<div class="k">Hardware · wall-time</div><div class="v"><b style="color:#7F1084;">Single</b> NVIDIA RTX 3090 (24 GB) · <b>~2 h 45 m</b> per seed (20 k steps, 1024 collocation)</div>
-</div>
-</Card>
-
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Hyperparams 2/2 · 1min] §Method 最後的 reproducibility summary (2/2)。Training 設定全部集中。SOAP+SF: lr=1e-3, β=(0.9,0.999), precond_freq=2, warmup=2000, Polyak averaging。GradNorm: 1000 步更新, EMA 0.9, init [1, 0.01, 0.01, 0.01] (物理項從 1% 數據權重 ramp up)。AL: ρ=0.1, λ_clip=10, C continuity constraint。Training: 10k steps × 5 seeds, RTX 3090 ~1h20m/seed。教授要 reproducibility 細節時都翻這兩頁。
+未印在本頁但 backup 有（被問再翻）：SOAP β=(0.9, 0.999)、precond_freq=2、Polyak averaging；
+GradNorm 每 1000 步更新、EMA 0.9、init 權重 (1, 0.01, 0.01, 0.01)；AL ρ=0.1、λ_clip=10。
+AL 與 SOAP/GradNorm 的「為什麼」在 slide 16 / 17，本頁不重述。
 -->
 
 ---
@@ -1614,73 +1525,6 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 k_max ≈ 5.64；越過它 modes 比 measurements 多，架構補不回來。」原本這裡有張 Ceiling 卡寫同樣的
 5.64 與同樣的結論，與第 8 頁逐字重複、且右欄已擠爆，故移除改為口述。
 左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
--->
-
----
-disabled: true
----
-
-<!--
-Backup. 停用理由（2026-07-15）：
-- ① / ③ 與 slide 19（field figure）及 slide 20（ceiling card）重複。
-- ② 的 u/v anisotropy 歸因（forcing 只在 u → v 為導出量 → 較難重建）全 thesis
-  搜不到，屬投影片手打推理；且 chapter02.tex:265 自承 cross-attention 用
-  isotropic 距離核是 deliberate modelling simplification，構成一個未被排除的
-  競爭解釋。兩假設未經實驗分離，不宜在口試斷言。
-- 唯一該留的 u/v rel-L₂ 數值已併入 slide 20 Key metrics（同屬 Table 4.1 主列）。
-若要復用：先讓 anisotropy 歸因進 thesis，或補實驗分離 (a) forcing 與 (b) isotropic kernel。
--->
-
-<NavBar active="results" />
-
-<SectionTag>§ Appendix · velocity error analysis</SectionTag>
-
-# Channel-wise interpretation — u, v anisotropy and structural error
-
-<div class="grid grid-cols-3 gap-3 mt-3 text-sm">
-
-<Card>
-<LabelTiny>① u CHANNEL — streamwise</LabelTiny>
-<div class="mt-2 leading-snug">
-DNS range ±1.0 · error band ±0.10 ⇒ <b style="color:#7F1084;">~10 % peak local error</b>
-</div>
-<div class="mt-2 leading-snug">
-Large-scale shear sheets fully recovered · error localised at sheet edges (large |∂u/∂y|)
-</div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-u rel-L₂ — B3 5-seed mean&nbsp;<b>13.65 ± 0.06 %</b>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>② v CHANNEL — cross-stream</LabelTiny>
-<div class="mt-2 leading-snug space-y-1">
-<div>· DNS range ±0.7 (smaller than u) · error band ±0.15 <span style="color:#E97132;">(higher relative error)</span></div>
-<div>· Forcing acts only on u (sin(k<sub>f</sub> y))</div>
-<div>· v = derived response via ∇p + nonlinear coupling</div>
-<div>· No direct forcing template → harder to recover from sparse v samples</div>
-</div>
-<div class="mt-2 text-xs" style="color:#6B7280;">
-v rel-L₂ — B3 5-seed mean&nbsp;<b>17.52 ± 0.10 %</b>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>③ ERROR STRUCTURE</LabelTiny>
-<div class="mt-2 leading-snug space-y-1">
-<div>· <b>Not random noise</b> — error concentrates on <b>high-shear edges</b></div>
-<div>· Same pattern as ω error field → coherent representational deficit</div>
-<div>· Low-gradient bulk regions reconstruct accurately</div>
-<div>· Mid/high-k structural error, sensor-bound at Nyquist k<sub>max</sub> ≈ 5.64</div>
-</div>
-</Card>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Velocity error analysis · 2min] 3 Card 拆 u / v / Error structure。u (range ±1, error ±0.15, ~15% peak) — 主 shear sheets recovered. v (range ±0.7, error ±0.20, 相對 error 略高) — forcing 在 v 方向。Error structure — 集中 high-shear edges 跟 ω error 同 pattern，coherent representational deficit 非 noise。底部 explainer：velocity error < vorticity error 因為 energy 在低 k (k≤8 占 94%) ω = curl 放大高 k。
 -->
 
 ---
@@ -2257,97 +2101,6 @@ disabled: true
 
 <NavBar active="results" />
 
-<SectionTag>§ Appendix · multi-constraint AL diagnostic · EXP-292</SectionTag>
-
-# NS-momentum AL is mixed, not a promoted main recipe
-
-<div class="mt-2 text-xs">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Config</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">GradNorm tasks</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">AL terms</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">KE MAPE (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">u L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">div ratio (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Verdict</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>EXP-292 cont-only AL</b></td>
-      <td class="py-1 px-2">[data, ns_u, ns_v]</td>
-      <td class="py-1 px-2">[cont]</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">5.75</b></td>
-      <td class="py-1 px-2">13.38</td>
-      <td class="py-1 px-2">0.57</td>
-      <td class="py-1 px-2">stable diagnostic</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">EXP-292 full physics AL, no GN</td>
-      <td class="py-1 px-2">[data]</td>
-      <td class="py-1 px-2">[ns_u, ns_v, cont]</td>
-      <td class="py-1 px-2">5.54</td>
-      <td class="py-1 px-2"><b>13.31</b></td>
-      <td class="py-1 px-2">0.56</td>
-      <td class="py-1 px-2">no collapse</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">EXP-292 NS-AL + cont double</td>
-      <td class="py-1 px-2">[data, cont]</td>
-      <td class="py-1 px-2">[ns_u, ns_v, cont]</td>
-      <td class="py-1 px-2"><b>5.47</b></td>
-      <td class="py-1 px-2">13.47</td>
-      <td class="py-1 px-2"><b>0.39</b></td>
-      <td class="py-1 px-2">best KE, single seed</td>
-    </tr>
-    <tr>
-      <td class="py-1 px-2">EXP-292 full double</td>
-      <td class="py-1 px-2">[data, ns_u, ns_v, cont]</td>
-      <td class="py-1 px-2">[ns_u, ns_v, cont]</td>
-      <td class="py-1 px-2"><span style="color:#E97132;">6.31</span></td>
-      <td class="py-1 px-2">13.85</td>
-      <td class="py-1 px-2">0.39</td>
-      <td class="py-1 px-2">accuracy cost</td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-<div class="grid grid-cols-2 gap-4 mt-3 text-xs">
-
-<Card>
-<LabelTiny>① FINAL-PROTOCOL RERUN CHANGES THE STORY</LabelTiny>
-<div class="mt-1 leading-snug">
-The older blanket rejection of NS-AL does not transfer cleanly to the final 20 k / 1024 / LES protocol.&nbsp;
-Several variants are stable and KE-competitive.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>② WHY CONTINUITY-ONLY STAYS MAIN</LabelTiny>
-<div class="mt-1 leading-snug">
-EXP-292 is single-seed and diagnostic. The thesis keeps continuity-only AL because the main EXP-245 recipe is validated at n = 5, while multi-constraint variants have not been multi-seed confirmed.
-</div>
-</Card>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Multi-constraint AL · 2min] 這張是 EXP-292 final-protocol rerun。不要再沿用舊的 multi-AL 負面結論。新的重點：NS-momentum AL 在 final protocol 下並未 collapse，甚至有 single-seed KE 較好的 row；但這不是 main claim，因為沒有 multi-seed。正式 thesis conclusion：continuity-only AL 保留為 conservative main recipe，因為 EXP-245 n=5 已驗證；multi-constraint AL 留在 appendix/backup 作 diagnostic。
--->
-
----
-disabled: true
----
-
-<NavBar active="results" />
-
 <SectionTag>§ Results · filtering vs smoothing mode</SectionTag>
 
 # Filtering stays default for deployment, not because smoothing fails
@@ -2585,203 +2338,6 @@ Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="colo
 disabled: true
 ---
 
-<NavBar active="results" />
-
-<SectionTag>§ Appendix · historical physics-sampling diagnostic</SectionTag>
-
-# Historical sampling-budget sweep motivated the final protocol
-
-<div class="mt-2 text-xs">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Config</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">num_physics_pts</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">KE MAPE (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">u rel-L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">ω rel-L₂ (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">div L₂</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">e<sub>k</sub>-ratio<sub>kf</sub></th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">GPU util (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Train wall</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">EXP-200 baseline (n=5 mean)</td>
-      <td class="py-1 px-2">64</td>
-      <td class="py-1 px-2">10.77 ± 0.52</td>
-      <td class="py-1 px-2">20.69</td>
-      <td class="py-1 px-2">52.65</td>
-      <td class="py-1 px-2">6.6e-2</td>
-      <td class="py-1 px-2">0.920</td>
-      <td class="py-1 px-2">13–34 (latency-bound)</td>
-      <td class="py-1 px-2">~2 h 24 m (M3)</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">EXP-241_a</td>
-      <td class="py-1 px-2">256 (4×)</td>
-      <td class="py-1 px-2">6.88</td>
-      <td class="py-1 px-2">17.13</td>
-      <td class="py-1 px-2">46.71</td>
-      <td class="py-1 px-2">0.0551</td>
-      <td class="py-1 px-2">0.953</td>
-      <td class="py-1 px-2">40</td>
-      <td class="py-1 px-2">1 h 04 m</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>EXP-241_b · DNS oracle best</b></td>
-      <td class="py-1 px-2"><b>1024 (16×)</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">5.97</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">16.38</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">45.14</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">0.0460</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">0.957</b></td>
-      <td class="py-1 px-2"><b>75 (throughput-bound)</b></td>
-      <td class="py-1 px-2">1 h 19 m</td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-<div class="mt-2 text-xs" style="color:#6B7280;">
-All rows use <b>DNS QR-pivot sensor</b> (omniscient oracle), so this slide is kept as historical protocol evidence only. The deployable main baseline is EXP-245 with LES_T50 sensors, 20 k iterations, and n = 5 seeds: KE <b>5.71 ± 0.11 %</b>.
-</div>
-
-<div class="grid grid-cols-2 gap-4 mt-3 text-xs">
-
-<Card>
-<LabelTiny>① BAND DECOMPOSITION — where the gain lives</LabelTiny>
-<div class="mt-1 leading-snug">
-Low band (k ≤ 8, 94.4 % of E):&nbsp; rel-err 3.62 % → <b style="color:#7F1084;">2.41 %</b> (−34 %).&nbsp;
-Mid/high band (k &gt; 8):&nbsp; 99.97 % → <b>99.99 %</b> (no change — Nyquist k<sub>max</sub><sup>sensor</sup> ≈ 5.64 still binds).
-</div>
-</Card>
-
-<Card>
-<LabelTiny>② TWO INDEPENDENT CONSTRAINTS</LabelTiny>
-<div class="mt-1 leading-snug">
-Low band — physics-sampling budget affects PDE-residual estimator coverage.&nbsp;
-Mid/high band — sensor count binds (information-theoretic).&nbsp;
-Total KE = 94.4 % · low + 5.6 % · mid/high → collocation dominates total KE improvement.
-</div>
-</Card>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Historical sampling budget · 2.5min] 這張現在只放 backup，說明為什麼 final protocol 升到 1024 physics points。三點 sweep：64 / 256 / 1024，KE 10.77 → 6.88 → 5.97。注意：這些是 DNS-oracle sensor、single seed 的 historical protocol evidence，不再作 Chapter 4 主線。正式主線是 EXP-245 final protocol n=5 + sensor Nyquist / K-scaling / placement variance。
--->
-
----
-disabled: true
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Appendix · historical Architecture × Placement 2D ablation · EXP-240</SectionTag>
-
-# Historical 2D ablation is not the current placement comparison
-
-<div class="mt-1 text-xs" style="color:#6B7280;">
-This disabled slide is retained only to explain the development history. The current placement claim is EXP-245 vs EXP-271: DNS oracle wins KE, LES placement wins pointwise L₂.
-</div>
-
-<div class="mt-2 text-xs">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Historical KE MAPE (%)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">DNS oracle</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">LES_T=50</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Random</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Best → worst (within row)</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2"><b>B0 · Vanilla DeepONet</b> (n=5 / n=1)</td>
-      <td class="py-1 px-2">18.52 ± 0.66</td>
-      <td class="py-1 px-2">19.58 (EXP-240_a)</td>
-      <td class="py-1 px-2">21.82 (EXP-240_b)</td>
-      <td class="py-1 px-2">+18 % rel.&nbsp;<span class="opacity-60">(Random worse than DNS)</span></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127, 16, 132, 0.10);">
-      <td class="py-1 px-2"><b>B3 · PI-CON historical</b> (pre-final protocol)</td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">9.40 / 10.77 ± 0.52</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">12.36</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">13.25</b></td>
-      <td class="py-1 px-2">+41 % rel.&nbsp;<span class="opacity-60">(Random worse than DNS)</span></td>
-    </tr>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <td class="py-1 px-2"><b>PI-CON reduces KE vs B0</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">−49 %</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">−37 %</b></td>
-      <td class="py-1 px-2"><b style="color:#7F1084;">−39 %</b></td>
-      <td class="py-1 px-2">—</td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-<div class="grid grid-cols-3 gap-3 mt-3 text-xs">
-
-<Card>
-<LabelTiny>① ARCHITECTURE EFFECT DOMINANT</LabelTiny>
-<div class="mt-1 leading-snug">
-Historical takeaway: architecture mattered in this early grid, but the final thesis uses EXP-245/271 for placement and EXP-245/246/247/248/249/250 for architecture.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>② B0 LESS SENSITIVE TO PLACEMENT</LabelTiny>
-<div class="mt-1 leading-snug">
-Do not quote these rows as final placement evidence; they used older protocols and mixed seed/statistical status.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>③ LES &gt; RANDOM TRANSFERS ACROSS ARCH</LabelTiny>
-<div class="mt-1 leading-snug">
-Final deployment statement: LES-derived placement is competitive and DNS-free, while random placement remains a higher-variance fallback.
-</div>
-</Card>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Arch × Placement 2D · 2min] 封閉的 2×3 ablation：B0 vs B3 跨 3 個 placement (DNS / LES_T50 / Random)。主要 finding: architecture gap ~8pp 跨所有 placement 穩定，且比 placement gap (~3pp) 大 2-3×。Sub-finding 1: B0 placement gap (3.30) ≈ B3 (3.85)，B0 capacity saturated，placement marginal benefit 已 cap。Sub-finding 2: 反直覺 — B0 從 LES placement 受益更多 (Random→LES +2.24pp vs B3 +0.89pp)，因為架構不夠時 placement 變 binding constraint。Decision gate: hypothesis 部分支持，LES placement 對 B0 也有改善 (19.58%) 但仍受架構 capacity 限制，未達 16% "transferable" 門檻。
--->
-
----
-disabled: true
----
-
-<NavBar active="summary" />
-
-<SectionTag>§ Appendix material</SectionTag>
-
-# Appendix — Q&A reference
-
-<div class="mt-12 text-center text-xl" style="color:#6B7280;">
-The following slides cover deeper details on methodology, ablations, and CFD-rigour questions.<br/>
-Skipped during 30-min defense; available for follow-up questions.
-</div>
-
-<FooterLogos />
-
----
-disabled: true
----
-
 <NavBar active="background" />
 
 <SectionTag>§ Literature review · landscape of sparse-flow reconstruction</SectionTag>
@@ -2994,7 +2550,7 @@ disabled: true
 
 <NavBar active="summary" />
 
-<SectionTag>§ Appendix · anticipated Q&A</SectionTag>
+<SectionTag>§ Disabled · anticipated Q&A</SectionTag>
 
 # Defense preparation — CFD-rigour questions
 
