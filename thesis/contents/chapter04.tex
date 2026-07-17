@@ -176,12 +176,12 @@ The high-$k$ deviation is the expected signature of a sensor-limited reconstruct
 \end{figure}
 
 \paragraph{Enstrophy and dissipation under the spectral cutoff.}
-The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.4\%$ on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content beyond the $K=100$ Nyquist scale carries enstrophy weighted by $k^2$. The deficit follows the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
+The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.0 \pm 0.2\%$ ($n=5$ seeds) on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content beyond the $K=100$ Nyquist scale carries enstrophy weighted by $k^2$. The deficit follows the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\linewidth]{figures/results/dissipation_budget.pdf}
-    \caption{Enstrophy $\mathcal{Z}(t)$ (left axis, 1/s$^2$) versus time $t$ (s), seed 42, LES-derived placement; the right axis shows the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ (m$^2$/s$^3$), a constant rescaling of the left axis. Solid: DNS; dashed: PI-CON.}
+    \caption{Enstrophy $\mathcal{Z}(t)$ (left axis, 1/s$^2$) versus time $t$ (s), LES-derived placement; the right axis shows the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ (m$^2$/s$^3$), a constant rescaling of the left axis. Solid: DNS reference (identical across seeds). Dashed: PI-CON mean over $n=5$ seeds, with the $\pm 1\sigma$ band shaded and individual seeds dotted.}
     \label{fig:dissipation_budget}
 \end{figure}
 
