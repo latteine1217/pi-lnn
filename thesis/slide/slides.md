@@ -309,7 +309,6 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 .dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
 .dns .bb { color: #0F2D52; font-weight: 700; }
 .dns tr.ours .bb { color: #7F1084; }
-.dns .near { display: block; font-size: 0.82em; font-weight: 400; color: #9CA3AF; margin-top: 1px; }
 .dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
           letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .dns th.key { color: #E97132; }
@@ -352,7 +351,7 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 </tr>
 <tr>
 <td class="who">FLRONet <span>Vo Dang 2024</span></td>
-<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk <span class="near">closest published branch–trunk</span></td>
+<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
 <td>Cylinder (CFDBench)</td>
 <td class="key">Paired CFD fields</td>
 </tr>
@@ -385,9 +384,31 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
   「a dense set of observations is needed to train」；Re / sensor 數未報；正文付費牆。
 - FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier (m=4, σ=5) + MLP 5×128；
   loss = VAE reconstruction + perceptual；cylinder Re 300–1000。
-- FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench；
-  Re 未報。⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，
-  非原文直引。
+- FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench。
+  ⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，非原文直引。
+
+== 「FLRONet 的 Re 為什麼空著？」（2026-07-17 親自查證 arXiv 2412.08009 全文 15 頁）==
+**因為原文從頭到尾沒給 Re 數值。** 實測：全文 54k 字元中「Reynolds」只出現 1 次，且無數字 ——
+唯一那句是定性的「…the inherent difficulty of reconstructing flow with a high Reynolds number
+driven by the increased velocity of the fluid…」。「viscosity」出現 0 次，所以連反推 Re 都做不到。
+
+它改用**入口速度**索引案例：CFDBench cylinder dataset，domain 0.14 × 0.24 m → 140×240 grid，
+50 個 case，inlet velocity 由 0.1 m/s 遞增到 5.0 m/s（45 train / 5 test，test 為 3.5/3.9/4.2…）。
+⚠️ 2026-07-17：曾把「no Re stated · indexed by inlet velocity 0.1–5.0 m/s」以小字標進 Case 欄，
+已移除（使用者：小字不需要）。**該資訊改為口述** —— 被問「FLRONet 的 Re 是多少」時答：
+「原文沒給。全文只出現一次 Reynolds 且無數值，viscosity 一次都沒有，所以連反推都做不到；
+它用 inlet velocity 0.1–5.0 m/s 索引 50 個 case。」
+同理 SHRED (JHTDB isotropic) 與 Senseiver 亦未報 Re。**四篇裡三篇未報 Re，只有 FLRNet
+給了 Re 300–10³** —— 這點若被問「為何不做 Re 的 head-to-head」，就是答案。
+
+⚠️ 先前這裡的註記「Re 未報」是別人 2026-07-15 記的，我 2026-07-17 親自抓 PDF 逐字查證後確認屬實
+（第一次 WebFetch 讀 PDF 回傳二進位亂碼、宣稱「無法確定」，不可採信；改用 pypdf 本地解析才得出）。
+⚠️ 舊版頁面底部曾有一行小字「the Reynolds number is unstated in three of the four above」，
+已被移除 —— 該資訊現在改標在各自的格子裡，比一行看不見的註腳有效。
+
+順帶：FLRONet 論文標題即為「**Deep Operator Learning** for High-Fidelity Fluid Flow Field
+Reconstruction from Sparse Sensor Measurements」，自稱 deep operator learning —— 這是本表
+必須標出 DeepONet 血緣的第二個依據（第一個是 chapter01:101）。
 
 == 「為什麼沒有 DeepONet 系的對照？」（2026-07-17 補；委員極可能問）==
 有 —— 就是 FLRONet。chapter01:101 原文稱它是「the spatio-temporal **deep operator network**
@@ -1115,15 +1136,15 @@ Q 來自 trunk，K 與 V 來自 sensor token —— 所以是 cross 不是 self�
 
 <div class="mt-2 text-xs leading-snug">
 
-$$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i \;-\; \partial_j \tau_{ij}^{\mathrm{SGS}} + f_i$$
+$$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i \;-\; \partial_j \tau_{ij}^{\mathrm{SGS}} \;-\; r\,\bar{u}_i + f_i$$
 
 </div>
 
 <div class="mt-2 text-xs leading-snug space-y-0.5">
 <div><b>Domain</b>&nbsp; same Ω, BC, forcing as DNS</div>
+<div><b>Friction</b>&nbsp; <b style="color:#E97132;">r = 2.86×10⁻² s⁻¹</b> — arrests the inverse cascade · <b>absent from the DNS</b></div>
 <div><b>Closure</b>&nbsp; Bardina scale-similarity + spectral hyperviscosity</div>
-<div><b>Solver</b>&nbsp; pseudo-spectral + 2/3 dealiasing, RK2 (Heun) fp64</div>
-<div><b>Setup</b>&nbsp;·&nbsp; N = 256, T<sub>end</sub> = 50, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
+<div><b>Setup</b>&nbsp;·&nbsp; N = 256, T<sub>end</sub> = 50 s, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
 </div>
 </Card>
 
@@ -1131,9 +1152,9 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <LabelTiny>LES VERIFICATION</LabelTiny>
 
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution, stability &amp; statistical convergence</b> ✓</div>
-<div><b>Statistical window</b>&nbsp; T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b style="color:#7F1084;">11.7</b> ≥ 10 · N<sub>eff</sub> = 5.8</div>
-<div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b>, not training truth</div>
+<div><b style="color:#0F2D52;">Resolution and stability</b> ✓</div>
+<div><b style="color:#E97132;">Statistical convergence not established</b> · T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b>4.9</b> &lt; 10</div>
+<div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b> — needs large-scale structure, not statistics</div>
 </div>
 </Card>
 
@@ -1151,19 +1172,34 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 <!--
 [LES generation · 2min] 教授九點 (4) (5) 落實：LES 也要把 CFD 重要參數寫清楚 + 解析度/穩定度判斷標準。
 左卡 1 — filtered NS + Domain/BC（雙週期，與 DNS 一致）+ SGS closure（Bardina scale-similarity [Bardina 1980; Sagaut 2006] + spectral hyperviscosity）+ Solver（pseudo-spectral + 2/3 dealiasing, RK2 Heun fp64；DNS 才用 ETDRK4）+ N=256, T_end=50, cost ≈ 1/16 DNS
-左卡 2 — LES 品質三條 gate（CLAUDE.md LES_Quality_Requirements）。2026-07-16 用
-scripts/check_les_quality.py 對 data/les/kolmogorov_les_Re10000_N256_T50_standalone.npy 實測，全過：
-  [1] incompressibility  max‖∇·u‖ = 2.29e-13 < 1e-10（solver fp64 診斷值，非從 float32 場重算）
-  [2] no aliasing pile-up  譜末端衰減比 5.14e32 > 1e6
-  [3] statistical window  τ_int = 4.28 → T_end/τ_int = 11.68 ≥ 10、N_eff = 5.84
+左卡 2 — LES 品質 gate。2026-07-16 用 scripts/check_les_quality.py 對
+data/les/kolmogorov_les_Re10000_N256_T50_standalone.npy 實測：
+  [1] incompressibility  max‖∇·u‖ = 2.29e-13 < 1e-10（solver fp64 診斷值，非從 float32 場重算）PASS
+  [2] no aliasing pile-up  譜末端衰減比 5.14e32 > 1e6  PASS
+  [3] statistical window  ⚠️ **腳本報 τ_int = 4.28 → T_end/τ_int = 11.68 PASS，此判定不可採信**
+
+⚠️⚠️ 2026-07-17 更正（頁面已改；先前投影片寫「statistical convergence ✓ · 11.7 ≥ 10」是錯的）：
+scripts/check_les_quality.py 的 τ_int 是**從那支 50 s 紀錄自己**估的 → 系統性低估。
+若真實 τ_int ≈ 10 s，50 s 只有約 5 個相關時間，自相關會提早過零，積分必然偏小 ——
+**太短的紀錄無法自己揭露它太短**，是自我實現的假通過。
+論文 chapter03:193 用正確做法：另跑一支 **T_end = 400 s** 診斷（N=128 較便宜，同 closure /
+friction / dealiasing）量得 **τ_int = 10.1 s** → 50/10.1 = **4.9 < 10，未達**；N_eff ≈ 2.5，
+且該 400 s 診斷到 t=400 仍有微弱能量上飄 → 「no horizon reachable at this cost reaches a
+statistically steady state」。tab:les_verification 亦已標為「Statistical window (not met; see text)」。
+→ 口試不可宣稱 LES 統計收斂。正確說法：**LES 只需提供大尺度空間結構供佈點，不需統計收斂**
+（頁面 Role 那行已改成這個口徑）。
+→ TODO: scripts/check_les_quality.py 的 [3] 應改為要求外部提供 τ_int（或拒絕在
+   T_end/τ_int < 10 時給 PASS），否則它會繼續對每支短 LES 發假通過。
 ⚠ 以下三個舊 gate 已被證偽，禁止再講（CLAUDE.md LES_Quality_Anti_Patterns）：
   ✗「T/t_eddy ≥ 5、EXP-221 達 26.5」—— LES 帶 linear friction −r·u，KE 由 forcing–friction 平衡主導，
      時間尺度是 1/(2r) = 17.5，比 eddy time (~2–3.5) 長一個數量級。用錯時間尺度。
   ✗「KE plateau / rel_change(KE) < 5%」—— 回看窗由 save_interval 決定，結構上不可能失敗。
   ✗「spectral overlap within 2× DNS on k ∈ [2, N/3]」—— LES 有 friction、DNS 沒有，能量平衡不同；
      實測 k ∈ [2,85] 全帶 0/84 個波數落在 [0.5,2] 內，物理上不可能通過。
-被問「統計窗夠不夠」答 τ_int，不要答 eddy-turnover。
-「placement 只需 leading POD modes align」仍可講，說明為何不要求與 DNS pointwise match。
+被問「統計窗夠不夠」：**誠實答未達**（T_end/τ_int = 4.9 < 10），並說明為何不影響本研究 ——
+LES 的角色是提供佈點所需的大尺度空間結構，不是提供收斂統計量；佈點品質的證據是下游結果
+（EXP-245 LES placement KE 5.71 ± 0.11%，與 DNS-oracle 4.68% 同級、皆遠低於 10% 門檻），
+不是 LES 自身的統計收斂。不要答 eddy-turnover（用錯時間尺度）。
 底部 Pill 用 final fair-comparison 口徑：LES placement 是 EXP-245 main pipeline，KE 5.71 ± 0.11%；不要再用舊 placement-ablation 的 12.36% / 9.40% 作主張。
 -->
 
