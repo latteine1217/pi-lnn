@@ -20,20 +20,28 @@ exportFilename: pi-lnn-talk
      ==================================================================== -->
 
 <div class="absolute top-12 left-16 right-16">
-  <SectionTag>Thesis Defense · Junyi Li</SectionTag>
+  <SectionTag>Master Thesis Defense · Engineering and System Science, NTHU · July 2026</SectionTag>
 </div>
 
-<div class="absolute left-16 right-16" style="top: 38%;">
+<div class="absolute left-16 right-16" style="top: 30%;">
 
-<h1 style="font-size: 2.4rem; line-height: 1.15; font-weight: 700; color: #7F1084; letter-spacing: -0.01em;">
+<div class="text-base mb-2" style="color:#6B7280;">物理約束之稀疏感測器連續時間湍流場重建</div>
+
+<h1 style="font-size: 2.2rem; line-height: 1.15; font-weight: 700; color: #7F1084; letter-spacing: -0.01em;">
 Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <br>Sparse Sensors
 </h1>
 
-<div class="mt-6 text-sm" style="color:#4B5563;">
+<div class="mt-5 text-sm" style="color:#4B5563;">
   2-D Kolmogorov flow at <b style="color:#7F1084;">Re = 10⁴</b>,
   reconstructed from <b style="color:#7F1084;">100 velocity sensors</b>,
   with Navier–Stokes (NS) residual as the only physics signal —
   no Direct Numerical Simulation (DNS) supervision in training.
+</div>
+
+<div class="mt-8" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:4px; align-items:baseline; font-size:0.9rem;">
+  <span style="color:#9CA3AF;">Presenter</span><span style="color:#1F1B2E;"><b>李駿毅</b> Jun-Yi Li <span style="color:#9CA3AF;">· 113011527</span></span>
+  <span style="color:#9CA3AF;">Advisor</span><span style="color:#1F1B2E;"><b>林洸銓</b> Dr. Kuang C. Lin</span>
+  <span style="color:#9CA3AF;">Lab</span><span style="color:#6B7280;">Applied Computing &amp; Thermofluid Laboratory</span>
 </div>
 
 </div>
@@ -191,33 +199,57 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 # Four gaps across seven research lines
 
 <style>
-.blk { display: grid; grid-template-columns: max-content 1fr; column-gap: 22px; row-gap: 0; margin-top: 14px; }
-.blk .lbl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; white-space: nowrap; padding: 11px 0; }
-.blk .fam { font-size: 0.90rem; color: #6B7280; line-height: 1.4; padding: 11px 0; border-bottom: 1px solid #F1EDF5; }
-.blk .lbl { border-bottom: 1px solid #F1EDF5; }
-.need { color: #E97132; font-weight: 700; }
+/* 對齊 slide 6 / 7 的表格語彙：一個強調色，一個意思 —— 橘色只標「缺什麼」。 */
+.gp { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
+.gp th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.gp th.key { color: #E97132; }
+.gp td { padding: 11px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.3; }
+.gp .n { color: #E97132; font-weight: 700; }
+.gp td.key { color: #1F1B2E; font-weight: 600; }
+.gp tr.sens td { background: #FEF6F1; border-bottom: none; }
+.gp tr.sens td.key { color: #E97132; }
 </style>
 
+<table class="gp">
+<thead>
+<tr>
+<th style="width: 4%;"></th>
+<th style="width: 30%;" class="key">What is missing</th>
+<th style="width: 46%;">Left open by</th>
+<th style="width: 20%;">Answered by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="n">1</td>
+<td class="key">Ground-truth field to train against</td>
+<td>POD · DMD · QR-pivot <span class="opacity-70">[Sirovich 1987 · Manohar 2018]</span> · DeepONet · FNO <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet</td>
+<td>architecture</td>
+</tr>
+<tr>
+<td class="n">2</td>
+<td class="key">Sensors read as input</td>
+<td>PINN · PirateNet <span class="opacity-70">[Raissi 2019 · Wang 2024]</span> — scored by sensors · operator nets need a dense grid</td>
+<td>architecture</td>
+</tr>
+<tr>
+<td class="n">3</td>
+<td class="key">Uneven clocks under PDE autodiff</td>
+<td>Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> · CfC <span class="opacity-70">[Hasani 2022]</span> — never PDE-constrained</td>
+<td>architecture</td>
+</tr>
+<tr class="sens">
+<td class="n">4</td>
+<td class="key">Sensing configuration mapped</td>
+<td><b>All surveyed works</b> — one error, one fixed setup · sensor positions taken as <b>given</b></td>
+<td><b style="color:#E97132;">sensing study</b></td>
+</tr>
+</tbody>
+</table>
 
-<div class="blk">
-
-<div class="lbl">Needs a <span class="need">reference field</span></div>
-<div class="fam">POD · Dynamic Mode Decomposition (DMD) · QR-pivot <span class="opacity-70">[Sirovich 1987 · Schmid 2010 · Manohar 2018]</span> · Fukami 2019 · Maulik 2021 · Deep Operator Network (DeepONet) · Fourier Neural Operator (FNO) <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet <span class="opacity-70">[Williams 2024 · Santos 2023 · Nguyen 2024]</span></div>
-
-<div class="lbl">Needs a <span class="need">solver in the loop</span></div>
-<div class="fam">4D-Var · EnKF <span class="opacity-70">[Asch 2016]</span> · B-PINN <span class="opacity-70">[Yang 2021]</span> — adjoint cost, HMC scaling at high Re</div>
-
-<div class="lbl">Never <span class="need">reads the sensors</span></div>
-<div class="fam">PINN · PirateNet · SOAP <span class="opacity-70">[Raissi 2019 · Wang 2024 · 2025]</span> — sensors enter as a loss term, never as input</div>
-
-<div class="lbl">Never met a <span class="need">PDE</span></div>
-<div class="fam">LTC · Closed-form Continuous-time (CfC) <span class="opacity-70">[Hasani 2021 · 2022]</span> · Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> — control and time-series only</div>
-
-</div>
-
-<div class="mt-4 px-4 py-3 rounded-lg" style="background: rgba(127,16,132,0.06); border: 1px solid #E5E0EC;">
-<span class="text-xs uppercase tracking-wider" style="color:#7F1084; font-weight:700;">The low-error methods are all in row one</span>
-<div class="mt-1 text-sm" style="color:#374151;">SHRED · Senseiver · FLRNet post few-% error — by <b style="color:#E97132;">reading the reference field</b> the rig will not have. <span style="color:#6B7280;">What that buys them, next.</span></div>
+<div class="mt-3 text-sm" style="color:#374151;">
+Gaps 1–3 are architectural <span style="color:#C9C6D0;">→</span> PI-CON <span style="color:#C9C6D0;">·</span> Gap 4 is not <span style="color:#C9C6D0;">→</span> more sensors, better placement, or a better model?
 </div>
 
 <FooterLogos />
@@ -230,10 +262,34 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
   —— 委員問「為何不比參數量 / Re」時照此答。
 [Literature review 1/2 · 1.5min] 對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)，
 但不逐條列七行——論文自己說那七條線是要被 consolidate 成四個 Gap 的（chapter01:21），
-重點是「卡在哪」不是「有幾條」。故按卡點分四組：需要參考場 / 需要 solver / 不讀 sensor /
-沒碰過 PDE。底部條為唯三同 regime 的最接近工作。完整七行表在 thesis Table 1.1，
-被問細節時翻論文。次頁給四個 Gap 與 PI-CON 佔的 cell。
+重點是「卡在哪」不是「有幾條」。完整七行表在 thesis Table 1.1，被問細節時翻論文。
 注意：他人方法參數量 thesis 未載，不可臆造。
+
+⚠️ 2026-07-17 重大修正：本頁原本列的四個 gap 是**投影片自創**的四個架構 gap
+（reference field / solver in the loop / reads sensors / met a PDE），**與論文的四個 Gap 不同**，
+而且把論文的 Gap 4 弄丟了。後果：整個 O2/O3（貢獻的一半）在文獻回顧裡沒有對應的缺口，
+Objective 那頁的 O2/O3 因此顯得沒有來由。
+
+現改為論文 chapter01:108-118 的原四條：
+  Gap 1 (ch01:108) No ground-truth field to train against
+  Gap 2 (ch01:111) The model must read the sensor stream, not merely be scored by it
+  Gap 3 (ch01:114) Sensors report on uneven clocks, but the model must stay differentiable for the PDE
+  Gap 4 (ch01:117) How the sensing configuration (count, placement, noise) governs reconstruction is unmapped
+底部條依 chapter01:106 原文：「The first three gaps are architectural; the fourth asks how sensor
+count, placement, and noise govern the achievable result. The proposed work addresses Gaps 1--3
+with a new architecture and Gap 4 with a systematic sensing study.」
+
+口述 Gap 4（本頁新增，最重要的一條，直接鋪陳 O2/O3 與 LES placement 管線）：
+「所有 surveyed works 都只報一個 setup 的單一總誤差，sensor 位置一律當作**給定**的 —— 沒有人
+把 count / placement / noise 拆開量。所以無從判斷下一步該加感測器、改佈點、還是換模型。」
+（chapter01:118 原文：「Without this map, it is unclear whether the productive next step is more
+sensors, better placement, cleaner sensing, or a better model.」）
+—— 這個「positions are taken as given」的觀察出自 JY_prelim.pptx (2025-12 預口試稿) slide 8：
+該表 Sensor Strategy 一欄七篇全是 Given mask / Given tracks / Given sites / Given coverage /
+Given labels / As given。那一欄重複七次本身就是論證，不需修辭。
+
+⚠️ 已移除底部原本的「The low-error methods are all in row one」條：那句在講 slide 6 的論點
+（它們對著 reference field 擬合），本頁的落點應是「四個 gap 怎麼分工」。
 -->
 
 ---
@@ -245,9 +301,15 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 # What prior methods are trained against
 
 <style>
-/* 一個強調色，一個意思：橘色只標「loss 對著什麼擬合」—— 這頁唯一的論點。
-   其餘欄位一律中性，否則每格都是重點就等於沒有重點。 */
+/* 一個顏色一個意思，三色各司其職，不可再增：
+     橘 #E97132 = loss 對著什麼擬合（本頁的論點）
+     深藍 #0F2D52 = 模型主體（結構性標示，非好壞判斷）
+     紫 #7F1084 = PI-CON 那列
+   其餘一律中性；每格都上色就等於沒有重點。 */
 .dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
+.dns .bb { color: #0F2D52; font-weight: 700; }
+.dns tr.ours .bb { color: #7F1084; }
+.dns .near { display: block; font-size: 0.82em; font-weight: 400; color: #9CA3AF; margin-top: 1px; }
 .dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
           letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
 .dns th.key { color: #E97132; }
@@ -272,31 +334,31 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <tbody>
 <tr>
 <td class="who">SHRED <span>Williams 2024</span></td>
-<td>Stacked LSTM + shallow FC decoder</td>
+<td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
 <td>Isotropic turbulence (JHTDB)</td>
 <td class="key">The full state · ‖x − H(y)‖₂</td>
 </tr>
 <tr>
 <td class="who">Senseiver <span>Santos 2023</span></td>
-<td>Perceiver IO · cross-attention to latent</td>
+<td><b class="bb">Perceiver IO</b> · cross-attention to latent</td>
 <td>—</td>
 <td class="key">“A dense set of observations is needed to train”</td>
 </tr>
 <tr>
 <td class="who">FLRNet <span>Nguyen 2024</span></td>
-<td>Convolutional neural network (CNN) VAE + Fourier features + multilayer perceptron (MLP)</td>
+<td><b class="bb">CNN</b> VAE + Fourier features + <b class="bb">MLP</b></td>
 <td>Cylinder, Re 300–10³</td>
 <td class="key">The full field · VAE + perceptual loss</td>
 </tr>
 <tr>
 <td class="who">FLRONet <span>Vo Dang 2024</span></td>
-<td>FNO branch + MLP trunk</td>
+<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk <span class="near">closest published branch–trunk</span></td>
 <td>Cylinder (CFDBench)</td>
 <td class="key">Paired CFD fields</td>
 </tr>
 <tr class="ours">
 <td class="who">PI-CON <span>ours</span></td>
-<td>DeepONet + CfC + cross-attention</td>
+<td><b class="bb">DeepONet</b> · <b class="bb">CfC</b> branch + cross-attention</td>
 <td>Kolmogorov, Re 10⁴</td>
 <td class="key">Sensor MSE + NS residual only</td>
 </tr>
@@ -326,6 +388,32 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 - FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench；
   Re 未報。⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，
   非原文直引。
+
+== 「為什麼沒有 DeepONet 系的對照？」（2026-07-17 補；委員極可能問）==
+有 —— 就是 FLRONet。chapter01:101 原文稱它是「the spatio-temporal **deep operator network**
+of Vo Dang and Nguyen … **the closest published architecture to the present branch--trunk
+readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trunk」，沒出現 DeepONet
+字樣，等於把這個對照藏起來 —— 委員讀表時會問的正是這題。已改為
+「DeepONet · FNO branch + MLP trunk」+ 灰字註「closest published branch–trunk」。
+
+完整答法（三層，被追問時逐層給）：
+1. **文獻對照 = FLRONet**：同為 branch–trunk deep operator network，但它訓練對著
+   paired CFD fields（chapter01:101「train against complete CFD fields rather than the PDE」）
+   —— 差別不在架構家族，在監督訊號。這正是本表的論點。
+2. **原版 DeepONet [Lu 2021] 為何不在同 regime 比較**：chapter01:93 明載 DeepONet/FNO
+   「are demonstrated as dense-input forward operators: the branch expects its input function
+   sampled on a fixed dense grid … rather than ~10² scattered points」——它吃不了稀疏散點，
+   屬 Gap 2，不是同 regime 的競爭者。連 physics-informed 的 PINO 也「evaluates its residual
+   on a grid」。
+3. **真正的 DeepONet 對照在內部**：chapter01:128 的 O1 criterion 就是「reduce KE error by at
+   least two percentage points relative to the **vanilla DeepONet baseline** at p<0.01」——
+   那是 2×2 ablation 的 B0（主結果頁：B0 8.23% → B3 5.71%，−2.52 pp, p=3.0×10⁻⁷）。
+   即 vanilla DeepONet 是以 baseline 而非文獻列的形式對照，因為沒有已發表工作在此 regime
+   跑過 vanilla DeepONet，只能自己重跑才是公平比較（chapter04:39 不採他人未經本協定重跑的數字）。
+
+== 顏色規則（三色，各一個意思，不可再增）==
+橘 = loss 對著什麼擬合（本頁論點）· 深藍 = 模型主體（結構標示，非好壞）· 紫 = PI-CON 那列。
+主體用深藍而非橘，是為了不與「loss 擬合對象」搶同一個語意通道。
 
 底部交棒：exactly three 的揭曉在此頁，slide 5 不再提前宣告、slide 7 不再重述。
 -->
@@ -2121,81 +2209,6 @@ Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted s
 -->
 
 ---
-disabled: true
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Results · filtering vs smoothing mode</SectionTag>
-
-# Filtering stays default for deployment, not because smoothing fails
-
-<div class="grid grid-cols-5 gap-4 mt-3 text-sm">
-
-<div class="col-span-2">
-<Card>
-<LabelTiny>FILTERING vs SMOOTHING</LabelTiny>
-
-<table class="w-full mt-2 text-xs" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 1.5px solid #7F1084;">
-      <th class="text-left py-1 px-1" style="color:#7F1084;">Mode</th>
-      <th class="text-left py-1 px-1" style="color:#7F1084;">KE mean</th>
-      <th class="text-left py-1 px-1" style="color:#7F1084;">Role</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127,16,132,0.10);">
-      <td class="py-1 px-1"><b>Filtering</b><br/>(EXP-245)</td>
-      <td><b style="color:#7F1084;">5.71 ± 0.11 %</b></td>
-      <td>main n = 5 baseline</td>
-    </tr>
-    <tr>
-      <td class="py-1 px-1">Smoothing<br/>(EXP-294)</td>
-      <td>5.74 %</td>
-      <td>single-seed diagnostic</td>
-    </tr>
-  </tbody>
-</table>
-
-<div class="mt-2 text-xs" style="color:#6B7280;">
-Filtering = forward CfC scan only, query reads sensor up to t<sub>q</sub>.<br/>
-Smoothing = forward + backward CfC, query sees full sensor sequence.
-</div>
-</Card>
-</div>
-
-<div class="col-span-3 space-y-3 text-sm">
-
-<Card>
-<LabelTiny>FINAL-PROTOCOL RESULT</LabelTiny>
-<div class="mt-1 leading-snug space-y-1">
-<div>· Smoothing is <b>comparable</b> to filtering under the final protocol</div>
-<div>· It is not promoted because the evidence is single-seed</div>
-<div>· The main filtering recipe has n = 5 support</div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>ENGINEERING IMPLICATIONS OF FILTERING</LabelTiny>
-<div class="mt-1 leading-snug space-y-1">
-<div>① <b>Streaming-deployable</b> — never reads future sensor data</div>
-<div>② <b>½ compute</b> — no backward scan</div>
-<div>③ <b>Validated recipe</b> — filtering is the n = 5 default mode</div>
-</div>
-</Card>
-
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Filtering vs smoothing · 1min] 兩個 CfC mode 對照：filtering forward-only (engineering deployable) vs smoothing forward+backward (offline batch)。EXP-294 final-protocol smoothing 不再支持舊的 failure story；它與 filtering 接近。但 filtering 仍是預設，因為 streaming-deployable、半 compute，而且 EXP-245 n=5 是主 baseline。
--->
-
----
 
 <NavBar active="summary" />
 
@@ -2360,217 +2373,78 @@ Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="colo
 -->
 
 ---
-disabled: true
----
-
-<NavBar active="background" />
-
-<SectionTag>§ Literature review · landscape of sparse-flow reconstruction</SectionTag>
-
-# Methodology landscape & research gap
-
-<div class="mt-2 text-xs" style="color:#6B7280;">
-Deployable backbone must integrate:&nbsp;
-<b style="color:#7F1084;">(a)</b> function-valued sensor input&nbsp;·&nbsp;
-<b style="color:#7F1084;">(b)</b> continuous-time recurrence&nbsp;·&nbsp;
-<b style="color:#7F1084;">(c)</b> PDE consistency under sensor-only training
-</div>
-
-<div class="mt-2 text-sm">
-
-<table class="w-full" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Method family</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Representative work</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Training supervision</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Missing ingredient(s)</th>
-      <th class="text-left py-1 px-2" style="color:#7F1084;">Deployable?</th>
-    </tr>
-  </thead>
-  <tbody style="font-size: 0.83rem;">
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Classical ROM + DA</td>
-      <td class="py-1 px-2">POD [Sirovich 1987], QR-pivot [Manohar 2018], 4D-Var [Asch 2016]</td>
-      <td class="py-1 px-2">Sensor + low-rank basis / solver</td>
-      <td class="py-1 px-2" style="color:#E97132;"><b>(a) (b) (c)</b>&nbsp;— basis explodes at high Re; needs offline DNS</td>
-      <td class="py-1 px-2" style="color:#E97132;">Partial</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Operator learning + CT-RNN backbones</td>
-      <td class="py-1 px-2">DeepONet [Lu 2021], FNO [Li 2021], CfC [Hasani 2022], Neural ODE</td>
-      <td class="py-1 px-2">DNS forward / sequence data</td>
-      <td class="py-1 px-2" style="color:#E97132;"><b>(c)</b>&nbsp;— no PDE residual under sensor-only loss</td>
-      <td class="py-1 px-2" style="color:#6B7280;">–</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">PINN + stabilization</td>
-      <td class="py-1 px-2">PINN [Raissi 2019], PirateNets [Wang 2024]</td>
-      <td class="py-1 px-2">Coord query + PDE residual</td>
-      <td class="py-1 px-2" style="color:#E97132;"><b>(a) (b)</b>&nbsp;— MLP cannot ingest sensor trajectory</td>
-      <td class="py-1 px-2" style="color:#E97132;">Partial</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-1 px-2">Sparse-sensor + physics (SOTA)</td>
-      <td class="py-1 px-2">Mons et al. 2025 — physics-constrained CNN</td>
-      <td class="py-1 px-2">Sensor + NS only</td>
-      <td class="py-1 px-2" style="color:#E97132;"><b>(a) partial · (b)</b>&nbsp;— sensor as image; discrete time</td>
-      <td class="py-1 px-2" style="color:#E97132;">Partial</td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Literature review landscape · 2min] 5 row 表格 — 上方 legend 標 (a)(b)(c) 三個 deployable backbone 缺口。每行 Missing ingredient column 標該方法缺哪些：Classical ROM 缺 (a)(b)(c)、Operator learning 缺 (c)、PINN 缺 (a)(b)、Mons SOTA 缺 (a) partial + (b)。Highlight row = PI-CON (ours) 標「provides (a)(b)(c)」直接填上 gap，不用底部再寫 take-away。
--->
-
----
-disabled: true
----
-
-<NavBar active="background" />
-
-<SectionTag>§ Motivation</SectionTag>
-
-# Why combine operator learning, CfC, and physics
-
-<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
-
-<Card>
-<LabelTiny>4 GAPS LEFT BY EXISTING WORK</LabelTiny>
-<div class="mt-2 leading-snug space-y-3">
-
-<div><b>(G1) Supervision regime</b>&nbsp;·&nbsp; No PINO validated under <b>sensor + NS-only</b> deployment.
-<div class="text-xs mt-0.5" style="color:#6B7280;">Closest comparator (Mons 2025) is a plain CNN, not an operator.</div>
-</div>
-
-<div><b>(G2) Function-valued sensor input</b>&nbsp;·&nbsp; PINN MLP cannot ingest a sensor <b>trajectory</b>.
-<div class="text-xs mt-0.5" style="color:#6B7280;">DeepONet was designed for dense forward, not sparse inverse with continuous-time queries.</div>
-</div>
-
-<div><b>(G3) CT-RNN ↔ PDE autograd</b>&nbsp;·&nbsp; Latent-ODE needs per-step integration <b>inside autograd</b>.
-<div class="text-xs mt-0.5" style="color:#6B7280;">Prohibitive when also computing PDE Jacobians; CfC closed-form has the right cost profile but no fluids deployment yet.</div>
-</div>
-
-<div><b>(G4) Error attribution</b>&nbsp;·&nbsp; Existing studies report <b>aggregated error</b>, no split.
-<div class="text-xs mt-0.5" style="color:#6B7280;">Info-limit (Nyquist) vs architecture vs collocation never separated by band.</div>
-</div>
-
-</div>
-</Card>
-
-<Card>
-<LabelTiny>OUR INGREDIENTS — EACH FILLS A GAP</LabelTiny>
-
-<div class="mt-2 leading-snug space-y-3">
-
-<div><b>DeepONet branch–trunk</b> [Lu 2021]&nbsp;<span style="color:#7F1084;">→ G2</span>
-<div class="text-xs mt-0.5" style="color:#6B7280;">Operator-universal-approximation; branch ingests function-valued sensor input.</div>
-</div>
-
-<div><b>CfC closed-form RNN</b> [Hasani 2022]&nbsp;<span style="color:#7F1084;">→ G3</span>
-<div class="text-xs mt-0.5" style="color:#6B7280;">Continuous-time, O(1) per step, autograd-stable through PDE Jacobians.</div>
-</div>
-
-<div><b>Causal cross-attention</b> [Vaswani 2017]&nbsp;<span style="color:#7F1084;">→ G1</span>
-<div class="text-xs mt-0.5" style="color:#6B7280;">Sparse-to-dense fusion: query at any (x, t); + AL-continuity → sensor-only + NS regime.</div>
-</div>
-
-<div><b>Band decomposition</b> (Nyquist k<sub>max</sub>)&nbsp;<span style="color:#7F1084;">→ G4</span>
-<div class="text-xs mt-0.5" style="color:#6B7280;">Low (k≤8) vs mid/high (k&gt;8) split → info-limit isolated from architecture choices.</div>
-</div>
-
-</div>
-</Card>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Motivation · 2min] 左卡 4 gaps 完整版（每條一行 + 補充 context）：
-G1 supervision regime — PINO 在 sensor + NS-only regime 未驗證 (Mons 2025 用 plain CNN)
-G2 function-valued sensor input — PINN MLP 無法 ingest trajectory; DeepONet 不適 sparse inverse
-G3 CT-RNN autograd — Latent-ODE 需 per-step integration; CfC closed-form 適但無 PDE deployment
-G4 error attribution — 沒人對 sensor info bound 拆 error
-右卡 4 ingredients (each → Gx)：DeepONet→G2 / CfC→G3 / Cross-attn→G1 / Band decomposition→G4，每條補 1 line "what it provides"。底部 Hypothesis chip：四件套合一補 G1-G4，gain 應 statistically significant + 殘餘 error 對齊 sensor info bound (Nyquist k_max ≈ 5.64) 而非 optimisation。
--->
-
----
-disabled: true
----
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · falsifiability tests at fixed collocation budget (O3 support)</SectionTag>
+<SectionTag>§ Results · filtering vs smoothing mode</SectionTag>
 
-# 8 levers at fixed collocation = 64 — all falsified
+# Filtering stays default for deployment, not because smoothing fails
 
-<div class="mt-1 text-xs">
+<div class="grid grid-cols-5 gap-4 mt-3 text-sm">
 
-<table class="w-full" style="border-collapse: collapse;">
+<div class="col-span-2">
+<Card>
+<LabelTiny>FILTERING vs SMOOTHING</LabelTiny>
+
+<table class="w-full mt-2 text-xs" style="border-collapse: collapse;">
   <thead>
-    <tr style="border-bottom: 2px solid #7F1084;">
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">Lever target</th>
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">Experiment</th>
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">Recipe</th>
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">KE MAPE</th>
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">Δ vs EXP-064</th>
-      <th class="text-left py-0.5 px-2" style="color:#7F1084;">Outcome</th>
+    <tr style="border-bottom: 1.5px solid #7F1084;">
+      <th class="text-left py-1 px-1" style="color:#7F1084;">Mode</th>
+      <th class="text-left py-1 px-1" style="color:#7F1084;">KE mean</th>
+      <th class="text-left py-1 px-1" style="color:#7F1084;">Role</th>
     </tr>
   </thead>
   <tbody>
     <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127,16,132,0.10);">
-      <td class="py-0 px-2"><b>(baseline)</b></td><td><b>EXP-064</b></td><td>4-task GradNorm, no AL</td><td><b style="color:#7F1084;">7.80 %</b></td><td>—</td><td><b style="color:#7F1084;">reference</b></td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">① Trunk capacity</td><td>EXP-065</td><td>num_query_mlp_layers 1→2</td><td>7.74 %</td><td>−0.06 percentage points</td><td style="color:#E97132;">noise floor</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">② Multi-scale time const + freq stratification</td><td>EXP-067</td><td>CfC log τ ∈ (−3, 1), 3-band σ</td><td>11.20 %</td><td>+3.40 percentage points</td><td style="color:#E97132;">regression</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">③ PINN causal weighting</td><td>EXP-068</td><td>ε = 1, 16 bins</td><td>9.73 %</td><td>+1.93 percentage points</td><td style="color:#E97132;">regression (div +269 %)</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">④ Multi-head cross-attn</td><td>EXP-083</td><td>num_heads 1→2 (same params)</td><td>10.36 %</td><td>+2.56 percentage points</td><td style="color:#E97132;">ek_ratio −4.2 %</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">⑤ Fourier bandwidth ↑</td><td>EXP-084</td><td>fourier_harmonics 8→16</td><td>10.81 %</td><td>+3.01 percentage points</td><td style="color:#E97132;">spectral over-fit</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">⑥ K-scaling</td><td>EXP-085</td><td>K = 100 → 200, same recipe</td><td>~ 30 %</td><td>+22 percentage points</td><td style="color:#E97132;">recipe mismatch</td>
-    </tr>
-    <tr style="border-bottom: 1px solid #E5E0EC;">
-      <td class="py-0 px-2">⑦ Trunk depth ↑</td><td>EXP-086</td><td>num_query_mlp_layers 1→3</td><td>11.77 %</td><td>+3.97 percentage points</td><td style="color:#E97132;">over-smoothing</td>
+      <td class="py-1 px-1"><b>Filtering</b><br/>(EXP-245)</td>
+      <td><b style="color:#7F1084;">5.71 ± 0.11 %</b></td>
+      <td>main n = 5 baseline</td>
     </tr>
     <tr>
-      <td class="py-0 px-2">⑧ Modified MLP gating</td><td>EXP-087</td><td>U/V gating (Wang 2024) [Wang 2024]</td><td>10.71 %</td><td>+2.91 percentage points</td><td style="color:#E97132;">noise floor</td>
+      <td class="py-1 px-1">Smoothing<br/>(EXP-294)</td>
+      <td>5.74 %</td>
+      <td>single-seed diagnostic</td>
     </tr>
   </tbody>
 </table>
 
+<div class="mt-2 text-xs" style="color:#6B7280;">
+Filtering = forward CfC scan only, query reads sensor up to t<sub>q</sub>.<br/>
+Smoothing = forward + backward CfC, query sees full sensor sequence.
+</div>
+</Card>
 </div>
 
-<div class="mt-1 text-xs" style="color:#7F1084; text-align:center;">
-<b>At collocation = 64, no architectural lever closes the gap.</b>&nbsp;
-Productive levers identified by stable phase:&nbsp;
-<b>physics-sampling budget</b> (historical EXP-241)&nbsp;·&nbsp;
-<b>continuity-only AL</b> (main EXP-245 n = 5 recipe).
+<div class="col-span-3 space-y-3 text-sm">
+
+<Card>
+<LabelTiny>FINAL-PROTOCOL RESULT</LabelTiny>
+<div class="mt-1 leading-snug space-y-1">
+<div>· Smoothing is <b>comparable</b> to filtering under the final protocol</div>
+<div>· It is not promoted because the evidence is single-seed</div>
+<div>· The main filtering recipe has n = 5 support</div>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>ENGINEERING IMPLICATIONS OF FILTERING</LabelTiny>
+<div class="mt-1 leading-snug space-y-1">
+<div>① <b>Streaming-deployable</b> — never reads future sensor data</div>
+<div>② <b>½ compute</b> — no backward scan</div>
+<div>③ <b>Validated recipe</b> — filtering is the n = 5 default mode</div>
+</div>
+</Card>
+
+</div>
+
 </div>
 
 <FooterLogos />
 
 <!--
-[Falsifiability tests · 2min] 8 個 legacy lever 對 EXP-064 baseline 做 ablation，全部在早期固定 physics budget 下；此頁現在是 backup，不作主線。正式結論應回到 final protocol：EXP-245 n=5 main baseline、K-scaling 趨勢、EXP-290 noise、EXP-292 diagnostic。
+[Filtering vs smoothing · 1min] 兩個 CfC mode 對照：filtering forward-only (engineering deployable) vs smoothing forward+backward (offline batch)。EXP-294 final-protocol smoothing 不再支持舊的 failure story；它與 filtering 接近。但 filtering 仍是預設，因為 streaming-deployable、半 compute，而且 EXP-245 n=5 是主 baseline。
 -->
 
----
-disabled: true
 ---
 
 <NavBar active="summary" />
