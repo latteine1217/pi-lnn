@@ -1,24 +1,35 @@
 #!/usr/bin/env python3
 """
-Nyquist information-theoretic ceiling — recoverability plot.
+DNS energy available within the sensor-count Nyquist scale.
 
 What this script answers
 ------------------------
-Given K real-valued point sensors uniformly placed on a 2D N×N grid, what is
-the maximum fraction of the DNS kinetic energy that ANY reconstruction
-algorithm (linear regression, PINN, DeepONet, ...) can recover from the K
-sensor measurements?
+Given K point velocity sensors on a 2D N×N grid over the unit-area domain,
+how much of the DNS kinetic energy lies below the sensor-count scale
 
-The answer is purely information-theoretic:
+    k_Nyq(K) = √(K/π)          (Δk = 1/L = 1 cycles/m at L = 1 m,
+                                so a disk of radius k_Nyq holds ≈ K lattice modes)
 
-  K sensors  →  recoverable subspace has dimension K
-              →  by isotropic Nyquist, this corresponds to all Fourier modes in
-                 the disk  |k| ≤ k_Nyq(K) = √(K/π)
-              →  ceiling = F_DNS(k_Nyq(K)),  where  F_DNS  is the cumulative
-                 DNS energy CDF over radial wavenumber.
+The plotted quantity is F_DNS(k_Nyq(K)), the cumulative DNS energy fraction
+inside that disk.
 
-So the plot is "DNS energy distribution, with the K sensors' Nyquist line
-drawn on top, and the ceiling read off from the intersection".
+What this is NOT
+----------------
+NOT an upper bound on what any algorithm can recover.  √(K/π) counts each
+sensor as ONE sample and ignores incompressibility.  Each sensor actually
+returns two components (u, v), and a 2D divergence-free field carries a single
+scalar (stream-function) degree of freedom, so the strict linear-observability
+limit is higher: the SVD of the 200×796 sensing matrix in thesis §appendix06
+gives full rank up to k ≲ 8 ≈ √(2K/π) at K=100.  Modes near that wall are
+observable but strongly noise-amplifying (κ ≈ 7×10² at k ≤ 8 vs κ ≈ 7 at
+k ≤ 5), so the effective bandwidth is set by conditioning, not by a hard
+observability wall — the measured effective cutoff is k_cut ≈ 4.7.
+The thesis therefore treats √(K/π) as an empirical scale for the
+reconstructable band, sitting between the conditioning-limited reality (4.7)
+and the observability wall (8); it reserves the word "ceiling" for the latter.
+Training also uses PDE residual, i.e. information beyond the K samples, which
+is a further reason this fraction is not a bound.  Keep this figure's wording
+aligned with thesis §4.5 (chapter04.tex:261-268).
 
 Why we don't show an algorithm-specific recovery curve
 ------------------------------------------------------
@@ -28,9 +39,9 @@ to draw a per-shell recovery curve.  Two problems:
       so even moderate conditioning (κ ≈ 400) amplifies sensor signal by
       thousands and  C_rec  blows up unless an  rcond  cutoff is tuned by K.
   2.  Tuning  rcond  makes the curve algorithm-dependent and weakens the
-      "information-theoretic ceiling" message.
+      sensor-scale message.
 The DNS-energy formulation here is exact, K-clean, and matches the paper's
-"Nyquist ceiling" framing.
+framing.
 
 Axis convention
 ---------------
@@ -106,7 +117,7 @@ def plot_recoverability(curves: dict[int, dict], k_axis: np.ndarray, out_png: Pa
     from matplotlib.lines import Line2D
 
     apply_journal_rcparams()  # sans-serif，與其他 result 圖一致
-    fig, (axL, axR) = plt.subplots(1, 2, figsize=(5.5, 2.8), constrained_layout=True)
+    fig, (axL, axR) = plt.subplots(1, 2, figsize=(5.5, 3.2), constrained_layout=True)
 
     # F_dns and per-shell energy are K-independent (same DNS field) → use any K
     any_K = next(iter(curves))
@@ -137,12 +148,10 @@ def plot_recoverability(curves: dict[int, dict], k_axis: np.ndarray, out_png: Pa
         color = K_COLORS[K]
         k_nyq = float(np.sqrt(K / np.pi))
         axL.axvline(k_nyq, color=color, linestyle="--", linewidth=1.1, alpha=0.85)
-    # Legend: DNS line + reference slope + a single generic Nyquist-cutoff entry.
-    # 各 K 的 k_Nyq 數值與配色改由 (b) 的 Nyquist-ceilings 表說明，避免兩處重複、縮短 legend。
+    # (a) 不放 legend — 全部 entry 收到圖下方的 figure-level legend，避免遮蔽 E(k) 曲線。
     handles_main, labels_main = axL.get_legend_handles_labels()
     handles_main.append(Line2D([0], [0], color="0.5", linestyle="--", linewidth=1.1))
     labels_main.append(r"$k_{\mathrm{Nyq}}(K)$")
-    axL.legend(handles_main, labels_main, loc="upper right", frameon=False, fontsize=6.5)
     axL.set_xlim(1, k_axis.max())
     axL.set_xlabel(r"Wavenumber  $k = \|\mathbf{k}\|$  (1/m)")
     axL.set_ylabel(r"Normalized energy in shell  $E(k)/E_{\mathrm{tot}}$")
@@ -167,31 +176,33 @@ def plot_recoverability(curves: dict[int, dict], k_axis: np.ndarray, out_png: Pa
         axR.scatter([k_nyq], [ceil_val], color=color, s=50, zorder=5,
                     edgecolor="white", linewidth=1.0)
 
-    # Stacked annotation table in the lower-right corner — same color coding
-    table_x = k_axis.max() * 0.6   # x location for table
-    table_y0 = 0.30                 # top of table
-    dy = 0.07
-    axR.text(table_x, table_y0 + dy * 1.5, "Nyquist ceilings", fontsize=7,
-             ha="right", va="bottom", weight="bold", color="0.15")
-    for i, K in enumerate(K_sorted):
-        color = K_COLORS[K]
-        k_nyq = float(np.sqrt(K / np.pi))
-        ceil_val = float(curves[K]["ceiling"])
-        axR.text(
-            table_x,
-            table_y0 - i * dy,
-            f"$K{{=}}{K}$:  $k_{{\\mathrm{{Nyq}}}}={k_nyq:.2f}$,  ceiling $= {ceil_val*100:.1f}\\%$",
-            fontsize=7, color=color, ha="right", va="bottom",
-        )
-
     axR.set_xlim(1, k_axis.max())
     axR.set_ylim(0.0, 1.05)
     axR.set_xlabel(r"Wavenumber  $k$  (1/m)")
     axR.set_ylabel(r"Cumulative energy fraction  $F_{\mathrm{DNS}}(k)$")
     axR.set_title("(b)", loc="left", fontweight="bold")
-    # F_DNS 黑線由 ylabel + caption 說明，markers 由下方 Nyquist-ceilings 表說明；
-    # 不再加 legend，避免 (b) 文字過多遮蔽。
     axR.grid(True, which="both", alpha=0.25, linewidth=0.5)
+
+    # ---- Shared legend outside the axes（圖下方，兩列）----
+    # 第一列：兩個 panel 共用的曲線語彙；第二列：各 K 的 k_Nyq 與 ceiling 數值。
+    for K in K_sorted:
+        handles_main.append(
+            Line2D([0], [0], color=K_COLORS[K], linestyle="--", linewidth=1.2,
+                   marker="o", markersize=4.5, markeredgecolor="white",
+                   markeredgewidth=0.8)
+        )
+        k_nyq = float(np.sqrt(K / np.pi))
+        ceil_val = float(curves[K]["ceiling"])
+        # 標籤刻意不用 "ceiling"：F_DNS 是「尺度以下可得的能量」而非上界，
+        # 與 chapter04.tex:263/268 的用字一致；"ceiling" 在論文裡指 appendix06 的 k≲8。
+        labels_main.append(
+            f"$K{{=}}{K}$: $k_{{\\mathrm{{Nyq}}}}={k_nyq:.2f}$, "
+            f"$F_{{\\mathrm{{DNS}}}}={ceil_val*100:.1f}\\%$"
+        )
+    # ncol=2：matplotlib legend 逐欄填,故左欄=曲線語彙、右欄=各 K 數值。
+    fig.legend(handles_main, labels_main, loc="outside lower center", ncol=2,
+               frameon=False, fontsize=6.5, handlelength=2.0,
+               columnspacing=2.5, handletextpad=0.6)
     # suptitle 移除 — 說明移至 LaTeX caption
 
     fig.savefig(out_png)
@@ -250,13 +261,14 @@ def main():
     E_per_shell = np.bincount(shell_idx.ravel(), weights=e2d.ravel(), minlength=n_bins)[:n_bins]
     F_dns_mean = np.cumsum(E_per_shell) / max(E_per_shell.sum(), 1e-30)
 
-    # Ceiling = strict continuous-disk energy fraction |k|<=k_nyq at t=5 (matches the §4.5 text).
+    # F_DNS(k_nyq) = strict continuous-disk energy fraction |k|<=k_nyq at t=5 (matches §4.5).
+    # 這是「sensor-count 尺度以下可得的能量」，不是可重建能量的上界 —— 見檔頭 "What this is NOT"。
     curves: dict[int, dict] = {}
     for K in K_list:
         k_nyq = float(np.sqrt(K / np.pi))
         ceil_cont = float(e2d[kmag <= k_nyq].sum() / e_tot)
         curves[K] = {"F_dns_mean": F_dns_mean, "ceiling": ceil_cont}
-        print(f"      K={K}:  k_nyq={k_nyq:.2f}  |  ceiling (|k|<=k_nyq, t=5) = {ceil_cont*100:.2f}%")
+        print(f"      K={K}:  k_nyq={k_nyq:.2f}  |  F_DNS(|k|<=k_nyq, t=5) = {ceil_cont*100:.2f}%")
 
     print(f"[4/4] Plotting → {out_dir}")
     out_png = out_dir / "nyquist_recoverability.png"

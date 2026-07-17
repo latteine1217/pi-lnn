@@ -44,14 +44,14 @@ Table~\ref{tab:time_local} reports early, mid, and late segment averages from th
 \paragraph{Discussion.}
 The main row in Table~\ref{tab:main_metrics} uses no DNS full field for sensor placement or training supervision; sensor values are the DNS stand-in sampled only at the $K$ positions. Against the DNS-oracle reference, placement shows an integral/pointwise trade-off: the oracle has lower KE error ($4.68\%$ vs $5.71\%$), while LES-derived placement has lower pointwise velocity error ($u$ rel-$L_2$ $13.65\%$ vs $15.34\%$, $v$ rel-$L_2$ $17.52\%$ vs $18.10\%$). All strategies remain within the $10\%$ target: random placement gives KE $7.95\%$, LES-derived placement $5.71\%$, and the non-deployable DNS oracle $4.68\%$. LES-derived placement is therefore adopted as the reference DNS-free configuration because it improves over random by $2.24$ KE percentage points and reduces placement-induced variance roughly sixfold (\S\ref{sec:placement_analysis}).
 
-The divergence ratio of $0.39\%$ confirms the continuity constraint is active, matching the finite-difference floor of a DNS field band-limited to the reconstruction's resolved bandwidth (\S\ref{sec:sub_dns_div}; Fig.~\ref{fig:main_trajectories}, middle). The energy-dominant low-wavenumber band (sensor Nyquist cutoff $k_{\max}^{\rm sensor}\approx 5.64$, carrying $\approx 99\%$ of kinetic energy at $t=5$; \S\ref{subsec:nyquist_scaling}) recovers to single-digit relative error (Fig.~\ref{fig:band_err}), within the $10\%$ engineering target of O1.
+The divergence ratio of $0.39\%$ confirms the continuity constraint is active, matching the finite-difference floor of a DNS field band-limited to the reconstruction's resolved bandwidth (\S\ref{sec:sub_dns_div}; Fig.~\ref{fig:main_trajectories}, second panel). The energy-dominant low-wavenumber band (sensor-count Nyquist scale $k_{\max}^{\rm sensor}\approx 5.64$, carrying $\approx 99\%$ of kinetic energy at $t=5$; \S\ref{subsec:nyquist_scaling}) recovers to single-digit relative error (Fig.~\ref{fig:band_err}), within the $10\%$ engineering target of O1.
 
-Error concentrates at $t\in[0, 0.1]$, consistent with the difficulty of reconstructing the initial condition; for $t\ge 1$ the KE error stabilises at $\sim 5\%$ (Fig.~\ref{fig:main_trajectories}, top and bottom). The sensor-count sweep in \S\ref{subsec:nyquist_scaling} is single-seed, but uses the final PI-CON protocol and is interpreted only as a bandwidth trend.
+Error is largest over the first half-second, consistent with the difficulty of reconstructing the initial condition from sensor history alone, and declines steadily thereafter (Fig.~\ref{fig:main_trajectories}, first panel). The time-mean KE error in Table~\ref{tab:main_metrics} therefore aggregates a decaying transient rather than a stationary error level. The sensor-count sweep in \S\ref{subsec:nyquist_scaling} is single-seed, but uses the final PI-CON protocol and is interpreted only as a bandwidth trend.
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\linewidth]{figures/results/main_trajectories.pdf}
-    \caption{LES-pivot main-pipeline trajectory diagnostics over $n=5$ seeds (42, 1, 2, 3, 4), versus time $t$ (s). Top: kinetic energy $\mathrm{KE}(t)$ (m$^2$/s$^2$). Middle: divergence ratio $\Vert\nabla\!\cdot\!\mathbf{u}_{\rm pred}\Vert_2 / \Vert\nabla\mathbf{u}\Vert_F^{\rm DNS}$ (\%), with the DNS finite-difference floor. Bottom: $u$ and $v$ relative $L_2$ errors (\%). In each panel the dashed line is the across-seed mean, dotted lines are individual seeds, and the shaded band is $\pm 1\sigma$; the DNS reference is solid.}
+    \caption{LES-pivot main-pipeline trajectory diagnostics over $n=5$ seeds (42, 1, 2, 3, 4), versus time $t$ (s). First panel: kinetic energy $\mathrm{KE}(t)$ (m$^2$/s$^2$). Second panel: divergence ratio $\Vert\nabla\!\cdot\!\mathbf{u}_{\rm pred}\Vert_2 / \Vert\nabla\mathbf{u}\Vert_F^{\rm DNS}$ (\%), with the DNS finite-difference floor. Third panel: $u$ and $v$ root-mean-square error (m/s). Fourth panel: DNS component magnitudes $\Vert u_{\rm DNS}\Vert_{\rm rms}$ and $\Vert v_{\rm DNS}\Vert_{\rm rms}$ (m/s), which are the denominators of the component relative $L_2$ errors reported in Table~\ref{tab:main_metrics}. In the first three panels the dashed line is the across-seed mean, dotted lines are individual seeds, and the shaded band is $\pm 1\sigma$; the DNS reference is solid.}
     \label{fig:main_trajectories}
 \end{figure}
 
@@ -157,7 +157,7 @@ Beyond the instantaneous fields, the time- and span-averaged statistics quantify
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.92\linewidth]{figures/results/energy_spectrum.pdf}
-    \caption{Radial energy spectrum at $t=5$ for the representative single seed (seed 42). Horizontal axis: wavenumber $k$ (1/m), log scale; vertical axis: radial energy spectrum $E(k)$ (m$^3$/s$^2$), log scale. DNS (solid black) and PI-CON prediction (dashed blue). Vertical dash-dotted line marks the forcing wavenumber $k_f = 2$; vertical dashed green line marks the sensor Nyquist cutoff $k_{\max}^{\rm sensor}\approx 5.64$.}
+    \caption{Radial energy spectrum at $t=5$ for the representative single seed (seed 42). Horizontal axis: wavenumber $k$ (1/m), log scale; vertical axis: radial energy spectrum $E(k)$ (m$^3$/s$^2$), log scale. DNS (solid black) and PI-CON prediction (dashed blue). Vertical dash-dotted line marks the forcing wavenumber $k_f = 2$; vertical dashed green line marks the sensor-count Nyquist scale $k_{\max}^{\rm sensor}\approx 5.64$.}
     \label{fig:spectrum}
 \end{figure}
 
@@ -166,17 +166,17 @@ Figure~\ref{fig:spectrum} shows the radial energy spectrum at $t=5$. PI-CON matc
 Figure~\ref{fig:band_err} reports the per-band relative error against time. The low band ($k\le 5$) stays near $\sim 4\%$ throughout and reaches near-zero at several instants; the mid-$k$ and high-$k$ bands saturate near $100\%$ from $t\gtrsim 0.5$\,s, at the sensor-information ceiling. (The $t=0$ frame is excluded because high-$k$ energy there is near-zero, making relative error singular.)
 
 \paragraph{Discussion.}
-The high-$k$ deviation is the expected signature of a sensor-limited reconstruction rather than a model defect. At $K=100$ the available measurements constrain the energy-dominant low-wavenumber band but do not independently determine the mid and high bands. The $K$-scaling experiment in \S\ref{subsec:nyquist_scaling} provides further evidence: the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling.
+The high-$k$ deviation is the expected signature of a sensor-limited reconstruction rather than a model defect. At $K=100$ the available measurements constrain the energy-dominant low-wavenumber band but do not independently determine the mid and high bands. The $K$-scaling experiment in \S\ref{subsec:nyquist_scaling} provides further evidence: the reconstruction bandwidth tracks the sensor-count Nyquist scale.
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.85\linewidth]{figures/results/band_energy_rel_error_vs_time.pdf}
-    \caption{Band-energy relative error (dimensionless) vs.\ time $t$ (s), seed 42, LES-derived placement. Bands: low-$k$ ($k\le 5$, sensor Nyquist cutoff), mid-$k$ ($5<k\le 16$), high-$k$ ($k>16$). The $t=0$ frame is excluded.}
+    \caption{Band-energy relative error (dimensionless) vs.\ time $t$ (s), seed 42, LES-derived placement. Bands: low-$k$ ($k\le 5$, sensor-count Nyquist scale), mid-$k$ ($5<k\le 16$), high-$k$ ($k>16$). The $t=0$ frame is excluded.}
     \label{fig:band_err}
 \end{figure}
 
 \paragraph{Enstrophy and dissipation under the spectral cutoff.}
-The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.4\%$ on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content removed by the $K=100$ Nyquist cutoff carries enstrophy weighted by $k^2$. The deficit follows the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
+The band-limited reconstruction carries a direct consequence for vorticity-derived statistics. Figure~\ref{fig:dissipation_budget} compares the enstrophy $\mathcal{Z}(t)$ against DNS, with the dissipation rate $\varepsilon=2\nu\mathcal{Z}$ on the right axis as a constant rescaling. The reconstruction lies below the DNS reference by $26.4\%$ on the post-spin-up window $t\ge 1$~s, because the mid/high-wavenumber content beyond the $K=100$ Nyquist scale carries enstrophy weighted by $k^2$. The deficit follows the spectral roll-off at $k\ge 16$ (Fig.~\ref{fig:spectrum}) and the $\omega$ relative error of Table~\ref{tab:main_metrics}: kinetic energy, concentrated at low wavenumbers, is recovered, while enstrophy-level statistics remain sensor-bounded.
 
 \begin{figure}[!htbp]
     \centering
@@ -249,7 +249,7 @@ With all four cells trained at the matched $20\,000$-iteration, $n=5$-seed budge
 \section{Sensing-Configuration Study}
 \label{sec:sensing_study}
 
-Three sensing-configuration levers govern reconstruction quality: sensor count, placement, and measurement noise. This section quantifies the sensor count and its Nyquist information ceiling, then reports placement and noise robustness.
+Three sensing-configuration levers govern reconstruction quality: sensor count, placement, and measurement noise. This section quantifies the sensor count and its Nyquist scale, then reports placement and noise robustness.
 
 \subsection{Nyquist-Aligned K-Scaling}
 \label{subsec:nyquist_scaling}
@@ -265,7 +265,7 @@ Read against the DNS energy distribution, the scale locates how much energy lies
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.95\linewidth]{figures/results/nyquist_recoverability.pdf}
-    \caption{DNS energy available within the sensor-count Nyquist scale $\sqrt{K/\pi}$ for $K$ point velocity sensors ($Re=10^4$, $N=256$, $t=5$~s). (a)~Radial DNS energy spectrum $E(k)/E_{\rm tot}$ (dimensionless) versus wavenumber $k$ (1/m), with the $k^{-3}$ enstrophy-cascade reference (dotted; the forward-cascade slope for $k>k_f$) and Nyquist cutoffs $k_{\max}^{\rm sensor}=\sqrt{K/\pi}$ (vertical dashed, colour-coded by $K$). (b)~Cumulative DNS energy fraction $F_{\rm DNS}(k)$ (dimensionless) versus $k$ (1/m); markers locate $F_{\rm DNS}(k_{\max}^{\rm sensor})$ for $K\in\{100,200,400\}$.}
+    \caption{DNS energy available within the sensor-count Nyquist scale $\sqrt{K/\pi}$ for $K$ point velocity sensors ($Re=10^4$, $N=256$, $t=5$~s). (a)~Radial DNS energy spectrum $E(k)/E_{\rm tot}$ (dimensionless) versus wavenumber $k$ (1/m), with the $k^{-3}$ enstrophy-cascade reference (dotted; the forward-cascade slope for $k>k_f$) and Nyquist scales $k_{\max}^{\rm sensor}=\sqrt{K/\pi}$ (vertical dashed, colour-coded by $K$). (b)~Cumulative DNS energy fraction $F_{\rm DNS}(k)$ (dimensionless) versus $k$ (1/m); markers locate $F_{\rm DNS}(k_{\max}^{\rm sensor})$ for $K\in\{100,200,400\}$.}
     \label{fig:nyquist_recoverability}
 \end{figure}
 
@@ -273,7 +273,7 @@ Table~\ref{tab:k_scaling_nyquist} reports the empirical reconstruction following
 
 \begin{table}[!htbp]
     \centering
-    \caption{Sensor-count scaling and Nyquist reconstruction ceiling. LES-derived QR-pivot sensors, seed 42, $20\,000$ iterations; metrics at $t=5$. The $K=400$ run uses $512$ collocation points (memory budget).}
+    \caption{Sensor-count scaling against the Nyquist scale $\sqrt{K/\pi}$. LES-derived QR-pivot sensors, seed 42, $20\,000$ iterations; metrics at $t=5$. The $K=400$ run uses $512$ collocation points (memory budget).}
     \label{tab:k_scaling_nyquist}
     \small
     \setlength{\tabcolsep}{5pt}
@@ -454,7 +454,7 @@ All other hyperparameters follow the $Re=10^{4}$ baseline (Chapter~\ref{ch:exper
 Results are in Table~\ref{tab:re1e6}. KE MAPE attains $6.10\%$, close to the $Re=10^{4}$ baseline level ($5.71 \pm 0.11\%$, Table~\ref{tab:main_metrics}) but not directly comparable as a seed-statistics claim because the $Re=10^{6}$ run is single-seed and uses a retuned sensor budget, width, and step count. This is a feasibility case at higher Reynolds number, not a like-for-like generalisation or recipe-transfer claim.
 The divergence diagnostic is consistent across Reynolds numbers: div-ratio $0.37\%$ matches the $Re=10^{4}$ value of $0.39\%$ (\S\ref{sec:sub_dns_div}), indicating the continuity constraint reaches its band-limited floor at both $Re$.
 The forcing-mode amplitude ratio reaches $1.04$, confirming recovery of the dominant energy-injection mode.
-Enstrophy rel-err ($42\%$) is higher than at $Re=10^{4}$, consistent with the wider gap between the sensor Nyquist ceiling ($k_\text{max}\approx8$ at $K=200$) and the $Re=10^{6}$ dissipation cut-off ($k\approx100$), rather than an architectural limitation.
+Enstrophy rel-err ($42\%$) is higher than at $Re=10^{4}$, consistent with the wider gap between the sensor-count Nyquist scale ($k_\text{max}\approx8$ at $K=200$) and the $Re=10^{6}$ dissipation cut-off ($k\approx100$), rather than an architectural limitation.
 
 \begin{table}[!htbp]
     \centering

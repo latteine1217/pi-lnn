@@ -1,24 +1,24 @@
-% PI-CON architecture diagram — TikZ vector source (matches the clean codex reference look).
-% Package-free tight crop (TeX Live basic has no standalone/preview): ship a single \hbox
-% sized page. Compile:  pdflatex architecture_src.tex  ->  architecture_src.pdf
-\documentclass{article}
-\usepackage{tikz}
+% PI-CON architecture diagram — TikZ vector source.
+% Compile:  pdflatex architecture_src.tex  ->  architecture_src.pdf（已緊裁，直接 include）
+\documentclass[tikz, border=2pt]{standalone}
 \usepackage{amsmath}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
-\pagestyle{empty}
 
 \definecolor{picon}{HTML}{0072B2}
 \definecolor{piconfill}{HTML}{E9F2FB}
 \definecolor{inkline}{HTML}{1A1A1A}
 \definecolor{lanefill}{HTML}{F5F7F9}
 \definecolor{laneedge}{HTML}{DDE4EA}
+\definecolor{incol}{HTML}{009E73}    % Okabe-Ito bluish-green:     輸入
+\definecolor{outcol}{HTML}{D55E00}   % Okabe-Ito vermillion:       輸出
+\definecolor{traincol}{HTML}{CC79A7} % Okabe-Ito reddish-purple:   訓練迴路
+\definecolor{zonecol}{HTML}{6E7B87}  % 分區標題：組織用，需退到內容之後
 
-\newcommand{\ttl}[1]{\textbf{#1}}
-\newcommand{\btl}[1]{\textcolor{picon}{\textbf{#1}}}
-\newcommand{\sub}[1]{{\small #1}}
+\newcommand{\ttl}[1]{{\large\bfseries #1}}
+\newcommand{\btl}[1]{\textcolor{picon}{\large\bfseries #1}}
+\newcommand{\sub}[1]{{\normalsize #1}}
 
 \begin{document}%
-\setbox0=\hbox{%
 \hyphenpenalty=10000\exhyphenpenalty=10000\relax
 \begin{tikzpicture}[
   font=\sffamily,
@@ -29,85 +29,70 @@
                 align=center, inner sep=5pt, minimum height=1.2cm, text=inkline},
   badge/.style={circle, fill=picon, text=white, inner sep=0pt, minimum size=5.4mm,
                 font=\sffamily\bfseries\small, draw=white, line width=0.5pt},
-  lane/.style={rounded corners=8pt, draw=laneedge, fill=lanefill, line width=0.6pt,
-               inner sep=7pt},
-  zone/.style={font=\sffamily\bfseries\small, text=inkline, anchor=west},
+  zone/.style={font=\sffamily\bfseries\normalsize, text=zonecol, anchor=west},
   arr/.style={->, draw=inkline, line width=0.55pt},
-  darr/.style={->, draw=inkline, line width=0.55pt, dashed},
-  elab/.style={font=\sffamily\scriptsize, text=inkline, inner sep=1.5pt, fill=white},
+  % 訓練迴路：整條以顏色與前向 signal flow 分流（虛線僅為次要區隔）
+  tarr/.style={->, draw=traincol, line width=0.7pt, dashed},
+  tline/.style={draw=traincol, line width=0.7pt, dashed},
+  elab/.style={font=\sffamily\small, text=inkline, inner sep=1.5pt, fill=white},
+  tlab/.style={font=\sffamily\small, text=traincol, inner sep=1.5pt, fill=white},
+  io/.style={align=center, inner sep=3pt},   % 輸入/輸出：不加框，僅以顏色標示
 ]
 
 % ---- branch row ----
-\node[box, text width=2.5cm]  (obs)  at (0,0)      {\ttl{Observations}\\[1pt]\sub{sensor values,\\ positions + time}};
-\node[box, text width=2.7cm]  (spat) at (3.4,0)    {\ttl{Spatial Tokens}\\[1pt]\sub{Fourier/RFF encoding,\\ residual MLP}};
-\node[picon, text width=2.6cm](cfc)  at (6.8,0)    {\btl{CfC Memory}\\[1pt]\sub{token attention,\\ causal scan dt}};
+\node[io, text width=2.4cm]   (obs)  at (0,0)      {\textcolor{incol}{\ttl{Observations}}\\[1pt]\textcolor{incol}{\sub{sensor values,\\ positions + time}}};
+% CfC 置於 Trunk Feature 右側：錯開 x 才有淨空的垂直通道讓 update θ 接回。
+\node[picon, text width=2.6cm](cfc)  at (7.4,0)    {\btl{CfC Memory}\\[1pt]\sub{token attention,\\ causal scan dt}};
 
 % ---- trunk row ----
-\node[box, text width=2.4cm]  (qry)  at (3.4,-3.2) {\ttl{Query}\\[1pt]\sub{$(x,y,t_q,c)$}};
-\node[box, text width=2.7cm]  (tf)   at (6.8,-3.2) {\ttl{Trunk Feature}\\[1pt]\sub{Fourier + temporal anchor,\\ dt\_to\_query}};
+\node[io, text width=2.4cm]   (qry)  at (0,-3.2)   {\textcolor{incol}{\ttl{Query}}\\[1pt]\textcolor{incol}{\sub{$(x,y,t_q,c)$}}};
+\node[box, text width=2.7cm]  (tf)   at (5.6,-3.2) {\ttl{Trunk Feature}\\[1pt]\sub{Fourier + temporal anchor,\\ dt\_to\_query}};
 
 % ---- interaction ----
-\node[picon, text width=2.9cm](ca)   at (10.5,-1.6){\btl{Cross-Attention Readout}\\[1pt]\sub{isotropic distance bias}};
+\node[picon, text width=2.9cm](ca)   at (11.0,-1.6){\btl{Cross-Attention Readout}\\[1pt]\sub{isotropic distance bias}};
 
 % ---- output ----
-\node[box, text width=2.6cm]  (bb)   at (14.0,0.0) {\ttl{Branch Basis}\\[1pt]\sub{query-conditioned context}};
-\node[box, text width=2.6cm]  (tb)   at (14.0,-3.2){\ttl{Trunk Basis}\\[1pt]\sub{component-wise basis}};
-\node[box, text width=2.8cm]  (fus)  at (17.2,-1.6){\ttl{DeepONet Fusion}\\[1pt]\sub{branch $\times$ trunk basis,\\ component-wise output}};
-\node[box, text width=1.7cm]  (fld)  at (20.0,-1.6){\ttl{Field}\\[1pt]\sub{$u,v,p$}};
-\node[picon, text width=3.0cm](loss) at (19.6,-4.6){\btl{Loss}\\[1pt]\sub{AL continuity constraint,\\ sensor MSE + NS residual, GradNorm}};
+\node[box, text width=2.2cm]  (bb)   at (14.0,0.0) {\ttl{Branch Basis}};
+\node[box, text width=2.2cm]  (tb)   at (14.0,-3.2){\ttl{Trunk Basis}};
+% DeepONet fusion 是沿 rank 的 inner product（外加 7 個純量：temperature +
+% per-component affine），不值得一個方塊 → 降為兩條 basis 匯流處的箭頭標籤。
+\coordinate (mrg) at (16.0,-1.6);
+\node[io, text width=1.7cm]   (fld)  at (18.6,-1.6){\textcolor{outcol}{\ttl{Field}}\\[1pt]\textcolor{outcol}{\sub{$u,v,p$}}};
+\node[picon, text width=3.0cm](loss) at (18.6,-6.2){\btl{Loss}\\[1pt]\sub{AL continuity constraint,\\ sensor MSE + NS residual, GradNorm}};
 
 % ---- optimizer feedback ----
-\node[box, text width=3.2cm]  (mp)   at (8.2,-6.8){\ttl{Model Parameters}\\[1pt]\sub{encoder + CfC + decoder}};
-\node[box, text width=3.2cm]  (opt)  at (14.5,-6.8){\ttl{SOAP + Schedule-Free}\\[1pt]\sub{preconditioned updates}};
+% 置於左下：訓練列左右各一箱，中間即回饋線；避免右半壅塞、左下留白。
+\node[box, text width=3.2cm]  (opt)  at (2.2,-6.2){\ttl{SOAP + Schedule-Free}\\[1pt]\sub{preconditioned updates}};
 
 % ---- badges (straddle top-left corner) ----
 \node[badge] at (cfc.north west)  {1};
 \node[badge] at (ca.north west)   {2};
 \node[badge] at (loss.north west) {3};
 
-% ---- lanes (behind) + zone headers ----
-\begin{scope}[on background layer]
-  \node[lane, fit=(obs)(spat)(cfc)] (blane) {};
-  \node[lane, fit=(qry)(tf)] (tlane) {};
-\end{scope}
-\node[zone] at ([yshift=6pt]blane.north west) {BRANCH PATH: SPARSE SENSOR MEMORY};
-\node[zone] at ([yshift=6pt]tlane.north west) {TRUNK PATH: QUERY FEATURE};
-\node[zone] at (9.2,1.5) {INTERACTION};
-\node[zone] at (13.0,1.5) {OUTPUT AND LOSS};
+% ---- zone headers（灰底泳道已移除：僅以標題分區，減輕視覺重量）----
+\node[zone] at (-1.2,1.3)  {BRANCH PATH: SPARSE SENSOR MEMORY};
+\node[zone] at (-1.2,-1.9) {TRUNK PATH: QUERY FEATURE};
+\node[zone] at (9.55,1.3)  {INTERACTION};
+\node[zone] at (12.9,1.3)  {OUTPUT AND LOSS};
 
 % ---- arrows ----
-\draw[arr] (obs) -- (spat);
-\draw[arr] (spat) -- (cfc);
+\draw[arr] (obs) -- (cfc) node[elab, midway, above] {Fourier embedding};
 \draw[arr] (cfc.east) -| (ca.north) node[elab, pos=0.28, above] {K,V};
 \draw[arr] (qry) -- (tf);
 \draw[arr] (tf.east) -| (ca.south) node[elab, pos=0.28, below] {Q};
 \draw[arr] (tf.east) -- (tb.west);
 \draw[arr] (ca.east) -| (bb.south);
-\draw[arr] (bb.east) -| (fus.north);
-\draw[arr] (tb.east) -| (fus.south);
-\draw[arr] (fus) -- (fld);
-\draw[arr] (fld.south) -- (loss.north) node[elab, pos=0.55] {autograd};
-\draw[darr] (loss.south) |- (opt.east) node[elab, pos=0.75, below] {optimize};
-\draw[darr] (opt) -- (mp) node[elab, midway, above] {update $\theta$};
-
-% ---- legend ----
-\node[box, minimum width=6mm, minimum height=4mm, text width=0pt, inner sep=0pt] (lg1) at (0.7,-6.5) {};
-\node[font=\sffamily\footnotesize, anchor=west, text=inkline] at (1.25,-6.5) {Inherited DeepONet backbone};
-\node[picon, minimum width=6mm, minimum height=4mm, text width=0pt, inner sep=0pt] (lg2) at (0.7,-7.3) {};
-\node[badge, minimum size=3.6mm, font=\sffamily\bfseries\scriptsize] at (lg2.center) {1};
-\node[font=\sffamily\footnotesize, anchor=west, text=picon] at (1.25,-7.3) {\bfseries Added by PI-CON (numbered 1--3)};
-
-% ---- loss formula (native LaTeX math) + supervision note ----
-\node[draw=laneedge, rounded corners=2pt, fill=white, line width=0.6pt, inner sep=5pt, anchor=west]
-  at (5.7,-8.15) {$\mathcal{L} = \mathrm{GradNorm}\!\left(\mathcal{L}_{\mathrm{data}},\,
-    \mathcal{L}_{\mathrm{NS},u},\, \mathcal{L}_{\mathrm{NS},v},\, \mathcal{L}_{\mathrm{cont}}\right)
-    + \mathcal{L}_{\mathrm{AL}}$};
-\node[font=\sffamily\bfseries\small, text=inkline, anchor=west] at (14.6,-8.15) {Full-field DNS is not used as supervision.};
+\draw[draw=inkline, line width=0.55pt] (bb.east) -| (mrg);
+\draw[draw=inkline, line width=0.55pt] (tb.east) -| (mrg);
+\fill[inkline] (mrg) circle (1.5pt);
+\draw[arr] (mrg) -- (fld) node[elab, midway, above] {inner product};
+% ---- 訓練迴路（紫）：梯度下行、參數更新回饋到兩條 path 上的可訓練模組 ----
+\draw[tarr] (fld.south) -- (loss.north) node[tlab, pos=0.55] {autograd};
+\draw[tarr] (loss.west) -- (opt.east) node[tlab, pos=0.12, above] {optimize};
+\draw[tline] (opt.north) -- (2.2,-4.8) -- (7.4,-4.8);
+\node[tlab] at (3.3,-4.62) {update $\theta$};   % 置於 Trunk Feature 左緣之外，避開箱底
+\draw[tarr] (5.6,-4.8) -- (tf.south);
+\draw[tarr] (7.4,-4.8) -- (cfc.south);
 
 \end{tikzpicture}%
-}%
-\pdfpagewidth=\wd0
-\pdfpageheight=\dimexpr\ht0+\dp0\relax
-\hoffset=-1in \voffset=-1in
-\shipout\box0
 \end{document}

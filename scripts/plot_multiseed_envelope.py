@@ -89,12 +89,22 @@ PLOT_SPECS: dict[str, dict] = {
         "hline": 0.0104,  # DNS finite-difference floor
         "hline_label": "DNS finite-difference floor",
     },
-    "uv_error_vs_time.png": {
-        "keys": ["u_rel_L2", "v_rel_L2"],
+    # Standalone twin of panel 3 of the stacked main_trajectories figure, for the
+    # defense slides (which place one diagnostic per half-slide and cannot use the
+    # 6.6x9.6in stack). RMSE, not relative L2, for the reason given in
+    # plot_combined's docstring: the DNS v magnitude falls 37% over t=3->5, so a
+    # relative v error turns upward there while the absolute error stays flat.
+    # Colours match the stacked figure (u magenta, v green).
+    "uv_rmse_vs_time.png": {
+        "keys": ["u_rmse", "v_rmse"],
         "dns_key": None,
-        "labels": [r"$u$ rel-$L_2$", r"$v$ rel-$L_2$"],
-        "ylabel": r"relative $L_2$ error",
-        "title": "Velocity-component relative error",
+        # Title and ylabel already say RMSE; the legend only has to name the component.
+        "labels": [r"$u$", r"$v$"],
+        "colors": ["#CC79A7", "#009E73"],
+        "ylabel": r"RMSE (m/s)",
+        "title": "Velocity-component RMSE",
+        "legend_below": True,
+        "legend_ncol": 3,
     },
     "kf_mode_amplitude_vs_time.png": {
         "keys": ["kf_amp"],
@@ -158,7 +168,10 @@ def plot_one(
         n_seeds = stack.shape[0]
         mean = stack.mean(axis=0)
         std = stack.std(axis=0, ddof=1) if n_seeds > 1 else np.zeros_like(mean)
-        color = palette[i % len(palette)]
+        # `colors` lets a spec pin its curves to the same hues the stacked
+        # main_trajectories figure uses, so the same quantity is not drawn in
+        # two different colours across the thesis and the slides.
+        color = spec.get("colors", palette)[i % len(spec.get("colors", palette))]
 
         # Layer 1: individual seed trajectories (dotted, semi-transparent).
         for s_idx in range(n_seeds):
@@ -183,7 +196,7 @@ def plot_one(
     if spec.get("legend_below"):
         # Legend below the axes so it never overlaps the curves.
         ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18),
-                  ncol=2, frameon=False, fontsize=8)
+                  ncol=spec.get("legend_ncol", 2), frameon=False, fontsize=8)
     else:
         ax.legend(loc="best", fontsize=7.5, framealpha=0.85,
                   ncol=1 if len(spec["keys"]) == 1 else 2)
@@ -202,19 +215,32 @@ def plot_combined(
     dns_curves: dict[str, np.ndarray | None],
     output_dir: Path,
 ) -> None:
-    """Single stacked figure (KE / divergence / u-v error) with one legend below.
+    """Single stacked figure (KE / divergence / velocity RMSE / DNS magnitude).
 
     Why this layout
     ===============
     The previous thesis figure placed three panels in one LaTeX row at
     ~0.32 linewidth each; scaled down, the tick/axis fonts became unreadable, and
     each panel carried its own in-plot legend that overlapped the data. Here the
-    three diagnostics share one figure as a 3-row vertical stack: every panel is
+    diagnostics share one figure as a vertical stack: every panel is
     full text-width (fonts stay near 1:1 when embedded at \\linewidth), and a
     single curated legend sits *below* all panels so it never covers a curve.
 
-    Units follow the thesis text (divergence ratio and velocity errors in %),
-    fixing the earlier fraction-vs-% mismatch with the caption.
+    Why RMSE rather than relative L2 for the velocity panel
+    ======================================================
+    The earlier velocity panel plotted u/v relative L2 error, whose per-component
+    denominator is the DNS component magnitude. That magnitude is not stationary:
+    over t = 3 -> 5 the DNS redistributes energy between the components — KE_u
+    +46.5%, KE_v -60.3%, while total KE moves only +3.3% — so ‖v‖_rms falls 37%.
+    The v relative error therefore turns upward late in the window even though the
+    v absolute error stays flat (RMSE 0.033 -> 0.031 m/s): an artefact of the
+    shrinking denominator, readable as reconstruction decay.
+    (The driver of that redistribution is not established here. The forcing
+    f = (A sin(k_f y), 0) acts on u alone, but the forcing-mode amplitude
+    correlates only weakly with KE_v over the window, r = -0.26.)
+    Plotting RMSE (absolute, m/s) removes the artefact; the companion panel carries
+    the DNS component magnitudes so the relative-error figures reported in the
+    tables remain recoverable from the figure.
     """
     # slot names kept; values set to the semantic palette:
     # "orange" slot = PI-CON blue, "blue" slot = DNS black (see pi_con.plot_style)
@@ -224,8 +250,8 @@ def plot_combined(
 
     apply_journal_rcparams()
     with plt.rc_context({}):
-        fig, (ax_ke, ax_div, ax_uv) = plt.subplots(
-            3, 1, figsize=(6.6, 7.4), sharex=True)
+        fig, (ax_ke, ax_div, ax_uv, ax_mag) = plt.subplots(
+            4, 1, figsize=(6.6, 9.6), sharex=True)
 
         def draw(ax, key, color, scale=1.0):
             stack = seed_stack[key] * scale
@@ -250,14 +276,25 @@ def plot_combined(
         ax_div.set_ylabel(r"div ratio $\|\nabla\!\cdot\mathbf{u}\|_2/\|\nabla\mathbf{u}\|_F$ (%)")
         ax_div.set_title("Divergence ratio")
 
-        # Panel 3 — velocity-component relative L2 error in %.
-        draw(ax_uv, "u_rel_L2", magenta, scale=100.0)
-        draw(ax_uv, "v_rel_L2", green, scale=100.0)
-        ax_uv.set_ylabel(r"relative $L_2$ error (%)")
-        ax_uv.set_title("Velocity-component relative error")
-        ax_uv.set_xlabel(r"time $t$ (s)")
+        # Panel 3 — velocity-component RMSE (absolute, denominator-free).
+        draw(ax_uv, "u_rmse", magenta)
+        draw(ax_uv, "v_rmse", green)
+        ax_uv.set_ylabel(r"RMSE (m/s)")
+        ax_uv.set_title("Velocity-component RMSE")
 
-        for ax in (ax_ke, ax_div, ax_uv):
+        # Panel 4 — DNS component magnitudes, i.e. the denominators the
+        # tabulated relative L2 errors are normalised by.
+        if dns_curves.get("u_ref_rms") is not None:
+            ax_mag.plot(time, dns_curves["u_ref_rms"], color=magenta,
+                        linewidth=1.7, linestyle="-", zorder=5)
+        if dns_curves.get("v_ref_rms") is not None:
+            ax_mag.plot(time, dns_curves["v_ref_rms"], color=green,
+                        linewidth=1.7, linestyle="-", zorder=5)
+        ax_mag.set_ylabel(r"$\Vert\cdot\Vert_{\rm rms}$ (m/s)")
+        ax_mag.set_title("DNS velocity-component magnitude")
+        ax_mag.set_xlabel(r"time $t$ (s)")
+
+        for ax in (ax_ke, ax_div, ax_uv, ax_mag):
             ax.grid(True, alpha=0.3, linewidth=0.4)
 
         from matplotlib.lines import Line2D
@@ -265,8 +302,10 @@ def plot_combined(
         handles = [
             Line2D([0], [0], color=blue, lw=1.7, ls="-", label="DNS reference"),
             Line2D([0], [0], color=orange, lw=1.7, ls="--", label="PI-CON mean (KE, divergence)"),
-            Line2D([0], [0], color=magenta, lw=1.7, ls="--", label=r"$u$ rel-$L_2$ mean"),
-            Line2D([0], [0], color=green, lw=1.7, ls="--", label=r"$v$ rel-$L_2$ mean"),
+            Line2D([0], [0], color=magenta, lw=1.7, ls="--", label=r"$u$ RMSE mean"),
+            Line2D([0], [0], color=green, lw=1.7, ls="--", label=r"$v$ RMSE mean"),
+            Line2D([0], [0], color=magenta, lw=1.7, ls="-", label=r"$\Vert u_{\rm DNS}\Vert_{\rm rms}$"),
+            Line2D([0], [0], color=green, lw=1.7, ls="-", label=r"$\Vert v_{\rm DNS}\Vert_{\rm rms}$"),
             Line2D([0], [0], color="k", lw=1.0, ls="-.", label="DNS finite-difference floor"),
             Line2D([0], [0], color="0.4", lw=0.8, ls=":", label="individual seeds"),
             Patch(facecolor="0.4", alpha=0.25, label=r"$\pm 1\sigma$ band"),
@@ -336,6 +375,18 @@ def main() -> int:
         k: (series_per_seed[0][k] if k in series_per_seed[0] else None)
         for k in ("KE_dns",)
     }
+    # DNS component magnitudes ‖·‖_rms, recovered exactly from the exported
+    # arrays: rmse / rel_L2 = (‖d‖₂/√M) / (‖d‖₂/‖ref‖₂) = ‖ref‖₂/√M. The DNS
+    # reference is seed-independent, so seed 0 suffices.
+    s0 = series_per_seed[0]
+    for comp in ("u", "v"):
+        rmse_k, rel_k = f"{comp}_rmse", f"{comp}_rel_L2"
+        if rmse_k in s0 and rel_k in s0:
+            dns_curves[f"{comp}_ref_rms"] = s0[rmse_k] / np.maximum(s0[rel_k], 1.0e-12)
+        else:
+            dns_curves[f"{comp}_ref_rms"] = None
+            print(f"  ! cannot recover ‖{comp}_DNS‖: {rmse_k}/{rel_k} missing",
+                  file=sys.stderr)
     try:
         plot_combined(time_vals, seed_stack, dns_curves, args.output_dir)
         print(f"  ✓ wrote {args.output_dir / 'main_trajectories.{pdf,png}'}")

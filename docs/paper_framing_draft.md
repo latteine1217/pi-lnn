@@ -160,7 +160,7 @@ For K randomly sampled point sensors on a 2D periodic domain, Nyquist–Shannon 
 
 $$k_{\max}^{\rm sensor}(K) \approx \sqrt{K/\pi}$$
 
-For $K=100$: $k_{\max} \approx 5.64$. This sets the **sensor-imposed spectral ceiling**, independent of architecture choices.
+For $K=100$: $k_{\max} \approx 5.64$. This is the **sensor-count Nyquist scale**, not a ceiling: it counts each sensor as one sample and ignores incompressibility. The strict linear-observability wall is higher — $k \lesssim 8 \approx \sqrt{2K/\pi}$ (2K=200 (u,v) observations vs M=196 divergence-free DOF, SVD full-rank; thesis appendix06) — and the effective cutoff is lower still ($k_{\rm cut} \approx 4.7$), set by conditioning ($\kappa$ 7 @k≤5 → 7×10² @k≤8). Reserve "ceiling" for the $k \lesssim 8$ wall and the compressed-sensing / spectral-truncation bounds.
 
 ### 3.5 Our Model's Effective Resolution
 

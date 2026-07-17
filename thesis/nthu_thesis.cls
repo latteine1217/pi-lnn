@@ -155,10 +155,10 @@
 
 \usepackage{blindtext} % to generate dummy text for testing
 
-% biblatex backend：預設 biber 在本機 TeX Live 2026 basic 需 sudo 安裝；改用
-% bibtex backend（TeX Live core 內建）以避免額外安裝；若日後啟用 biber，
-% 把 backend=bibtex 拿掉即可。
-\usepackage[style=ieee,backend=bibtex]{biblatex}
+% biblatex backend：biber（homebrew，2026-07-17 起本機已裝 v2.21，對應 biblatex v3.21）。
+% 先前因 TeX Live 2026 basic 未內建 biber 而暫用 bibtex backend，副作用是 biblatex 每次
+% 都發 "Using fall-back bibtex backend" + "There were undefined references" 假警報。
+\usepackage[style=ieee]{biblatex}
 
 \addbibresource{back/references.bib}
 \usepackage[english]{babel}
