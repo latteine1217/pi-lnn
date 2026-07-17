@@ -565,7 +565,7 @@ Fourier modes inside |k| ≤ k<sub>max</sub> ≈ <b>πk<sub>max</sub>²</b> · s
 <span class="eq" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">k<sub>max</sub> ≈ √(K/π)</span>
 </div>
 <div class="mt-1 text-xs leading-snug">
-At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · beyond it: more modes than measurements → <b>unobserved</b>
+At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · a scale, not a wall — beyond it κ: 7 → 7×10² <b>(observable to k ≈ 8)</b>
 </div>
 </Card>
 
@@ -1218,24 +1218,25 @@ LES 的角色是提供佈點所需的大尺度空間結構，不是提供收斂�
 
 <div class="mt-2" style="font-size: 0.82em;">
 
-$$\mathcal{L}_{\text{AL}} \;=\; \mathcal{L} + \lambda\,C \;+\; \tfrac{\rho}{2}\,C^2,$$
+$$\mathcal{L}_{\text{AL}} \;=\; \lambda\,C \;+\; \tfrac{\rho}{2}\,C^2, \qquad C \,\equiv\, \mathcal{L}_{\text{cont}}$$
 
 </div>
 
 <div class="mt-1" style="font-size: 0.82em;">
 
-$$C \,=\, \mathbb{E}_{\text{collocation}}\big[(\partial_x u + \partial_y v)^2\big],$$
+$$C \,=\, \mathbb{E}_{\text{collocation}}\big[(\partial_x u + \partial_y v)^2\big] \,\ge\, 0$$
 
 </div>
 
 <div class="mt-1" style="font-size: 0.82em;">
 
-$$\lambda \,\leftarrow\, \lambda + \rho\,C \quad\text{(dual ascent).}$$
+$$\lambda \,\leftarrow\, \mathrm{clip}\big(\lambda + \rho\,\bar{C},\; 0,\; \Lambda_{\max}\big)$$
 
 </div>
 
 <div class="mt-2 text-xs" style="color:#6B7280;">
-ρ = 0.1 (penalty), λ_clip = 10 (max dual variable).<br>λ grows when continuity is violated, decays once C is small.
+ρ = 0.1 · Λ<sub>max</sub> = 10 · C̄ = EMA of C (β = 0.5), updated every 100 steps.<br>
+<b style="color:#E97132;">C ≥ 0 ⇒ λ rises monotonically</b> — an accumulated-multiplier schedule, not a textbook equality-constraint Lagrangian (whose λ would change sign).
 </div>
 </Card>
 
@@ -1270,7 +1271,28 @@ At the FD floor of its resolved bandwidth — <b>not</b> below DNS.
 <FooterLogos />
 
 <!--
-[Continuity AL · 1.5min] 左卡 AL formulation 完整：penalty C 是 continuity 平方期望、dual ascent λ ← λ + ρC、ρ=0.1 λ_clip=10。
+[Continuity AL · 1.5min] 左卡 AL formulation 完整：penalty C 是 continuity 平方期望、dual ascent
+λ ← clip(λ + ρC̄, 0, Λ_max)、ρ=0.1 Λ_max=10、C̄ 為 C 的 EMA(β=0.5) 每 100 步更新。
+
+⚠️ 2026-07-17 修正兩處錯誤（實測佐證，見下）：
+(1) 原式寫 `L_AL = L + λC + (ρ/2)C²` —— 把總損失塞進 AL 項自己的定義裡，代入 eq:total_loss
+    會遞迴。正解 `L_AL = λC + (ρ/2)C²`（論文 eq:al_loss / chapter02:390；程式碼
+    src/pi_con/losses.py:111 `return self.lambda_ * C + 0.5 * self.rho * C ** 2`）。
+(2) 原本寫「λ grows when continuity is violated, decays once C is small」—— **錯**。
+    C 是平方的平均恆 ≥ 0，losses.py:127 的 `(lambda_ + rho*ema_C).clamp(0, clip)`
+    因此單調不減，λ **永遠不會 decay**。實測 12 個 run、共 10 萬+ 步，**0 次下降**。
+    λ 是「趨緩」不是「下降」：C → 0 使增量消失（EXP-245 seed42：λ 在 5k/10k/15k/20k 步
+    為 0.3383 / 0.3649 / 0.3776 / 0.3857，增量 0.027 → 0.013 → 0.008）。
+
+預期提問「Λ_max = 10 為什麼？λ 會不會撞到上界？」
+→ 誠實答：**從來沒有撞到**。實測 λ 收斂在 0.386，只有 clip 的 3.86%（EXP-245 seed42,
+   artifacts/lab/exp245_b3_seed42/metrics.jsonl, 20k 步）。跨 12 個 run 的 λ_max 落在
+   clip 的 2.8–65%，主線那批（B3/B0/B1/B2/4-head）全在 3.7–4.5%；最高的 exp250-pinn-tanh
+   到 65% 仍未 binding。所以 Λ_max 是個未 binding 的 safety guard，不是作用中的機制；
+   λ 停下來是因為殘差降到近零，不是因為被夾住。
+   ⚠️ 論文 chapter02:400 原本誤寫成「until it saturates the clip」，已於 2026-07-17
+   同步改為「with Λ_max bounding it from above; the multiplier settles as the residual
+   falls rather than by reaching that bound」。若引用舊版 PDF 需注意此差異。
 
 口述（頁面已移除，被問 ρ 才講）：「把 ρ 拉到 1 可以把 divergence 再壓到 0.28%，
 但要付出場精度的代價 —— 這個旋鈕是活的，我們選 0.1 是取平衡。」
@@ -1443,14 +1465,21 @@ $$\overline{\mathrm{KE\_MAPE}} = \frac{1}{|T|}\sum_{t}\frac{\bigl|\mathrm{KE}_{\
 
 <div class="eqbox">
 
-$$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathcal{L}_{\text{NS},u} + w_{\text{NS},v}\,\mathcal{L}_{\text{NS},v} + w_c\,\mathcal{L}_{\text{cont}}$$
+$$\mathcal{L}(\theta) = w_d \mathcal{L}_{\text{data}} + w_{\text{NS},u} \mathcal{L}_{\text{NS},u} + w_{\text{NS},v} \mathcal{L}_{\text{NS},v} + w_c \mathcal{L}_{\text{cont}} + \textcolor{#E97132}{\mathcal{L}_{\text{AL}}}$$
+
+</div>
+
+<div class="eqbox" style="border-left-color:#E97132;">
+
+$$\mathcal{L}_{\text{AL}} = \lambda\,C + \tfrac{\rho}{2}\,C^2, \qquad C \equiv \mathcal{L}_{\text{cont}}$$
 
 </div>
 
 <div class="ngrid">
 <div class="sym">ℒ<sub>data</sub></div><div class="def">MSE on the K = 100 sensor channels</div>
 <div class="sym">ℒ<sub>NS,u</sub> , ℒ<sub>NS,v</sub></div><div class="def">NS momentum residual at collocation points</div>
-<div class="sym">ℒ<sub>cont</sub></div><div class="def">∇·u, promoted by AL update</div>
+<div class="sym">ℒ<sub>cont</sub></div><div class="def">∇·u residual — the same C the AL acts on</div>
+<div class="sym" style="color:#E97132;">ℒ<sub>AL</sub></div><div class="def">adaptive continuity pressure via λ · <b>outside</b> GradNorm</div>
 <div class="sym">w<sub>d</sub> , w<sub>NS</sub> , w<sub>c</sub></div><div class="def">GradNorm-balanced weights</div>
 </div>
 
@@ -1471,8 +1500,16 @@ $$\mathcal{L}(\theta) = w_d\,\mathcal{L}_{\text{data}} + w_{\text{NS},u}\,\mathc
   (3) 指定時間點 t* = 5 的 snapshot rel-L₂（rollout 結尾最難）— 教授指定
   (4) bulk: KE(t)、div_L₂(t)
 最後標明：4 階中央差分、128² eval grid、div 對照 DNS FD floor。
-右卡 Loss formulation 精簡保留：4-task weighted sum + 個別公式（data MSE / R_u momentum / L_NS,u / L_cont）。底部紅線：「DNS field 從不入 L」標明工程不可遷移性。
+右卡 Loss formulation：4-task GradNorm weighted sum **+ L_AL**。底部紅線：「DNS field 從不入 L」標明工程不可遷移性。
 注意：avoid 「approximately / matches」這類 hardness/marketing 語。
+
+⚠️ 2026-07-17 修正：原式漏了 `+ L_AL`，變成純 penalty method 的長相 —— AL 在 §Methodology
+講了一整頁，到這裡卻在公式裡看不到，委員會問「AL 到底加在哪」。依論文 eq:total_loss
+（chapter02:337）與 eq:al_loss（chapter02:390）補回，並經 src/pi_con/losses.py:111
+`return self.lambda_ * C + 0.5 * self.rho * C ** 2` 核實。
+講法：「連續性進 loss 兩次 —— 一次是 GradNorm 平衡的 soft term w_c·L_cont，一次是 AL 對
+**同一個** C 施加的自適應壓力 L_AL；AL 刻意放在 GradNorm 之外，因為 GradNorm 只平衡
+gradient 量級、不對散度設下限（chapter02:389）。」
 -->
 
 ---
@@ -1586,7 +1623,7 @@ Re = 10⁴ · K = 100 · LES-derived QR-pivot placement (DNS-free) · 1024 collo
 <LabelTiny>KEY OBSERVATIONS</LabelTiny>
 <div class="mt-2 text-xs leading-snug space-y-1">
 <div>· Main vortex structure recovered</div>
-<div>· Small scales (k &gt; 5) smoothed — sensor Nyquist bound</div>
+<div>· Small scales (k &gt; 5) smoothed — sensor Nyquist scale</div>
 <div>· Error sits on <b>high-shear edges</b>, not random</div>
 <div>· |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
 </div>
@@ -1671,7 +1708,9 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 
 <!--
 [Vorticity error interpretation · 2min] 口述接回第 8 頁：「k ≤ 5 這條線就是第 8 頁的 sensor Nyquist
-k_max ≈ 5.64；越過它 modes 比 measurements 多，架構補不回來。」原本這裡有張 Ceiling 卡寫同樣的
+k_max ≈ 5.64；越過它 conditioning 急遽變差（κ 7 → 7×10²），加大網路補不回來。」注意別說成
+「modes 比 measurements 多 / 不可觀測」—— 那要到 k ≈ 8 才成立（appendix06 的 SVD：2K=200 個
+(u,v) 觀測、M=196，k ≲ 8 內每個 mode 都 full-rank 可觀測）。原本這裡有張 Ceiling 卡寫同樣的
 5.64 與同樣的結論，與第 8 頁逐字重複、且右欄已擠爆，故移除改為口述。
 左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
 -->
@@ -1692,8 +1731,8 @@ k_max ≈ 5.64；越過它 modes 比 measurements 多，架構補不回來。」
 </Card>
 
 <Card>
-<img :src="'/images/uv_error_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Time-avg u <b>13.65 %</b>, v <b>17.52 %</b> (n = 5) · ~30 % at IC → single-digit · ±1σ band.</div>
+<img :src="'/images/uv_rmse_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
+<div class="foot mt-1">u, v RMSE <b style="color:#7F1084;">0.115 → 0.03 m/s</b> (n = 5, ±1σ) · absolute, no denominator · flat after t ≈ 3 s.</div>
 </Card>
 
 </div>
@@ -1702,8 +1741,31 @@ k_max ≈ 5.64；越過它 modes 比 measurements 多，架構補不回來。」
 
 <!--
 [Temporal diagnostics · 1.5min] 兩張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay
-0.161→0.122 m²/s²）、velocity rel-L₂ u/v(t)（~30%→single-digit, ±1σ band n=5）。
+0.161→0.122 m²/s²）、velocity RMSE u/v(t)（0.115→0.03 m/s, ±1σ band n=5）。
 div ratio 0.39% 接近 resolved-bandwidth FD floor。
+
+⚠️ 2026-07-17 改動：右圖由 rel-L₂ 換成 **RMSE**（絕對值, m/s）。理由（plot_multiseed_envelope.py
+plot_combined docstring）：rel-L₂ 的分母是 DNS 分量量值，而該量值不是定常的 —— t=3→5 之間 DNS
+在分量間重分配能量（KE_u +46.5%, KE_v −60.3%，總 KE 只動 +3.3%），‖v‖_rms 掉 37%。
+於是 v 的 rel-L₂ 在窗尾上翹（實測 t=3 的 11.08% → t=5 的 16.38%），但絕對誤差其實是平的
+（v RMSE 0.035 → 0.032 m/s）。舊圖那條上翹曲線讀起來像「重建在衰敗」，是分母縮小的假象。
+被問「為什麼不用 rel-L₂／為什麼跟表上的 13.65% / 17.52% 對不起來」→ 答：表報的是整個時空場的
+global rel-L₂，此圖報逐時絕對 RMSE，兩者是不同的量；論文 fig:main_trajectories 的第 4 格
+（DNS velocity-component magnitude）就是為了讓表上的 rel-L₂ 能從圖反推回來而存在。
+被問「那個能量重分配是什麼造成的」→ 誠實答：未確立。forcing f = (A sin(k_f y), 0) 只作用在 u 上，
+但 forcing-mode 振幅與 KE_v 的相關性很弱（r = −0.26），不足以歸因。
+
+圖檔來源：scripts/plot_multiseed_envelope.py 的 `uv_rmse_vs_time.png` spec，資料為
+artifacts/exp245_seeds/eval_245_seed{a..e}_final（與論文 fig:main_trajectories 同一批資料）。
+
+⚠️ 2026-07-17 資料修正：本頁與論文圖原先用 `eval_245_seed{a..e}_mac`，那批是拿
+`checkpoints/picon_kolmogorov_step_20000.pt` 評估的 —— 該檔的 `schedulefree_mode='train'`，
+存的是 ScheduleFree 的 train-mode 權重（給 resume 用），evaluator 會 WARN「inference quality
+比 final.pt 差 5-30%」。log 與主表的數字則來自 lab 用 `picon_kolmogorov_final.pt`（eval-mode）
+跑的 eval，兩者 83/97 個 tensor 不同（最大相對差 10%）→ 圖與表本來不同源。
+現已全部改用 final.pt 重跑：per-seed KE / u / v / ω 與 log 表四位小數精確吻合
+（KE 5.9035 / 5.6751 / 5.6491 / 5.7144 / 5.5882），div ratio 也從錯誤的 0.50% 回到 0.39%，
+與本頁講的數字一致。RMSE 與 rel-L₂ 對此差異不敏感（v rel-L₂ 11.10→11.08%），故上述物理論述不變。
 
 ⚠️ 2026-07-16 改動：原本三張圖並排（KE / uv / E(k)），每張只有 1/3 寬，但 PNG 內的
 label 與 legend 字級是照全寬設計的，縮到 1/3 後委員看不清。改為兩張並排（max-height
@@ -2045,11 +2107,11 @@ Single-seed at the final protocol · read as a trend, not a fit.
 O2 數量軸。主視覺＝三連能譜（scripts/plot_spectrum_k_scaling_triptych.py，
 投影片專用；論文用 fig:k_scaling_spectra 的三張 subfigure）。講法：指綠線 —— 5.64 → 7.98 →
 11.28 一路右移，而藍色 PI-CON 正好在綠線處脫離黑色 DNS，三格都是。這就是 chapter04:169
-「the reconstruction bandwidth tracks the Nyquist-predicted wavenumber ceiling」。
+「the reconstruction bandwidth tracks the sensor-count Nyquist scale」。
 KE 5.90 / 2.47 / 1.76 % 已標進 panel 標題（出處 tab:k_scaling_nyquist, chapter04.tex:285）。
 
-也是 spectral-bias 反駁：若 ceiling 來自模型的 spectral bias，加 sensor 不會讓 cutoff 右移；
-它右移了，所以 ceiling 是 sensor 資訊量而非架構。
+也是 spectral-bias 反駁：若 cutoff 來自模型的 spectral bias，加 sensor 不會讓它右移；
+它右移了，所以限制是 sensor 資訊量而非架構。
 
 ⚠️ 舊版用 KE 長條圖是錯的證據形式：主張是頻寬/冪律，長條圖畫不出斜率。實測 log-log
 局部斜率 −1.26 (K=100→200) 與 −0.49 (K=200→400)、整體擬合 −0.87，三點不在一直線上；
@@ -2180,68 +2242,129 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · engineering applicability (within the validated scope)</SectionTag>
+<SectionTag>§ Results · engineering applicability</SectionTag>
 
-# Engineering applicability — scope and limits
-
-<div class="text-xs mt-1" style="color:#6B7280;">
-Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted sparse sensors; additive Gaussian noise tested separately up to 10 % sensor std.
-</div>
+# What K = 100 sensors support
 
 <style>
-.band { position: relative; height: 30px; border-radius: 4px; overflow: hidden;
-        display: grid; grid-template-columns: 41.6% 58.4%; margin-top: 8px; }
-.band .lo { background: rgba(127,16,132,0.16); border: 1px solid #7F1084; border-right: none;
-            border-radius: 4px 0 0 4px; display: flex; align-items: center; justify-content: center; }
-.band .hi { background: repeating-linear-gradient(45deg, #F4F4F6, #F4F4F6 4px, #EAEAEE 4px, #EAEAEE 8px);
-            border: 1px solid #D8D2E0; border-left: 2px solid #E97132; border-radius: 0 4px 4px 0;
+/* 兩欄的寬度 = 波數帶的分割比例，截止線因此一路貫穿到底 —— 帶子是結構，不是裝飾。
+   顏色兩個意思：紫 = 截止線以內（可解析）· 橘 = 截止線以外（觀測不到）。 */
+.sp { display: grid; grid-template-columns: 41.6% 58.4%; }
+.band { height: 34px; }
+.band .lo { background: rgba(127,16,132,0.14); border: 1px solid #7F1084; border-right: 2px solid #E97132;
+            border-radius: 5px 0 0 5px; display: flex; align-items: center; justify-content: center; }
+.band .hi { background: repeating-linear-gradient(45deg, #F6F6F8, #F6F6F8 5px, #EBEBEF 5px, #EBEBEF 10px);
+            border: 1px solid #D8D2E0; border-left: none; border-radius: 0 5px 5px 0;
             display: flex; align-items: center; justify-content: center; }
-.band .lbl { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.04em; }
-.kx { display: grid; grid-template-columns: 41.6% 58.4%; font-size: 0.58rem; color: #9CA3AF; margin-top: 2px; }
+.band .lbl { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.03em; }
+.kx { font-size: 0.68rem; color: #9CA3AF; margin-top: 4px; }
 .kx b { color: #E97132; }
-.ul { font-size: 0.78rem; line-height: 1.45; }
-.ul .h { font-weight: 700; }
+.col { padding: 8px 14px 0 0; }
+.col.r { padding-left: 16px; border-left: 2px solid #E97132; }
+.col h4 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; }
+.col .row { font-size: 0.9rem; line-height: 1.5; color: #374151; }
+.col .row b { font-weight: 700; }
 .ar { color: #C9C6D0; font-weight: 400; }
 </style>
 
-<div class="band">
-  <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED · k ≤ 5.64 · 98.9 % of energy</span></div>
-  <div class="hi"><span class="lbl" style="color:#9CA3AF;">UNOBSERVED · k &gt; 5.64</span></div>
+<div class="sp band mt-3">
+  <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED · 98.9 % of the energy</span></div>
+  <div class="hi"><span class="lbl" style="color:#9CA3AF;">UNOBSERVED</span></div>
 </div>
-<div class="kx"><span>k = 1</span><span><b>k<sub>max</sub> = √(K/π) = 5.64</b> <span class="ar">→</span> sensor Nyquist, not architecture</span></div>
-
-<div class="grid grid-cols-2 gap-5 mt-3">
-
-<Card>
-<LabelTiny style="color:#16A34A;">✓ SUPPORTED · K = 100</LabelTiny>
-<div class="ul mt-2" style="color:#374151;">
-<div><span class="h" style="color:#7F1084;">KE &amp; mean-flow monitoring</span> <span class="ar">→</span> 5.71 ± 0.11 %</div>
-<div><span class="h" style="color:#7F1084;">Phase-locked control</span> <span class="ar">@</span> k<sub>f</sub> <span class="ar">→</span> amp 0.99 <span class="ar">·</span> phase ≲ 0.09 rad</div>
-<div><span class="h" style="color:#7F1084;">Incompressibility check</span> <span class="ar">→</span> div 0.39 % <span class="ar">=</span> FD floor</div>
-<div><span class="h" style="color:#7F1084;">Streaming deployment</span> <span class="ar">→</span> causal <span class="ar">·</span> any query rate</div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny style="color:#DC2626;">✗ OUT OF SCOPE · K = 100</LabelTiny>
-<div class="ul mt-2" style="color:#374151;">
-<div><span class="h" style="color:#E97132;">Small-scale statistics</span> <span class="ar">→</span> high-order moments <span class="ar">&gt;</span> k<sub>max</sub></div>
-<div><span class="h" style="color:#E97132;">Fine vorticity filaments</span> <span class="ar">→</span> ω = diagnostic, not observable</div>
-<div><span class="h" style="color:#E97132;">Acoustic / shock localisation</span> <span class="ar">→</span> needs denser / multi-modal</div>
-<div class="mt-1" style="color:#9CA3AF;">fix <span class="ar">=</span> more sensors, <b>not</b> a bigger network</div>
-</div>
-</Card>
-
+<div class="sp kx">
+  <span>k = 1</span>
+  <span style="padding-left:6px;"><b>k<sub>max</sub> = √(K/π) = 5.64</b> <span class="ar">→</span> sensor Nyquist scale — a sensor budget, not an architecture</span>
 </div>
 
-<div class="mt-2 text-center">
-<Pill>70.7 ms encoder · 31k queries/s · full-field not real-time (CPU/MPS)</Pill>
+<div class="sp">
+
+<div class="col">
+<h4 style="color:#7F1084;">Supported</h4>
+<div class="row"><b style="color:#7F1084;">KE &amp; mean-flow monitoring</b><br/><span class="ar">→</span> 5.71 ± 0.11 %</div>
+<div class="row mt-2"><b style="color:#7F1084;">Phase-locked control</b> @ k<sub>f</sub><br/><span class="ar">→</span> amp 0.99 · phase ≲ 0.09 rad</div>
+<div class="row mt-2"><b style="color:#7F1084;">Incompressibility check</b><br/><span class="ar">→</span> div 0.39 % = FD floor</div>
+<div class="row mt-2"><b style="color:#7F1084;">Streaming deployment</b><br/><span class="ar">→</span> causal · queries at any t</div>
+</div>
+
+<div class="col r">
+<h4 style="color:#E97132;">Out of scope</h4>
+<div class="row"><b style="color:#E97132;">Small-scale statistics</b> <span class="ar">→</span> high-order moments beyond k<sub>max</sub></div>
+<div class="row mt-2"><b style="color:#E97132;">Fine vorticity filaments</b> <span class="ar">→</span> ω is a diagnostic, not an observable</div>
+<div class="row mt-2"><b style="color:#E97132;">Acoustic / shock localisation</b> <span class="ar">→</span> needs denser or multi-modal sensing</div>
+<div class="row mt-3" style="color:#6B7280;">The fix is <b>more sensors</b>, not a bigger network.</div>
+</div>
+
+</div>
+
+
+<FooterLogos />
+
+<!--
+[Engineering applicability · 2min] 左卡：K=100 可支援的 use case — KE & mean-flow monitoring (5.71 ± 0.11%)、phase-locked control (forcing mode amplitude/phase recovered)、incompressibility check (resolved-bandwidth FD floor)、streaming deployment (filtering mode)。右卡：不適用 case — small-scale turbulence stats、fine vorticity filaments、acoustic/shock localisation 需多模態。Inference cost 移到下一頁獨立比較。
+-->
+
+---
+
+<NavBar active="results" />
+
+<SectionTag>§ Results · pipeline cost</SectionTag>
+
+# Pipeline cost against the DNS reference
+
+<style>
+.ct { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 5px; }
+.ct th { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase;
+         color: #9CA3AF; text-align: left; padding: 0 8px 2px 0; font-weight: 700; }
+.ct th.r, .ct td.r { text-align: right; }
+.ct td { padding: 2px 8px 2px 0; color: #374151; border-top: 1px solid #F0EDF4; }
+.ct tr.grp td { border-top: none; padding-top: 6px; padding-bottom: 1px;
+                font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+                text-transform: uppercase; color: #7F1084; }
+.ct td.num { font-variant-numeric: tabular-nums; font-weight: 700; color: #1F1B2E; }
+.ct td.hw { color: #9CA3AF; font-size: 0.78rem; }
+.ct tr.sub td { color: #6B7280; }
+.ct tr.ref td.num { color: #E97132; }
+.ct tr.rat td { border-top: 1.5px solid #D8D2E0; padding-top: 7px; font-weight: 700; color: #1F1B2E; }
+.ct tr.rat td.num { color: #7F1084; }
+</style>
+
+<table class="ct">
+<thead><tr>
+<th style="width:31%;">Stage</th><th style="width:35%;">Configuration</th>
+<th class="r" style="width:18%;">Wall-clock</th><th style="width:16%;">Hardware</th>
+</tr></thead>
+<tbody>
+<tr class="grp"><td colspan="4">One-time setup</td></tr>
+<tr><td>LES placement solve</td><td>256², 50 000 steps (Δt = 10⁻⁴)</td><td class="num r">7.6 min</td><td class="hw">CPU (numpy)</td></tr>
+<tr><td>Operator training</td><td>20 000 steps</td><td class="num r">1.33 h</td><td class="hw">1 × GPU</td></tr>
+
+<tr class="grp"><td colspan="4">Per-trajectory inference</td></tr>
+<tr><td>Encode sensor series</td><td>T = 201, K = 100 (n = 20)</td><td class="num r">70.7 ± 3.8 ms</td><td class="hw">M3 MPS</td></tr>
+<tr><td>Field query</td><td>16 384 pts/batch (n = 30) · 31 030 q/s</td><td class="num r">527.8 ± 17.1 ms</td><td class="hw">M3 MPS</td></tr>
+<tr><td>Full-sequence reconstruction</td><td>603 fields, 128²</td><td class="num r">9.7 min</td><td class="hw">M3 MPS</td></tr>
+
+<tr class="grp"><td colspan="4">Reference</td></tr>
+<tr class="ref"><td>DNS solve</td><td>1024², 20 000 steps</td><td class="num r">3.27 h</td><td class="hw">CPU (numpy)</td></tr>
+
+<tr class="rat"><td>Setup vs DNS solve</td><td>1.46 h vs 3.27 h</td><td class="num r">2.2 ×</td><td class="hw" style="color:#7F1084;">lower</td></tr>
+<tr class="rat" style="border:none;"><td style="border-top:none;">Reconstruction vs DNS solve</td><td style="border-top:none;">9.7 min vs 3.27 h</td><td class="num r" style="border-top:none;">20 ×</td><td class="hw" style="border-top:none;color:#7F1084;">faster</td></tr>
+</tbody>
+</table>
+
+<div class="mt-2" style="font-size:0.79rem; color:#6B7280; border-left:2px solid #E97132; padding-left:10px; line-height:1.45;">
+Both ratios mix hardware (GPU training, MPS inference vs CPU DNS solve). And <b style="color:#E97132;">speed is not the case for the operator</b>: forward simulation cannot reconstruct from sparse sensors, and the DNS does not exist on a new scene.
 </div>
 
 <FooterLogos />
 
 <!--
-[Engineering applicability · 2min] 左卡：K=100 可支援的 use case — KE & mean-flow monitoring (5.71 ± 0.11%)、phase-locked control (forcing mode amplitude/phase recovered)、incompressibility check (resolved-bandwidth FD floor)、streaming deployment (filtering mode)。右卡：不適用 case — small-scale turbulence stats、fine vorticity filaments、acoustic/shock localisation 需多模態。底部 inference cost 必須精準：encoder 70.7ms 一次/trajectory；sparse query throughput 31k grid-pt/s；full 128² query 527.8ms，不宣稱 full-field 100ms。
+[Pipeline cost · 1.5min] 對應論文 tab:inference_cost (chapter04:495)。念法：setup 一次性 1.46 h（LES 7.6 min 佈點 + training 1.33 h）對 DNS 1024² 的 3.27 h；訓練完後每條軌跡重建 9.7 min，對 3.27 h 是 20×，達到 §research_questions 的 ≥5× 門檻。encode 只佔全序列重建的 0.06%（chapter04:524）—— encode 一次、之後任意座標查詢邊際成本近乎零。
+
+⚠️ 兩個 caveat 必須主動講，不要等被問（chapter04:493 原文）：
+(1) 硬體不對等 — training 用 GPU、inference 用 M3 MPS、DNS solve 用 CPU numpy，比值混了三種硬體，不是 apples-to-apples。
+(2) 更重要：速度**不是**這個方法的論據。forward simulation 根本無法從稀疏感測重建流場，而且新場景上 DNS 不存在。這頁是回答「成本可不可接受」，不是宣稱「比 DNS 快所以贏」。
+被問「那為什麼要放這張表」→ 答：證明工程可用性的成本面，不是 selling point。
+被問「20× 在 3D 還成立嗎」→ 答：單次高保真解越貴、margin 越大（3D / multi-physics / higher-Re），但本研究未驗證，是 open follow-up（chapter04:493 明載）。
 -->
 
 ---
@@ -2253,11 +2376,11 @@ Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted s
 # Contributions
 
 <style>
-.ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 0; margin-top: 10px; }
-.ct .num { font-size: 1.15rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 10px 0; }
-.ct .body { padding: 8px 0; border-bottom: 1px solid #F1EDF5; }
-.ct .ttl { font-size: 0.86rem; font-weight: 700; color: #1F1B2E; }
-.ct .det { font-size: 0.8rem; color: #6B7280; margin-top: 2px; line-height: 1.35; }
+.ct { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 0; margin-top: 10px; }
+.ct .num { font-size: 1.4rem; font-weight: 700; color: #7F1084; line-height: 1; padding: 11px 0; }
+.ct .body { padding: 9px 0; border-bottom: 1px solid #F1EDF5; }
+.ct .ttl { font-size: 1.05rem; font-weight: 700; color: #1F1B2E; }
+.ct .det { font-size: 0.95rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
 .ct .det b { color: #7F1084; }
 .ct .ob { font-size: 0.66rem; font-weight: 700; color: #16A34A; white-space: nowrap; padding: 8px 0; letter-spacing: 0.04em; }
 .ct .sec .num, .ct .sec .ttl, .ct .sec .ob { color: #9CA3AF; }
@@ -2293,7 +2416,7 @@ Scope: 2-D periodic Ω = [0,1]², stationary Kolmogorov forcing, DNS-extracted s
 </div>
 
 <div class="mt-3 px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
-<div class="text-xs" style="color:#374151;">
+<div style="color:#374151; font-size: 0.95rem;">
 Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">·</span> all within the 10 % target
 </div>
 </div>
@@ -2335,14 +2458,14 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 # Limitations and future work
 
 <style>
-.lx { width: 100%; border-collapse: collapse; margin-top: 8px; }
-.lx th { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+.lx { width: 100%; border-collapse: collapse; margin-top: 16px; }
+.lx th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
          padding: 0 8px 4px 8px; border-bottom: 1px solid #D8D2E0; text-align: left; }
-.lx td { padding: 6px 8px; border-bottom: 1px solid #F1EDF5; vertical-align: top; }
-.lx .lim { font-size: 0.78rem; color: #1F1B2E; font-weight: 600; width: 42%; }
+.lx td { padding: 13px 8px; border-bottom: 1px solid #F1EDF5; vertical-align: top; }
+.lx .lim { font-size: 1.0rem; color: #1F1B2E; font-weight: 600; width: 42%; }
 .lx .lim span { font-weight: 400; color: #9CA3AF; font-size: 0.92em; }
-.lx .arw { color: #C9C6D0; width: 12px; padding: 6px 0; }
-.lx .fix { font-size: 0.78rem; color: #374151; }
+.lx .arw { color: #C9C6D0; width: 12px; padding: 13px 0; }
+.lx .fix { font-size: 1.0rem; color: #374151; }
 .lx .fix b { color: #7F1084; }
 </style>
 
@@ -2377,7 +2500,7 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 </tbody>
 </table>
 
-<div class="mt-3 text-xs" style="color:#374151;">
+<div class="mt-4" style="color:#374151; font-size: 0.95rem;">
 Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov
 </div>
 
@@ -2414,152 +2537,145 @@ Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="colo
 
 <SectionTag>§ Results · filtering vs smoothing mode</SectionTag>
 
-# Filtering stays default for deployment, not because smoothing fails
+# Filtering vs smoothing
 
-<div class="grid grid-cols-5 gap-4 mt-3 text-sm">
+<style>
+.fs { width: 100%; border-collapse: collapse; font-size: 1.0rem; margin-top: 20px; }
+.fs th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.72rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 12px 8px 12px; border-bottom: 1px solid #D8D2E0; }
+.fs td { padding: 14px 12px; border-bottom: 1px solid #F1EDF5; color: #374151; }
+.fs .m { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.fs .m span { display: block; font-weight: 400; color: #9CA3AF; font-size: 0.72em; margin-top: 2px; }
+.fs tr.ours td { background: #F7EDF8; border-bottom: none; color: #7F1084; font-weight: 700; }
+</style>
 
-<div class="col-span-2">
-<Card>
-<LabelTiny>FILTERING vs SMOOTHING</LabelTiny>
-
-<table class="w-full mt-2 text-xs" style="border-collapse: collapse;">
-  <thead>
-    <tr style="border-bottom: 1.5px solid #7F1084;">
-      <th class="text-left py-1 px-1" style="color:#7F1084;">Mode</th>
-      <th class="text-left py-1 px-1" style="color:#7F1084;">KE mean</th>
-      <th class="text-left py-1 px-1" style="color:#7F1084;">Role</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr style="border-bottom: 1px solid #E5E0EC; background: rgba(127,16,132,0.10);">
-      <td class="py-1 px-1"><b>Filtering</b><br/>(EXP-245)</td>
-      <td><b style="color:#7F1084;">5.71 ± 0.11 %</b></td>
-      <td>main n = 5 baseline</td>
-    </tr>
-    <tr>
-      <td class="py-1 px-1">Smoothing<br/>(EXP-294)</td>
-      <td>5.74 %</td>
-      <td>single-seed diagnostic</td>
-    </tr>
-  </tbody>
+<table class="fs">
+<thead>
+<tr>
+<th style="width: 22%;">Mode</th>
+<th style="width: 30%;">CfC scan</th>
+<th style="width: 24%;">KE MAPE</th>
+<th style="width: 24%;">Evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr class="ours">
+<td class="m" style="color:#7F1084;">Filtering <span style="color:#B98ABD;">default</span></td>
+<td>forward only</td>
+<td>5.71 ± 0.11 %</td>
+<td>n = 5</td>
+</tr>
+<tr>
+<td class="m">Smoothing</td>
+<td>forward + backward</td>
+<td>5.74 %</td>
+<td>single seed</td>
+</tr>
+</tbody>
 </table>
 
-<div class="mt-2 text-xs" style="color:#6B7280;">
-Filtering = forward CfC scan only, query reads sensor up to t<sub>q</sub>.<br/>
-Smoothing = forward + backward CfC, query sees full sensor sequence.
-</div>
-</Card>
-</div>
-
-<div class="col-span-3 space-y-3 text-sm">
-
-<Card>
-<LabelTiny>FINAL-PROTOCOL RESULT</LabelTiny>
-<div class="mt-1 leading-snug space-y-1">
-<div>· Smoothing is <b>comparable</b> to filtering under the final protocol</div>
-<div>· It is not promoted because the evidence is single-seed</div>
-<div>· The main filtering recipe has n = 5 support</div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>ENGINEERING IMPLICATIONS OF FILTERING</LabelTiny>
-<div class="mt-1 leading-snug space-y-1">
-<div>① <b>Streaming-deployable</b> — never reads future sensor data</div>
-<div>② <b>½ compute</b> — no backward scan</div>
-<div>③ <b>Validated recipe</b> — filtering is the n = 5 default mode</div>
-</div>
-</Card>
-
-</div>
-
+<div class="mt-6" style="display:grid; grid-template-columns:max-content 1fr; column-gap:16px; row-gap:7px; align-items:baseline; font-size:0.95rem;">
+<span style="color:#9CA3AF;">Accuracy</span><span style="color:#374151;">Comparable — smoothing is <b>not</b> rejected on accuracy</span>
+<span style="color:#9CA3AF;">Why filtering</span><span style="color:#374151;">Reads no future sensor <span style="color:#C9C6D0;">·</span> half the compute <span style="color:#C9C6D0;">·</span> the n = 5 validated recipe</span>
 </div>
 
 <FooterLogos />
 
 <!--
-[Filtering vs smoothing · 1min] 兩個 CfC mode 對照：filtering forward-only (engineering deployable) vs smoothing forward+backward (offline batch)。EXP-294 final-protocol smoothing 不再支持舊的 failure story；它與 filtering 接近。但 filtering 仍是預設，因為 streaming-deployable、半 compute，而且 EXP-245 n=5 是主 baseline。
+[Filtering vs smoothing · 1min] 兩個 CfC mode 對照。filtering = forward-only scan，query 只讀到 t_q
+（streaming-deployable）；smoothing = forward + backward，query 看得到完整 sensor 序列（offline batch）。
+
+⚠️ 2026-07-17 重寫：原標題「Filtering stays default for deployment, not because smoothing fails」
+是「A, not B」句型且折兩行；原頁面把「filtering = forward scan / smoothing = forward+backward」
+的定義用散文寫了兩行，又用兩張卡各三條 bullet 重述表格已有的資訊。現在定義收進表格的
+「CfC scan」欄，結論收成兩行。
+
+口述（頁面不印）：
+- EXP-294 是 final-protocol 的 smoothing 重跑，**不再支持舊版的 smoothing failure story**；
+  它與 filtering 接近（5.74 vs 5.71）。
+- 但 filtering 仍是預設，理由是工程面而非精度面：不讀未來 sensor（可串流部署）、
+  少一次 backward scan（半 compute）、且 EXP-245 n=5 是主 baseline。
+- 若委員問「那為什麼不用 smoothing」→ 答：它沒輸，只是證據是單 seed，而部署要的是
+  filtering 的因果性；離線批次重建才輪得到 smoothing。
 -->
 
 ---
 
 <NavBar active="summary" />
 
-<SectionTag>§ Disabled · anticipated Q&A</SectionTag>
+<SectionTag>§ Appendix · anticipated Q&A</SectionTag>
 
-# Defense preparation — CFD-rigour questions
+# Anticipated questions
 
-<div class="grid grid-cols-2 gap-3 mt-2 text-xs">
+<style>
+.qa { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 14px; }
+.qa th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.66rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.qa td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; }
+.qa .q { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.qa .n { color: #9CA3AF; font-weight: 700; font-size: 0.8em; }
+.qa .ok { color: #7F1084; font-weight: 700; }
+.qa .gap { color: #E97132; font-weight: 700; }
+</style>
 
-<Card>
-<LabelTiny>Q1.&nbsp; DNS resolution adequacy? &nbsp;<b style="color:#7F1084;">✓ verified</b></LabelTiny>
-<div class="mt-1 leading-snug">
-ε = <b>6.27·10⁻³</b>,&nbsp; η = <b>3.55·10⁻³</b>,&nbsp; k<sub>max</sub> = 85.3 mode (2/3 dealiased) ⇒ k<sub>max,phys</sub> = 536.&nbsp;
-<b style="color:#7F1084;">k<sub>max</sub>·η = 1.91 ≥ 1.5 (Pope 2000)</b> ⇒ adequate.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q2.&nbsp; Energy spectrum slope? &nbsp;<b style="color:#E97132;">dissipation-dominated</b></LabelTiny>
-<div class="mt-1 leading-snug">
-Fitted slope k &gt; k<sub>f</sub>: <b>−4.61</b> (R² = 0.99) — <b>steeper than theoretical k⁻³</b>.&nbsp; Re = 10⁴ on a [0,1]² box has no clear inertial enstrophy range; dissipation dominates above k<sub>f</sub>.&nbsp; Inverse cascade absent (only k = 1 below k<sub>f</sub>).
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q3.&nbsp; T = 5 vs Lyapunov time?</LabelTiny>
-<div class="mt-1 leading-snug">
-U<sub>rms</sub> = 0.50, t<sub>eddy</sub> = L / U<sub>rms</sub> = <b>1.99</b>.&nbsp;
-T = 5 ≈ <b>2.51 turnovers</b>; λ<sub>L</sub> proxy ≈ 1/t<sub>eddy</sub> = 0.50 ⇒ ~2.5 e-foldings.&nbsp;
-<b style="color:#E97132;">Limited statistical window</b>; multi-seed n = 5 partially compensates.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q4.&nbsp; AL ≡ SIMPLE/PISO?</LabelTiny>
-<div class="mt-1 leading-snug">
-<b>Lagrangian analog, not algorithmically equivalent</b>.&nbsp; SIMPLE: elliptic Poisson, non-local, pointwise on grid.&nbsp; AL: scalar λ, gradient ascent on mean residual, enforced in expectation over sampled collocation. Same constraint, different enforcement mechanism.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q5.&nbsp; Is divergence really controlled? &nbsp;<b style="color:#7F1084;">✓ matched-bandwidth check</b></LabelTiny>
-<div class="mt-1 leading-snug">
-EXP-245 divergence ratio is <b style="color:#7F1084;">0.39 ± 0.006 %</b>.&nbsp;
-The full DNS finite-difference ratio is higher because it contains unresolved high-k content; after band-limiting DNS to the reconstructed bandwidth, the floor is ≈ <b>0.38 %</b>.&nbsp;
-Claim: AL-continuity reaches the resolved-bandwidth FD floor, not "more incompressible than DNS."
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q6.&nbsp; Standard PINN baseline straw-man?</LabelTiny>
-<div class="mt-1 leading-snug">
-Acknowledged limitation: PINN has no set-encoder for sensor cloud.&nbsp; <b>Vanilla DeepONet (B0)</b> is the fair architectural baseline (same set-encoded input), and B3 vs B0 KE gap −2.52 percentage points at p = 3.0×10⁻⁷ isolates "operator branch + CfC + cross-attn" gain.&nbsp; PINN row is informational, not the headline claim.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q7.&nbsp; Pressure rel-L₂ (mod gauge)?</LabelTiny>
-<div class="mt-1 leading-snug">
-DNS reference p<sub>rms</sub> (gauge-removed) = <b>0.231</b> (denominator established).&nbsp;
-Numerator ‖p<sub>pred</sub> − p<sub>DNS</sub> + C‖₂ needs evaluator extension (1 h work); without it the momentum residuals could be satisfied by an arbitrary p gauge — CFD-rigour gap acknowledged.
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Q8.&nbsp; Forward CFD from sensor IC&nbsp; (2026-05-15 actually run)</LabelTiny>
-<div class="mt-1 leading-snug">
-POD-projection IC (rank 40 from K = 100 sensors, div-free by construction) → ETDRK4 forward to t = 5, fp64.&nbsp;
-KE MAPE <b>3.85 %</b>, enstrophy 14.65 vs 14.16 (±3.5 %) ⇒ <b>same invariant measure</b>, not a different solution branch.&nbsp;
-But pointwise <b>u rel-L₂ 152.8 %&nbsp;·&nbsp;v rel-L₂ 203.9 %</b> (vs PI-CON final baseline 13.65 % / 17.52 %, <b>≥ 11×</b> worse), and forcing-induced anisotropy <b>u_std/v_std</b> drifts from 2.32 (DNS) to 0.90 (forward).&nbsp;
-Reading: <i>another typical sample on the same chaotic attractor, with phase totally decorrelated after 2.5 t<sub>eddy</sub></i> — KE alone mis-ranks; operator framework is what tracks the realization.
-</div>
-</Card>
-
-</div>
+<table class="qa">
+<thead>
+<tr><th style="width: 5%;"></th><th style="width: 37%;">Question</th><th style="width: 58%;">Short answer</th></tr>
+</thead>
+<tbody>
+<tr><td class="n">Q1</td><td class="q">DNS resolution adequate?</td>
+<td><span class="ok">k<sub>max</sub>·&#951; = 1.91 &#8805; 1.5</span> (Pope 2000)</td></tr>
+<tr><td class="n">Q2</td><td class="q">Energy-spectrum slope?</td>
+<td>&#8722;4.61, steeper than k&#8315;&#179; &#183; no inertial range in a [0,1]&#178; box</td></tr>
+<tr><td class="n">Q3</td><td class="q">T = 5 vs Lyapunov time?</td>
+<td>2.51 turnovers &#183; <span class="gap">short window</span>, n = 5 partly compensates</td></tr>
+<tr><td class="n">Q4</td><td class="q">Is AL just SIMPLE/PISO?</td>
+<td>Lagrangian analogue, not algorithmically equivalent</td></tr>
+<tr><td class="n">Q5</td><td class="q">Is divergence controlled?</td>
+<td><span class="ok">0.39 %</span> = resolved-bandwidth FD floor &#183; not sub-DNS</td></tr>
+<tr><td class="n">Q6</td><td class="q">Is the PINN baseline a straw man?</td>
+<td>B0 vanilla DeepONet is the fair one &#183; &#8722;2.52 pp, p = 3&#215;10&#8315;&#8311;</td></tr>
+<tr><td class="n">Q7</td><td class="q">Pressure error?</td>
+<td><span class="gap">Open</span> &#183; gauge-removed p<sub>rms</sub> = 0.231, evaluator pending</td></tr>
+<tr><td class="n">Q8</td><td class="q">Why not forward CFD?</td>
+<td>Same attractor, decorrelated phase &#183; u rel-L&#8322; <b>152.8 %</b></td></tr>
+</tbody>
+</table>
 
 <FooterLogos />
 
 <!--
-[Anticipated Q&A · backup only] 8 個 CFD-rigour 級別問題的預備答案。Q1-Q3 DNS validation 數據 (ε/η/k_max·η, E(k) slope, Lyapunov);  Q4 AL vs SIMPLE 描述軟化;  Q5 div in physical units;  Q6 PINN straw-man defense (用 B0 vanilla DeepONet 作為 fair baseline);  Q7 pressure rel-L₂ pending;  Q8 forward CFD baseline 已實際跑出（2026-05-15, 遠端 home-gpu, ETDRK4 20000 steps, 27.5min）：KE MAPE 3.85% < PI-CON 5.71% **but** u rel-L₂ 152.8% / v rel-L₂ 203.9% vs PI-CON 13.65% / 17.52% — chaos signature 教科書範例，bounded statistics 留下、phase info 丟失。回應策略：當委員攻擊「為何不用 forward CFD」，回擊 "KE MAPE alone mis-ranks chaotic systems; pointwise rel-L₂ ≥ 11× worse confirms operator framework value"。
+[Anticipated Q&A · appendix] 八個 CFD-rigour 問題的預備答案。
+
+⚠️ 2026-07-17 重做。修了兩件事：
+1. SectionTag 原寫「§ Disabled」，但本頁早已被啟用 —— 標籤與狀態矛盾。改為「§ Appendix」。
+2. 原本八張卡塞完整答案，實測 **ov = 546px（canvas 只有 552px）** —— 內容是投影片的兩倍高，
+   後四題完全掉出畫面。現改為**索引式**：頁面只放問題 + 一句結論，完整答案在下方 note。
+   這頁的用途是 Q&A 時讓委員看見「這些都想過了」，細節用講的。
+
+== 完整答案（口述用）==
+Q1 DNS 解析度：&#949; = 6.27e-3、&#951; = 3.55e-3、k_max = 85.3 mode（2/3 dealiased）
+   &#8658; k_max,phys = 536；k_max&#183;&#951; = 1.91 &#8805; 1.5 (Pope 2000) &#8658; adequate。
+Q2 能譜斜率：k > k_f 擬合得 &#8722;4.61 (R&#178; = 0.99)，比理論 k&#8315;&#179; 更陡。Re = 10&#8308; 在 [0,1]&#178; 盒子裡
+   沒有明確的 inertial enstrophy range，k_f 以上由耗散主導；inverse cascade 不存在（k_f 以下只有 k = 1）。
+Q3 T=5 vs Lyapunov：U_rms = 0.50、t_eddy = L/U_rms = 1.99 &#8658; T = 5 &#8776; 2.51 turnovers；
+   &#955;_L proxy &#8776; 1/t_eddy = 0.50 &#8658; ~2.5 e-foldings。**誠實承認統計窗有限**，multi-seed n = 5 只是部分彌補。
+Q4 AL vs SIMPLE：SIMPLE 是 elliptic Poisson、non-local、在網格上逐點精確；AL 是純量 &#955;、
+   對平均殘差做 gradient ascent、在抽樣 collocation 上以期望值意義成立。同一個約束，不同的執行機制。
+Q5 散度：EXP-245 div ratio = 0.39 &#177; 0.006%。DNS 全場 FD ratio 較高是因為它含未解析的高 k 內容；
+   把 DNS band-limit 到重建頻寬後，floor &#8776; 0.38%。**只能宣稱「達到 resolved-bandwidth FD floor」，
+   禁止說「比 DNS 更不可壓縮」**（thesis/CLAUDE.md 明列禁項）。
+Q6 PINN straw-man：坦承 PINN 沒有 sensor cloud 的 set-encoder。**B0 vanilla DeepONet 才是公平的
+   架構 baseline**（同樣 set-encoded input），B3 vs B0 的 &#8722;2.52 pp、p = 3.0&#215;10&#8315;&#8311; 才是隔離出
+   「operator branch + CfC + cross-attn」增益的證據。PINN 那列是資訊性的，不是 headline claim。
+Q7 壓力：DNS 參考 p_rms（去 gauge）= 0.231，分母已定。分子 &#8214;p_pred &#8722; p_DNS + C&#8214;&#8322; 需要擴充
+   evaluator（約 1 小時工）。在那之前，momentum residual 可能被任意 p gauge 滿足 —— **誠實揭露為
+   CFD-rigour gap**，不要辯護。
+Q8 Forward CFD（2026-05-15 實跑，home-gpu, ETDRK4 20000 steps, 27.5 min）：
+   POD-projection IC（rank 40，由 K=100 sensor 建，構造上 div-free）&#8594; ETDRK4 積分到 t = 5, fp64。
+   KE MAPE 3.85%（比 PI-CON 的 5.71% 還好）**但** u rel-L&#8322; 152.8% / v rel-L&#8322; 203.9%
+   （PI-CON 13.65% / 17.52%，&#8805; 11&#215; 差），forcing 造成的異向性 u_std/v_std 從 2.32 (DNS) 漂到 0.90。
+   判讀：**同一個混沌吸引子上的另一個典型樣本，2.5 t_eddy 後相位完全去相關**。
+   回應策略：「KE MAPE alone mis-ranks chaotic systems；pointwise rel-L&#8322; 差 11 倍才是 operator
+   framework 的價值所在。」
 -->
