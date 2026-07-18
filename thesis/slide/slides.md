@@ -56,6 +56,252 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <NavBar active="background" />
 
+<SectionTag>§ Background · why reconstruction is needed</SectionTag>
+
+# On a real rig, the field is never measured
+
+<style>
+.wr { display: grid; grid-template-columns: 1fr max-content 1fr; column-gap: 22px; align-items: center;
+      margin-top: 18px; }
+.wr .cap { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
+           text-align: center; margin-bottom: 6px; }
+.wr .arrow { text-align: center; color: #7F1084; }
+.wr .arrow .lbl { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; }
+.wr figure { margin: 0; }
+.wr figcaption { font-size: 0.78rem; color: #6B7280; text-align: center; margin-top: 8px; line-height: 1.4; }
+</style>
+
+<div class="wr">
+
+<div>
+<div class="cap" style="color:#E97132;">What a rig gives you</div>
+<svg viewBox="0 0 300 200" style="width:100%; height:auto;">
+  <rect x="6" y="6" width="288" height="188" rx="6" fill="#FAFAFB" stroke="#D8D2E0"/>
+  <g fill="#E97132">
+    <circle cx="58" cy="48" r="5"/><circle cx="146" cy="34" r="5"/><circle cx="238" cy="62" r="5"/>
+    <circle cx="92" cy="104" r="5"/><circle cx="196" cy="118" r="5"/><circle cx="42" cy="152" r="5"/>
+    <circle cx="132" cy="166" r="5"/><circle cx="252" cy="150" r="5"/>
+  </g>
+</svg>
+<figcaption><b style="color:#E97132;">K point probes</b> — velocity at fixed positions, sampled in time.</figcaption>
+</div>
+
+<div class="arrow">
+<div style="font-size:2.1rem; line-height:1;">→</div>
+<div class="lbl">reconstruction</div>
+</div>
+
+<div>
+<div class="cap" style="color:#7F1084;">What engineering needs</div>
+<svg viewBox="0 0 300 200" style="width:100%; height:auto;">
+  <defs>
+    <radialGradient id="v1"><stop offset="0%" stop-color="#7F1084" stop-opacity="0.55"/><stop offset="100%" stop-color="#7F1084" stop-opacity="0"/></radialGradient>
+    <radialGradient id="v2"><stop offset="0%" stop-color="#0F2D52" stop-opacity="0.45"/><stop offset="100%" stop-color="#0F2D52" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect x="6" y="6" width="288" height="188" rx="6" fill="#FAFAFB" stroke="#D8D2E0"/>
+  <circle cx="90" cy="70" r="52" fill="url(#v1)"/><circle cx="205" cy="130" r="56" fill="url(#v1)"/>
+  <circle cx="215" cy="55" r="42" fill="url(#v2)"/><circle cx="80" cy="150" r="44" fill="url(#v2)"/>
+  <g stroke="#7F1084" stroke-width="1.1" fill="none" opacity="0.5">
+    <path d="M40 40 C 90 20, 130 60, 175 40"/><path d="M40 95 C 95 70, 135 120, 180 95"/>
+    <path d="M40 150 C 95 125, 140 175, 185 150"/>
+  </g>
+</svg>
+<figcaption><b style="color:#7F1084;">Continuous field u(x, t)</b> — structures, gradients, and loads between the probes.</figcaption>
+</div>
+
+</div>
+
+<div class="mt-4" style="font-size:0.95rem; color:#374151;">
+No full field exists to copy from, so it has to be <b style="color:#7F1084;">inferred</b> from the probes and the governing equations.
+</div>
+
+<FooterLogos />
+
+<!--
+[Why reconstruction · 1min] 2026-07-18 依指導教授 meeting 新增。
+教授原話：「說明為什麼要做 reconstruction 問題 —— 因為真實情況只有 sensor，沒有全場資料，
+所以需要 reconstruction 來重建。」
+
+口述：「工程現場能拿到的只有左邊：幾個固定位置的探針，隨時間取樣。但要判斷流場結構、
+梯度、受力，需要的是右邊的連續場。兩者之間沒有任何『抄答案』的來源 —— 現場不存在 DNS ——
+所以中間那一步只能用**推論**：從探針讀值加上統御方程把場推出來。這就是本研究要解的問題。」
+
+⚠️ 與下一頁的分工：本頁只講「為何需要」，**不碰數學性質**。
+下一頁 (The sparse-sensor reconstruction problem) 才講 under-determined、compressed sensing
+所需點數、physics as prior。不要在本頁提 25–50× 那組數字，會重複。
+
+圖為 SVG 手繪示意（非實測資料）：左側橘點＝探針位置示意，右側為流場結構示意，
+兩者都不對應任何特定的 DNS 快照。委員若問「右圖是哪個 case」→ 答：示意圖，非資料。
+-->
+
+---
+
+<NavBar active="background" />
+
+<SectionTag>§ Background · what a PINN does</SectionTag>
+
+# Physics-informed neural networks
+
+<style>
+.pn { display: grid; grid-template-columns: 0.8fr 1.4fr; column-gap: 20px; align-items: center; margin-top: 10px; }
+.pn .lossbox { border: 1.5px solid #E97132; border-radius: 6px; padding: 8px 10px; }
+.pn .losslab { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+               color: #E97132; margin-bottom: 2px; }
+/* 兩點都是實測後才確定的:
+   (1) $$ 區塊**不可跨行**——跨行會讓 markdown 解析失敗,只渲染後半段
+       (動量方程左邊 ∂_t u + (u·∇)u 曾整段消失,誤判成寬度不足)。
+   (2) 主題把 $$ 渲成 inline-block,寬度收縮成內容寬而非撐滿框,置中因此算在錯的寬度上。 */
+.pn .eq { font-size: 0.62em; color: #374151; display: block !important; width: 100% !important; }
+.pn .netcap { font-size: 0.78rem; color: #6B7280; text-align: center; margin-top: 4px; }
+</style>
+
+<div class="pn">
+
+<div>
+<svg viewBox="0 0 460 268" style="width:100%; height:auto;">
+  <g stroke="#0F2D52" stroke-width="0.7" opacity="0.22">
+    <line x1="46" y1="78" x2="168" y2="44"/>
+    <line x1="46" y1="78" x2="168" y2="92"/>
+    <line x1="46" y1="78" x2="168" y2="140"/>
+    <line x1="46" y1="78" x2="168" y2="188"/>
+    <line x1="46" y1="78" x2="168" y2="236"/>
+    <line x1="46" y1="140" x2="168" y2="44"/>
+    <line x1="46" y1="140" x2="168" y2="92"/>
+    <line x1="46" y1="140" x2="168" y2="140"/>
+    <line x1="46" y1="140" x2="168" y2="188"/>
+    <line x1="46" y1="140" x2="168" y2="236"/>
+    <line x1="46" y1="202" x2="168" y2="44"/>
+    <line x1="46" y1="202" x2="168" y2="92"/>
+    <line x1="46" y1="202" x2="168" y2="140"/>
+    <line x1="46" y1="202" x2="168" y2="188"/>
+    <line x1="46" y1="202" x2="168" y2="236"/>
+    <line x1="168" y1="44" x2="286" y2="44"/>
+    <line x1="168" y1="44" x2="286" y2="92"/>
+    <line x1="168" y1="44" x2="286" y2="140"/>
+    <line x1="168" y1="44" x2="286" y2="188"/>
+    <line x1="168" y1="44" x2="286" y2="236"/>
+    <line x1="168" y1="92" x2="286" y2="44"/>
+    <line x1="168" y1="92" x2="286" y2="92"/>
+    <line x1="168" y1="92" x2="286" y2="140"/>
+    <line x1="168" y1="92" x2="286" y2="188"/>
+    <line x1="168" y1="92" x2="286" y2="236"/>
+    <line x1="168" y1="140" x2="286" y2="44"/>
+    <line x1="168" y1="140" x2="286" y2="92"/>
+    <line x1="168" y1="140" x2="286" y2="140"/>
+    <line x1="168" y1="140" x2="286" y2="188"/>
+    <line x1="168" y1="140" x2="286" y2="236"/>
+    <line x1="168" y1="188" x2="286" y2="44"/>
+    <line x1="168" y1="188" x2="286" y2="92"/>
+    <line x1="168" y1="188" x2="286" y2="140"/>
+    <line x1="168" y1="188" x2="286" y2="188"/>
+    <line x1="168" y1="188" x2="286" y2="236"/>
+    <line x1="168" y1="236" x2="286" y2="44"/>
+    <line x1="168" y1="236" x2="286" y2="92"/>
+    <line x1="168" y1="236" x2="286" y2="140"/>
+    <line x1="168" y1="236" x2="286" y2="188"/>
+    <line x1="168" y1="236" x2="286" y2="236"/>
+    <line x1="286" y1="44" x2="408" y2="78"/>
+    <line x1="286" y1="44" x2="408" y2="140"/>
+    <line x1="286" y1="44" x2="408" y2="202"/>
+    <line x1="286" y1="92" x2="408" y2="78"/>
+    <line x1="286" y1="92" x2="408" y2="140"/>
+    <line x1="286" y1="92" x2="408" y2="202"/>
+    <line x1="286" y1="140" x2="408" y2="78"/>
+    <line x1="286" y1="140" x2="408" y2="140"/>
+    <line x1="286" y1="140" x2="408" y2="202"/>
+    <line x1="286" y1="188" x2="408" y2="78"/>
+    <line x1="286" y1="188" x2="408" y2="140"/>
+    <line x1="286" y1="188" x2="408" y2="202"/>
+    <line x1="286" y1="236" x2="408" y2="78"/>
+    <line x1="286" y1="236" x2="408" y2="140"/>
+    <line x1="286" y1="236" x2="408" y2="202"/>
+  </g>
+  <g fill="#0F2D52">
+    <circle cx="168" cy="44" r="11"/>
+    <circle cx="168" cy="92" r="11"/>
+    <circle cx="168" cy="140" r="11"/>
+    <circle cx="168" cy="188" r="11"/>
+    <circle cx="168" cy="236" r="11"/>
+    <circle cx="286" cy="44" r="11"/>
+    <circle cx="286" cy="92" r="11"/>
+    <circle cx="286" cy="140" r="11"/>
+    <circle cx="286" cy="188" r="11"/>
+    <circle cx="286" cy="236" r="11"/>
+  </g>
+  <circle cx="46" cy="78" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="46" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">x</text>
+  <circle cx="46" cy="140" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="46" y="140" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">y</text>
+  <circle cx="46" cy="202" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="46" y="202" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">t</text>
+  <circle cx="408" cy="78" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="408" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">u</text>
+  <circle cx="408" cy="140" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="408" y="140" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">v</text>
+  <circle cx="408" cy="202" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="408" y="202" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">p</text>
+  <text x="227" y="262" text-anchor="middle" fill="#9CA3AF" style="font-size:11px;">fully-connected hidden layers</text>
+</svg>
+<div class="netcap">One network, evaluated at any coordinate</div>
+</div>
+
+<div class="space-y-3">
+
+<div class="lossbox">
+<div class="losslab">Navier–Stokes residual</div>
+<div class="eq">
+
+$$\nabla\!\cdot\mathbf{u}=0$$
+
+$$\partial_t\mathbf{u}+(\mathbf{u}\!\cdot\!\nabla)\mathbf{u}=-\nabla p+\nu\nabla^2\mathbf{u}$$
+
+</div>
+</div>
+
+<div class="lossbox">
+<div class="losslab">Sensor data</div>
+<div class="eq">
+
+$$\big\|\,\mathbf{u}(\mathbf{x}_k,t)-\mathbf{u}_k^{\rm obs}\big\|^2$$
+
+</div>
+</div>
+
+<div style="font-size:0.86rem; color:#374151; line-height:1.45;">
+Derivatives come from <b>automatic differentiation</b> of the network with respect to its own inputs, so the residual is evaluated without a mesh.
+</div>
+
+</div>
+
+</div>
+
+<FooterLogos />
+
+<!--
+[What a PINN does · 1min] 2026-07-18 依指導教授 meeting 新增。
+教授原話：「加一頁說明 PINNs 的功能，以及如何運作。」
+
+口述三步：
+1. **功能**：網路吃座標 (x, y, t)，吐該點的 (u, v, p)。它本身就是一個連續場的函數表示，
+   不是格點上的數值解 —— 所以可以在任意座標查詢。
+2. **如何運作**：訓練訊號有兩個。一個是 sensor 量測（右下框），一個是 NS 殘差（右上框）。
+3. **關鍵機制**：∂u/∂t、∇u、∇²u 全部由 **autodiff 對輸入微分**得到，不需要網格、
+   不需要差分格式。這是 PINN 與傳統 CFD 最根本的差別，也是為何它能在任意點求殘差。
+
+⚠️ 2D 形式（x, y, t → u, v, p），與本研究的 Kolmogorov case 一致；
+教授提供的參考圖為 3D（含 z, w），已依其確認改為 2D。
+
+⚠️ 本頁是**通論**，講的是 PINN 一般形式，不是 PI-CON。
+PI-CON 與 vanilla PINN 的差別（sensor 讀進網路 vs 只進 loss）在 Motivation 段的
+「Operator vs. plain PINN」頁才展開，本頁不要提前講，否則兩頁重複。
+
+圖為 SVG 手繪示意；hidden layer 只畫兩排代表「多層全連接」，非實際層數。
+-->
+
+---
+
+<NavBar active="background" />
+
 <SectionTag>§ Background · the sparse-reconstruction problem</SectionTag>
 
 # The sparse-sensor reconstruction problem
@@ -101,45 +347,369 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 ---
 
-<NavBar active="background" />
+<NavBar active="literature" />
 
-<SectionTag>§ Background · what classical methods require</SectionTag>
+<SectionTag>§ Literature review · classical inverse methods</SectionTag>
 
-# What classical inverse methods require
+# What classical methods require
 
-<div class="mt-3 text-base leading-snug" style="color:#374151;">
-Classical inverse methods — Proper Orthogonal Decomposition (POD) Reduced-Order Model (ROM) · four-dimensional variational assimilation (4D-Var) · ensemble Kalman filter (EnKF) — each needs one ingredient the field cannot supply:
-</div>
+<style>
+.cl { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
+.cl th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.cl td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.3; }
+.cl td.who { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.cl td.src { color: #9CA3AF; font-size: 0.86em; }
+/* 分組行:家族層級的「需要什麼、現場為何給不起」——個別方法列只講各自的假設,
+   避免同一句障礙在每列重複。 */
+.cl tr.grp td { border-bottom: none; padding-top: 13px; padding-bottom: 3px; }
+.cl tr.grp .g1 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
+                 text-transform: uppercase; color: #1F1B2E; }
+.cl tr.grp .g2 { color: #E97132; font-weight: 600; }
+</style>
 
-<div class="grid grid-cols-2 gap-6 mt-5">
+<table class="cl">
+<thead>
+<tr>
+<th style="width: 22%;">Method</th>
+<th style="width: 34%;">Source</th>
+<th style="width: 44%;">What it assumes</th>
+</tr>
+</thead>
+<tbody>
 
-<Card>
-<div class="text-base font-bold" style="color:#7F1084;">① A pre-computed reference field</div>
-<div class="mt-2 text-sm leading-snug">POD basis or data-assimilation background field · both <b>offline from a full-field DNS</b></div>
-<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ no offline DNS reference</b> in the field</div>
-</Card>
+<tr class="grp"><td colspan="3">
+<span class="g1">Reduced-order models</span>
+<span style="color:#9CA3AF;"> — need an </span><span class="g2">offline trajectory of full fields</span><span style="color:#9CA3AF;">, which does not exist before the rig runs</span>
+</td></tr>
+<tr>
+<td class="who">POD</td><td class="src">Sirovich 1987, Q. Appl. Math.</td>
+<td>A linear modal basis spans the field</td>
+</tr>
+<tr>
+<td class="who">DMD</td><td class="src">Schmid 2010, J. Fluid Mech.</td>
+<td>The dynamics are linear in the observed modes</td>
+</tr>
+<tr>
+<td class="who">QR-pivot</td><td class="src">Manohar 2018, IEEE Control Syst. Mag.</td>
+<td>A basis already exists; it selects positions, not the field</td>
+</tr>
 
-<Card>
-<div class="text-base font-bold" style="color:#7F1084;">② The forward solver in the loop</div>
-<div class="mt-2 text-sm leading-snug">4D-Var / EnKF <b>re-run the NS solver</b> every assimilation window</div>
-<div class="mt-4 text-sm" style="color:#E97132;"><b>✗ minutes–hours per window</b> · not real-time at Re = 10⁴</div>
-</Card>
+<tr class="grp"><td colspan="3">
+<span class="g1">Data assimilation</span>
+<span style="color:#9CA3AF;"> — need the </span><span class="g2">forward solver in the loop</span><span style="color:#9CA3AF;">, re-run every window</span>
+</td></tr>
+<tr>
+<td class="who">4D-Var</td><td class="src">Asch 2016, SIAM</td>
+<td>An adjoint solve per window is affordable</td>
+</tr>
+<tr>
+<td class="who">EnKF</td><td class="src">Asch 2016, SIAM</td>
+<td>An ensemble of solver runs is affordable</td>
+</tr>
 
-</div>
+</tbody>
+</table>
 
-<div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">Implication</b> · learn the prior from sparse sensors + PDE · no reference field, no online solver → neural operator with a physics residual
+<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.92rem; border-left:2px solid #7F1084; padding-left:12px;">
+<span style="color:#9CA3AF; white-space:nowrap;">Implication</span><span style="color:#374151;">The prior has to be learned from <b>sparse sensors and the PDE alone</b> — no reference field, no solver in the loop.</span>
 </div>
 
 <FooterLogos />
 
 <!--
-[Background A2 · 2min] 對照表 5 + 1 個 deployment requirement：DNS basis 依賴 / forward solver 成本 / 非線性 / function-valued input / inference latency / PDE consistency。Take-away：NN 解掉 classical 的 blocker 並保留 PDE consistency；下一張比較 PINN vs PINO 決定要用哪種 NN。
+[Classical methods · 1.5min] 2026-07-18 依指導教授 meeting 改版：
+原為兩張說明卡，改為與其餘 literature review 頁一致的比較表，並移入 Literature 段。
+
+**在 literature review 中的位置**：本頁排在最前，順序是「傳統 → 學習式 → 感測器如何進入」，
+由舊至新、由簡至繁：
+  1. 本頁              傳統方法要什麼（現場給不起）
+  2. What prior methods are trained against   學習式方法對著什麼擬合（全都要全場）
+  3. How the sensor stream enters the model   四種能力沒有一種方法全有
+
+口述：「這兩類是流體重建的傳統做法。降階模型要先有一段完整流場的紀錄才能建基底；
+資料同化則要把求解器放進迴圈裡，每個同化窗都重跑一次。第一項在現場不存在 ——
+機台開始運轉前沒有全場紀錄；第二項在 Re=10⁴ 下每個窗要幾分鐘到幾小時，來不及。
+所以先驗只能從稀疏感測器加上統御方程本身學出來。」
+
+依據 chapter01.tex Table 1.1（:19-28）原文：
+- ROM 列：「Compress the field onto a low-rank basis identified offline」，
+  supervision「Offline DNS trajectory」，limitation「Needs offline trajectory; linear basis」
+- DA 列：「Bayesian state estimation against a forward solver and noise model」，
+  supervision「Forward solver + sensor」，limitation「Adjoint cost; HMC scaling at high Re」
+
+⚠️ 未列 RBF / IDW / 三角最小平方等直接內插法：那三者在 appendix07 是本研究自建的
+fair baseline、**無文獻 citation**，放進 literature review 會變成「跟通用方法比」而非文獻對照。
+它們的比較在 Results 段的「Lower KE does not mean a better field」頁。
+
+⚠️ 4D-Var 未實作為 baseline（見 Limitations 頁）。本頁只陳述其結構需求，
+不宣稱數值上勝過它。委員若問「有沒有實際跑 4D-Var 比較」→ 誠實答：沒有，列為 future work。
+-->
+---
+
+<NavBar active="literature" />
+
+<SectionTag>§ Literature review · training supervision in prior work</SectionTag>
+
+# What prior methods are trained against
+
+<style>
+/* 一個顏色一個意思，三色各司其職，不可再增：
+     橘 #E97132 = loss 對著什麼擬合（本頁的論點）
+     深藍 #0F2D52 = 模型主體（結構性標示，非好壞判斷）
+     紫 #7F1084 = PI-CON 那列
+   其餘一律中性；每格都上色就等於沒有重點。 */
+.dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
+.dns .bb { color: #0F2D52; font-weight: 700; }
+.dns tr.ours .bb { color: #7F1084; }
+.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
+          letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
+.dns th.key { color: #E97132; }
+.dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
+.dns .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
+.dns .who span { font-weight: 400; color: #9CA3AF; }
+.dns td.key { color: #E97132; font-weight: 600; }
+.dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
+.dns tr.ours .who { color: #7F1084; }
+.dns tr.ours td.key { color: #7F1084; font-weight: 700; }
+</style>
+
+<table class="dns">
+<thead>
+<tr>
+<th style="width: 20%;">Work</th>
+<th style="width: 27%;">Architecture</th>
+<th style="width: 18%;">Case</th>
+<th style="width: 35%;" class="key">What the loss is fitted to</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="who">SHRED <span>Williams 2024</span></td>
+<td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
+<td>Isotropic (JHTDB), Re 2.3×10⁴</td>
+<td class="key">The full state · ‖x − H(y)‖₂</td>
+</tr>
+<tr>
+<td class="who">Senseiver <span>Santos 2023</span></td>
+<td><b class="bb">Perceiver IO</b> · cross-attention to latent</td>
+<td>Re not stated</td>
+<td class="key">“A dense set of observations is needed to train”</td>
+</tr>
+<tr>
+<td class="who">FLRNet <span>Nguyen 2024</span></td>
+<td><b class="bb">CNN</b> VAE + Fourier features + <b class="bb">MLP</b></td>
+<td>Cylinder, Re 300–10³</td>
+<td class="key">The full field · VAE + perceptual loss</td>
+</tr>
+<tr>
+<td class="who">FLRONet <span>Vo Dang 2024</span></td>
+<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
+<td>Cylinder, Re not stated</td>
+<td class="key">Paired CFD fields</td>
+</tr>
+</tbody>
+</table>
+
+
+<FooterLogos />
+
+<!--
+[Literature review 2/3 · 1.5min] 這頁只有一個論點：它們全都對著 reference field 擬合。
+故只有一個欄位帶色（橘＝loss 對著什麼擬合），其餘中性。前一版 7 種文字顏色、橘色同時
+用在 supervision / Re / readout 三種意思上 —— 每格都是重點就等於沒有重點。
+
+已移除 Readout 與 Sensors 欄：readout 是 slide 7 的軸（Parfenyev 的 query-anywhere 在那裡
+才有意義）；sensor 數在此頁不承擔論點。Re 併入 Case 欄，未報者留白（—），不特別標色 ——
+那是缺席，不是警訊。
+
+⚠️⚠️ 口試發言警告（2026-07-18 查證後新增）：**不可說「我的 Re 比所有文獻都高」。**
+SHRED 用的 JHTDB forced isotropic turbulence 資料集規格公開：**integral scale Re = 23,298**
+（Re_λ = 433, 1024³, ν=1.85e-4；來源 turbulence.pha.jhu.edu 官方 dataset 頁）——
+**是我們 Re=10⁴ 的 2.3 倍**，且為 3D isotropic 真湍流（有完整慣性range），
+而我們是 2D Kolmogorov、Re_f≈2.5×10³、能譜斜率 −4.61、無慣性range。
+流體領域委員很可能認得 JHTDB，講錯會被當場反駁並連累其他 claim 的可信度。
+
+**正確說法（把 SHRED 的高 Re 轉成我們的論據）**：
+「在**不使用全場監督**的同類方法裡，我們的 Re 最高（slide 7：Mo & Magri 34、Kelshaw 34、
+Parfenyev 1.3×10³、我們 10⁴，7.7×）。至於 Re 更高的 SHRED（2.3×10⁴），它需要完整流場
+當監督訊號 —— 那正是本研究不需要的東西。」
+→ Re 的 head-to-head 只在 slide 7（same regime）成立；本頁的論點是**監督訊號**不是 Re。
+
+逐格出處（2026-07-15 查證；Re 欄 2026-07-18 補）：
+- SHRED (arXiv 2301.12011): stacked LSTM + shallow FC decoder；loss 原文
+  「minimize reconstruction loss ∑ᵢ‖xᵢ − H̃({yⱼ})‖₂」→ 對全場 state 監督。
+  流場原文：「the pressure field of a forced isotropic turbulent flow from the Johns Hopkins
+  Turbulence Database」「generated by direct numerical simulation using 1024³ nodes」。
+  **論文本身未報 Re**；表格填的 2.3×10⁴ 是該 JHTDB 資料集的公開規格，非論文所報 ——
+  被問來源時要如此區分。
+- Senseiver (Nature MI 2023): Perceiver IO 系 cross-attention 編碼進 latent；OSTI 摘要原文
+  「a dense set of observations is needed to train」；Re / sensor 數未報；正文付費牆。
+- FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier (m=4, σ=5) + MLP 5×128；
+  loss = VAE reconstruction + perceptual；cylinder Re 300–1000。
+- FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench。
+  ⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，非原文直引。
+
+== 「FLRONet 的 Re 為什麼空著？」（2026-07-17 親自查證 arXiv 2412.08009 全文 15 頁）==
+**因為原文從頭到尾沒給 Re 數值。** 實測：全文 54k 字元中「Reynolds」只出現 1 次，且無數字 ——
+唯一那句是定性的「…the inherent difficulty of reconstructing flow with a high Reynolds number
+driven by the increased velocity of the fluid…」。「viscosity」出現 0 次，所以連反推 Re 都做不到。
+
+它改用**入口速度**索引案例：CFDBench cylinder dataset，domain 0.14 × 0.24 m → 140×240 grid，
+50 個 case，inlet velocity 由 0.1 m/s 遞增到 5.0 m/s（45 train / 5 test，test 為 3.5/3.9/4.2…）。
+⚠️ 2026-07-17：曾把「no Re stated · indexed by inlet velocity 0.1–5.0 m/s」以小字標進 Case 欄，
+已移除（使用者：小字不需要）。**該資訊改為口述** —— 被問「FLRONet 的 Re 是多少」時答：
+「原文沒給。全文只出現一次 Reynolds 且無數值，viscosity 一次都沒有，所以連反推都做不到；
+它用 inlet velocity 0.1–5.0 m/s 索引 50 個 case。」
+同理 SHRED (JHTDB isotropic) 與 Senseiver 亦未報 Re。**四篇裡三篇未報 Re，只有 FLRNet
+給了 Re 300–10³** —— 這點若被問「為何不做 Re 的 head-to-head」，就是答案。
+
+⚠️ 先前這裡的註記「Re 未報」是別人 2026-07-15 記的，我 2026-07-17 親自抓 PDF 逐字查證後確認屬實
+（第一次 WebFetch 讀 PDF 回傳二進位亂碼、宣稱「無法確定」，不可採信；改用 pypdf 本地解析才得出）。
+⚠️ 舊版頁面底部曾有一行小字「the Reynolds number is unstated in three of the four above」，
+已被移除 —— 該資訊現在改標在各自的格子裡，比一行看不見的註腳有效。
+
+順帶：FLRONet 論文標題即為「**Deep Operator Learning** for High-Fidelity Fluid Flow Field
+Reconstruction from Sparse Sensor Measurements」，自稱 deep operator learning —— 這是本表
+必須標出 DeepONet 血緣的第二個依據（第一個是 chapter01:101）。
+
+== 「為什麼沒有 DeepONet 系的對照？」（2026-07-17 補；委員極可能問）==
+有 —— 就是 FLRONet。chapter01:101 原文稱它是「the spatio-temporal **deep operator network**
+of Vo Dang and Nguyen … **the closest published architecture to the present branch--trunk
+readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trunk」，沒出現 DeepONet
+字樣，等於把這個對照藏起來 —— 委員讀表時會問的正是這題。已改為
+「DeepONet · FNO branch + MLP trunk」+ 灰字註「closest published branch–trunk」。
+
+完整答法（三層，被追問時逐層給）：
+1. **文獻對照 = FLRONet**：同為 branch–trunk deep operator network，但它訓練對著
+   paired CFD fields（chapter01:101「train against complete CFD fields rather than the PDE」）
+   —— 差別不在架構家族，在監督訊號。這正是本表的論點。
+2. **原版 DeepONet [Lu 2021] 為何不在同 regime 比較**：chapter01:93 明載 DeepONet/FNO
+   「are demonstrated as dense-input forward operators: the branch expects its input function
+   sampled on a fixed dense grid … rather than ~10² scattered points」——它吃不了稀疏散點，
+   屬 Gap 2，不是同 regime 的競爭者。連 physics-informed 的 PINO 也「evaluates its residual
+   on a grid」。
+3. **真正的 DeepONet 對照在內部**：chapter01:128 的 O1 criterion 就是「reduce KE error by at
+   least two percentage points relative to the **vanilla DeepONet baseline** at p<0.01」——
+   那是 2×2 ablation 的 B0（主結果頁：B0 8.23% → B3 5.71%，−2.52 pp, p=3.0×10⁻⁷）。
+   即 vanilla DeepONet 是以 baseline 而非文獻列的形式對照，因為沒有已發表工作在此 regime
+   跑過 vanilla DeepONet，只能自己重跑才是公平比較（chapter04:39 不採他人未經本協定重跑的數字）。
+
+== 顏色規則（三色，各一個意思，不可再增）==
+橘 = loss 對著什麼擬合（本頁論點）· 深藍 = 模型主體（結構標示，非好壞）· 紫 = PI-CON 那列。
+主體用深藍而非橘，是為了不與「loss 擬合對象」搶同一個語意通道。
+
+底部交棒：exactly three 的揭曉在此頁，slide 5 不再提前宣告、slide 7 不再重述。
 -->
 
 ---
 
-<NavBar active="background" />
+<NavBar active="literature" />
+
+<SectionTag>§ Literature review · how the sensor stream is used</SectionTag>
+
+# How the sensor stream enters the model
+
+<style>
+.se { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
+.se th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
+         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
+.se td { padding: 11px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.3; }
+.se td.who { color: #1F1B2E; font-weight: 600; }
+.se td.who span { display: block; font-weight: 400; color: #9CA3AF; font-size: 0.78em; margin-top: 1px; }
+.se .no { color: #E97132; font-weight: 700; }
+.se .yes { color: #0F2D52; font-weight: 700; }
+.se .partial { color: #9CA3AF; font-weight: 700; }
+</style>
+
+<table class="se">
+<thead>
+<tr>
+<th style="width: 27%;">Approach</th>
+<th style="width: 25%;">Sensors as input</th>
+<th style="width: 17%;">Query anywhere</th>
+<th style="width: 15%;">Uneven clocks</th>
+<th style="width: 16%;">PDE residual</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="who">Coordinate PINN <span>Raissi 2019, J. Comput. Phys.</span></td>
+<td><span class="no">✗</span> scored by a loss term</td>
+<td><span class="yes">✓</span></td>
+<td><span class="no">✗</span></td>
+<td><span class="yes">✓</span></td>
+</tr>
+<tr>
+<td class="who">Operator networks <span>Lu 2021, Nat. Mach. Intell. · Li 2021, ICLR</span></td>
+<td><span class="no">✗</span> needs a dense grid</td>
+<td><span class="yes">✓</span></td>
+<td><span class="no">✗</span></td>
+<td><span class="partial">on a grid</span></td>
+</tr>
+<tr>
+<td class="who">Sensor-input networks <span>Williams 2024, Nat. Commun. · Santos 2023, Nat. Mach. Intell.</span></td>
+<td><span class="yes">✓</span></td>
+<td><span class="partial">decoder-bound</span></td>
+<td><span class="no">✗</span></td>
+<td><span class="no">✗</span></td>
+</tr>
+<tr>
+<td class="who">Continuous-time cells <span>Hasani 2022, Nat. Mach. Intell. · Chen 2018, NeurIPS</span></td>
+<td><span class="yes">✓</span></td>
+<td><span class="no">✗</span> no spatial field</td>
+<td><span class="yes">✓</span></td>
+<td><span class="no">✗</span></td>
+</tr>
+</tbody>
+</table>
+
+<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.90rem; border-left:2px solid #E97132; padding-left:12px;">
+<span style="color:#9CA3AF; white-space:nowrap;">Gap</span><span style="color:#374151;">Every approach is missing at least one column. The capability needed here is <b>all four at once</b>.</span>
+</div>
+
+<FooterLogos />
+
+<!--
+[How the sensor stream enters · 1.5min] 2026-07-18 依指導教授 meeting 新增
+（「literature review 一頁一張表，將 literature 分類」）。
+
+**本表的設計意圖**：不是文獻清單，是為 Objective 供證。三張 literature 表各打一個痛點：
+  表 1「What prior methods are trained against」→ 打 O1 上半（sensor + PDE only，無全場監督）
+  表 2「本頁」                                  → 打 O1 下半（讀 sensor + 任意查詢）與 Gap 2/3
+  Gap 4（count/placement/noise）                → 證據放 Motivation 的「Four gaps」頁，本段不重複
+
+**分類軸是機制，不是論文家族** —— 因為痛點是能力缺口，不是誰做了什麼。
+
+口述：「四個欄位就是這個問題需要的四種能力。由上往下讀，每一列都缺至少一欄：
+PINN 有 PDE、可任意查詢，但感測器只透過 loss 被評分，網路本身讀不到量測；
+operator network 反過來要求輸入取樣在規則網格上；讀得到感測器的網路又回到固定解碼器、
+且不帶 PDE；而能處理不規則時鐘的連續時間單元，根本不輸出空間場。
+沒有任何一列四欄全有 —— 這就是本研究要填的位置。」
+
+逐格依據（chapter01.tex:92-103 原文）：
+- PINN：「the coordinate-MLP backbone takes only (x,t) and sees the sensors solely through a
+  loss term, never reading the measurement stream as an input (Gap 2)」
+- Operator nets：「the branch expects its input function sampled on a fixed dense grid
+  (the FNO spectral mixing requires a regular mesh) rather than ~10² scattered points」；
+  PINO「evaluates its residual on a grid」→ 故 PDE 欄標 "on a grid" 而非 ✓/✗
+- Sensor-input nets：SHRED「regresses the full state ... through a shallow decoder」、
+  Senseiver「cross-attention」；「every one of these is supervised by a full reference field
+  ... and imposes no PDE」→ PDE 欄 ✗、readout 欄標 decoder-bound
+- Continuous-time cells：CfC「tolerate irregular sampling at single-step cost」但
+  「have served control and time-series tasks rather than PDE-constrained spatial
+  reconstruction (Gap 3)」→ 無空間場輸出
+
+⚠️ 依教授指示本段不放 PI-CON（literature review 只比較文獻）。四欄全有的那一列在
+Objective 段的「Same regime」頁才出現。
+
+⚠️ 期刊名為 references.bib 所載；Chen 2018 (Neural ODE) 為 NeurIPS 會議論文非期刊，
+標會議名。被問來源照 bib 回答。
+-->
+
+---
+
+<NavBar active="motivation" />
 
 <SectionTag>§ Background · operator vs. plain PINN</SectionTag>
 
@@ -192,11 +762,127 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 ---
 
-<NavBar active="background" />
+<NavBar active="motivation" />
+
+<SectionTag>§ Motivation · the two operator families</SectionTag>
+
+# What a neural operator learns
+
+<div class="text-sm mt-1" style="color:#374151;">
+A network maps a point to a value. An <b>operator</b> maps a whole input function to a whole output function, so one trained model serves new inputs without retraining.
+</div>
+
+<style>
+.op { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; margin-top: 14px; }
+.op .hd { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+.op .note { font-size: 0.84rem; line-height: 1.45; color: #374151; margin-top: 8px; }
+</style>
+
+<div class="op">
+
+<div>
+<div class="hd" style="color:#0F2D52;">FNO <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">[Li 2021]</span></div>
+<svg viewBox="0 0 400 150" style="width:100%;height:auto;">
+  <rect x="6" y="55" width="62" height="40" rx="4" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.4"/>
+  <text x="37.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:700;">a(x)</text>
+  <line x1="68" y1="75" x2="86" y2="75" stroke="#9CA3AF" stroke-width="1.2"/>
+  <path d="M92 75 L85 71.5 L85 78.5 Z" fill="#9CA3AF"/>
+  <rect x="92" y="55" width="54" height="40" rx="4" fill="#FFF" stroke="#0F2D52" stroke-width="1.4"/>
+  <text x="119.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11px;font-weight:400;">FFT</text>
+  <line x1="146" y1="75" x2="164" y2="75" stroke="#9CA3AF" stroke-width="1.2"/>
+  <path d="M170 75 L163 71.5 L163 78.5 Z" fill="#9CA3AF"/>
+  <rect x="170" y="55" width="54" height="40" rx="4" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.4"/>
+  <text x="197.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:700;">× R</text>
+  <line x1="224" y1="75" x2="242" y2="75" stroke="#9CA3AF" stroke-width="1.2"/>
+  <path d="M248 75 L241 71.5 L241 78.5 Z" fill="#9CA3AF"/>
+  <rect x="248" y="55" width="58" height="40" rx="4" fill="#FFF" stroke="#0F2D52" stroke-width="1.4"/>
+  <text x="277.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11px;font-weight:400;">iFFT</text>
+  <line x1="306" y1="75" x2="324" y2="75" stroke="#9CA3AF" stroke-width="1.2"/>
+  <path d="M330 75 L323 71.5 L323 78.5 Z" fill="#9CA3AF"/>
+  <rect x="330" y="55" width="62" height="40" rx="4" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.4"/>
+  <text x="361.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:700;">u(x)</text>
+  <text x="197" y="40" text-anchor="middle" fill="#9CA3AF" style="font-size:10px;">keep low-k modes</text>
+  <text x="199" y="122" text-anchor="middle" fill="#9CA3AF" style="font-size:10px;">input sampled on a regular grid</text>
+</svg>
+<div class="note">Convolves in Fourier space, so it sees the whole domain at once, but the input must arrive on a <b>regular grid</b>.</div>
+</div>
+
+<div>
+<div class="hd" style="color:#7F1084;">DeepONet <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">[Lu 2021]</span></div>
+<svg viewBox="0 0 400 150" style="width:100%;height:auto;">
+  <rect x="6" y="18" width="86" height="34" rx="4" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="49.0" y="35.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11px;font-weight:700;">sensors</text>
+  <line x1="92" y1="35" x2="110" y2="35" stroke="#C9A6CC" stroke-width="1.2"/>
+  <path d="M116 35 L109 31.5 L109 38.5 Z" fill="#C9A6CC"/>
+  <rect x="116" y="18" width="74" height="34" rx="4" fill="#FFF" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="153.0" y="35.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11px;font-weight:400;">branch</text>
+  <rect x="6" y="98" width="86" height="34" rx="4" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="49.0" y="115.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11px;font-weight:700;">query (x, t)</text>
+  <line x1="92" y1="115" x2="110" y2="115" stroke="#C9A6CC" stroke-width="1.2"/>
+  <path d="M116 115 L109 111.5 L109 118.5 Z" fill="#C9A6CC"/>
+  <rect x="116" y="98" width="74" height="34" rx="4" fill="#FFF" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="153.0" y="115.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11px;font-weight:400;">trunk</text>
+  <path d="M190 35 C 222 35, 222 75, 244 75" stroke="#C9A6CC" stroke-width="1.2" fill="none"/>
+  <path d="M190 115 C 222 115, 222 75, 244 75" stroke="#C9A6CC" stroke-width="1.2" fill="none"/>
+  <circle cx="258" cy="75" r="15" fill="#FFF" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="258" y="75" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:15px;font-weight:700;">·</text>
+  <line x1="273" y1="75" x2="294" y2="75" stroke="#C9A6CC" stroke-width="1.2"/>
+  <path d="M300 75 L293 71.5 L293 78.5 Z" fill="#C9A6CC"/>
+  <rect x="300" y="55" width="92" height="40" rx="4" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.4"/>
+  <text x="346.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12px;font-weight:700;">u(x, t)</text>
+  <text x="258" y="107" text-anchor="middle" fill="#9CA3AF" style="font-size:10px;">inner product</text>
+  <text x="199" y="146" text-anchor="middle" fill="#9CA3AF" style="font-size:10px;">sensors may sit anywhere; query is continuous</text>
+</svg>
+<div class="note">Splits the map in two: a <b>branch</b> reads the input function, a <b>trunk</b> reads the query coordinate. Their inner product gives the value.</div>
+</div>
+
+</div>
+
+<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.92rem; border-left:2px solid #7F1084; padding-left:12px;">
+<span style="color:#9CA3AF; white-space:nowrap;">Why DeepONet</span><span style="color:#374151;">K = 100 scattered probes are not a grid, and the field is wanted at arbitrary coordinates, which is what a branch–trunk split provides.</span>
+</div>
+
+<FooterLogos />
+
+<!--
+[Two operator families · 1min] 2026-07-18 依指導教授 meeting 新增。
+教授原話：「介紹 operator 的部分，以及 operator 分成兩大類：FNO 跟 DeepONet，
+這樣教授才看得懂什麼是 DeepONet。」
+
+口述順序：
+1. 先講**什麼是 operator**（頁首那句）：一般網路學「點 → 值」，operator 學「函數 → 函數」。
+   訓練一次就能服務新的輸入函數，不必每個 case 重訓 —— 這是與 plain PINN 的根本差別
+   （上一頁講過，這裡只需一句帶過）。
+2. **FNO**：把卷積搬到 Fourier 空間、只保留低波數模態，因此一層就有全域感受野。
+   代價是輸入必須是**規則網格**上的取樣。
+3. **DeepONet**：把映射拆成 branch（讀輸入函數）與 trunk（讀查詢座標），兩者輸出的
+   basis 做內積得到該點的值。輸入取樣位置不必規則，查詢座標連續。
+4. **落點**（底部橘線）：我們的輸入是 100 個散佈的探針、不是網格；輸出要能在任意座標查詢。
+   這兩點正好對上 branch–trunk 的形狀，所以本研究建在 DeepONet 上。
+
+⚠️ 與前後頁的分工：
+- 前一頁 (Operator vs. plain PINN) 講「為何要 operator 而非 plain PINN」。
+- 本頁講「operator 有哪兩種，我們選哪個、為什麼」。
+- 不要在本頁提 CfC / cross-attention / AL —— 那是 Methodology 段 PI-CON 的三項修改，
+  提前講會讓委員以為那些是 DeepONet 原本就有的。
+
+⚠️ 圖為架構示意，非實際層數/維度。FNO 實際有 lifting/projection 與多層 Fourier layer，
+本頁只畫單層核心以對比 branch–trunk；委員若追問 FNO 細節照此說明。
+
+依據：chapter01.tex:37-40（Table 1.1 operator learning 列：DeepONet [Lu 2021]、FNO [Li 2021]，
+原文「a branch sub-network reads the input function, a trunk evaluates the output at any query
+coordinate」）與 chapter01:93（DeepONet/FNO「are demonstrated as dense-input forward operators:
+the branch expects its input function sampled on a fixed dense grid ... rather than ~10² scattered
+points」—— 這是我們為何仍需改造 DeepONet 的伏筆，但**留待 Methodology**）。
+-->
+
+---
+
+<NavBar active="motivation" />
 
 <SectionTag>§ Literature review · four gaps</SectionTag>
 
-# Four gaps
+# What this work must close
 
 <style>
 /* 對齊 slide 6 / 7 的表格語彙：一個強調色，一個意思 —— 橘色只標「缺什麼」。 */
@@ -301,170 +987,55 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 
 ---
 
-<NavBar active="background" />
+<NavBar active="motivation" />
 
-<SectionTag>§ Literature review · training supervision in prior work</SectionTag>
+<SectionTag>§ Background · the sensor resolution limit</SectionTag>
 
-# What prior methods are trained against
+# K = 100 — the sensor resolution limit
 
-<style>
-/* 一個顏色一個意思，三色各司其職，不可再增：
-     橘 #E97132 = loss 對著什麼擬合（本頁的論點）
-     深藍 #0F2D52 = 模型主體（結構性標示，非好壞判斷）
-     紫 #7F1084 = PI-CON 那列
-   其餘一律中性；每格都上色就等於沒有重點。 */
-.dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
-.dns .bb { color: #0F2D52; font-weight: 700; }
-.dns tr.ours .bb { color: #7F1084; }
-.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
-          letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.dns th.key { color: #E97132; }
-.dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
-.dns .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.dns .who span { font-weight: 400; color: #9CA3AF; }
-.dns td.key { color: #E97132; font-weight: 600; }
-.dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
-.dns tr.ours .who { color: #7F1084; }
-.dns tr.ours td.key { color: #7F1084; font-weight: 700; }
-</style>
+<div class="grid grid-cols-5 gap-5 mt-3 items-center">
 
-<table class="dns">
-<thead>
-<tr>
-<th style="width: 20%;">Work</th>
-<th style="width: 27%;">Architecture</th>
-<th style="width: 18%;">Case</th>
-<th style="width: 35%;" class="key">What the loss is fitted to</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="who">SHRED <span>Williams 2024</span></td>
-<td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
-<td>Isotropic (JHTDB), Re 2.3×10⁴</td>
-<td class="key">The full state · ‖x − H(y)‖₂</td>
-</tr>
-<tr>
-<td class="who">Senseiver <span>Santos 2023</span></td>
-<td><b class="bb">Perceiver IO</b> · cross-attention to latent</td>
-<td>Re not stated</td>
-<td class="key">“A dense set of observations is needed to train”</td>
-</tr>
-<tr>
-<td class="who">FLRNet <span>Nguyen 2024</span></td>
-<td><b class="bb">CNN</b> VAE + Fourier features + <b class="bb">MLP</b></td>
-<td>Cylinder, Re 300–10³</td>
-<td class="key">The full field · VAE + perceptual loss</td>
-</tr>
-<tr>
-<td class="who">FLRONet <span>Vo Dang 2024</span></td>
-<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
-<td>Cylinder, Re not stated</td>
-<td class="key">Paired CFD fields</td>
-</tr>
-<tr class="ours">
-<td class="who">PI-CON <span>ours</span></td>
-<td><b class="bb">DeepONet</b> · <b class="bb">CfC</b> branch + cross-attention</td>
-<td>Kolmogorov, Re 10⁴</td>
-<td class="key">Sensor MSE + NS residual only</td>
-</tr>
-</tbody>
-</table>
+<div class="col-span-2 space-y-2">
 
+<Card>
+<LabelTiny>Sensor Nyquist</LabelTiny>
+<div class="mt-1 text-xs leading-snug">
+Fourier modes inside |k| ≤ k<sub>max</sub> ≈ <b>πk<sub>max</sub>²</b> · set equal to the <b>K</b> measurements:
+</div>
+<div class="mt-1 text-center">
+<span class="eq" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">k<sub>max</sub> ≈ √(K/π)</span>
+</div>
+<div class="mt-1 text-xs leading-snug">
+At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · a scale, not a wall — beyond it κ: 7 → 7×10² <b>(observable to k ≈ 8)</b>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>Energy inside the band</LabelTiny>
+<div class="mt-1 text-xs leading-snug">
+DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b style="color:#7F1084;">98.9 %</b> · 200 → 99.7 % · 400 → 99.9 %
+</div>
+</Card>
+
+</div>
+
+<div class="col-span-3">
+<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
+<div class="foot mt-1">DNS energy spectrum (a) · cumulative fraction (b) · dashed line = k<sub>max</sub> = √(K/π)</div>
+</div>
+
+</div>
 
 <FooterLogos />
 
 <!--
-[Literature review 2/3 · 1.5min] 這頁只有一個論點：它們全都對著 reference field 擬合。
-故只有一個欄位帶色（橘＝loss 對著什麼擬合），其餘中性。前一版 7 種文字顏色、橘色同時
-用在 supervision / Re / readout 三種意思上 —— 每格都是重點就等於沒有重點。
-
-已移除 Readout 與 Sensors 欄：readout 是 slide 7 的軸（Parfenyev 的 query-anywhere 在那裡
-才有意義）；sensor 數在此頁不承擔論點。Re 併入 Case 欄，未報者留白（—），不特別標色 ——
-那是缺席，不是警訊。
-
-⚠️⚠️ 口試發言警告（2026-07-18 查證後新增）：**不可說「我的 Re 比所有文獻都高」。**
-SHRED 用的 JHTDB forced isotropic turbulence 資料集規格公開：**integral scale Re = 23,298**
-（Re_λ = 433, 1024³, ν=1.85e-4；來源 turbulence.pha.jhu.edu 官方 dataset 頁）——
-**是我們 Re=10⁴ 的 2.3 倍**，且為 3D isotropic 真湍流（有完整慣性range），
-而我們是 2D Kolmogorov、Re_f≈2.5×10³、能譜斜率 −4.61、無慣性range。
-流體領域委員很可能認得 JHTDB，講錯會被當場反駁並連累其他 claim 的可信度。
-
-**正確說法（把 SHRED 的高 Re 轉成我們的論據）**：
-「在**不使用全場監督**的同類方法裡，我們的 Re 最高（slide 7：Mo & Magri 34、Kelshaw 34、
-Parfenyev 1.3×10³、我們 10⁴，7.7×）。至於 Re 更高的 SHRED（2.3×10⁴），它需要完整流場
-當監督訊號 —— 那正是本研究不需要的東西。」
-→ Re 的 head-to-head 只在 slide 7（same regime）成立；本頁的論點是**監督訊號**不是 Re。
-
-逐格出處（2026-07-15 查證；Re 欄 2026-07-18 補）：
-- SHRED (arXiv 2301.12011): stacked LSTM + shallow FC decoder；loss 原文
-  「minimize reconstruction loss ∑ᵢ‖xᵢ − H̃({yⱼ})‖₂」→ 對全場 state 監督。
-  流場原文：「the pressure field of a forced isotropic turbulent flow from the Johns Hopkins
-  Turbulence Database」「generated by direct numerical simulation using 1024³ nodes」。
-  **論文本身未報 Re**；表格填的 2.3×10⁴ 是該 JHTDB 資料集的公開規格，非論文所報 ——
-  被問來源時要如此區分。
-- Senseiver (Nature MI 2023): Perceiver IO 系 cross-attention 編碼進 latent；OSTI 摘要原文
-  「a dense set of observations is needed to train」；Re / sensor 數未報；正文付費牆。
-- FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier (m=4, σ=5) + MLP 5×128；
-  loss = VAE reconstruction + perceptual；cylinder Re 300–1000。
-- FLRONet (arXiv 2412.08009): FNO branch (d=64) + 3-layer MLP trunk；cylinder CFDBench。
-  ⚠️ 其 loss 定義原文未明述，「Paired CFD fields」依 chapter01:101 論述填入，非原文直引。
-
-== 「FLRONet 的 Re 為什麼空著？」（2026-07-17 親自查證 arXiv 2412.08009 全文 15 頁）==
-**因為原文從頭到尾沒給 Re 數值。** 實測：全文 54k 字元中「Reynolds」只出現 1 次，且無數字 ——
-唯一那句是定性的「…the inherent difficulty of reconstructing flow with a high Reynolds number
-driven by the increased velocity of the fluid…」。「viscosity」出現 0 次，所以連反推 Re 都做不到。
-
-它改用**入口速度**索引案例：CFDBench cylinder dataset，domain 0.14 × 0.24 m → 140×240 grid，
-50 個 case，inlet velocity 由 0.1 m/s 遞增到 5.0 m/s（45 train / 5 test，test 為 3.5/3.9/4.2…）。
-⚠️ 2026-07-17：曾把「no Re stated · indexed by inlet velocity 0.1–5.0 m/s」以小字標進 Case 欄，
-已移除（使用者：小字不需要）。**該資訊改為口述** —— 被問「FLRONet 的 Re 是多少」時答：
-「原文沒給。全文只出現一次 Reynolds 且無數值，viscosity 一次都沒有，所以連反推都做不到；
-它用 inlet velocity 0.1–5.0 m/s 索引 50 個 case。」
-同理 SHRED (JHTDB isotropic) 與 Senseiver 亦未報 Re。**四篇裡三篇未報 Re，只有 FLRNet
-給了 Re 300–10³** —— 這點若被問「為何不做 Re 的 head-to-head」，就是答案。
-
-⚠️ 先前這裡的註記「Re 未報」是別人 2026-07-15 記的，我 2026-07-17 親自抓 PDF 逐字查證後確認屬實
-（第一次 WebFetch 讀 PDF 回傳二進位亂碼、宣稱「無法確定」，不可採信；改用 pypdf 本地解析才得出）。
-⚠️ 舊版頁面底部曾有一行小字「the Reynolds number is unstated in three of the four above」，
-已被移除 —— 該資訊現在改標在各自的格子裡，比一行看不見的註腳有效。
-
-順帶：FLRONet 論文標題即為「**Deep Operator Learning** for High-Fidelity Fluid Flow Field
-Reconstruction from Sparse Sensor Measurements」，自稱 deep operator learning —— 這是本表
-必須標出 DeepONet 血緣的第二個依據（第一個是 chapter01:101）。
-
-== 「為什麼沒有 DeepONet 系的對照？」（2026-07-17 補；委員極可能問）==
-有 —— 就是 FLRONet。chapter01:101 原文稱它是「the spatio-temporal **deep operator network**
-of Vo Dang and Nguyen … **the closest published architecture to the present branch--trunk
-readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trunk」，沒出現 DeepONet
-字樣，等於把這個對照藏起來 —— 委員讀表時會問的正是這題。已改為
-「DeepONet · FNO branch + MLP trunk」+ 灰字註「closest published branch–trunk」。
-
-完整答法（三層，被追問時逐層給）：
-1. **文獻對照 = FLRONet**：同為 branch–trunk deep operator network，但它訓練對著
-   paired CFD fields（chapter01:101「train against complete CFD fields rather than the PDE」）
-   —— 差別不在架構家族，在監督訊號。這正是本表的論點。
-2. **原版 DeepONet [Lu 2021] 為何不在同 regime 比較**：chapter01:93 明載 DeepONet/FNO
-   「are demonstrated as dense-input forward operators: the branch expects its input function
-   sampled on a fixed dense grid … rather than ~10² scattered points」——它吃不了稀疏散點，
-   屬 Gap 2，不是同 regime 的競爭者。連 physics-informed 的 PINO 也「evaluates its residual
-   on a grid」。
-3. **真正的 DeepONet 對照在內部**：chapter01:128 的 O1 criterion 就是「reduce KE error by at
-   least two percentage points relative to the **vanilla DeepONet baseline** at p<0.01」——
-   那是 2×2 ablation 的 B0（主結果頁：B0 8.23% → B3 5.71%，−2.52 pp, p=3.0×10⁻⁷）。
-   即 vanilla DeepONet 是以 baseline 而非文獻列的形式對照，因為沒有已發表工作在此 regime
-   跑過 vanilla DeepONet，只能自己重跑才是公平比較（chapter04:39 不採他人未經本協定重跑的數字）。
-
-== 顏色規則（三色，各一個意思，不可再增）==
-橘 = loss 對著什麼擬合（本頁論點）· 深藍 = 模型主體（結構標示，非好壞）· 紫 = PI-CON 那列。
-主體用深藍而非橘，是為了不與「loss 擬合對象」搶同一個語意通道。
-
-底部交棒：exactly three 的揭曉在此頁，slide 5 不再提前宣告、slide 7 不再重述。
+[Sensor budget · 2min] 口述收尾（底部 banner 已刪）：「解法是加 sensor，不是加大網路 —— 限制來自資訊，不是架構。」
+[Sensor budget · 2min] 兩個視角量化 K=100 觀測能力：①linear system — y = Cu rank-deficient, 650× underdetermined ②CS bound — M ≥ O(s log(N/s)), s≈328 (db4 wavelet), full recovery 需 ~5000 sensors, K=100 差 50×。Implication 精準化：full-field recovery 結構上不可能；productive scope 是 low-band sub-recovery (Nyquist k_max ≈ 5.64) + physics prior 在 null-space 上 regularise。後續 Results 用 sensor Nyquist 與 K-scaling 量化此 scope。
 -->
 
 ---
 
-<NavBar active="background" />
+<NavBar active="objective" />
 
 <SectionTag>§ Literature review · same-regime works</SectionTag>
 
@@ -596,54 +1167,6 @@ residual 的橘都代表「比我們差」）—— 每格都是重點就等於�
    「The two convolutional works return a fixed mesh」與「The PINN evaluates anywhere,
    but its 3×10⁴ measurements are (r,t) pairs scattered...」。論文無需再改。
 不要在口試宣稱與 Mo & Magri 的 head-to-head 數值優勢：指標不同、Re 差 300 倍。
--->
-
----
-
-<NavBar active="background" />
-
-<SectionTag>§ Background · the sensor resolution limit</SectionTag>
-
-# K = 100 — the sensor resolution limit
-
-<div class="grid grid-cols-5 gap-5 mt-3 items-center">
-
-<div class="col-span-2 space-y-2">
-
-<Card>
-<LabelTiny>Sensor Nyquist</LabelTiny>
-<div class="mt-1 text-xs leading-snug">
-Fourier modes inside |k| ≤ k<sub>max</sub> ≈ <b>πk<sub>max</sub>²</b> · set equal to the <b>K</b> measurements:
-</div>
-<div class="mt-1 text-center">
-<span class="eq" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">k<sub>max</sub> ≈ √(K/π)</span>
-</div>
-<div class="mt-1 text-xs leading-snug">
-At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · a scale, not a wall — beyond it κ: 7 → 7×10² <b>(observable to k ≈ 8)</b>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Energy inside the band</LabelTiny>
-<div class="mt-1 text-xs leading-snug">
-DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b style="color:#7F1084;">98.9 %</b> · 200 → 99.7 % · 400 → 99.9 %
-</div>
-</Card>
-
-</div>
-
-<div class="col-span-3">
-<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
-<div class="foot mt-1">DNS energy spectrum (a) · cumulative fraction (b) · dashed line = k<sub>max</sub> = √(K/π)</div>
-</div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Sensor budget · 2min] 口述收尾（底部 banner 已刪）：「解法是加 sensor，不是加大網路 —— 限制來自資訊，不是架構。」
-[Sensor budget · 2min] 兩個視角量化 K=100 觀測能力：①linear system — y = Cu rank-deficient, 650× underdetermined ②CS bound — M ≥ O(s log(N/s)), s≈328 (db4 wavelet), full recovery 需 ~5000 sensors, K=100 差 50×。Implication 精準化：full-field recovery 結構上不可能；productive scope 是 low-band sub-recovery (Nyquist k_max ≈ 5.64) + physics prior 在 null-space 上 regularise。後續 Results 用 sensor Nyquist 與 K-scaling 量化此 scope。
 -->
 
 ---

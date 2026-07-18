@@ -1,9 +1,14 @@
 <!--
   <NavBar active="results" />
 
-  頂部 5 個 chevron tab，仿照 Group Meeting.pptx 母片的章節導引列。
-  active = 'background' | 'objective' | 'method' | 'results' | 'summary' | null
+  頂部 chevron tab 導引列，仿照 Group Meeting.pptx 母片的章節導引列。
+  active = 'background' | 'literature' | 'motivation' | 'objective' | 'method'
+         | 'results' | 'summary' | null
   active 的 tab 以紫底白字呈現，其他 tab 灰底紫字。
+
+  2026-07-18（指導教授要求）：於 Background 與 Objective 之間補上 Literature review，
+  並新增 Motivation 分段（數頁由 Background 改隸此段）。tab 由 5 個增為 7 個 —— 標籤
+  縮寫為 "Literature" / "Motivation" 以免 980px 寬度下擠壓換行。
 -->
 <template>
   <div class="nav-bar">
@@ -25,6 +30,8 @@ defineProps({
 
 const tabs = [
   { id: 'background', label: 'Background' },
+  { id: 'literature', label: 'Literature' },
+  { id: 'motivation', label: 'Motivation' },
   { id: 'objective',  label: 'Objective'  },
   { id: 'method',     label: 'Methodology' },
   { id: 'results',    label: 'Results'    },
@@ -50,13 +57,17 @@ const tabs = [
   height: 36px;
   display: flex;
   align-items: center;
-  padding-left: 1.1rem;
+  /* 7 個 tab 均分 980px（每個約 140px），故較 5-tab 版縮小內距與字級、
+     並收緊字距，讓 "Methodology" 這種長標籤仍能單行呈現。 */
+  padding-left: 0.75rem;
   background: rgba(127, 16, 132, 0.12);
   color: var(--color-primary, #7F1084);
   font-family: Arial, 'Helvetica Neue', sans-serif;
-  font-size: 0.90rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 /* chevron 右側尖角 — 使用 clip-path 模擬 PowerPoint Pentagon/Chevron */
