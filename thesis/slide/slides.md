@@ -3,7 +3,7 @@ theme: default
 title: Physics-Constrained Continuous-Time Reconstruction of Turbulent Flows
   from Sparse Sensors
 info: |
-  Thesis Defense · Junyi Li · final version
+  Thesis Defense, Junyi Li, final version
 class: text-left
 colorSchema: light
 fonts:
@@ -39,7 +39,7 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 </div>
 
 <div class="mt-8" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:4px; align-items:baseline; font-size:0.9rem;">
-  <span style="color:#9CA3AF;">Presenter</span><span style="color:#1F1B2E;"><b>李駿毅</b> Jun-Yi Li <span style="color:#9CA3AF;">· 113011527</span></span>
+  <span style="color:#9CA3AF;">Presenter</span><span style="color:#1F1B2E;"><b>李駿毅</b> Jun-Yi Li <span style="color:#9CA3AF;">, 113011527</span></span>
   <span style="color:#9CA3AF;">Advisor</span><span style="color:#1F1B2E;"><b>林洸銓</b> Dr. Kuang C. Lin</span>
   <span style="color:#9CA3AF;">Lab</span><span style="color:#6B7280;">Applied Computing &amp; Thermofluid Laboratory</span>
 </div>
@@ -58,61 +58,45 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 
 <SectionTag>§ Background · why reconstruction is needed</SectionTag>
 
-# On a real rig, the field is never measured
+# Why the field has to be reconstructed
 
 <style>
-.wr { display: grid; grid-template-columns: 1fr max-content 1fr; column-gap: 22px; align-items: center;
-      margin-top: 18px; }
-.wr .cap { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700;
-           text-align: center; margin-bottom: 6px; }
-.wr .arrow { text-align: center; color: #7F1084; }
-.wr .arrow .lbl { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; }
-.wr figure { margin: 0; }
-.wr figcaption { font-size: 0.78rem; color: #6B7280; text-align: center; margin-top: 8px; line-height: 1.4; }
+.wr2 { display: grid; grid-template-columns: 1fr max-content 1fr; column-gap: 26px; align-items: center;
+       margin-top: 8px; max-width: 82%; margin-left: auto; margin-right: auto; }
+.wr2 .hd { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+           text-align: center; margin-bottom: 7px; }
+.wr2 .cap { font-size: 0.76rem; color: #6B7280; text-align: center; margin-top: 5px; line-height: 1.35; }
+.hard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; }
+.hard .b { border-top: 2px solid #E97132; padding-top: 8px; }
+.hard .t { font-size: 0.84rem; font-weight: 700; color: #1F1B2E; }
+.hard .d { font-size: 0.76rem; color: #6B7280; line-height: 1.35; margin-top: 2px; }
 </style>
 
-<div class="wr">
+<div class="wr2">
 
 <div>
-<div class="cap" style="color:#E97132;">What a rig gives you</div>
-<svg viewBox="0 0 300 200" style="width:100%; height:auto;">
-  <rect x="6" y="6" width="288" height="188" rx="6" fill="#FAFAFB" stroke="#D8D2E0"/>
-  <g fill="#E97132">
-    <circle cx="58" cy="48" r="5"/><circle cx="146" cy="34" r="5"/><circle cx="238" cy="62" r="5"/>
-    <circle cx="92" cy="104" r="5"/><circle cx="196" cy="118" r="5"/><circle cx="42" cy="152" r="5"/>
-    <circle cx="132" cy="166" r="5"/><circle cx="252" cy="150" r="5"/>
-  </g>
-</svg>
-<figcaption><b style="color:#E97132;">K point probes</b> — velocity at fixed positions, sampled in time.</figcaption>
+<div class="hd" style="color:#E97132;">Available</div>
+<img :src="'/images/why_probes_only.png'" style="width:100%; max-height:196px; object-fit:contain; display:block; margin:0 auto;" />
+<div class="cap"><b style="color:#E97132;">K = 100 point probes</b><br/>u, v at fixed sites, sampled in time</div>
 </div>
 
-<div class="arrow">
-<div style="font-size:2.1rem; line-height:1;">→</div>
-<div class="lbl">reconstruction</div>
+<div style="text-align:center; color:#7F1084;">
+<div style="font-size:1.9rem; line-height:1;">→</div>
+<div style="font-size:0.76rem; font-weight:700; letter-spacing:0.03em;">reconstruction</div>
 </div>
 
 <div>
-<div class="cap" style="color:#7F1084;">What engineering needs</div>
-<svg viewBox="0 0 300 200" style="width:100%; height:auto;">
-  <defs>
-    <radialGradient id="v1"><stop offset="0%" stop-color="#7F1084" stop-opacity="0.55"/><stop offset="100%" stop-color="#7F1084" stop-opacity="0"/></radialGradient>
-    <radialGradient id="v2"><stop offset="0%" stop-color="#0F2D52" stop-opacity="0.45"/><stop offset="100%" stop-color="#0F2D52" stop-opacity="0"/></radialGradient>
-  </defs>
-  <rect x="6" y="6" width="288" height="188" rx="6" fill="#FAFAFB" stroke="#D8D2E0"/>
-  <circle cx="90" cy="70" r="52" fill="url(#v1)"/><circle cx="205" cy="130" r="56" fill="url(#v1)"/>
-  <circle cx="215" cy="55" r="42" fill="url(#v2)"/><circle cx="80" cy="150" r="44" fill="url(#v2)"/>
-  <g stroke="#7F1084" stroke-width="1.1" fill="none" opacity="0.5">
-    <path d="M40 40 C 90 20, 130 60, 175 40"/><path d="M40 95 C 95 70, 135 120, 180 95"/>
-    <path d="M40 150 C 95 125, 140 175, 185 150"/>
-  </g>
-</svg>
-<figcaption><b style="color:#7F1084;">Continuous field u(x, t)</b> — structures, gradients, and loads between the probes.</figcaption>
+<div class="hd" style="color:#7F1084;">Required</div>
+<img :src="'/images/why_full_field.png'" style="width:100%; max-height:196px; object-fit:contain; display:block; margin:0 auto;" />
+<div class="cap"><b style="color:#7F1084;">Continuous field u(x, t)</b><br/>structures, gradients, loads between probes</div>
 </div>
 
 </div>
 
-<div class="mt-4" style="font-size:0.95rem; color:#374151;">
-No full field exists to copy from, so it has to be <b style="color:#7F1084;">inferred</b> from the probes and the governing equations.
+<div class="hard">
+<div class="b"><div class="t">Far more unknowns than data</div><div class="d">A hundred readings, a field with orders of magnitude more degrees of freedom</div></div>
+<div class="b"><div class="t">No reference to copy</div><div class="d">A rig has no DNS, so there is nothing to imitate or validate against online</div></div>
+<div class="b"><div class="t">Turbulence is chaotic</div><div class="d">Small errors grow, so a one-off guess drifts away from the true state</div></div>
 </div>
 
 <FooterLogos />
@@ -142,137 +126,151 @@ No full field exists to copy from, so it has to be <b style="color:#7F1084;">inf
 
 # Physics-informed neural networks
 
-<style>
-.pn { display: grid; grid-template-columns: 0.8fr 1.4fr; column-gap: 20px; align-items: center; margin-top: 10px; }
-.pn .lossbox { border: 1.5px solid #E97132; border-radius: 6px; padding: 8px 10px; }
-.pn .losslab { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-               color: #E97132; margin-bottom: 2px; }
-/* 兩點都是實測後才確定的:
-   (1) $$ 區塊**不可跨行**——跨行會讓 markdown 解析失敗,只渲染後半段
-       (動量方程左邊 ∂_t u + (u·∇)u 曾整段消失,誤判成寬度不足)。
-   (2) 主題把 $$ 渲成 inline-block,寬度收縮成內容寬而非撐滿框,置中因此算在錯的寬度上。 */
-.pn .eq { font-size: 0.62em; color: #374151; display: block !important; width: 100% !important; }
-.pn .netcap { font-size: 0.78rem; color: #6B7280; text-align: center; margin-top: 4px; }
-</style>
+<div class="text-xs mt-1" style="color:#374151;">
+The network <b>is</b> the field: it maps a coordinate to the flow there, so it can be queried anywhere and differentiated exactly.
+</div>
 
-<div class="pn">
-
-<div>
-<svg viewBox="0 0 460 268" style="width:100%; height:auto;">
-  <g stroke="#0F2D52" stroke-width="0.7" opacity="0.22">
-    <line x1="46" y1="78" x2="168" y2="44"/>
-    <line x1="46" y1="78" x2="168" y2="92"/>
-    <line x1="46" y1="78" x2="168" y2="140"/>
-    <line x1="46" y1="78" x2="168" y2="188"/>
-    <line x1="46" y1="78" x2="168" y2="236"/>
-    <line x1="46" y1="140" x2="168" y2="44"/>
-    <line x1="46" y1="140" x2="168" y2="92"/>
-    <line x1="46" y1="140" x2="168" y2="140"/>
-    <line x1="46" y1="140" x2="168" y2="188"/>
-    <line x1="46" y1="140" x2="168" y2="236"/>
-    <line x1="46" y1="202" x2="168" y2="44"/>
-    <line x1="46" y1="202" x2="168" y2="92"/>
-    <line x1="46" y1="202" x2="168" y2="140"/>
-    <line x1="46" y1="202" x2="168" y2="188"/>
-    <line x1="46" y1="202" x2="168" y2="236"/>
-    <line x1="168" y1="44" x2="286" y2="44"/>
-    <line x1="168" y1="44" x2="286" y2="92"/>
-    <line x1="168" y1="44" x2="286" y2="140"/>
-    <line x1="168" y1="44" x2="286" y2="188"/>
-    <line x1="168" y1="44" x2="286" y2="236"/>
-    <line x1="168" y1="92" x2="286" y2="44"/>
-    <line x1="168" y1="92" x2="286" y2="92"/>
-    <line x1="168" y1="92" x2="286" y2="140"/>
-    <line x1="168" y1="92" x2="286" y2="188"/>
-    <line x1="168" y1="92" x2="286" y2="236"/>
-    <line x1="168" y1="140" x2="286" y2="44"/>
-    <line x1="168" y1="140" x2="286" y2="92"/>
-    <line x1="168" y1="140" x2="286" y2="140"/>
-    <line x1="168" y1="140" x2="286" y2="188"/>
-    <line x1="168" y1="140" x2="286" y2="236"/>
-    <line x1="168" y1="188" x2="286" y2="44"/>
-    <line x1="168" y1="188" x2="286" y2="92"/>
-    <line x1="168" y1="188" x2="286" y2="140"/>
-    <line x1="168" y1="188" x2="286" y2="188"/>
-    <line x1="168" y1="188" x2="286" y2="236"/>
-    <line x1="168" y1="236" x2="286" y2="44"/>
-    <line x1="168" y1="236" x2="286" y2="92"/>
-    <line x1="168" y1="236" x2="286" y2="140"/>
-    <line x1="168" y1="236" x2="286" y2="188"/>
-    <line x1="168" y1="236" x2="286" y2="236"/>
-    <line x1="286" y1="44" x2="408" y2="78"/>
-    <line x1="286" y1="44" x2="408" y2="140"/>
-    <line x1="286" y1="44" x2="408" y2="202"/>
-    <line x1="286" y1="92" x2="408" y2="78"/>
-    <line x1="286" y1="92" x2="408" y2="140"/>
-    <line x1="286" y1="92" x2="408" y2="202"/>
-    <line x1="286" y1="140" x2="408" y2="78"/>
-    <line x1="286" y1="140" x2="408" y2="140"/>
-    <line x1="286" y1="140" x2="408" y2="202"/>
-    <line x1="286" y1="188" x2="408" y2="78"/>
-    <line x1="286" y1="188" x2="408" y2="140"/>
-    <line x1="286" y1="188" x2="408" y2="202"/>
-    <line x1="286" y1="236" x2="408" y2="78"/>
-    <line x1="286" y1="236" x2="408" y2="140"/>
-    <line x1="286" y1="236" x2="408" y2="202"/>
+<div class="mt-1">
+<svg viewBox="0 0 900 300" style="width:100%;height:auto;max-height:268px;">
+  <g stroke="#0F2D52" stroke-width="0.6" opacity="0.20">
+    <line x1="52" y1="96" x2="150" y2="64"/>
+    <line x1="52" y1="96" x2="150" y2="110"/>
+    <line x1="52" y1="96" x2="150" y2="156"/>
+    <line x1="52" y1="96" x2="150" y2="202"/>
+    <line x1="52" y1="96" x2="150" y2="248"/>
+    <line x1="52" y1="152" x2="150" y2="64"/>
+    <line x1="52" y1="152" x2="150" y2="110"/>
+    <line x1="52" y1="152" x2="150" y2="156"/>
+    <line x1="52" y1="152" x2="150" y2="202"/>
+    <line x1="52" y1="152" x2="150" y2="248"/>
+    <line x1="52" y1="208" x2="150" y2="64"/>
+    <line x1="52" y1="208" x2="150" y2="110"/>
+    <line x1="52" y1="208" x2="150" y2="156"/>
+    <line x1="52" y1="208" x2="150" y2="202"/>
+    <line x1="52" y1="208" x2="150" y2="248"/>
+    <line x1="150" y1="64" x2="232" y2="64"/>
+    <line x1="150" y1="64" x2="232" y2="110"/>
+    <line x1="150" y1="64" x2="232" y2="156"/>
+    <line x1="150" y1="64" x2="232" y2="202"/>
+    <line x1="150" y1="64" x2="232" y2="248"/>
+    <line x1="150" y1="110" x2="232" y2="64"/>
+    <line x1="150" y1="110" x2="232" y2="110"/>
+    <line x1="150" y1="110" x2="232" y2="156"/>
+    <line x1="150" y1="110" x2="232" y2="202"/>
+    <line x1="150" y1="110" x2="232" y2="248"/>
+    <line x1="150" y1="156" x2="232" y2="64"/>
+    <line x1="150" y1="156" x2="232" y2="110"/>
+    <line x1="150" y1="156" x2="232" y2="156"/>
+    <line x1="150" y1="156" x2="232" y2="202"/>
+    <line x1="150" y1="156" x2="232" y2="248"/>
+    <line x1="150" y1="202" x2="232" y2="64"/>
+    <line x1="150" y1="202" x2="232" y2="110"/>
+    <line x1="150" y1="202" x2="232" y2="156"/>
+    <line x1="150" y1="202" x2="232" y2="202"/>
+    <line x1="150" y1="202" x2="232" y2="248"/>
+    <line x1="150" y1="248" x2="232" y2="64"/>
+    <line x1="150" y1="248" x2="232" y2="110"/>
+    <line x1="150" y1="248" x2="232" y2="156"/>
+    <line x1="150" y1="248" x2="232" y2="202"/>
+    <line x1="150" y1="248" x2="232" y2="248"/>
+    <line x1="232" y1="64" x2="314" y2="64"/>
+    <line x1="232" y1="64" x2="314" y2="110"/>
+    <line x1="232" y1="64" x2="314" y2="156"/>
+    <line x1="232" y1="64" x2="314" y2="202"/>
+    <line x1="232" y1="64" x2="314" y2="248"/>
+    <line x1="232" y1="110" x2="314" y2="64"/>
+    <line x1="232" y1="110" x2="314" y2="110"/>
+    <line x1="232" y1="110" x2="314" y2="156"/>
+    <line x1="232" y1="110" x2="314" y2="202"/>
+    <line x1="232" y1="110" x2="314" y2="248"/>
+    <line x1="232" y1="156" x2="314" y2="64"/>
+    <line x1="232" y1="156" x2="314" y2="110"/>
+    <line x1="232" y1="156" x2="314" y2="156"/>
+    <line x1="232" y1="156" x2="314" y2="202"/>
+    <line x1="232" y1="156" x2="314" y2="248"/>
+    <line x1="232" y1="202" x2="314" y2="64"/>
+    <line x1="232" y1="202" x2="314" y2="110"/>
+    <line x1="232" y1="202" x2="314" y2="156"/>
+    <line x1="232" y1="202" x2="314" y2="202"/>
+    <line x1="232" y1="202" x2="314" y2="248"/>
+    <line x1="232" y1="248" x2="314" y2="64"/>
+    <line x1="232" y1="248" x2="314" y2="110"/>
+    <line x1="232" y1="248" x2="314" y2="156"/>
+    <line x1="232" y1="248" x2="314" y2="202"/>
+    <line x1="232" y1="248" x2="314" y2="248"/>
+    <line x1="314" y1="64" x2="412" y2="96"/>
+    <line x1="314" y1="64" x2="412" y2="152"/>
+    <line x1="314" y1="64" x2="412" y2="208"/>
+    <line x1="314" y1="110" x2="412" y2="96"/>
+    <line x1="314" y1="110" x2="412" y2="152"/>
+    <line x1="314" y1="110" x2="412" y2="208"/>
+    <line x1="314" y1="156" x2="412" y2="96"/>
+    <line x1="314" y1="156" x2="412" y2="152"/>
+    <line x1="314" y1="156" x2="412" y2="208"/>
+    <line x1="314" y1="202" x2="412" y2="96"/>
+    <line x1="314" y1="202" x2="412" y2="152"/>
+    <line x1="314" y1="202" x2="412" y2="208"/>
+    <line x1="314" y1="248" x2="412" y2="96"/>
+    <line x1="314" y1="248" x2="412" y2="152"/>
+    <line x1="314" y1="248" x2="412" y2="208"/>
   </g>
   <g fill="#0F2D52">
-    <circle cx="168" cy="44" r="11"/>
-    <circle cx="168" cy="92" r="11"/>
-    <circle cx="168" cy="140" r="11"/>
-    <circle cx="168" cy="188" r="11"/>
-    <circle cx="168" cy="236" r="11"/>
-    <circle cx="286" cy="44" r="11"/>
-    <circle cx="286" cy="92" r="11"/>
-    <circle cx="286" cy="140" r="11"/>
-    <circle cx="286" cy="188" r="11"/>
-    <circle cx="286" cy="236" r="11"/>
+    <circle cx="150" cy="64" r="9"/>
+    <circle cx="150" cy="110" r="9"/>
+    <circle cx="150" cy="156" r="9"/>
+    <circle cx="150" cy="202" r="9"/>
+    <circle cx="150" cy="248" r="9"/>
+    <circle cx="232" cy="64" r="9"/>
+    <circle cx="232" cy="110" r="9"/>
+    <circle cx="232" cy="156" r="9"/>
+    <circle cx="232" cy="202" r="9"/>
+    <circle cx="232" cy="248" r="9"/>
+    <circle cx="314" cy="64" r="9"/>
+    <circle cx="314" cy="110" r="9"/>
+    <circle cx="314" cy="156" r="9"/>
+    <circle cx="314" cy="202" r="9"/>
+    <circle cx="314" cy="248" r="9"/>
   </g>
-  <circle cx="46" cy="78" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="46" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">x</text>
-  <circle cx="46" cy="140" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="46" y="140" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">y</text>
-  <circle cx="46" cy="202" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="46" y="202" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">t</text>
-  <circle cx="408" cy="78" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="408" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">u</text>
-  <circle cx="408" cy="140" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="408" y="140" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">v</text>
-  <circle cx="408" cy="202" r="21" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="408" y="202" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:17px;font-weight:700;font-style:italic;">p</text>
-  <text x="227" y="262" text-anchor="middle" fill="#9CA3AF" style="font-size:11px;">fully-connected hidden layers</text>
+  <circle cx="52" cy="96" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="52" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">x</text>
+  <circle cx="52" cy="152" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="52" y="152" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">y</text>
+  <circle cx="52" cy="208" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="52" y="208" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">t</text>
+  <circle cx="412" cy="96" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="412" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">u</text>
+  <circle cx="412" cy="152" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="412" y="152" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">v</text>
+  <circle cx="412" cy="208" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
+  <text x="412" y="208" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">p</text>
+  <text x="232" y="278" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:12px;font-weight:400;">network  N(x, y, t; θ)</text>
+  <line x1="431" y1="152" x2="478.0" y2="152.0" stroke="#7F1084" stroke-width="1.6"/>
+  <path d="M486 152 L478.0 156.0 L478.0 148.0 Z" fill="#7F1084"/>
+  <rect x="486" y="112" width="132" height="80" rx="5" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.5"/>
+  <text x="552" y="131" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12px;font-weight:700;">automatic</text>
+  <text x="552" y="148" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12px;font-weight:700;">differentiation</text>
+  <text x="552" y="172" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12.5px;font-weight:400;">∂u/∂t,  ∇u,  ∇²u</text>
+  <line x1="618" y1="140" x2="670.1" y2="91.5" stroke="#E97132" stroke-width="1.5"/>
+  <path d="M676 86 L672.9 94.4 L667.4 88.5 Z" fill="#E97132"/>
+  <rect x="676" y="42" width="206" height="88" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
+  <text x="779" y="60" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:11px;font-weight:700;letter-spacing:0.05em;">PDE RESIDUAL</text>
+  <text x="779" y="84" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:400;">∇·u = 0</text>
+  <text x="779" y="108" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">∂u/∂t + (u·∇)u + ∇p − ν∇²u = 0</text>
+  <line x1="431" y1="196" x2="668.1" y2="230.8" stroke="#E97132" stroke-width="1.5"/>
+  <path d="M676 232 L667.5 234.8 L668.7 226.9 Z" fill="#E97132"/>
+  <rect x="676" y="190" width="206" height="72" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
+  <text x="779" y="208" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:11px;font-weight:700;letter-spacing:0.05em;">SENSOR DATA</text>
+  <text x="779" y="236" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12.5px;font-weight:400;">u(xₖ, t) − uₖᵒᵇˢ  = 0</text>
+  <line x1="676" y1="292" x2="248.0" y2="292.0" stroke="#9CA3AF" stroke-width="1.2" stroke-dasharray="5 4"/>
+  <path d="M240 292 L248.0 288.0 L248.0 296.0 Z" fill="#9CA3AF"/>
+  <text x="470" y="280" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:11.5px;font-weight:400;">update θ by back-propagation</text>
 </svg>
-<div class="netcap">One network, evaluated at any coordinate</div>
 </div>
 
-<div class="space-y-3">
-
-<div class="lossbox">
-<div class="losslab">Navier–Stokes residual</div>
-<div class="eq">
-
-$$\nabla\!\cdot\mathbf{u}=0$$
-
-$$\partial_t\mathbf{u}+(\mathbf{u}\!\cdot\!\nabla)\mathbf{u}=-\nabla p+\nu\nabla^2\mathbf{u}$$
-
-</div>
-</div>
-
-<div class="lossbox">
-<div class="losslab">Sensor data</div>
-<div class="eq">
-
-$$\big\|\,\mathbf{u}(\mathbf{x}_k,t)-\mathbf{u}_k^{\rm obs}\big\|^2$$
-
-</div>
-</div>
-
-<div style="font-size:0.86rem; color:#374151; line-height:1.45;">
-Derivatives come from <b>automatic differentiation</b> of the network with respect to its own inputs, so the residual is evaluated without a mesh.
-</div>
-
-</div>
-
+<div style="margin-top:2px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; font-size:0.76rem; color:#374151; line-height:1.3;">
+<div><b style="color:#0F2D52;">Input a coordinate</b><br/><span style="color:#6B7280;">no mesh, no time-stepping</span></div>
+<div><b style="color:#7F1084;">Differentiate the network</b><br/><span style="color:#6B7280;">derivatives are exact, not finite differences</span></div>
+<div><b style="color:#E97132;">Score two residuals</b><br/><span style="color:#6B7280;">physics everywhere, data at the probes</span></div>
 </div>
 
 <FooterLogos />
@@ -302,40 +300,43 @@ PI-CON 與 vanilla PINN 的差別（sensor 讀進網路 vs 只進 loss）在 Mot
 
 <NavBar active="background" />
 
-<SectionTag>§ Background · the sparse-reconstruction problem</SectionTag>
+<SectionTag>§ Background · problem statement</SectionTag>
 
-# The sparse-sensor reconstruction problem
+# The problem, stated
 
-<div class="grid grid-cols-5 gap-6 mt-3 text-sm leading-snug">
+<style>
+.ps { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 13px;
+      align-items: baseline; margin-top: 18px; }
+.ps .lb { font-size: 0.70rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+          color: #9CA3AF; white-space: nowrap; text-align: right; }
+.ps .bd { font-size: 1.0rem; color: #1F1B2E; line-height: 1.45; }
+.ps .sub { font-size: 0.82rem; color: #6B7280; margin-top: 2px; }
+.gapbar { display: grid; grid-template-columns: 6.5% 93.5%; margin-top: 4px; height: 20px; }
+.gapbar div { display: flex; align-items: center; justify-content: center; font-size: 0.68rem;
+              font-weight: 700; letter-spacing: 0.03em; }
+.gapbar .have { background: rgba(233,113,50,0.20); border: 1px solid #E97132; border-radius: 3px 0 0 3px; color: #E97132; }
+.gapbar .need { background: repeating-linear-gradient(45deg,#F6F6F8,#F6F6F8 5px,#EBEBEF 5px,#EBEBEF 10px);
+                border: 1px solid #D8D2E0; border-left: none; border-radius: 0 3px 3px 0; color: #9CA3AF; }
+</style>
 
-<div class="col-span-3 space-y-4">
+<div class="ps">
 
-<div>
-<LabelTiny>Problem</LabelTiny>
-<div class="mt-1 leading-snug">Continuous velocity field <b>u(x, t)</b> from <b>K = 100</b> point sensors + Navier–Stokes</div>
+<div class="lb">Given</div>
+<div class="bd"><b style="color:#E97132;">K = 100</b> point readings of (u, v), and the Navier–Stokes equations
+<div class="sub">Nothing else. No reference field, at training or at inference.</div></div>
+
+<div class="lb">Wanted</div>
+<div class="bd">The continuous field <b>u(x, t)</b> at <b>any</b> coordinate
+<div class="sub">Not a fixed grid, and without re-solving the equations for each query.</div></div>
+
+<div class="lb">Difficulty</div>
+<div class="bd">Exact recovery of a 256² field needs <b>2 500–5 000</b> measurements <span style="color:#9CA3AF; font-size:0.82rem;">[Donoho 2006, Candès 2006]</span>
+<div class="gapbar"><div class="have">100</div><div class="need">missing — 25 to 50× short</div></div>
 </div>
 
-<div>
-<LabelTiny>Under-determined inverse problem</LabelTiny>
-<div class="mt-1 leading-snug">K = 100 probes → N = 256² field. Exact recovery needs <b>2 500–5 000</b> <span style="color:#9CA3AF;">[Donoho 2006 · Candès 2006]</span> — we are <b style="color:#7F1084;">25–50× short</b>. Target: the <b>energy-dominant band</b>.</div>
-</div>
-
-<div>
-<LabelTiny>Physics as the prior</LabelTiny>
-<div class="mt-1 leading-snug">NS residual as structural regulariser → physically admissible field</div>
-</div>
-
-<div>
-<LabelTiny>Engineering constraint</LabelTiny>
-<div class="mt-1 leading-snug">No offline DNS reference&nbsp;·&nbsp;sensors + PDE only</div>
-</div>
-
-</div>
-
-<div class="col-span-2 text-center">
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" class="rounded-lg border mx-auto" style="border-color:#E5E0EC; max-height: 46vh; width: auto;" />
-<div class="text-xs mt-2" style="color:#6B7280;">Full vorticity field ω(x) constrained by only K = 100 point sensors (markers).</div>
-</div>
+<div class="lb">Consequence</div>
+<div class="bd">Only the <b style="color:#7F1084;">energy-dominant band</b> can be targeted; physics supplies what the sensors cannot
+<div class="sub">The Navier–Stokes residual acts as the prior that selects a physically admissible field.</div></div>
 
 </div>
 
@@ -354,65 +355,45 @@ PI-CON 與 vanilla PINN 的差別（sensor 讀進網路 vs 只進 loss）在 Mot
 # What classical methods require
 
 <style>
-.cl { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
+.cl { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 16px; }
 .cl th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
          letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
-.cl td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; line-height: 1.3; }
+.cl th.x { text-align: center; }
+.cl td { padding: 9px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: middle; }
 .cl td.who { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.cl td.src { color: #9CA3AF; font-size: 0.86em; }
-/* 分組行:家族層級的「需要什麼、現場為何給不起」——個別方法列只講各自的假設,
-   避免同一句障礙在每列重複。 */
-.cl tr.grp td { border-bottom: none; padding-top: 13px; padding-bottom: 3px; }
-.cl tr.grp .g1 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em;
-                 text-transform: uppercase; color: #1F1B2E; }
-.cl tr.grp .g2 { color: #E97132; font-weight: 600; }
+.cl td.src { color: #9CA3AF; font-size: 0.82em; }
+.cl td.x { text-align: center; font-weight: 700; font-size: 1.05rem; }
+.cl .no { color: #E97132; }
+.cl tr.grp td { border-bottom: none; padding-top: 13px; padding-bottom: 2px;
+                font-size: 0.71rem; font-weight: 700; letter-spacing: 0.05em;
+                text-transform: uppercase; color: #1F1B2E; }
 </style>
 
 <table class="cl">
 <thead>
 <tr>
-<th style="width: 22%;">Method</th>
+<th style="width: 20%;">Method</th>
 <th style="width: 34%;">Source</th>
-<th style="width: 44%;">What it assumes</th>
+<th style="width: 23%;" class="x">Offline field record</th>
+<th style="width: 23%;" class="x">Solver in the loop</th>
 </tr>
 </thead>
 <tbody>
 
-<tr class="grp"><td colspan="3">
-<span class="g1">Reduced-order models</span>
-<span style="color:#9CA3AF;"> — need an </span><span class="g2">offline trajectory of full fields</span><span style="color:#9CA3AF;">, which does not exist before the rig runs</span>
-</td></tr>
-<tr>
-<td class="who">POD</td><td class="src">Sirovich 1987, Q. Appl. Math.</td>
-<td>A linear modal basis spans the field</td>
-</tr>
-<tr>
-<td class="who">DMD</td><td class="src">Schmid 2010, J. Fluid Mech.</td>
-<td>The dynamics are linear in the observed modes</td>
-</tr>
-<tr>
-<td class="who">QR-pivot</td><td class="src">Manohar 2018, IEEE Control Syst. Mag.</td>
-<td>A basis already exists; it selects positions, not the field</td>
-</tr>
+<tr class="grp"><td colspan="4">Reduced-order models</td></tr>
+<tr><td class="who">POD</td><td class="src">Sirovich 1987, Q. Appl. Math.</td><td class="x no">required</td><td class="x">—</td></tr>
+<tr><td class="who">DMD</td><td class="src">Schmid 2010, J. Fluid Mech.</td><td class="x no">required</td><td class="x">—</td></tr>
+<tr><td class="who">QR-pivot</td><td class="src">Manohar 2018, IEEE Control Syst. Mag.</td><td class="x no">required</td><td class="x">—</td></tr>
 
-<tr class="grp"><td colspan="3">
-<span class="g1">Data assimilation</span>
-<span style="color:#9CA3AF;"> — need the </span><span class="g2">forward solver in the loop</span><span style="color:#9CA3AF;">, re-run every window</span>
-</td></tr>
-<tr>
-<td class="who">4D-Var</td><td class="src">Asch 2016, SIAM</td>
-<td>An adjoint solve per window is affordable</td>
-</tr>
-<tr>
-<td class="who">EnKF</td><td class="src">Asch 2016, SIAM</td>
-<td>An ensemble of solver runs is affordable</td>
-</tr>
+<tr class="grp"><td colspan="4">Data assimilation</td></tr>
+<tr><td class="who">4D-Var</td><td class="src">Asch 2016, SIAM</td><td class="x">—</td><td class="x no">required</td></tr>
+<tr><td class="who">EnKF</td><td class="src">Asch 2016, SIAM</td><td class="x">—</td><td class="x no">required</td></tr>
 
 </tbody>
 </table>
 
-<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.92rem; border-left:2px solid #7F1084; padding-left:12px;">
-<span style="color:#9CA3AF; white-space:nowrap;">Implication</span><span style="color:#374151;">The prior has to be learned from <b>sparse sensors and the PDE alone</b> — no reference field, no solver in the loop.</span>
+<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:5px; align-items:baseline; font-size:0.90rem; border-left:2px solid #E97132; padding-left:12px;">
+<span style="color:#9CA3AF; white-space:nowrap;">On a rig</span><span style="color:#374151;">No field record before it runs <span style="color:#C9C6D0;">, </span> a solver in the loop costs minutes to hours per window at Re = 10⁴</span>
 </div>
 
 <FooterLogos />
@@ -485,26 +466,26 @@ fair baseline、**無文獻 citation**，放進 literature review 會變成「�
 </thead>
 <tbody>
 <tr>
-<td class="who">SHRED <span>Williams 2024</span></td>
+<td class="who">SHRED <span>Williams 2024, Proc. R. Soc. A</span></td>
 <td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
 <td>Isotropic (JHTDB), Re 2.3×10⁴</td>
-<td class="key">The full state · ‖x − H(y)‖₂</td>
+<td class="key">The full state, ‖x − H(y)‖₂</td>
 </tr>
 <tr>
-<td class="who">Senseiver <span>Santos 2023</span></td>
-<td><b class="bb">Perceiver IO</b> · cross-attention to latent</td>
+<td class="who">Senseiver <span>Santos 2023, Nat. Mach. Intell.</span></td>
+<td><b class="bb">Perceiver IO</b>, cross-attention to latent</td>
 <td>Re not stated</td>
 <td class="key">“A dense set of observations is needed to train”</td>
 </tr>
 <tr>
-<td class="who">FLRNet <span>Nguyen 2024</span></td>
+<td class="who">FLRNet <span>Nguyen 2024, arXiv</span></td>
 <td><b class="bb">CNN</b> VAE + Fourier features + <b class="bb">MLP</b></td>
 <td>Cylinder, Re 300–10³</td>
-<td class="key">The full field · VAE + perceptual loss</td>
+<td class="key">The full field, VAE + perceptual loss</td>
 </tr>
 <tr>
-<td class="who">FLRONet <span>Vo Dang 2024</span></td>
-<td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
+<td class="who">FLRONet <span>Vo Dang 2024, J. Comput. Inf. Sci. Eng.</span></td>
+<td><b class="bb">DeepONet</b>, <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
 <td>Cylinder, Re not stated</td>
 <td class="key">Paired CFD fields</td>
 </tr>
@@ -641,21 +622,21 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
 <td><span class="yes">✓</span></td>
 </tr>
 <tr>
-<td class="who">Operator networks <span>Lu 2021, Nat. Mach. Intell. · Li 2021, ICLR</span></td>
+<td class="who">Operator networks <span>Lu 2021, Nat. Mach. Intell., Li 2021, ICLR</span></td>
 <td><span class="no">✗</span> needs a dense grid</td>
 <td><span class="yes">✓</span></td>
 <td><span class="no">✗</span></td>
 <td><span class="partial">on a grid</span></td>
 </tr>
 <tr>
-<td class="who">Sensor-input networks <span>Williams 2024, Nat. Commun. · Santos 2023, Nat. Mach. Intell.</span></td>
+<td class="who">Sensor-input networks <span>Williams 2024, Proc. R. Soc. A, Santos 2023, Nat. Mach. Intell.</span></td>
 <td><span class="yes">✓</span></td>
 <td><span class="partial">decoder-bound</span></td>
 <td><span class="no">✗</span></td>
 <td><span class="no">✗</span></td>
 </tr>
 <tr>
-<td class="who">Continuous-time cells <span>Hasani 2022, Nat. Mach. Intell. · Chen 2018, NeurIPS</span></td>
+<td class="who">Continuous-time cells <span>Hasani 2022, Nat. Mach. Intell., Chen 2018, NeurIPS</span></td>
 <td><span class="yes">✓</span></td>
 <td><span class="no">✗</span> no spatial field</td>
 <td><span class="yes">✓</span></td>
@@ -711,42 +692,47 @@ Objective 段的「Same regime」頁才出現。
 
 <NavBar active="motivation" />
 
-<SectionTag>§ Background · operator vs. plain PINN</SectionTag>
+<SectionTag>§ Motivation · operator vs. plain PINN</SectionTag>
 
 # Operator vs. plain PINN
 
-<div class="grid grid-cols-2 gap-6 mt-4">
+<style>
+.ov { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+.ov .hd { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.ov .eqw { margin-top: 6px; padding: 9px 10px; border-radius: 5px; }
+.ov .eqw > * { display: block !important; width: 100% !important; }
+.ov .wh { font-size: 0.78rem; color: #6B7280; margin-top: 5px; line-height: 1.4; }
+.ov .pt { font-size: 0.86rem; color: #374151; margin-top: 9px; line-height: 1.45; }
+</style>
 
-<Card>
-<LabelTiny>PLAIN PHYSICS-INFORMED NEURAL NETWORK (PINN)&nbsp;<span class="opacity-60">[Raissi 2019]</span></LabelTiny>
-<div class="mt-3 text-center" style="font-family:'JetBrains Mono',monospace; font-size:0.95rem; color:#0F2D52;">
-(x, t)&nbsp; →&nbsp; network&nbsp; →&nbsp; u
-</div>
-<div class="mt-4 text-sm leading-snug" style="color:#374151;">
-<b>One flow at a time</b> · input is a single (x, t) coordinate · <b style="color:#E97132;">never reads the measurement stream as input</b> · retrained per case
-</div>
-</Card>
+<div class="ov">
 
-<Card style="background: rgba(127,16,132,0.05);">
-<LabelTiny>NEURAL OPERATOR&nbsp;<span class="opacity-60">(DeepONet) [Lu 2021]</span></LabelTiny>
-<div class="mt-3 flex items-center justify-center gap-2" style="font-family:'JetBrains Mono',monospace; font-size: 0.83rem; color:#7F1084;">
-<div style="display:grid; grid-template-columns:max-content max-content; column-gap:6px; row-gap:3px; text-align:right;">
-<span>sensors {y(t<sub>k</sub>)} →</span><span style="text-align:left;"><b>branch</b></span>
-<span>query (x, t) →</span><span style="text-align:left;"><b>trunk</b></span>
-</div>
-<div style="font-size:2.1rem; line-height:0.85; font-weight:200;">}</div>
-<div>→&nbsp;<b>u(x, t)</b></div>
-</div>
-<div class="text-center" style="font-size: 0.83rem; color:#6B7280;">inner product of branch &amp; trunk bases</div>
-<div class="mt-4 text-sm leading-snug" style="color:#374151;">
-Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch reads the whole sensor trajectory</b> · trunk queries any point · one network serves new sensor streams
-</div>
-</Card>
+<div>
+<div class="hd" style="color:#0F2D52;">Plain PINN <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9CA3AF;">Raissi 2019, J. Comput. Phys.</span></div>
+<div class="eqw" style="background:#F4F6F9; font-size:0.66em;">
+
+$$\mathbf{u}(\mathbf{x},t)\;\approx\;\mathcal{N}_\theta(\mathbf{x},t)$$
 
 </div>
+<div class="wh">The network maps a <b>coordinate</b> to the field value.</div>
+<div class="pt">One flow per fit. The sensor values enter only through the loss, so a new sensor record means <b style="color:#E97132;">training again from scratch</b>.</div>
+</div>
 
-<div class="mt-6 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">Why an operator</b> · operator branch lets a <b>sparse sensor history</b> — not just a coordinate — drive the reconstruction · <b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork (<b style="color:#7F1084;">PI-CON</b>) = operator + differentiable PDE residual
+<div>
+<div class="hd" style="color:#7F1084;">Neural operator <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9CA3AF;">DeepONet — Lu 2021, Nat. Mach. Intell.</span></div>
+<div class="eqw" style="background:#FAF2FB; font-size:0.66em;">
+
+$$\mathbf{u}(\mathbf{x},t)\;\approx\;\sum_{k=1}^{p} b_k(\mathbf{s})\,\tau_k(\mathbf{x},t)$$
+
+</div>
+<div class="wh"><b>b</b> reads the sensor record <b>s</b> = {u(x<sub>j</sub>, t<sub>i</sub>)}; <b>τ</b> reads the query coordinate.</div>
+<div class="pt">The sensor record is an <b style="color:#7F1084;">argument of the map</b>, not a term in the loss, so one trained model serves a new record.</div>
+</div>
+
+</div>
+
+<div class="mt-5 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
+<b style="color:#7F1084;">Why an operator</b>, a <b>sparse sensor history</b>, not just a coordinate, has to drive the reconstruction
 </div>
 
 <FooterLogos />
@@ -781,7 +767,7 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 <div class="op">
 
 <div>
-<div class="hd" style="color:#0F2D52;">FNO <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">[Li 2021]</span></div>
+<div class="hd" style="color:#0F2D52;">FNO <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">Li 2021, ICLR</span></div>
 <svg viewBox="0 0 400 150" style="width:100%;height:auto;">
   <rect x="6" y="55" width="62" height="40" rx="4" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.4"/>
   <text x="37.0" y="75.0" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:700;">a(x)</text>
@@ -808,7 +794,7 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 </div>
 
 <div>
-<div class="hd" style="color:#7F1084;">DeepONet <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">[Lu 2021]</span></div>
+<div class="hd" style="color:#7F1084;">DeepONet <span style="font-weight:400; text-transform:none; letter-spacing:0; color:#9CA3AF;">Lu 2021, Nat. Mach. Intell.</span></div>
 <svg viewBox="0 0 400 150" style="width:100%;height:auto;">
   <rect x="6" y="18" width="86" height="34" rx="4" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.4"/>
   <text x="49.0" y="35.0" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11px;font-weight:700;">sensors</text>
@@ -825,7 +811,7 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
   <path d="M190 35 C 222 35, 222 75, 244 75" stroke="#C9A6CC" stroke-width="1.2" fill="none"/>
   <path d="M190 115 C 222 115, 222 75, 244 75" stroke="#C9A6CC" stroke-width="1.2" fill="none"/>
   <circle cx="258" cy="75" r="15" fill="#FFF" stroke="#7F1084" stroke-width="1.4"/>
-  <text x="258" y="75" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:15px;font-weight:700;">·</text>
+  <text x="258" y="75" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:15px;font-weight:700;">, </text>
   <line x1="273" y1="75" x2="294" y2="75" stroke="#C9A6CC" stroke-width="1.2"/>
   <path d="M300 75 L293 71.5 L293 78.5 Z" fill="#C9A6CC"/>
   <rect x="300" y="55" width="92" height="40" rx="4" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.4"/>
@@ -838,9 +824,7 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 
 </div>
 
-<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.92rem; border-left:2px solid #7F1084; padding-left:12px;">
-<span style="color:#9CA3AF; white-space:nowrap;">Why DeepONet</span><span style="color:#374151;">K = 100 scattered probes are not a grid, and the field is wanted at arbitrary coordinates, which is what a branch–trunk split provides.</span>
-</div>
+
 
 <FooterLogos />
 
@@ -917,32 +901,32 @@ points」—— 這是我們為何仍需改造 DeepONet 的伏筆，但**留待 
 <tr>
 <td class="n">1</td>
 <td class="key">Ground-truth field to train against</td>
-<td><b>ROM &amp; sparse identification</b> · <b>deep super-resolution</b> · <b>operator learning</b> <span class="opacity-70">— all need an offline trajectory or paired fields</span></td>
+<td><b>ROM &amp; sparse identification</b>, <b>deep super-resolution</b>, <b>operator learning</b> <span class="opacity-70">— all need an offline trajectory or paired fields</span></td>
 <td class="ans">architecture</td>
 </tr>
 <tr>
 <td class="n">2</td>
 <td class="key">Sensors read as input</td>
-<td><b>Stabilized PINNs</b> <span class="opacity-70">— sensors only score the loss</span> · <b>operator learning</b> <span class="opacity-70">— branch needs a dense grid</span></td>
+<td><b>Stabilized PINNs</b> <span class="opacity-70">— sensors only score the loss</span>, <b>operator learning</b> <span class="opacity-70">— branch needs a dense grid</span></td>
 <td class="ans">architecture</td>
 </tr>
 <tr>
 <td class="n">3</td>
 <td class="key">Uneven clocks under PDE autodiff</td>
-<td><b>Liquid NN / continuous-time</b> <span class="opacity-70">— never PDE-constrained</span> · <b>data assimilation</b> <span class="opacity-70">— adjoint cost at high Re</span></td>
+<td><b>Liquid NN / continuous-time</b> <span class="opacity-70">— never PDE-constrained</span>, <b>data assimilation</b> <span class="opacity-70">— adjoint cost at high Re</span></td>
 <td class="ans">architecture</td>
 </tr>
 <tr class="sens">
 <td class="n">4</td>
 <td class="key">Sensing configuration mapped</td>
-<td><b>All surveyed works</b> <span class="opacity-70">— one error, one fixed setup · sensor positions taken as</span> <b>given</b></td>
+<td><b>All surveyed works</b> <span class="opacity-70">— one error, one fixed setup, sensor positions taken as</span> <b>given</b></td>
 <td class="ans" style="color:#E97132;">sensing study</td>
 </tr>
 </tbody>
 </table>
 
 <div class="mt-3 text-sm" style="color:#374151;">
-Gaps 1–3 are architectural <span style="color:#C9C6D0;">→</span> PI-CON <span style="color:#C9C6D0;">·</span> Gap 4 is not <span style="color:#C9C6D0;">→</span> more sensors, better placement, or a better model?
+Gaps 1–3 are architectural <span style="color:#C9C6D0;">→</span> PI-CON <span style="color:#C9C6D0;">, </span> Gap 4 is not <span style="color:#C9C6D0;">→</span> more sensors, better placement, or a better model?
 </div>
 
 <FooterLogos />
@@ -989,39 +973,58 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 
 <NavBar active="motivation" />
 
-<SectionTag>§ Background · the sensor resolution limit</SectionTag>
+<SectionTag>§ Motivation · resolution limit under a sparse sensor budget</SectionTag>
 
-# K = 100 — the sensor resolution limit
+# What resolution a sensor budget buys
 
-<div class="grid grid-cols-5 gap-5 mt-3 items-center">
+<style>
+.rs { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 3px;
+      align-items: baseline; font-size: 0.77rem; margin-top: 4px; }
+.rs .k { color: #6B7280; white-space: nowrap; }
+.eb { width: 100%; border-collapse: collapse; font-size: 0.79rem; margin-top: 4px; }
+.eb th { text-align: right; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
+         color: #9CA3AF; font-weight: 700; padding: 0 6px 4px 6px; border-bottom: 1px solid #E5E0EC; }
+.eb th.l { text-align: left; }
+.eb td { padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
+.eb td.l { text-align: left; color: #1F1B2E; font-weight: 600; }
+.eb tr.hi td { background: #F7EDF8; color: #7F1084; font-weight: 700; }
+</style>
 
-<div class="col-span-2 space-y-2">
+<div class="grid grid-cols-5 gap-5 mt-2 items-start">
+
+<div class="col-span-2 space-y-1">
 
 <Card>
-<LabelTiny>Sensor Nyquist</LabelTiny>
-<div class="mt-1 text-xs leading-snug">
-Fourier modes inside |k| ≤ k<sub>max</sub> ≈ <b>πk<sub>max</sub>²</b> · set equal to the <b>K</b> measurements:
+<LabelTiny>Sensor Nyquist scale</LabelTiny>
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+The disk |k| ≤ k<sub>max</sub> holds ≈ <b>πk<sub>max</sub>²</b> modes; setting that equal to <b>K</b> gives
 </div>
 <div class="mt-1 text-center">
-<span class="eq" style="font-size: 0.85rem; padding: 0.25rem 0.6rem;">k<sub>max</sub> ≈ √(K/π)</span>
+<span class="eq" style="font-size: 0.92rem; padding: 0.25rem 0.7rem;">k<sub>max</sub> ≈ √(K/π)</span>
 </div>
-<div class="mt-1 text-xs leading-snug">
-At <b>K = 100</b> → k<sub>max</sub> ≈ <b style="color:#7F1084; font-size:1.5em;">5.64</b> · a scale, not a wall — beyond it κ: 7 → 7×10² <b>(observable to k ≈ 8)</b>
+<div class="rs">
+<span class="k">At K = 100</span><span><b style="color:#7F1084;">k<sub>max</sub> ≈ 5.64</b> — a scale, not a wall</span>
+<span class="k">Beyond it</span><span>conditioning worsens, κ: 7 → 7×10² <span style="color:#9CA3AF;">(observable to k ≈ 8)</span></span>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>Energy inside the band</LabelTiny>
-<div class="mt-1 text-xs leading-snug">
-DNS kinetic energy within |k| ≤ k<sub>max</sub> (t = 5) · K = 100 → <b style="color:#7F1084;">98.9 %</b> · 200 → 99.7 % · 400 → 99.9 %
-</div>
+<LabelTiny>Energy below that scale</LabelTiny>
+<table class="eb">
+<thead><tr><th class="l">Sensors</th><th>k<sub>max</sub></th><th>DNS energy inside</th></tr></thead>
+<tbody>
+<tr class="hi"><td class="l">K = 100</td><td>5.64</td><td>98.9 %</td></tr>
+<tr><td class="l">K = 200</td><td>7.98</td><td>99.7 %</td></tr>
+<tr><td class="l">K = 400</td><td>11.28</td><td>99.9 %</td></tr>
+</tbody>
+</table>
 </Card>
 
 </div>
 
 <div class="col-span-3">
-<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 220px; object-fit: contain;" />
-<div class="foot mt-1">DNS energy spectrum (a) · cumulative fraction (b) · dashed line = k<sub>max</sub> = √(K/π)</div>
+<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 236px; object-fit: contain;" />
+<div class="foot mt-1">DNS energy spectrum (a), cumulative fraction (b); dashed line = k<sub>max</sub> = √(K/π). The fractions report energy <b>available</b> below the scale at t = 5, not a proof that higher-k energy is unrecoverable.</div>
 </div>
 
 </div>
@@ -1178,38 +1181,55 @@ residual 的橘都代表「比我們差」）—— 每格都是重點就等於�
 # Research objective
 
 <div class="mt-2 text-base leading-snug" style="color:#374151;">
-Reconstruct 2-D turbulent flow from sparse (u, v) sensors + Navier–Stokes residual, <b style="color:#7F1084;">no DNS field</b> in training · then map how <b style="color:#7F1084;">count, placement, noise</b> govern quality.
+Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stokes residual, with <b style="color:#7F1084;">no DNS field</b> in training, then map how <b style="color:#7F1084;">count, placement, noise</b> govern quality.
 </div>
 
-<div class="mt-3 grid grid-cols-3 gap-4">
+<style>
+.ob { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+.ob .goal { font-size: 0.85rem; line-height: 1.4; color: #374151; margin-top: 6px; }
+.ob .crit { margin-top: 8px; padding-top: 7px; border-top: 1px solid #EFEAF2; }
+.ob .crit .lb { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
+                color: #9CA3AF; font-weight: 700; }
+.ob .crit ol { margin: 4px 0 0 0; padding-left: 15px; font-size: 0.78rem; line-height: 1.42; color: #374151; }
+.ob .crit li { margin-bottom: 2px; }
+</style>
+
+<div class="ob">
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O1)&nbsp; ACCURATE &amp; FAST RECONSTRUCTOR</LabelTiny>
-<div class="mt-2 text-sm leading-snug">
-Engineering-grade from <b>sensor + PDE</b> only · query any (x, t) in one pass.
-</div>
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Criterion · KE rel-err <b>&lt; 10 %</b> (n = 5) — the engineering usability threshold
+<LabelTiny style="color:#7F1084;">(O1)&nbsp; Accurate &amp; fast reconstructor</LabelTiny>
+<div class="goal">Engineering-grade from <b>sensor + PDE</b> only, queryable at any (x, t).</div>
+<div class="crit">
+<div class="lb">Criterion</div>
+<ol>
+<li>KE rel-err <b>&lt; 10 %</b>, n = 5</li>
+<li><b>−2 pp</b> vs vanilla DeepONet, <b>p &lt; 0.01</b></li>
+<li>Reconstruction <b>≥ 5×</b> faster than re-solving</li>
+</ol>
 </div>
 </Card>
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O2)&nbsp; COUNT SETS THE RESOLUTION</LabelTiny>
-<div class="mt-2 text-sm leading-snug">
-Recoverable band set by <b>sensor count</b>, not architecture.
-</div>
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Criterion · effective cutoff tracks <b>√(K/π)</b> as K scales
+<LabelTiny style="color:#7F1084;">(O2)&nbsp; Count sets the resolution</LabelTiny>
+<div class="goal">Recoverable band set by <b>sensor count</b>, not architecture.</div>
+<div class="crit">
+<div class="lb">Criterion</div>
+<ol>
+<li>Effective cutoffs <b>bracket √(K/π)</b> ≈ 5.64 at K = 100</li>
+<li>K ∈ {100, 200, 400} shifts the band along <b>√(K/π)</b></li>
+</ol>
 </div>
 </Card>
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O3)&nbsp; PLACEMENT &amp; NOISE SET RELIABILITY</LabelTiny>
-<div class="mt-2 text-sm leading-snug">
-Placement and noise change reliability, <b>not feasibility</b>.
-</div>
-<div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b>
+<LabelTiny style="color:#7F1084;">(O3)&nbsp; Placement &amp; noise set reliability</LabelTiny>
+<div class="goal">Placement and noise change reliability, <b>not feasibility</b>.</div>
+<div class="crit">
+<div class="lb">Criterion</div>
+<ol>
+<li>All three placements within target, placement σ <b>≥ 3×</b> seed σ</li>
+<li>Noise to <b>10 %</b> of sensor σ stays within target</li>
+</ol>
 </div>
 </Card>
 
@@ -1243,34 +1263,46 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 
 <SectionTag>§ Application case · the Kolmogorov flow</SectionTag>
 
-# Kolmogorov flow at <span style="color:#7F1084;">Re = 10⁴</span>
+# Kolmogorov flow at <span style="color:#7F1084;">Re = 10⁴</span> <span style="font-size:0.62em; color:#6B7280; font-weight:400;">(DNS solution)</span>
 
-<div class="grid grid-cols-2 gap-5 mt-4 items-stretch">
+<style>
+.kf { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px;
+      align-items: baseline; font-size: 0.80rem; margin-top: 6px; }
+.kf .k { color: #6B7280; white-space: nowrap; }
+.kf .v { color: #1F1B2E; }
+.nd { border-left: 2px solid #7F1084; padding-left: 11px; margin-top: 7px; font-size: 0.80rem; line-height: 1.4; }
+</style>
+
+<div class="grid grid-cols-2 gap-5 mt-2 items-stretch">
 
 <div class="flex justify-center items-center">
   <img :src="'/images/kolmogorov_dns_vorticity_anim.gif'"
-       class="rounded-lg border" style="border-color:#E5E0EC; max-height: 320px; width: auto;" />
+       class="rounded-lg border" style="border-color:#E5E0EC; max-height: 228px; width: auto;" />
 </div>
 
-<div class="space-y-3">
+<div class="space-y-2">
 
 <Card>
-<LabelTiny>Governing equations · incompressible Navier–Stokes</LabelTiny>
-<div class="mt-3 text-center" style="color:#0F2D52; font-size: 0.95rem; line-height: 1.7;">
-∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + ν∇²<b>u</b> + <b>f</b><br/>
-∇·<b>u</b> = 0
+<LabelTiny>Incompressible Navier–Stokes</LabelTiny>
+<div class="mt-1 text-center" style="color:#0F2D52; font-size: 0.88rem; line-height: 1.5;">
+∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + ν∇²<b>u</b> + <b>f</b>,&nbsp;&nbsp; ∇·<b>u</b> = 0
 </div>
-<div class="mt-3 space-y-1 text-xs">
-<BulletRow><b>Forcing</b> · <b>f</b> = (A sin(2πk<sub>f</sub> y), 0) · A = 0.1 m/s², k<sub>f</sub> = 2 m⁻¹</BulletRow>
-<BulletRow><b>Domain</b> · Ω = [0, 1]² m², doubly-periodic</BulletRow>
+<div class="kf">
+<span class="k">Forcing</span><span class="v"><b>f</b> = (A sin(2πk<sub>f</sub> y), 0),&nbsp; A = 0.1 m/s², k<sub>f</sub> = 2 m⁻¹</span>
+<span class="k">Domain</span><span class="v">Ω = [0, 1]² m², doubly periodic</span>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>Reynolds number · two, reported separately</LabelTiny>
-<div class="mt-3 space-y-1 text-xs">
-<BulletRow><b>Control</b> · Re ≡ UL/ν = <b style="color:#7F1084;">10⁴</b> — prescribed</BulletRow>
-<BulletRow><b>Injection-scale</b> · Re<sub>f</sub> ≡ U<sub>rms</sub>λ<sub>f</sub>/ν ≈ <b>2.5×10³</b> — measured</BulletRow>
+<LabelTiny>Characteristic scales &amp; Reynolds number</LabelTiny>
+<div class="kf">
+<span class="k">Length</span><span class="v">L<sup>★</sup> = 1 m <span style="color:#9CA3AF;">— the box edge</span></span>
+<span class="k">Velocity</span><span class="v">U<sup>★</sup> = 1 m/s <span style="color:#9CA3AF;">— reference scale</span></span>
+<span class="k">Viscosity</span><span class="v">ν<sup>★</sup> = 10⁻⁴ m²/s</span>
+<span class="k">Reynolds</span><span class="v"><b style="color:#7F1084;">Re ≡ U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴</b></span>
+</div>
+<div class="nd">
+Lengths &divide; L<sup>★</sup>, velocities &divide; U<sup>★</sup> &rarr; <b>ν = 1/Re</b>. Every quantity from here on is <b style="color:#7F1084;">dimensionless</b>.
 </div>
 </Card>
 
@@ -1281,110 +1313,90 @@ Criterion · every placement &amp; noise to <b>10 %</b> stay <b>within target</b
 <FooterLogos />
 
 <!--
-[The case · 1.5min] 新增頁（2026-07-16）。教授九點要求「case 要交代 governing equation / forcing / Re 定義」。
-數字逐條對應 thesis chapter03.tex:11-31（\paragraph{Governing equations and characteristic scales.}）
-與 tab:dns_params（chapter03.tex:47-54）：
-- NS 方程 = eq:ns_dim (ch03:13-19)；forcing f = (A sin(2π k_f y), 0)ᵀ (ch03:20)
-- A = 0.1 m/s²、k_f = 2 m⁻¹ (tab:dns_params ch03:53-54)
-- λ_f = 1/k_f = 0.5 m、U_rms = √(2·KE̅) = 0.503 m/s = eq:char_scales (ch03:23-24)
-- 控制 Re ≡ UL/ν = 10⁴，L = box edge = 1 m、U = 1 m/s、ν = 10⁻⁴ m²/s；原文明講
-  「prescribed through ν rather than derived from the realised flow」(ch03:20)
-- 診斷 Re_f ≡ U_rms λ_f/ν ≈ 2.5×10³ = eq:re_inj (ch03:29)
+[Kolmogorov flow (DNS solution) · 1.5min] 2026-07-18 依指導教授 meeting 改版。
 
-== 口述（頁面刻意不印）==
-指圖（動畫，t = 0 → 5，41 幀循環）：「二維 Kolmogorov flow 的渦度場。
-forcing 尺度的渦捲夾著薄剪切層，隨時間翻捲 —— 那些細結構就是 K=100 看不到的部分。」
+教授要求三項，均已落頁：
+1. 標題加註 (DNS solution) —— 讓委員知道這頁講的是參考解怎麼來的，不是本方法。
+2. 補上特徵長度 L★、特徵速度 U★、黏度 ν★ 的定義，再定義 Re，最後說明如何無因次化。
+3. 移除 injection-scale Reynolds（原本與 control Re 並列，兩個 Re 易混淆）。
 
-⚠️ 2026-07-16 改用動畫 GIF（原為 t=5 靜態 PNG）。來源：舊 Corning 面試稿
-~/Downloads/slidev-presentation/public/animation_vorticity_re10000.gif，已複製進 public/images/。
-使用前逐項驗證過它與本論文 DNS 同源，非隨手取用：
-  - 頁腳標註 "N=1024 ETD-RK4 fp64 3/2 dealias T=5" → 對應 chapter03 tab:dns_params 的
-    run 1024²、ETDRK4、fp64、T=5（3/2 padding 與 2/3 truncation 是同一件事的兩種說法）
-  - 軸為 0.0–1.0 物理座標 → domain [0,1]²，與 chapter03:12/20 一致
-    （注意：r3 deck 的**文字**寫 [0,2π]² 是錯的，但這張**圖**本身是對的，兩者不要混淆）
-  - 最後一幀 t=5.00 的渦結構與 kolmogorov_dns_vorticity_re10000_t5.png 完全吻合 → 同一次 DNS
-順帶修掉舊靜態圖的缺點：那張的軸是 "x index"/"y index"（格點編號），GIF 是物理座標。
+口述順序（照卡片由上而下）：
+「先看尺度：長度取箱邊 L★ = 1 m，速度取參考尺度 U★ = 1 m/s，黏度 ν★ = 10⁻⁴ m²/s。
+三者定義出控制 Reynolds 數 Re = U★L★/ν★ = 10⁴ —— 注意這是**透過 ν★ 指定**的，
+不是從流場實際量出來的。把長度除以 L★、速度除以 U★ 之後，黏度項變成 ν = 1/Re，
+所以**從這頁之後所有量都是無因次的**，後面不再標單位。」
+依據 chapter03.tex:20 原文（「non-dimensionalised with the box edge L★ = 1 m and a reference
+velocity U★ = 1 m/s as unit scales ... equivalently ν = 1/Re in dimensionless form,
+prescribed through ν★ rather than derived from the realised flow」）。
 
-⚠️ 已對原始 GIF 做兩處後製（scripts 無產生腳本，故直接改檔）：
-  1. 裁掉頂端 19 列 —— **原檔的標題帶「Kolmogorov DNS Re=10000」本身就被切掉一截**
-     （實測第 0 列即有 191 px 非白墨），且該標題與投影片 H1 重複。裁掉比留半截字乾淨。
-     保留第 25 列起的 "t = ..." 時間戳（顯示動畫進度）與頁腳的 DNS 參數標註。
-  2. 128 色調色盤 + optimize → 12.0 MB 壓到 4.1 MB，t=5 幀與原檔比對無可見劣化。
-裁切後尺寸 1050 × 956（原 1050 × 975）。
+⚠️ 本頁是全簡報「無因次化」的宣告點：其後各頁的 t = 5、KE、rel-L₂ 等一律不帶單位。
+（圖檔軸標籤仍保留單位，與論文圖表規則一致 —— 此為 2026-07-18 裁決。）
 
-⚠️ .gitignore 未擋此檔 → commit 會進 repo（4.1 MB）。
-⚠️ 匯出 PDF 時 GIF 只會定格第一幀（t = 0，初始細碎場）。若 PDF 版需要有意義的畫面，
-   改用 kolmogorov_dns_vorticity_re10000_t5.png，或接受定格在 t=0。
-「最接近的同 regime 工作 Mo & Magri 2025 做同一個 case，但在 Re=34。」(chapter01.tex:99)
-Re 兩個為何不同（被問才展開，本頁真正的火力）：
-「控制 Re 透過 ν 指定，不是量出來的；量出來的注入尺度 Re_f ≈ 2.5×10³。
-差約 4 倍是因為 U_rms(0.503) < U(1)：受迫紊流飽和在參考速度以下。ch03:31 明載兩者分開報。」
-
-== 版面 ==
-沿用 slides-r3.md:249-316 骨架：對半、圖佔一半置中、圖下不放 caption、兩卡共 4 條 BulletRow。
-方程用純文字（非 LaTeX $$）壓低密度。本 deck 無 Caption 元件（r3 有），底部不放 micro caption。
-★ 記號已全數移除：論文用 ★ 區分有/無因次，本頁不做無因次化推導，★ 無作用且渲染成搶眼黑星，
-並會與上方無星號的方程形成同頁兩套記號。
-
-⚠️ 不可宣稱 statistically steady / sustained：本 DNS 無阻尼、只積分到 t=5，KE 實際 0.161 → 0.122
-衰減，T/t_eddy = 2.51 已誠實揭露為短窗 (ch03:113)。頁面只寫 forcing 的形式，不碰穩態。
-⚠️ 「為何選 Kolmogorov」thesis 無明文 rationale，不編理由；只陳述 Mo & Magri 同 case 之事實。
-⚠️ 不講「forcing 只作用在 u 所以 v 較難重建」—— 該歸因全 thesis 查無，且 cross-attention 的
-isotropic kernel 是未排除的競爭解釋（見已停用的 velocity-error backup 頁）。
-
-⚠️⚠️ 版面沿用舊 Corning 面試稿 slides-r3.md，但**數據一律不採用**，五處與本論文矛盾：
-  1. r3「Domain [0, 2π]²」→ 論文 Ω = [0,1]²（ch03:12, 20）
-  2. r3「Re = U·L/ν, L = 2π/k_f」→ 論文 L = box edge = 1 m（ch03:20）。不同 convention，
-     混用會讓 λ_f = 0.5 m 與 k_f = 2 對不上
-  3. r3「F = sin(k_f y) x̂」→ 漏振幅 A = 0.1 與 sin 內的 2π（ch03:20, tab:dns_params）
-  4. r3「forced, statistically stationary」→ 本 DNS 是衰減短瞬態，見上
-  5. r3「clear inertial subrange」→ ch03:113 原文「the [0,1]² box admits **no extended
-     inertial range** at this Re」，尾段斜率 −4.61 比 Kraichnan k⁻³ 更陡。直接相反
-另：r3 通篇「sub-DNS divergence」為 thesis/CLAUDE.md 明列禁項，不可回收。
-r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorticity_re10000_t5.png。
+⚠️ 預期提問：「injection scale 的 Reynolds 數是多少？」（頁面已移除，必須口頭答得出來）
+→ Re_f ≡ U_rms·λ_f/ν★ ≈ 2.5×10³，其中 λ_f = 1/k_f = 0.5 m、U_rms = 0.503 m/s
+   （chapter03.tex:26-31）。它比控制 Re 小一個數量級，因為受迫湍流的實際 U_rms 落在
+   參考速度之下。論文把它與 control Re 分開報，正是避免兩者被當成同一個量。
+→ 若委員進一步問「那這個場到底多湍流」：誠實答能譜斜率 −4.61、[0,1]² 箱內無延伸慣性range
+   （chapter03:113），本研究定位在工程重建而非湍流物理。
 -->
 
 ---
 
 <NavBar active="method" />
 
-<SectionTag>§ Application case · numerical setup · Re = 10⁴ · K = 100 sensors</SectionTag>
+<SectionTag>§ Application case · numerical setup</SectionTag>
 
-# 2-D Kolmogorov benchmark — setup at a glance
+# How the reference data are generated
 
-<div class="grid gap-4 mt-2" style="grid-template-columns: 0.86fr 1.14fr;">
+<style>
+.st { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 2px;
+      align-items: baseline; font-size: 0.75rem; margin-top: 3px; }
+.st .k { color: #6B7280; white-space: nowrap; }
+.st .v { color: #1F1B2E; }
+.vf { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 3px; }
+.vf td { padding: 1.5px 0; vertical-align: baseline; }
+.vf td.c { color: #6B7280; padding-right: 10px; white-space: nowrap; }
+.vf td.m { text-align: right; font-variant-numeric: tabular-nums; color: #1F1B2E; font-weight: 600;
+           padding-right: 6px; white-space: nowrap; }
+.vf td.j { width: 1%; white-space: nowrap; }
+.ok { color: #0F2D52; font-weight: 700; }
+.warn { color: #E97132; font-weight: 700; }
+.cap2 { font-size: 0.70rem; color: #6B7280; line-height: 1.35; margin-top: 4px; }
+</style>
 
-<div class="space-y-2">
+<div class="grid gap-3 mt-2" style="grid-template-columns: 1.06fr 0.94fr;">
+
+<div class="space-y-1">
 
 <Card>
-<LabelTiny>DNS REFERENCE SOLVER</LabelTiny>
-<div class="mt-2 text-xs leading-snug space-y-0.5">
-<div><b>Solver</b>&nbsp; pseudo-spectral · 2/3 dealiasing · ETDRK4 fp64</div>
-<div><b>Grid</b>&nbsp; run <b style="color:#7F1084;">1024²</b> · stored <b>256²</b></div>
-<div><b>Sampling</b>&nbsp; Δt<sub>s</sub> = 0.025 s · N<sub>t</sub> = 201</div>
+<LabelTiny>DNS solver</LabelTiny>
+<div class="st">
+<span class="k">Scheme</span><span class="v">pseudo-spectral, 2/3 dealiasing, ETDRK4, fp64</span>
+<span class="k">Grid</span><span class="v">run <b style="color:#7F1084;">1024²</b>, stored <b>256²</b></span>
+<span class="k">Time step</span><span class="v">Δt = 2.5×10⁻⁴ <span style="color:#9CA3AF;">— solver integration step</span></span>
+<span class="k">Sampling</span><span class="v">Δt<sub>s</sub> = 0.025 <span style="color:#9CA3AF;">— every 100 steps</span></span>
+<span class="k">Snapshots</span><span class="v">N<sub>t</sub> = 201 <span style="color:#9CA3AF;">— over t ∈ [0, 5]</span></span>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>DNS VERIFICATION</LabelTiny>
-<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution &amp; turbulence statistics</b> ✓</div>
-<div><b>Statistical window</b>&nbsp; T = 5 s ≈ <b style="color:#7F1084;">2.5 eddy-turnovers</b></div>
-</div>
+<LabelTiny>What was verified</LabelTiny>
+<table class="vf">
+<tr><td class="c">Resolution <span style="color:#9CA3AF;">k<sub>max</sub>η ≥ 1.5</span></td><td class="m">7.61 / 1.91</td><td class="j"><span class="ok">✓</span> <span style="color:#9CA3AF;">run / stored</span></td></tr>
+<tr><td class="c">Spectrum tail slope</td><td class="m">−4.61</td><td class="j"><span class="ok">✓</span></td></tr>
+<tr><td class="c">Courant <span style="color:#9CA3AF;">≤ 0.5</span></td><td class="m">0.13</td><td class="j"><span class="ok">✓</span></td></tr>
+<tr><td class="c">Solver divergence</td><td class="m">≲ 10⁻¹²</td><td class="j"><span class="ok">✓</span></td></tr>
+<tr><td class="c">Turnover coverage</td><td class="m">2.51</td><td class="j"><span class="warn">limited</span></td></tr>
+</table>
+<div class="cap2"><b style="color:#E97132;">Not met:</b> ideal is ≳ 50 turnovers; multi-seed compensates. No single-realisation statistics are claimed.</div>
 </Card>
 
 </div>
 
-<div class="space-y-2">
+<div>
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" style="width: 100%; max-height: 232px; object-fit: contain;" />
-</Card>
-
-<Card>
-<LabelTiny>SPARSE-SENSOR PROBLEM</LabelTiny>
-<div class="mt-2 text-xs leading-snug">
-<b style="color:#7F1084;">K = 100</b> (u, v) QR-pivot probes → query (u, v, p) at any (x, t)
-</div>
+<img :src="'/images/sensor_distribution_kolmogorov_K100.png'" style="width: 100%; max-height: 246px; object-fit: contain;" />
+<div class="cap2">DNS vorticity field with the <b style="color:#7F1084;">K = 100</b> sensor sites overlaid. Positions are chosen once by QR-pivoting on a POD basis and are <b>held fixed</b> for training and inference; only (u, v) at these points is read.</div>
 </Card>
 </div>
 
@@ -1407,12 +1419,23 @@ r3 的 vorticity GIF 不在本 repo，改用既有靜態圖 kolmogorov_dns_vorti
 
 <NavBar active="method" />
 
-<SectionTag>§ Architecture · how (O1)–(O3) get answered</SectionTag>
+<SectionTag>§ Methodology · the architecture</SectionTag>
 
+# PI-CON: a CfC–DeepONet hybrid
 
-# Three additions to DeepONet
+<style>
+.lg { display: flex; gap: 20px; align-items: center; font-size: 0.76rem; color: #374151; margin-top: 3px; }
+.lg .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px;
+          vertical-align: -2px; }
+</style>
 
-<div class="bg-gray-50 border border-gray-200 rounded-lg p-2">
+<div class="lg">
+<span><span class="sw" style="background:#0F2D52;"></span>Inherited DeepONet backbone</span>
+<span><span class="sw" style="background:#D97757;"></span><b>Added in this work</b></span>
+<span><span class="sw" style="background:#FFF7EE; border:1px dashed #D97757;"></span>Basis produced for the inner product</span>
+</div>
+
+<div class="bg-gray-50 border border-gray-200 rounded-lg p-2 mt-2">
 
 ```mermaid {scale: 0.62}
 graph LR
@@ -1447,28 +1470,93 @@ graph LR
 ```
 
 <div class="text-[10px] px-1" style="color:#9CA3AF;">
-Tensor shapes · sensor path fixed per trajectory (201 time steps × 100 sensors) · query path batched over
+Tensor shapes. Sensor path fixed per trajectory (201 time steps × 100 sensors); query path batched over
 <b>N<sub>q</sub></b> = 1 024 collocation points per training step, 128² grid at evaluation.
 </div>
 
 </div>
 
-<div class="grid grid-cols-3 gap-3 mt-1 text-xs">
-<Card>
-<LabelTiny>CfC branch</LabelTiny>
-<div class="mt-1 leading-snug">Reads the irregularly-clocked sensor time signal, not a fixed-grid snapshot · keeps (O1) sensor-only training feasible.</div>
-</Card>
-<Card>
-<LabelTiny>Relpos cross-attention</LabelTiny>
-<div class="mt-1 leading-snug">Query (x, t) → nearby sensors · sparse-to-dense field readout at any query.</div>
-</Card>
-<Card>
-<LabelTiny>Augmented Lagrangian</LabelTiny>
-<div class="mt-1 leading-snug">Adaptive penalty on ∇·u · incompressibility as an active constraint, not a soft residual.</div>
-</Card>
+<div class="mt-2" style="font-size:0.88rem; color:#374151;">
+<b style="color:#7F1084;">PI-CON</b> — Physics-Informed Continuous-time Operator Network: a DeepONet readout with a continuous-time sensor branch, a distance-biased cross-attention fusion, and an Augmented-Lagrangian continuity constraint.
 </div>
 
 <FooterLogos />
+
+<!--
+[Architecture · 1.5min] 2026-07-18 依指導教授 meeting 改版：
+(a) 標題不再用 "Three additions"；(b) 加上底色圖例（深藍＝沿用的 DeepONet backbone、
+橘＝本研究新增、虛線米底＝供內積的 basis）；(c) 三張說明卡移到下一頁；
+(d) **PI-CON 這個名稱在本頁首次正式登場**（教授指定的位置，前面各頁一律不提前用）。
+
+口述：「先看顏色：深藍是沿用 DeepONet 原有的骨架 —— Fourier embedding 與 MLP trunk；
+橘色是本研究新增的三個部分。資料有兩條路徑：上路是 100 個感測器的時間訊號進 CfC branch，
+下路是查詢座標 (x, t) 進 trunk。兩者在 cross-attention 匯合，各自產生一組 basis，
+最後做內積得到該點的 u, v, p。」
+
+⚠️ 本頁只講「是什麼」，三個新增元件「為何需要」在下一頁。不要在此展開，否則兩頁重複。
+-->
+
+---
+
+<NavBar active="method" />
+
+<SectionTag>§ Methodology · why each addition is needed</SectionTag>
+
+# What each addition is for
+
+<style>
+.ad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
+.ad .n { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #D97757; }
+.ad .t { font-size: 1.0rem; font-weight: 700; color: #1F1B2E; margin-top: 3px; }
+.ad .p { font-size: 0.86rem; color: #374151; line-height: 1.45; margin-top: 7px; }
+.ad .g { font-size: 0.78rem; color: #9CA3AF; margin-top: 7px; padding-top: 6px; border-top: 1px solid #EFEAF2; }
+</style>
+
+<div class="ad">
+
+<div>
+<div class="n">Addition 1</div>
+<div class="t">CfC branch</div>
+<div class="p">Reads each sensor's <b>time history</b>, and stays differentiable when the clock is uneven, so the record enters as an input rather than a loss term.</div>
+<div class="g">Closes the sensor-input and uneven-clock gaps</div>
+</div>
+
+<div>
+<div class="n">Addition 2</div>
+<div class="t">Cross-attention</div>
+<div class="p">Maps <b>sparse sensors to any query point</b> using a distance bias, so a query draws on the sensors near it instead of a fixed grid.</div>
+<div class="g">Closes the sparse-to-dense gap</div>
+</div>
+
+<div>
+<div class="n">Addition 3</div>
+<div class="t">Augmented Lagrangian</div>
+<div class="p">Applies an <b>adaptive penalty on ∇·u</b>, tightening incompressibility as training proceeds rather than fixing its weight in advance.</div>
+<div class="g">Keeps the field physical without a reference</div>
+</div>
+
+</div>
+
+<div class="mt-6 px-4 py-3 rounded" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084; font-size:0.92rem; line-height:1.5; color:#374151;">
+At K = 100, a vanilla DeepONet does reconstruct, but not well enough to be useful: <b>8.23 %</b> KE error against the <b>10 %</b> engineering target. The three additions bring it to <b style="color:#7F1084;">5.71 %</b> — a <b>2.52 percentage-point</b> gap at <b>p = 3×10⁻⁷</b>.
+</div>
+
+<FooterLogos />
+
+<!--
+[Why each addition · 1.5min] 2026-07-18 新增（教授要求把三張卡從架構圖頁移出）。
+
+⚠️ 底部結論的措辭經過校準,**不可寫成「vanilla DeepONet 做不出來 / 訓不起來」**：
+2×2 ablation 實測 B0 vanilla DeepONet = 8.23 %,它是可訓練的,只是達不到 10 % 工程門檻。
+教授原話「做不出來」經 2026-07-18 確認指的是「**重建結果不好**」,故頁面寫
+「does reconstruct, but not well enough to be useful」。若寫成無法訓練,委員翻到
+主結果頁的 ablation 表就能反駁。
+數字來源:主結果頁 B0 8.23 % → B3 5.71 %,−2.52 pp,p = 3.0×10⁻⁷（chapter04, n=5 seeds）。
+
+三個 Gap 的對應（chapter01:108-118）：CfC → Gap 2/3、cross-attention → Gap 2、AL → Gap 1。
+-->
+
+
 
 <!--
 [Architecture · 2min] 教授九點 (7) (9) 落實：把 Architecture 寫成「接 Objective、補 vanilla DeepONet 缺口」三件套 narrative，不在這頁堆 AI mathematical 細節。
@@ -1515,7 +1603,7 @@ const gateOpts = {
 <LabelTiny>① LIQUID NEURAL NETWORK (LNN) [Hasani 2021]</LabelTiny>
 
 <div class="mt-1 text-xs leading-snug">
-h relaxes toward a target A · the <b>decay rate depends on the input</b> — a "liquid" time constant:
+h relaxes toward a target A, the <b>decay rate depends on the input</b> — a "liquid" time constant:
 </div>
 
 <div class="mt-1" style="font-size: 0.95em;">
@@ -1525,7 +1613,7 @@ $$\frac{d h}{dt} = -\underbrace{\Bigl[\tfrac{1}{\tau} + f(\cdot)\Bigr]}_{\text{i
 </div>
 
 <div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-τ, A learnable · f(·) a small MLP · <b style="color:#E97132;">✗ ODE solver in autograd is expensive</b>
+τ, A learnable, f(, ) a small MLP, <b style="color:#E97132;">✗ ODE solver in autograd is expensive</b>
 </div>
 </Card>
 
@@ -1559,7 +1647,7 @@ long gap → <b style="color:#7F1084;">σ → 0</b> → f<sub>2</sub> (relaxed)
 </div>
 
 <div class="mt-2 text-xs leading-snug" style="color:#374151;">
-f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:#0F2D52;">✓ no ODE solver</b> · O(1)/step · autograd-safe
+f<sub>1</sub> fast-response, f<sub>2</sub> slow-relaxation, <b style="color:#0F2D52;">✓ no ODE solver</b>, O(1)/step, autograd-safe
 </div>
 </Card>
 
@@ -1589,7 +1677,7 @@ f<sub>1</sub> fast-response · f<sub>2</sub> slow-relaxation · <b style="color:
 <Card>
 <LabelTiny>① ATTENTION READOUT [Vaswani 2017]</LabelTiny>
 
-<div class="mt-1 text-xs leading-snug"><b style="color:#7F1084;">① Score</b> · <b style="color:#7F1084;">② Retrieve</b></div>
+<div class="mt-1 text-xs leading-snug"><b style="color:#7F1084;">① Score</b>, <b style="color:#7F1084;">② Retrieve</b></div>
 
 <div class="mt-1" style="font-size: 0.95em;">
 
@@ -1604,12 +1692,12 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 </div>
 
 <div class="mt-1 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:1px; align-items:baseline;">
-<b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b> · Fourier (x, t)</span>
-<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(r<sub>qk</sub>) · r<sub>qk</sub> = smoothed torus distance</span>
-<b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b> · W<sub>K</sub> · scored</span>
-<b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim · softmax scaling</span>
-<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b> · W<sub>V</sub> · retrieved</span>
-<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context · residual MLP</span>
+<b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b>, Fourier (x, t)</span>
+<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(r<sub>qk</sub>), r<sub>qk</sub> = smoothed torus distance</span>
+<b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b>, W<sub>K</sub>, scored</span>
+<b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim, softmax scaling</span>
+<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b>, W<sub>V</sub>, retrieved</span>
+<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context, residual MLP</span>
 </div>
 
 </Card>
@@ -1719,9 +1807,9 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <div class="mt-2 text-xs leading-snug space-y-0.5">
 <div><b>Domain</b>&nbsp; same Ω, BC, forcing as DNS</div>
-<div><b>Friction</b>&nbsp; <b style="color:#E97132;">r = 2.86×10⁻² s⁻¹</b> — arrests the inverse cascade · <b>absent from the DNS</b></div>
+<div><b>Friction</b>&nbsp; <b style="color:#E97132;">r = 2.86×10⁻² s⁻¹</b> — arrests the inverse cascade, <b>absent from the DNS</b></div>
 <div><b>Closure</b>&nbsp; Bardina scale-similarity + spectral hyperviscosity</div>
-<div><b>Setup</b>&nbsp;·&nbsp; N = 256, T<sub>end</sub> = 50 s, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
+<div><b>Setup</b>,  N = 256, T<sub>end</sub> = 50, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
 </div>
 </Card>
 
@@ -1730,7 +1818,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
 <div><b style="color:#0F2D52;">Resolution and stability</b> ✓</div>
-<div><b style="color:#E97132;">Statistical convergence not established</b> · T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b>4.9</b> &lt; 10</div>
+<div><b style="color:#E97132;">Statistical convergence not established</b>, T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b>4.9</b> &lt; 10</div>
 <div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b> — needs large-scale structure, not statistics</div>
 </div>
 </Card>
@@ -1739,7 +1827,7 @@ $$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} +
 
 <div class="col-span-2">
 <img :src="'/images/les_T50_vorticity_with_sensors.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 360px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Fig. 2 · LES vorticity with K = 100 QR-pivot sensors</div>
+<div class="foot mt-1">Fig. 2, LES vorticity with K = 100 QR-pivot sensors</div>
 </div>
 
 </div>
@@ -1812,7 +1900,7 @@ $$\lambda \,\leftarrow\, \mathrm{clip}\big(\lambda + \rho\,\bar{C},\; 0,\; \Lamb
 </div>
 
 <div class="mt-2 text-xs" style="color:#6B7280;">
-ρ = 0.1 · Λ<sub>max</sub> = 10 · C̄ = EMA of C (β = 0.5), updated every 100 steps.<br>
+ρ = 0.1, Λ<sub>max</sub> = 10, C̄ = EMA of C (β = 0.5), updated every 100 steps.<br>
 <b style="color:#E97132;">C ≥ 0 ⇒ λ rises monotonically</b> — an accumulated-multiplier schedule, not a textbook equality-constraint Lagrangian (whose λ would change sign).
 </div>
 </Card>
@@ -1821,8 +1909,8 @@ $$\lambda \,\leftarrow\, \mathrm{clip}\big(\lambda + \rho\,\bar{C},\; 0,\; \Lamb
 <LabelTiny>CFD ANALOGUE &amp; OBSERVED EFFECT</LabelTiny>
 
 <div class="mt-2 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:5px; align-items:baseline;">
-<b style="color:#7F1084;">SIMPLE / PISO</b><span>pressure-correction Poisson · <b>exact, pointwise</b></span>
-<b style="color:#7F1084;">Our AL (λ)</b><span>ascent on the mean residual · <b>in expectation</b></span>
+<b style="color:#7F1084;">SIMPLE / PISO</b><span>pressure-correction Poisson, <b>exact, pointwise</b></span>
+<b style="color:#7F1084;">Our AL (λ)</b><span>ascent on the mean residual, <b>in expectation</b></span>
 </div>
 
 <div class="mt-1 text-xs" style="color:#6B7280;">
@@ -1890,9 +1978,9 @@ At the FD floor of its resolved bandwidth — <b>not</b> below DNS.
 <LabelTiny>SOAP + SCHEDULE-FREE &nbsp;<span class="opacity-50">[Wang 2025, Defazio 2024]</span></LabelTiny>
 
 <div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
-<b style="color:#7F1084;">SOAP</b><span>Shampoo-style <b>2nd-order preconditioner</b> · Adam in the preconditioner eigenbasis</span>
-<b style="color:#7F1084;">Schedule-Free</b><span>Polyak–Ruppert averaging · no lr decay</span>
-<b style="color:#7F1084;">Why both</b><span>anisotropic valleys at Re = 10⁴ · Adam zigzags, SOAP overshoots, SF averaging stabilises</span>
+<b style="color:#7F1084;">SOAP</b><span>Shampoo-style <b>2nd-order preconditioner</b>, Adam in the preconditioner eigenbasis</span>
+<b style="color:#7F1084;">Schedule-Free</b><span>Polyak–Ruppert averaging, no lr decay</span>
+<b style="color:#7F1084;">Why both</b><span>anisotropic valleys at Re = 10⁴, Adam zigzags, SOAP overshoots, SF averaging stabilises</span>
 </div>
 
 <div class="mt-3 px-3 py-2 rounded text-xs leading-snug" style="background: rgba(127,16,132,0.06);">
@@ -1949,7 +2037,7 @@ Flow, DNS, sensors and LES placement are given earlier; this page adds only the 
 <LabelTiny>Model</LabelTiny>
 <div class="pgrid">
 <div class="k">Architecture</div><div class="v">DeepONet + CfC branch + cross-attention readout</div>
-<div class="k">Width</div><div class="v">d<sub>model</sub> = 256 · d<sub>emb</sub> = 128 (Fourier, 16 harmonics)</div>
+<div class="k">Width</div><div class="v">d<sub>model</sub> = 256, d<sub>emb</sub> = 128 (Fourier, 16 harmonics)</div>
 <div class="k">Branch</div><div class="v">spatial CfC × 1 + temporal CfC × 1</div>
 <div class="k">Readout</div><div class="v">cross-attention, 1 head, |r| bias</div>
 <div class="k">Size</div><div class="v"><b>3.14 M</b> parameters</div>
@@ -1961,10 +2049,10 @@ Flow, DNS, sensors and LES placement are given earlier; this page adds only the 
 <LabelTiny>Training</LabelTiny>
 <div class="pgrid">
 <div class="k">Supervision</div><div class="v"><b>sensor MSE + NS residual only</b></div>
-<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free · lr = 10⁻³ · warm-up 2 000</div>
+<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free, lr = 10⁻³, warm-up 2 000</div>
 <div class="k">Collocation</div><div class="v">1 024 points per step</div>
 <div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b> (42, 1, 2, 3, 4)</div>
-<div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB) · ~2 h 45 m per seed</div>
+<div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB), ~2 h 45 m per seed</div>
 </div>
 </Card>
 
@@ -2027,7 +2115,7 @@ $$\overline{\mathrm{KE\_MAPE}} = \frac{1}{|T|}\sum_{t}\frac{\bigl|\mathrm{KE}_{\
 </div>
 
 <div class="ngrid">
-<div class="sym">KE MAPE</div><div class="def"><b>headline</b> · t ∈ [0, 5] s · also called <i>KE rel-err</i></div>
+<div class="sym">KE MAPE</div><div class="def"><b>headline</b>, t ∈ [0, 5] s, also called <i>KE rel-err</i></div>
 <div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
 <div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
 <div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
@@ -2056,12 +2144,12 @@ $$\mathcal{L}_{\text{AL}} = \lambda\,C + \tfrac{\rho}{2}\,C^2, \qquad C \equiv \
 <div class="sym">ℒ<sub>data</sub></div><div class="def">MSE on the K = 100 sensor channels</div>
 <div class="sym">ℒ<sub>NS,u</sub> , ℒ<sub>NS,v</sub></div><div class="def">NS momentum residual at collocation points</div>
 <div class="sym">ℒ<sub>cont</sub></div><div class="def">∇·u residual — the same C the AL acts on</div>
-<div class="sym" style="color:#E97132;">ℒ<sub>AL</sub></div><div class="def">adaptive continuity pressure via λ · <b>outside</b> GradNorm</div>
+<div class="sym" style="color:#E97132;">ℒ<sub>AL</sub></div><div class="def">adaptive continuity pressure via λ, <b>outside</b> GradNorm</div>
 <div class="sym">w<sub>d</sub> , w<sub>NS</sub> , w<sub>c</sub></div><div class="def">GradNorm-balanced weights</div>
 </div>
 
 <div class="mt-3 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
-<b style="color:#7F1084;">Invariant</b>&nbsp;·&nbsp; DNS field never enters ℒ.
+<b style="color:#7F1084;">Invariant</b>,  DNS field never enters ℒ.
 </div>
 </Card>
 
@@ -2098,7 +2186,7 @@ gradient 量級、不對散度設下限（chapter02:389）。」
 # Main result — 2×2 ablation at n = 5
 
 <div class="text-[10px] mt-1" style="color:#6B7280;">
-Re = 10⁴ · K = 100 · LES-derived QR-pivot placement (DNS-free) · 1024 collocation · 20 k iterations · all cells n = 5 seeds
+Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation, 20 k iterations, all cells n = 5 seeds
 </div>
 
 <style>
@@ -2124,7 +2212,7 @@ Re = 10⁴ · K = 100 · LES-derived QR-pivot placement (DNS-free) · 1024 collo
 
 <div>
 <Card>
-<LabelTiny>2×2 ablation · KE MAPE (%, n = 5, lower is better)</LabelTiny>
+<LabelTiny>2×2 ablation, KE MAPE (%, n = 5, lower is better)</LabelTiny>
 
 <div class="m22">
 <div></div>
@@ -2194,20 +2282,20 @@ Re = 10⁴ · K = 100 · LES-derived QR-pivot placement (DNS-free) · 1024 collo
 
 <SectionTag>§ Results · field reconstruction at t = 5</SectionTag>
 
-# Field reconstruction<br/><span style="font-size: 0.85em; color:#6B7280;">ω · u · v at t = 5</span>
+# Field reconstruction<br/><span style="font-size: 0.85em; color:#6B7280;">ω, u, v at t = 5</span>
 
 <Card>
 <LabelTiny>KEY OBSERVATIONS</LabelTiny>
 <div class="mt-2 text-xs leading-snug space-y-1">
-<div>· Main vortex structure recovered</div>
-<div>· Small scales (k &gt; 5) smoothed — sensor Nyquist scale</div>
-<div>· Error sits on <b>high-shear edges</b>, not random</div>
-<div>· |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
+<div>, Main vortex structure recovered</div>
+<div>, Small scales (k &gt; 5) smoothed — sensor Nyquist scale</div>
+<div>, Error sits on <b>high-shear edges</b>, not random</div>
+<div>, |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
 </div>
 </Card>
 
 <div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
-Source · EXP-245 baseline (B3 + LES_T50 + 1024 collo) · seed 42 field viz, metrics n = 5.
+Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics n = 5.
 </div>
 
 </div>
@@ -2271,9 +2359,9 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Why KE 5.7 % but <span class="raw">ω</span> 41.8 %</LabelTiny>
 <div class="bg2">
-<div class="k">k ≤ 5</div><div class="v">99 % of energy · err <b>2.5 %</b></div>
-<div class="k">k · 5–16</div><div class="v"><b>53 %</b> · about half recovered</div>
-<div class="k">k &gt; 16</div><div class="v"><b>99.9 %</b> · no energy placed</div>
+<div class="k">k ≤ 5</div><div class="v">99 % of energy, err <b>2.5 %</b></div>
+<div class="k">k, 5–16</div><div class="v"><b>53 %</b>, about half recovered</div>
+<div class="k">k &gt; 16</div><div class="v"><b>99.9 %</b>, no energy placed</div>
 </div>
 <div class="mt-1 text-xs leading-snug" style="color:#6B7280;">KE weights energy; ω is broadband pointwise.</div>
 </Card>
@@ -2305,12 +2393,12 @@ k_max ≈ 5.64；越過它 conditioning 急遽變差（κ 7 → 7×10²），加
 
 <Card>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5) · follows DNS decay 0.161 → 0.122 · IC warm-up t &lt; 2 s.</div>
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5), follows DNS decay 0.161 → 0.122, IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
 <img :src="'/images/uv_rmse_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">u, v RMSE <b style="color:#7F1084;">0.115 → 0.03 m/s</b> (n = 5, ±1σ) · absolute, no denominator · flat after t ≈ 3 s.</div>
+<div class="foot mt-1">u, v RMSE <b style="color:#7F1084;">0.115 → 0.03</b> (n = 5, ±1σ), absolute, no denominator, flat after t ≈ 3 s.</div>
 </Card>
 
 </div>
@@ -2381,7 +2469,7 @@ isotropic kernel 是未排除的競爭解釋（見已停用的 velocity-error ba
 </style>
 
 <div class="text-xs mt-1" style="color:#6B7280;">
-Same B3 backbone, 1024 collocation, 20 k iterations, n = 5 · sensor values always come from the K = 100 positions only.
+Same B3 backbone, 1024 collocation, 20 k iterations, n = 5, sensor values always come from the K = 100 positions only.
 </div>
 
 <table class="pl">
@@ -2488,7 +2576,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Velocity rel-L₂ &nbsp;<span class="opacity-60">· full window, no selection</span></LabelTiny>
+<LabelTiny>Velocity rel-L₂ &nbsp;<span class="opacity-60">, full window, no selection</span></LabelTiny>
 <img :src="'/images/forward_cfd_divergence.png'" class="mt-1" style="width: 100%; max-height: 240px; object-fit: contain;" />
 </Card>
 </div>
@@ -2496,7 +2584,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 <div class="col-span-2 space-y-2">
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>u rel-L₂ &nbsp;<span class="opacity-60">· start → end</span></LabelTiny>
+<LabelTiny>u rel-L₂ &nbsp;<span class="opacity-60">, start → end</span></LabelTiny>
 <div class="fc">
 <div></div><div class="hd">t = 0</div><div class="hd">t = 5</div>
 <div class="k">Forward-CFD</div><div class="v">5.2 %</div><div class="v bad">152.8 %</div>
@@ -2511,10 +2599,10 @@ Sensor-conditioned <b style="color:#7F1084;">converges</b>.
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Statistics look fine</LabelTiny>
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-At t = 5: <b>KE −3.85 %</b> · <b>enstrophy +3.46 %</b> · spectrum within <b>≈10 %</b>.
+At t = 5: <b>KE −3.85 %</b>, <b>enstrophy +3.46 %</b>, spectrum within <b>≈10 %</b>.
 </div>
 <div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-On the attractor, <b style="color:#E97132;">wrong phase</b> · σ<sub>u</sub>/σ<sub>v</sub> 2.32 → 0.90.
+On the attractor, <b style="color:#E97132;">wrong phase</b>, σ<sub>u</sub>/σ<sub>v</sub> 2.32 → 0.90.
 </div>
 </Card>
 
@@ -2522,7 +2610,7 @@ On the attractor, <b style="color:#E97132;">wrong phase</b> · σ<sub>u</sub>/σ
 
 </div>
 
-<div class="foot text-[10px]" style="margin-top: 2px;">Gappy-POD init (rank 40, Everson & Sirovich 1995) · open-loop, not matched assimilation · basis from <b>200 offline DNS snapshots</b> — more than PI-CON sees.</div>
+<div class="foot text-[10px]" style="margin-top: 2px;">Gappy-POD init (rank 40, Everson & Sirovich 1995), open-loop, not matched assimilation, basis from <b>200 offline DNS snapshots</b> — more than PI-CON sees.</div>
 
 <FooterLogos />
 
@@ -2630,10 +2718,10 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
 </table>
 
 <div class="mt-4" style="font-size:1.0rem; color:#374151;">
-Pointwise u, v, <span class="raw">ω</span> <span style="color:#C9C6D0;">→</span> PI-CON <b style="color:#7F1084;">−47 %</b> vs trig-LSQ <span style="color:#C9C6D0;">·</span> <b style="color:#7F1084;">−74 %</b> vs IDW
+Pointwise u, v, <span class="raw">ω</span> <span style="color:#C9C6D0;">→</span> PI-CON <b style="color:#7F1084;">−47 %</b> vs trig-LSQ <span style="color:#C9C6D0;">, </span> <b style="color:#7F1084;">−74 %</b> vs IDW
 </div>
 
-<div class="foot mt-2">Source · appendix <span class="raw">tab:fair_baselines</span> · same LES-derived K = 100 sensors as the main baseline.</div>
+<div class="foot mt-2">Source, appendix <span class="raw">tab:fair_baselines</span>, same LES-derived K = 100 sensors as the main baseline.</div>
 
 <FooterLogos />
 
@@ -2675,7 +2763,7 @@ Where PI-CON departs from DNS follows the sensor Nyquist <span class="raw">k<sub
 </Card>
 
 <div class="mt-2 text-xs leading-snug" style="color:#6B7280;">
-Single-seed at the final protocol · read as a trend, not a fit.
+Single-seed at the final protocol, read as a trend, not a fit.
 </div>
 
 <FooterLogos />
@@ -2734,7 +2822,7 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 </style>
 
 <div class="text-xs mt-1" style="color:#6B7280;">
-Additive Gaussian noise, per-channel, as a fraction of each sensor's standard deviation · <b>n = 5 seeds per level</b> · final protocol.
+Additive Gaussian noise, per-channel, as a fraction of each sensor's standard deviation, <b>n = 5 seeds per level</b>, final protocol.
 </div>
 
 <table class="nz">
@@ -2828,7 +2916,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <style>
 /* 兩欄的寬度 = 波數帶的分割比例，截止線因此一路貫穿到底 —— 帶子是結構，不是裝飾。
-   顏色兩個意思：紫 = 截止線以內（可解析）· 橘 = 截止線以外（觀測不到）。 */
+   顏色兩個意思：紫 = 截止線以內（可解析）, 橘 = 截止線以外（觀測不到）。 */
 .sp { display: grid; grid-template-columns: 41.6% 58.4%; }
 .band { height: 34px; }
 .band .lo { background: rgba(127,16,132,0.14); border: 1px solid #7F1084; border-right: 2px solid #E97132;
@@ -2848,7 +2936,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 </style>
 
 <div class="sp band mt-3">
-  <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED · 98.9 % of the energy</span></div>
+  <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED, 98.9 % of the energy</span></div>
   <div class="hi"><span class="lbl" style="color:#9CA3AF;">UNOBSERVED</span></div>
 </div>
 <div class="sp kx">
@@ -2861,9 +2949,9 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 <div class="col">
 <h4 style="color:#7F1084;">Supported</h4>
 <div class="row"><b style="color:#7F1084;">KE &amp; mean-flow monitoring</b><br/><span class="ar">→</span> 5.71 ± 0.11 %</div>
-<div class="row mt-2"><b style="color:#7F1084;">Phase-locked control</b> @ k<sub>f</sub><br/><span class="ar">→</span> amp 0.99 · phase ≲ 0.09 rad</div>
+<div class="row mt-2"><b style="color:#7F1084;">Phase-locked control</b> @ k<sub>f</sub><br/><span class="ar">→</span> amp 0.99, phase ≲ 0.09 rad</div>
 <div class="row mt-2"><b style="color:#7F1084;">Incompressibility check</b><br/><span class="ar">→</span> div 0.39 % = FD floor</div>
-<div class="row mt-2"><b style="color:#7F1084;">Streaming deployment</b><br/><span class="ar">→</span> causal · queries at any t</div>
+<div class="row mt-2"><b style="color:#7F1084;">Streaming deployment</b><br/><span class="ar">→</span> causal, queries at any t</div>
 </div>
 
 <div class="col r">
@@ -2933,7 +3021,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <div class="mt-3 px-3 py-2 rounded" style="background: rgba(127,16,132,0.06); border-left: 3px solid #7F1084;">
 <div style="color:#374151; font-size: 0.95rem;">
-Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">·</span> all within the 10 % target
+Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">, </span> all within the 10 % target
 </div>
 </div>
 
@@ -3017,7 +3105,7 @@ not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 �
 </table>
 
 <div class="mt-4" style="color:#374151; font-size: 0.95rem;">
-Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="color:#C9C6D0;">·</span> Re = 10⁴ <span style="color:#C9C6D0;">·</span> 2-D periodic Kolmogorov
+Validated scope <span style="color:#C9C6D0;">, </span> K = 100 <span style="color:#C9C6D0;">, </span> Re = 10⁴ <span style="color:#C9C6D0;">, </span> 2-D periodic Kolmogorov
 </div>
 
 <FooterLogos />
@@ -3092,7 +3180,7 @@ Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="colo
 
 <div class="mt-6" style="display:grid; grid-template-columns:max-content 1fr; column-gap:16px; row-gap:7px; align-items:baseline; font-size:0.95rem;">
 <span style="color:#9CA3AF;">Accuracy</span><span style="color:#374151;">Comparable — smoothing is <b>not</b> rejected on accuracy</span>
-<span style="color:#9CA3AF;">Why filtering</span><span style="color:#374151;">Reads no future sensor <span style="color:#C9C6D0;">·</span> half the compute <span style="color:#C9C6D0;">·</span> the n = 5 validated recipe</span>
+<span style="color:#9CA3AF;">Why filtering</span><span style="color:#374151;">Reads no future sensor <span style="color:#C9C6D0;">, </span> half the compute <span style="color:#C9C6D0;">, </span> the n = 5 validated recipe</span>
 </div>
 
 <FooterLogos />
@@ -3140,7 +3228,7 @@ Validated scope <span style="color:#C9C6D0;">·</span> K = 100 <span style="colo
 </thead>
 <tbody>
 <tr><td class="n">Q1</td><td class="q">DNS resolution adequate?</td>
-<td><span class="ok">k<sub>max</sub>·&#951; = 1.91 &#8805; 1.5</span> (Pope 2000)</td></tr>
+<td><span class="ok">k<sub>max</sub>, &#951; = 1.91 &#8805; 1.5</span> (Pope 2000)</td></tr>
 <tr><td class="n">Q2</td><td class="q">Energy-spectrum slope?</td>
 <td>&#8722;4.61, steeper than k&#8315;&#179; &#183; no inertial range in a [0,1]&#178; box</td></tr>
 <tr><td class="n">Q3</td><td class="q">T = 5 vs Lyapunov time?</td>
