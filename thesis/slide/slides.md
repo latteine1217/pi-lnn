@@ -61,42 +61,43 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 # Why the field has to be reconstructed
 
 <style>
-.wr2 { display: grid; grid-template-columns: 1fr max-content 1fr; column-gap: 26px; align-items: center;
-       margin-top: 8px; max-width: 82%; margin-left: auto; margin-right: auto; }
-.wr2 .hd { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-           text-align: center; margin-bottom: 7px; }
-.wr2 .cap { font-size: 0.76rem; color: #6B7280; text-align: center; margin-top: 5px; line-height: 1.35; }
-.hard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 10px; }
-.hard .b { border-top: 2px solid #E97132; padding-top: 8px; }
-.hard .t { font-size: 0.84rem; font-weight: 700; color: #1F1B2E; }
-.hard .d { font-size: 0.76rem; color: #6B7280; line-height: 1.35; margin-top: 2px; }
+.wr { display:grid; grid-template-columns: 38% 62%; gap:28px; margin-top:16px; align-items:center; }
+.wr .lead { font-size:1.17rem; font-weight:700; line-height:1.28; color:#1F1B2E; }
+.wr .lead b { color:#7F1084; }
+.wr .why { margin-top:18px; border-left:3px solid #E97132; padding-left:14px; }
+.wr .why div { font-size:.88rem; color:#374151; line-height:1.38; margin:8px 0; }
+.wr .why span { display:inline-flex; width:18px; color:#E97132; font-weight:700; }
+.wr .pipe { display:grid; grid-template-columns:1fr 52px 1fr; gap:10px; align-items:center; }
+.wr .stage { background:rgba(255,255,255,.70); border:1px solid #E5E0EC; border-radius:10px; padding:11px; }
+.wr .stage img { width:100%; height:202px; object-fit:contain; display:block; }
+.wr .eyebrow { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:5px; }
+.wr .caption { font-size:.82rem; color:#6B7280; line-height:1.32; }
+.wr .arrow { color:#7F1084; text-align:center; }
 </style>
 
-<div class="wr2">
+<div class="wr">
+  <div>
+    <div class="lead">A rig observes <span style="color:#E97132;">100 fixed probes</span>, but engineering decisions require the <b>continuous field between them</b>.</div>
+    <div class="why">
+      <div><span>01</span><b>No full field is measured.</b> The missing locations cannot be looked up.</div>
+      <div><span>02</span><b>No DNS is available online.</b> There is no reference trajectory to imitate.</div>
+      <div><span>03</span><b>Flow evolves continuously.</b> The reconstruction must remain meaningful between samples.</div>
+    </div>
+  </div>
 
-<div>
-<div class="hd" style="color:#E97132;">Available</div>
-<img :src="'/images/why_probes_only.png'" style="width:100%; max-height:196px; object-fit:contain; display:block; margin:0 auto;" />
-<div class="cap"><b style="color:#E97132;">K = 100 point probes</b><br/>u, v at fixed sites, sampled in time</div>
-</div>
-
-<div style="text-align:center; color:#7F1084;">
-<div style="font-size:1.9rem; line-height:1;">→</div>
-<div style="font-size:0.76rem; font-weight:700; letter-spacing:0.03em;">reconstruction</div>
-</div>
-
-<div>
-<div class="hd" style="color:#7F1084;">Required</div>
-<img :src="'/images/why_full_field.png'" style="width:100%; max-height:196px; object-fit:contain; display:block; margin:0 auto;" />
-<div class="cap"><b style="color:#7F1084;">Continuous field u(x, t)</b><br/>structures, gradients, loads between probes</div>
-</div>
-
-</div>
-
-<div class="hard">
-<div class="b"><div class="t">Far more unknowns than data</div><div class="d">A hundred readings, a field with orders of magnitude more degrees of freedom</div></div>
-<div class="b"><div class="t">No reference to copy</div><div class="d">A rig has no DNS, so there is nothing to imitate or validate against online</div></div>
-<div class="b"><div class="t">Turbulence is chaotic</div><div class="d">Small errors grow, so a one-off guess drifts away from the true state</div></div>
+  <div class="pipe">
+    <div class="stage">
+      <div class="eyebrow" style="color:#E97132;">Measure</div>
+      <img :src="'/images/why_probes_only.png'" />
+      <div class="caption"><b>K = 100</b> fixed velocity probes sample the DNS field only at their locations.</div>
+    </div>
+    <div class="arrow"><div style="font-size:2.2rem; line-height:1;">→</div><div style="font-size:.68rem; font-weight:700; letter-spacing:.05em;">infer<br/>with PDE</div></div>
+    <div class="stage">
+      <div class="eyebrow" style="color:#7F1084;">Need</div>
+      <img :src="'/images/why_full_field.png'" />
+      <div class="caption">A <b>256² continuous field</b> supplies structures, gradients, and loads away from probes.</div>
+    </div>
+  </div>
 </div>
 
 <FooterLogos />
@@ -114,8 +115,14 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 下一頁 (The sparse-sensor reconstruction problem) 才講 under-determined、compressed sensing
 所需點數、physics as prior。不要在本頁提 25–50× 那組數字，會重複。
 
-圖為 SVG 手繪示意（非實測資料）：左側橘點＝探針位置示意，右側為流場結構示意，
-兩者都不對應任何特定的 DNS 快照。委員若問「右圖是哪個 case」→ 答：示意圖，非資料。
+圖為**實測資料**，由 `scripts/plot_slide_why_reconstruction.py` 產生：
+- 場：DNS Re=10⁴、N=256、t = 5.0 的渦度 ω
+- 位置：EXP-245 active baseline 所用的 LES_T50 QR-pivot 佈點（K=100）
+- 兩張圖**共用同一組 colormap 與 clim**（±18.2 s⁻¹），左圖每個點就是右圖在該位置的實際值。
+  這是 2026-07-18 改版的重點：舊版左圖是白底橘點、與右圖無共同色標，看不出
+  「左圖是右圖的取樣」，只像兩張不相干的圖。
+
+委員若問「右圖是哪個 case」→ 答：Re=10⁴ DNS，t = 5 s 的渦度場，非示意圖。
 -->
 
 ---
@@ -127,150 +134,202 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 # Physics-informed neural networks
 
 <div class="text-xs mt-1" style="color:#374151;">
-The network <b>is</b> the field: it maps a coordinate to the flow there, so it can be queried anywhere and differentiated exactly.
+The network <b>is</b> the field: training adjusts θ from data and physics; inference reuses the frozen θ in one forward pass.
 </div>
 
 <div class="mt-1">
-<svg viewBox="0 0 900 300" style="width:100%;height:auto;max-height:268px;">
-  <g stroke="#0F2D52" stroke-width="0.6" opacity="0.20">
-    <line x1="52" y1="96" x2="150" y2="64"/>
-    <line x1="52" y1="96" x2="150" y2="110"/>
-    <line x1="52" y1="96" x2="150" y2="156"/>
-    <line x1="52" y1="96" x2="150" y2="202"/>
-    <line x1="52" y1="96" x2="150" y2="248"/>
-    <line x1="52" y1="152" x2="150" y2="64"/>
-    <line x1="52" y1="152" x2="150" y2="110"/>
-    <line x1="52" y1="152" x2="150" y2="156"/>
-    <line x1="52" y1="152" x2="150" y2="202"/>
-    <line x1="52" y1="152" x2="150" y2="248"/>
-    <line x1="52" y1="208" x2="150" y2="64"/>
-    <line x1="52" y1="208" x2="150" y2="110"/>
-    <line x1="52" y1="208" x2="150" y2="156"/>
-    <line x1="52" y1="208" x2="150" y2="202"/>
-    <line x1="52" y1="208" x2="150" y2="248"/>
-    <line x1="150" y1="64" x2="232" y2="64"/>
-    <line x1="150" y1="64" x2="232" y2="110"/>
-    <line x1="150" y1="64" x2="232" y2="156"/>
-    <line x1="150" y1="64" x2="232" y2="202"/>
-    <line x1="150" y1="64" x2="232" y2="248"/>
-    <line x1="150" y1="110" x2="232" y2="64"/>
-    <line x1="150" y1="110" x2="232" y2="110"/>
-    <line x1="150" y1="110" x2="232" y2="156"/>
-    <line x1="150" y1="110" x2="232" y2="202"/>
-    <line x1="150" y1="110" x2="232" y2="248"/>
-    <line x1="150" y1="156" x2="232" y2="64"/>
-    <line x1="150" y1="156" x2="232" y2="110"/>
-    <line x1="150" y1="156" x2="232" y2="156"/>
-    <line x1="150" y1="156" x2="232" y2="202"/>
-    <line x1="150" y1="156" x2="232" y2="248"/>
-    <line x1="150" y1="202" x2="232" y2="64"/>
-    <line x1="150" y1="202" x2="232" y2="110"/>
-    <line x1="150" y1="202" x2="232" y2="156"/>
-    <line x1="150" y1="202" x2="232" y2="202"/>
-    <line x1="150" y1="202" x2="232" y2="248"/>
-    <line x1="150" y1="248" x2="232" y2="64"/>
-    <line x1="150" y1="248" x2="232" y2="110"/>
-    <line x1="150" y1="248" x2="232" y2="156"/>
-    <line x1="150" y1="248" x2="232" y2="202"/>
-    <line x1="150" y1="248" x2="232" y2="248"/>
-    <line x1="232" y1="64" x2="314" y2="64"/>
-    <line x1="232" y1="64" x2="314" y2="110"/>
-    <line x1="232" y1="64" x2="314" y2="156"/>
-    <line x1="232" y1="64" x2="314" y2="202"/>
-    <line x1="232" y1="64" x2="314" y2="248"/>
-    <line x1="232" y1="110" x2="314" y2="64"/>
-    <line x1="232" y1="110" x2="314" y2="110"/>
-    <line x1="232" y1="110" x2="314" y2="156"/>
-    <line x1="232" y1="110" x2="314" y2="202"/>
-    <line x1="232" y1="110" x2="314" y2="248"/>
-    <line x1="232" y1="156" x2="314" y2="64"/>
-    <line x1="232" y1="156" x2="314" y2="110"/>
-    <line x1="232" y1="156" x2="314" y2="156"/>
-    <line x1="232" y1="156" x2="314" y2="202"/>
-    <line x1="232" y1="156" x2="314" y2="248"/>
-    <line x1="232" y1="202" x2="314" y2="64"/>
-    <line x1="232" y1="202" x2="314" y2="110"/>
-    <line x1="232" y1="202" x2="314" y2="156"/>
-    <line x1="232" y1="202" x2="314" y2="202"/>
-    <line x1="232" y1="202" x2="314" y2="248"/>
-    <line x1="232" y1="248" x2="314" y2="64"/>
-    <line x1="232" y1="248" x2="314" y2="110"/>
-    <line x1="232" y1="248" x2="314" y2="156"/>
-    <line x1="232" y1="248" x2="314" y2="202"/>
-    <line x1="232" y1="248" x2="314" y2="248"/>
-    <line x1="314" y1="64" x2="412" y2="96"/>
-    <line x1="314" y1="64" x2="412" y2="152"/>
-    <line x1="314" y1="64" x2="412" y2="208"/>
-    <line x1="314" y1="110" x2="412" y2="96"/>
-    <line x1="314" y1="110" x2="412" y2="152"/>
-    <line x1="314" y1="110" x2="412" y2="208"/>
-    <line x1="314" y1="156" x2="412" y2="96"/>
-    <line x1="314" y1="156" x2="412" y2="152"/>
-    <line x1="314" y1="156" x2="412" y2="208"/>
-    <line x1="314" y1="202" x2="412" y2="96"/>
-    <line x1="314" y1="202" x2="412" y2="152"/>
-    <line x1="314" y1="202" x2="412" y2="208"/>
-    <line x1="314" y1="248" x2="412" y2="96"/>
-    <line x1="314" y1="248" x2="412" y2="152"/>
-    <line x1="314" y1="248" x2="412" y2="208"/>
+<svg class="pinn-old" viewBox="0 0 900 372" style="width:100%;height:auto;max-height:344px;">
+
+  <!-- ============ panel ① TRAINING ============ -->
+  <rect x="10" y="28" width="880" height="246" rx="8" fill="#FCFCFD" stroke="#D8D2E0" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <text x="24" y="20" fill="#0F2D52" style="font-size:11.5px;font-weight:700;letter-spacing:0.06em;">① TRAINING — fit the weights θ</text>
+
+  <!-- network edges -->
+  <g stroke="#0F2D52" stroke-width="0.6" opacity="0.22">
+    <line x1="112" y1="122" x2="150" y2="76"/>
+    <line x1="112" y1="122" x2="150" y2="104"/>
+    <line x1="112" y1="122" x2="150" y2="132"/>
+    <line x1="112" y1="122" x2="150" y2="160"/>
+    <line x1="150" y1="76" x2="205" y2="76"/>
+    <line x1="150" y1="76" x2="205" y2="104"/>
+    <line x1="150" y1="76" x2="205" y2="132"/>
+    <line x1="150" y1="76" x2="205" y2="160"/>
+    <line x1="150" y1="104" x2="205" y2="76"/>
+    <line x1="150" y1="104" x2="205" y2="104"/>
+    <line x1="150" y1="104" x2="205" y2="132"/>
+    <line x1="150" y1="104" x2="205" y2="160"/>
+    <line x1="150" y1="132" x2="205" y2="76"/>
+    <line x1="150" y1="132" x2="205" y2="104"/>
+    <line x1="150" y1="132" x2="205" y2="132"/>
+    <line x1="150" y1="132" x2="205" y2="160"/>
+    <line x1="150" y1="160" x2="205" y2="76"/>
+    <line x1="150" y1="160" x2="205" y2="104"/>
+    <line x1="150" y1="160" x2="205" y2="132"/>
+    <line x1="150" y1="160" x2="205" y2="160"/>
+    <line x1="205" y1="76" x2="260" y2="76"/>
+    <line x1="205" y1="76" x2="260" y2="104"/>
+    <line x1="205" y1="76" x2="260" y2="132"/>
+    <line x1="205" y1="76" x2="260" y2="160"/>
+    <line x1="205" y1="104" x2="260" y2="76"/>
+    <line x1="205" y1="104" x2="260" y2="104"/>
+    <line x1="205" y1="104" x2="260" y2="132"/>
+    <line x1="205" y1="104" x2="260" y2="160"/>
+    <line x1="205" y1="132" x2="260" y2="76"/>
+    <line x1="205" y1="132" x2="260" y2="104"/>
+    <line x1="205" y1="132" x2="260" y2="132"/>
+    <line x1="205" y1="132" x2="260" y2="160"/>
+    <line x1="205" y1="160" x2="260" y2="76"/>
+    <line x1="205" y1="160" x2="260" y2="104"/>
+    <line x1="205" y1="160" x2="260" y2="132"/>
+    <line x1="205" y1="160" x2="260" y2="160"/>
+    <line x1="260" y1="76" x2="298" y2="122"/>
+    <line x1="260" y1="104" x2="298" y2="122"/>
+    <line x1="260" y1="132" x2="298" y2="122"/>
+    <line x1="260" y1="160" x2="298" y2="122"/>
   </g>
   <g fill="#0F2D52">
-    <circle cx="150" cy="64" r="9"/>
-    <circle cx="150" cy="110" r="9"/>
-    <circle cx="150" cy="156" r="9"/>
-    <circle cx="150" cy="202" r="9"/>
-    <circle cx="150" cy="248" r="9"/>
-    <circle cx="232" cy="64" r="9"/>
-    <circle cx="232" cy="110" r="9"/>
-    <circle cx="232" cy="156" r="9"/>
-    <circle cx="232" cy="202" r="9"/>
-    <circle cx="232" cy="248" r="9"/>
-    <circle cx="314" cy="64" r="9"/>
-    <circle cx="314" cy="110" r="9"/>
-    <circle cx="314" cy="156" r="9"/>
-    <circle cx="314" cy="202" r="9"/>
-    <circle cx="314" cy="248" r="9"/>
+    <circle cx="150" cy="76" r="5.5"/>
+    <circle cx="150" cy="104" r="5.5"/>
+    <circle cx="150" cy="132" r="5.5"/>
+    <circle cx="150" cy="160" r="5.5"/>
+    <circle cx="205" cy="76" r="5.5"/>
+    <circle cx="205" cy="104" r="5.5"/>
+    <circle cx="205" cy="132" r="5.5"/>
+    <circle cx="205" cy="160" r="5.5"/>
+    <circle cx="260" cy="76" r="5.5"/>
+    <circle cx="260" cy="104" r="5.5"/>
+    <circle cx="260" cy="132" r="5.5"/>
+    <circle cx="260" cy="160" r="5.5"/>
   </g>
-  <circle cx="52" cy="96" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="52" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">x</text>
-  <circle cx="52" cy="152" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="52" y="152" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">y</text>
-  <circle cx="52" cy="208" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="52" y="208" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">t</text>
-  <circle cx="412" cy="96" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="412" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">u</text>
-  <circle cx="412" cy="152" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="412" y="152" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">v</text>
-  <circle cx="412" cy="208" r="19" fill="#FFF" stroke="#0F2D52" stroke-width="2"/>
-  <text x="412" y="208" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:16px;font-weight:700;font-style:italic;">p</text>
-  <text x="232" y="278" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:12px;font-weight:400;">network  N(x, y, t; θ)</text>
-  <line x1="431" y1="152" x2="478.0" y2="152.0" stroke="#7F1084" stroke-width="1.6"/>
-  <path d="M486 152 L478.0 156.0 L478.0 148.0 Z" fill="#7F1084"/>
-  <rect x="486" y="112" width="132" height="80" rx="5" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.5"/>
-  <text x="552" y="131" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12px;font-weight:700;">automatic</text>
-  <text x="552" y="148" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12px;font-weight:700;">differentiation</text>
-  <text x="552" y="172" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:12.5px;font-weight:400;">∂u/∂t,  ∇u,  ∇²u</text>
-  <line x1="618" y1="140" x2="670.1" y2="91.5" stroke="#E97132" stroke-width="1.5"/>
-  <path d="M676 86 L672.9 94.4 L667.4 88.5 Z" fill="#E97132"/>
-  <rect x="676" y="42" width="206" height="88" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
-  <text x="779" y="60" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:11px;font-weight:700;letter-spacing:0.05em;">PDE RESIDUAL</text>
-  <text x="779" y="84" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:400;">∇·u = 0</text>
-  <text x="779" y="108" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">∂u/∂t + (u·∇)u + ∇p − ν∇²u = 0</text>
-  <line x1="431" y1="196" x2="668.1" y2="230.8" stroke="#E97132" stroke-width="1.5"/>
-  <path d="M676 232 L667.5 234.8 L668.7 226.9 Z" fill="#E97132"/>
-  <rect x="676" y="190" width="206" height="72" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
-  <text x="779" y="208" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:11px;font-weight:700;letter-spacing:0.05em;">SENSOR DATA</text>
-  <text x="779" y="236" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12.5px;font-weight:400;">u(xₖ, t) − uₖᵒᵇˢ  = 0</text>
-  <line x1="676" y1="292" x2="248.0" y2="292.0" stroke="#9CA3AF" stroke-width="1.2" stroke-dasharray="5 4"/>
-  <path d="M240 292 L248.0 288.0 L248.0 296.0 Z" fill="#9CA3AF"/>
-  <text x="470" y="280" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:11.5px;font-weight:400;">update θ by back-propagation</text>
+
+  <!-- neuron-count annotation with a span bracket -->
+  <path d="M120 62 L120 54 L290 54 L290 62" fill="none" stroke="#9CA3AF" stroke-width="1"/>
+  <text x="205" y="46" text-anchor="middle" fill="#0F2D52" style="font-size:11.5px;font-weight:700;">n layers × m neurons</text>
+  <text x="250" y="200" text-anchor="middle" fill="#9CA3AF" style="font-size:11.5px;font-weight:400;">N(x, y, t ; θ)</text>
+
+  <!-- inputs -->
+  <circle cx="58" cy="88" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="58" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">x</text>
+  <circle cx="58" cy="122" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="58" y="122" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">y</text>
+  <circle cx="58" cy="156" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="58" y="156" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">t</text>
+
+  <!-- outputs -->
+  <circle cx="340" cy="88" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="340" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">u</text>
+  <circle cx="340" cy="122" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="340" y="122" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">v</text>
+  <circle cx="340" cy="156" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
+  <text x="340" y="156" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">p</text>
+
+  <!-- outputs -> autodiff -->
+  <line x1="356" y1="96" x2="390" y2="80" stroke="#7F1084" stroke-width="1.5"/>
+  <path d="M397 77 L389 77 L392 84 Z" fill="#7F1084"/>
+  <rect x="400" y="48" width="140" height="56" rx="5" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.5"/>
+  <text x="470" y="66" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">AUTODIFF</text>
+  <text x="470" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:400;">∂u/∂t,  ∇u,  ∇²u</text>
+
+  <!-- autodiff -> PDE residual -->
+  <line x1="540" y1="76" x2="560" y2="76" stroke="#E97132" stroke-width="1.5"/>
+  <path d="M567 76 L559 72.5 L559 79.5 Z" fill="#E97132"/>
+  <rect x="570" y="44" width="200" height="64" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
+  <text x="670" y="59" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">PDE RESIDUAL</text>
+  <text x="670" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:10.5px;font-weight:400;">∂u/∂t + (u·∇)u + ∇p − ν∇²u</text>
+  <text x="670" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">∇·u = 0</text>
+
+  <!-- outputs -> sensor misfit (orthogonal routing, no crossings) -->
+  <path d="M356 150 L370 150 Q378 150 378 158 L378 177 Q378 185 386 185 L560 185" fill="none" stroke="#E97132" stroke-width="1.5"/>
+  <path d="M567 185 L559 181.5 L559 188.5 Z" fill="#E97132"/>
+  <rect x="570" y="160" width="200" height="50" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
+  <text x="670" y="174" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">SENSOR MISFIT</text>
+  <text x="670" y="195" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">u(x&#8342;, t) − u&#8342;&#7506;&#7495;&#738;</text>
+
+  <!-- residuals -> total loss -->
+  <line x1="770" y1="76" x2="789" y2="114" stroke="#9CA3AF" stroke-width="1.4"/>
+  <path d="M795 121 L787 118 L793 113 Z" fill="#9CA3AF"/>
+  <line x1="770" y1="185" x2="789" y2="147" stroke="#9CA3AF" stroke-width="1.4"/>
+  <path d="M795 140 L793 148 L787 143 Z" fill="#9CA3AF"/>
+  <rect x="800" y="104" width="78" height="54" rx="5" fill="#F4F0F7" stroke="#7F1084" stroke-width="1.5"/>
+  <text x="839" y="122" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:15px;font-weight:700;font-style:italic;">L(θ)</text>
+  <text x="839" y="142" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:9.5px;font-weight:400;">weighted sum</text>
+
+  <!-- loss -> optimizer -->
+  <path d="M839 158 L839 233 Q839 241 831 241 L768 241" fill="none" stroke="#7F1084" stroke-width="1.5"/>
+  <path d="M761 241 L769 237.5 L769 244.5 Z" fill="#7F1084"/>
+  <rect x="556" y="224" width="200" height="34" rx="5" fill="#F4F0F7" stroke="#7F1084" stroke-width="1.5"/>
+  <text x="656" y="241" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11.5px;font-weight:700;">OPTIMIZER &#8201;·&#8201; gradient descent</text>
+
+  <!-- optimizer -> back into the network -->
+  <path d="M556 241 L128 241 Q120 241 120 233 L120 192" fill="none" stroke="#7F1084" stroke-width="1.5"/>
+  <path d="M120 185 L116.5 193 L123.5 193 Z" fill="#7F1084"/>
+  <text x="340" y="230" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">update θ by back-propagation</text>
+
+  <!-- ============ panel ② INFERENCE ============ -->
+  <rect x="10" y="300" width="880" height="62" rx="8" fill="#FAFAFC" stroke="#0F2D52" stroke-width="1.2"/>
+  <text x="24" y="292" fill="#0F2D52" style="font-size:11.5px;font-weight:700;letter-spacing:0.06em;">② INFERENCE — θ frozen</text>
+
+  <rect x="30" y="313" width="132" height="36" rx="5" fill="#FFF" stroke="#0F2D52" stroke-width="1.3"/>
+  <text x="96" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">any (x, y, t)</text>
+  <line x1="162" y1="331" x2="182" y2="331" stroke="#9CA3AF" stroke-width="1.3"/>
+  <path d="M189 331 L181 327.5 L181 334.5 Z" fill="#9CA3AF"/>
+  <rect x="192" y="313" width="140" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.3"/>
+  <text x="262" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:700;">N( · ; θ*)</text>
+  <line x1="332" y1="331" x2="352" y2="331" stroke="#9CA3AF" stroke-width="1.3"/>
+  <path d="M359 331 L351 327.5 L351 334.5 Z" fill="#9CA3AF"/>
+  <rect x="362" y="313" width="106" height="36" rx="5" fill="#FFF" stroke="#0F2D52" stroke-width="1.3"/>
+  <text x="415" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">u, v, p</text>
+  <text x="492" y="331" dominant-baseline="central" fill="#6B7280" style="font-size:11.5px;font-weight:400;">one forward pass &#8201;·&#8201; no mesh, no time-stepping, no solver in the loop</text>
+
 </svg>
 </div>
 
-<div style="margin-top:2px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; font-size:0.76rem; color:#374151; line-height:1.3;">
-<div><b style="color:#0F2D52;">Input a coordinate</b><br/><span style="color:#6B7280;">no mesh, no time-stepping</span></div>
-<div><b style="color:#7F1084;">Differentiate the network</b><br/><span style="color:#6B7280;">derivatives are exact, not finite differences</span></div>
-<div><b style="color:#E97132;">Score two residuals</b><br/><span style="color:#6B7280;">physics everywhere, data at the probes</span></div>
+<style>
+.pinn-old { display:none; }
+.pinn { display:grid; grid-template-columns: 62% 38%; gap:18px; margin-top:12px; }
+.pinn .panel { border:1px solid #DDD6E5; border-radius:10px; padding:13px 15px; background:rgba(255,255,255,.74); }
+.pinn .tag { font-size:.72rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin-bottom:8px; }
+.pinn .flow { display:grid; grid-template-columns:1.05fr 26px 1.25fr 26px 1fr; align-items:center; }
+.pinn .box { border:1px solid #D8D2E0; border-radius:7px; padding:10px 8px; min-height:62px; text-align:center; background:#fff; }
+.pinn .box .small { font-size:.72rem; color:#6B7280; line-height:1.28; }
+.pinn .box .main { font-size:.91rem; font-weight:700; color:#1F1B2E; line-height:1.25; }
+.pinn .net { position:relative; background:#F4F6F9; border-color:#0F2D52; }
+.pinn .net::before { content:'n layers × m neurons'; position:absolute; top:-22px; left:0; right:0; font-size:.72rem; font-weight:700; color:#0F2D52; }
+.pinn .arr { text-align:center; color:#7F1084; font-size:1.35rem; font-weight:700; }
+.pinn .losses { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
+.pinn .loss { border-radius:7px; padding:9px 10px; border:1px solid #E9C9B2; background:#FEF6F1; }
+.pinn .loss b { display:block; font-size:.76rem; letter-spacing:.04em; color:#E97132; }
+.pinn .loss span { font-size:.78rem; color:#374151; line-height:1.25; }
+.pinn .opt { margin-top:11px; display:grid; grid-template-columns:1fr 32px 1.4fr; align-items:center; }
+.pinn .opt .update { border-radius:7px; background:#FAF2FB; border:1px solid #7F1084; padding:9px; text-align:center; font-size:.83rem; color:#7F1084; font-weight:700; }
+.pinn .infer { display:flex; flex-direction:column; justify-content:center; }
+.pinn .infer .step { border-left:3px solid #7F1084; padding:9px 0 9px 11px; margin:2px 0; }
+.pinn .infer .step b { display:block; font-size:.9rem; color:#1F1B2E; }
+.pinn .infer .step span { font-size:.78rem; color:#6B7280; line-height:1.28; }
+</style>
+
+<div class="pinn">
+  <div class="panel">
+    <div class="tag" style="color:#7F1084;">01 Training — update θ</div>
+    <div class="flow">
+      <div class="box"><div class="main">coordinates</div><div class="small">(x, y, t)</div></div><div class="arr">→</div>
+      <div class="box net"><div class="main">neural field N(·; θ)</div><div class="small">outputs u, v, p</div></div><div class="arr">→</div>
+      <div class="box"><div class="main">autodiff</div><div class="small">∂t, ∇, ∇²</div></div>
+    </div>
+    <div class="losses">
+      <div class="loss"><b>DATA LOSS</b><span>match velocity at sensor locations</span></div>
+      <div class="loss"><b>PHYSICS LOSS</b><span>NS residual and ∇·u = 0</span></div>
+    </div>
+    <div class="opt"><div style="font-size:.84rem; color:#374151; text-align:right;">L(θ) = data + physics</div><div class="arr">→</div><div class="update">optimizer → back-propagation → updated θ</div></div>
+  </div>
+  <div class="panel infer">
+    <div class="tag" style="color:#0F2D52;">02 Inference — θ frozen</div>
+    <div class="step"><b>New query</b><span>choose any coordinate (x, y, t)</span></div>
+    <div style="margin-left:18px; color:#7F1084; font-size:1.4rem; line-height:1;">↓</div>
+    <div class="step"><b>One forward pass</b><span>N(x, y, t; θ*) — no optimizer and no loss evaluation</span></div>
+    <div style="margin-left:18px; color:#7F1084; font-size:1.4rem; line-height:1;">↓</div>
+    <div class="step"><b>Continuous field value</b><span>u, v, p at the requested point</span></div>
+  </div>
 </div>
 
 <FooterLogos />
@@ -279,12 +338,18 @@ The network <b>is</b> the field: it maps a coordinate to the flow there, so it c
 [What a PINN does · 1min] 2026-07-18 依指導教授 meeting 新增。
 教授原話：「加一頁說明 PINNs 的功能，以及如何運作。」
 
-口述三步：
+口述順序（依圖上的兩個編號框）：
+**① Training** —— 由左至右一條主線：
 1. **功能**：網路吃座標 (x, y, t)，吐該點的 (u, v, p)。它本身就是一個連續場的函數表示，
    不是格點上的數值解 —— 所以可以在任意座標查詢。
-2. **如何運作**：訓練訊號有兩個。一個是 sensor 量測（右下框），一個是 NS 殘差（右上框）。
-3. **關鍵機制**：∂u/∂t、∇u、∇²u 全部由 **autodiff 對輸入微分**得到，不需要網格、
+2. **關鍵機制**：∂u/∂t、∇u、∇²u 全部由 **autodiff 對輸入微分**得到，不需要網格、
    不需要差分格式。這是 PINN 與傳統 CFD 最根本的差別，也是為何它能在任意點求殘差。
+3. **兩個殘差**：上路是 NS 殘差（autodiff 之後），下路是 sensor misfit（直接比對輸出，
+   不經 autodiff）—— 圖上這兩條路徑刻意分開走，不交叉。
+4. **加權求和成 L(θ) → optimizer → 反向更新 θ**，回到網路，形成訓練迴圈（紫色迴路）。
+
+**② Inference** —— θ 凍結後只剩一次前向傳遞：查詢任意 (x, y, t) 得到 (u, v, p)，
+不需網格、不需時間推進、迴圈裡沒有 solver。這正是它相對傳統 CFD 的速度來源。
 
 ⚠️ 2D 形式（x, y, t → u, v, p），與本研究的 Kolmogorov case 一致；
 教授提供的參考圖為 3D（含 z, w），已依其確認改為 2D。
@@ -294,56 +359,6 @@ PI-CON 與 vanilla PINN 的差別（sensor 讀進網路 vs 只進 loss）在 Mot
 「Operator vs. plain PINN」頁才展開，本頁不要提前講，否則兩頁重複。
 
 圖為 SVG 手繪示意；hidden layer 只畫兩排代表「多層全連接」，非實際層數。
--->
-
----
-
-<NavBar active="background" />
-
-<SectionTag>§ Background · problem statement</SectionTag>
-
-# The problem, stated
-
-<style>
-.ps { display: grid; grid-template-columns: max-content 1fr; column-gap: 18px; row-gap: 13px;
-      align-items: baseline; margin-top: 18px; }
-.ps .lb { font-size: 0.70rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-          color: #9CA3AF; white-space: nowrap; text-align: right; }
-.ps .bd { font-size: 1.0rem; color: #1F1B2E; line-height: 1.45; }
-.ps .sub { font-size: 0.82rem; color: #6B7280; margin-top: 2px; }
-.gapbar { display: grid; grid-template-columns: 6.5% 93.5%; margin-top: 4px; height: 20px; }
-.gapbar div { display: flex; align-items: center; justify-content: center; font-size: 0.68rem;
-              font-weight: 700; letter-spacing: 0.03em; }
-.gapbar .have { background: rgba(233,113,50,0.20); border: 1px solid #E97132; border-radius: 3px 0 0 3px; color: #E97132; }
-.gapbar .need { background: repeating-linear-gradient(45deg,#F6F6F8,#F6F6F8 5px,#EBEBEF 5px,#EBEBEF 10px);
-                border: 1px solid #D8D2E0; border-left: none; border-radius: 0 3px 3px 0; color: #9CA3AF; }
-</style>
-
-<div class="ps">
-
-<div class="lb">Given</div>
-<div class="bd"><b style="color:#E97132;">K = 100</b> point readings of (u, v), and the Navier–Stokes equations
-<div class="sub">Nothing else. No reference field, at training or at inference.</div></div>
-
-<div class="lb">Wanted</div>
-<div class="bd">The continuous field <b>u(x, t)</b> at <b>any</b> coordinate
-<div class="sub">Not a fixed grid, and without re-solving the equations for each query.</div></div>
-
-<div class="lb">Difficulty</div>
-<div class="bd">Exact recovery of a 256² field needs <b>2 500–5 000</b> measurements <span style="color:#9CA3AF; font-size:0.82rem;">[Donoho 2006, Candès 2006]</span>
-<div class="gapbar"><div class="have">100</div><div class="need">missing — 25 to 50× short</div></div>
-</div>
-
-<div class="lb">Consequence</div>
-<div class="bd">Only the <b style="color:#7F1084;">energy-dominant band</b> can be targeted; physics supplies what the sensors cannot
-<div class="sub">The Navier–Stokes residual acts as the prior that selects a physically admissible field.</div></div>
-
-</div>
-
-<FooterLogos />
-
-<!--
-[Background A1 · 2min] 工程動機開場：sparse sensors + PDE only。三個 bullet（setting / challenge / classical fix）+ 4 obstacles card 保持簡單，不展開 inverse problem 的數學細節（line equation 已移除，避免被問 sensor sampling / sensor noise / rank 等問題）。Take-away 收斂為一句「四 pillar 都壞 → NN 是唯一剩下的工程方案」。下一張 (slide 3) NN vs classical 對照表，再下一張 (slide 4) PINN vs PINO 比較。
 -->
 
 ---
@@ -438,7 +453,6 @@ fair baseline、**無文獻 citation**，放進 literature review 會變成「�
 /* 一個顏色一個意思，三色各司其職，不可再增：
      橘 #E97132 = loss 對著什麼擬合（本頁的論點）
      深藍 #0F2D52 = 模型主體（結構性標示，非好壞判斷）
-     紫 #7F1084 = PI-CON 那列
    其餘一律中性；每格都上色就等於沒有重點。 */
 .dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
 .dns .bb { color: #0F2D52; font-weight: 700; }
@@ -577,7 +591,8 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
    跑過 vanilla DeepONet，只能自己重跑才是公平比較（chapter04:39 不採他人未經本協定重跑的數字）。
 
 == 顏色規則（三色，各一個意思，不可再增）==
-橘 = loss 對著什麼擬合（本頁論點）· 深藍 = 模型主體（結構標示，非好壞）· 紫 = PI-CON 那列。
+橘 = loss 對著什麼擬合（本頁論點）· 深藍 = 模型主體（結構標示，非好壞）。
+（PI-CON 那列已依教授指示移除:literature review 只比較文獻。）
 主體用深藍而非橘，是為了不與「loss 擬合對象」搶同一個語意通道。
 
 底部交棒：exactly three 的揭曉在此頁，slide 5 不再提前宣告、slide 7 不再重述。
@@ -716,6 +731,11 @@ $$\mathbf{u}(\mathbf{x},t)\;\approx\;\mathcal{N}_\theta(\mathbf{x},t)$$
 </div>
 <div class="wh">The network maps a <b>coordinate</b> to the field value.</div>
 <div class="pt">One flow per fit. The sensor values enter only through the loss, so a new sensor record means <b style="color:#E97132;">training again from scratch</b>.</div>
+<svg viewBox="0 0 390 72" style="width:100%; margin-top:12px;">
+  <rect x="8" y="18" width="92" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52"/><text x="54" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;font-weight:700;">(x, y, t)</text>
+  <path d="M100 36 H150" stroke="#9CA3AF"/><path d="M156 36 l-8 -4 v8 z" fill="#9CA3AF"/><rect x="164" y="18" width="92" height="36" rx="5" fill="#fff" stroke="#0F2D52"/><text x="210" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;">N(·; θ)</text>
+  <path d="M256 36 H306" stroke="#9CA3AF"/><path d="M312 36 l-8 -4 v8 z" fill="#9CA3AF"/><rect x="320" y="18" width="62" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52"/><text x="351" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;font-weight:700;">u(x,t)</text>
+</svg>
 </div>
 
 <div>
@@ -727,6 +747,11 @@ $$\mathbf{u}(\mathbf{x},t)\;\approx\;\sum_{k=1}^{p} b_k(\mathbf{s})\,\tau_k(\mat
 </div>
 <div class="wh"><b>b</b> reads the sensor record <b>s</b> = {u(x<sub>j</sub>, t<sub>i</sub>)}; <b>τ</b> reads the query coordinate.</div>
 <div class="pt">The sensor record is an <b style="color:#7F1084;">argument of the map</b>, not a term in the loss, so one trained model serves a new record.</div>
+<svg viewBox="0 0 390 72" style="width:100%; margin-top:12px;">
+  <rect x="8" y="5" width="80" height="28" rx="5" fill="#FAF2FB" stroke="#7F1084"/><text x="48" y="23" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">sensors s</text><path d="M88 19 H126" stroke="#C9A6CC"/><path d="M132 19 l-8 -4 v8 z" fill="#C9A6CC"/><rect x="140" y="5" width="78" height="28" rx="5" fill="#fff" stroke="#7F1084"/><text x="179" y="23" text-anchor="middle" fill="#7F1084" style="font-size:11px;">branch b</text>
+  <rect x="8" y="40" width="80" height="28" rx="5" fill="#FAF2FB" stroke="#7F1084"/><text x="48" y="58" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">query (x,t)</text><path d="M88 54 H126" stroke="#C9A6CC"/><path d="M132 54 l-8 -4 v8 z" fill="#C9A6CC"/><rect x="140" y="40" width="78" height="28" rx="5" fill="#fff" stroke="#7F1084"/><text x="179" y="58" text-anchor="middle" fill="#7F1084" style="font-size:11px;">trunk τ</text>
+  <path d="M218 19 C245 19 245 36 268 36 M218 54 C245 54 245 36 268 36" stroke="#C9A6CC" fill="none"/><circle cx="282" cy="36" r="14" fill="#fff" stroke="#7F1084"/><text x="282" y="40" text-anchor="middle" fill="#7F1084" style="font-size:15px;font-weight:700;">·</text><path d="M296 36 H330" stroke="#C9A6CC"/><path d="M336 36 l-8 -4 v8 z" fill="#C9A6CC"/><text x="355" y="40" fill="#7F1084" style="font-size:12px;font-weight:700;">u(x,t)</text>
+</svg>
 </div>
 
 </div>
@@ -760,7 +785,7 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 
 <style>
 .op { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; margin-top: 14px; }
-.op .hd { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 4px; }
+.op .hd { font-size: 1.20rem; font-weight: 700; letter-spacing: 0.02em; text-transform: none; margin-bottom: 6px; }
 .op .note { font-size: 0.84rem; line-height: 1.45; color: #374151; margin-top: 8px; }
 </style>
 
@@ -973,6 +998,54 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 
 <NavBar active="motivation" />
 
+<SectionTag>§ Motivation · problem formulation</SectionTag>
+
+# The reconstruction problem, now located
+
+<style>
+.ps { display:grid; grid-template-columns: 38% 62%; gap:28px; margin-top:18px; align-items:start; }
+.ps .statement { font-size:1.14rem; line-height:1.38; color:#1F1B2E; }
+.ps .statement b { color:#7F1084; }
+.ps .terms { margin-top:20px; border-top:1px solid #E5E0EC; padding-top:11px; }
+.ps .terms div { font-size:.84rem; color:#374151; line-height:1.35; margin:9px 0; }
+.ps .terms span { display:inline-block; width:74px; color:#9CA3AF; font-weight:700; font-size:.70rem; letter-spacing:.05em; text-transform:uppercase; }
+.ps .map { display:grid; grid-template-columns:1fr 36px 1fr 36px 1fr; align-items:center; }
+.ps .node { min-height:150px; padding:15px 12px; border-radius:10px; background:rgba(255,255,255,.78); border:1px solid #E5E0EC; }
+.ps .node .tag { font-size:.70rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6B7280; }
+.ps .node .num { font-size:2.35rem; color:#7F1084; font-weight:700; line-height:1; margin:10px 0 6px; }
+.ps .node .body { font-size:.82rem; color:#374151; line-height:1.32; }
+.ps .arrow { text-align:center; font-size:1.55rem; color:#7F1084; font-weight:700; }
+.ps .answer { background:#FAF2FB; border-color:#7F1084; }
+</style>
+
+<div class="ps">
+  <div>
+    <div class="statement">The literature gap is not merely “use a neural network.” It is to reconstruct a flow from <b>what a rig can actually supply</b>: sparse sensor histories and a governing PDE, with no full field in training.</div>
+    <div class="terms">
+      <div><span>Given</span>K = 100 fixed readings of (u, v), plus the Navier–Stokes residual</div>
+      <div><span>Wanted</span>u(x, t) at any coordinate, rather than a fixed-grid output</div>
+      <div><span>Constraint</span>no reference field at training or inference time</div>
+    </div>
+  </div>
+  <div class="map">
+    <div class="node"><div class="tag">measurement</div><div class="num" style="color:#E97132;">100</div><div class="body">fixed probe locations report a partial time history</div></div>
+    <div class="arrow">+</div>
+    <div class="node"><div class="tag">physical prior</div><div class="num">NS</div><div class="body">continuity and momentum restrict admissible fields</div></div>
+    <div class="arrow">→</div>
+    <div class="node answer"><div class="tag" style="color:#7F1084;">target</div><div class="num">u(x,t)</div><div class="body">a continuous, query-anywhere reconstruction</div></div>
+  </div>
+</div>
+
+<FooterLogos />
+
+<!--
+[Problem formulation · after literature and gap synthesis] This page is deliberately placed after the literature review: the audience now knows why classical, supervised, and existing sensor-input approaches do not meet the deployment regime. The next page quantifies the resolution implied by K = 100; it is not used as an opening claim before the motivation exists.
+-->
+
+---
+
+<NavBar active="motivation" />
+
 <SectionTag>§ Motivation · resolution limit under a sparse sensor budget</SectionTag>
 
 # What resolution a sensor budget buys
@@ -990,7 +1063,7 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 .eb tr.hi td { background: #F7EDF8; color: #7F1084; font-weight: 700; }
 </style>
 
-<div class="grid grid-cols-5 gap-5 mt-2 items-start">
+<div class="resolution-old grid grid-cols-5 gap-5 mt-2 items-start">
 
 <div class="col-span-2 space-y-1">
 
@@ -1027,6 +1100,39 @@ The disk |k| ≤ k<sub>max</sub> holds ≈ <b>πk<sub>max</sub>²</b> modes; set
 <div class="foot mt-1">DNS energy spectrum (a), cumulative fraction (b); dashed line = k<sub>max</sub> = √(K/π). The fractions report energy <b>available</b> below the scale at t = 5, not a proof that higher-k energy is unrecoverable.</div>
 </div>
 
+</div>
+
+<style>
+.resolution-old { display:none; }
+.resolution { display:grid; grid-template-columns:30% 42% 28%; gap:18px; align-items:stretch; margin-top:14px; }
+.resolution .cardx { background:rgba(255,255,255,.78); border:1px solid #E5E0EC; border-radius:10px; padding:14px; }
+.resolution .tiny { font-size:.72rem; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:#6B7280; }
+.resolution .formula { font-size:1.27rem; color:#7F1084; font-weight:700; text-align:center; margin:17px 0 10px; }
+.resolution .copy { font-size:.85rem; color:#374151; line-height:1.4; }
+.resolution .hero { font-size:2.55rem; line-height:1; color:#7F1084; font-weight:700; letter-spacing:-.04em; margin:12px 0 6px; }
+.resolution .band { margin-top:17px; height:27px; display:grid; grid-template-columns:56% 24% 20%; border-radius:5px; overflow:hidden; }
+.resolution .band div { display:flex; align-items:center; justify-content:center; font-size:.67rem; font-weight:700; }
+.resolution .plot img { width:100%; height:218px; object-fit:contain; display:block; }
+</style>
+
+<div class="resolution">
+  <div class="cardx">
+    <div class="tiny">From sensor count to scale</div>
+    <div class="formula">k<sub>max</sub> ≈ √(K/π)</div>
+    <div class="copy">A disk of Fourier modes up to k<sub>max</sub> contains approximately πk<sub>max</sub>² modes. Equating that count to K gives a <b>sensor-count scale</b>, not a hard recovery bound.</div>
+  </div>
+  <div class="cardx">
+    <div class="tiny">K = 100 sensors</div>
+    <div class="hero">k ≈ 5.64</div>
+    <div class="copy">The DNS contains <b>98.9%</b> of its energy below this scale. Conditioning then degrades from κ ≈ 7 at k ≤ 5 to κ ≈ 7×10² at k ≤ 8.</div>
+    <div class="band"><div style="background:#F7EDF8;color:#7F1084;">energy-dominant</div><div style="background:#FEF6F1;color:#E97132;">ill-conditioned</div><div style="background:#F1F1F3;color:#6B7280;">unseen</div></div>
+    <div class="copy" style="display:flex; justify-content:space-between; margin-top:4px; font-size:.72rem;"><span>0</span><span>5.64</span><span>≈ 8</span><span>k</span></div>
+  </div>
+  <div class="cardx plot">
+    <div class="tiny">DNS spectrum and cumulative energy</div>
+    <img :src="'/images/nyquist_recoverability.png'" />
+    <div class="copy" style="font-size:.75rem;">Dashed line: k<sub>max</sub> = √(K/π). Energy below the line is available, not automatically recoverable.</div>
+  </div>
 </div>
 
 <FooterLogos />
