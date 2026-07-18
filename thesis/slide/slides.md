@@ -61,41 +61,47 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 # Why the field has to be reconstructed
 
 <style>
-.wr { display:grid; grid-template-columns: 38% 62%; gap:28px; margin-top:16px; align-items:center; }
-.wr .lead { font-size:1.17rem; font-weight:700; line-height:1.28; color:#1F1B2E; }
-.wr .lead b { color:#7F1084; }
-.wr .why { margin-top:18px; border-left:3px solid #E97132; padding-left:14px; }
-.wr .why div { font-size:.88rem; color:#374151; line-height:1.38; margin:8px 0; }
-.wr .why span { display:inline-flex; width:18px; color:#E97132; font-weight:700; }
-.wr .pipe { display:grid; grid-template-columns:1fr 52px 1fr; gap:10px; align-items:center; }
-.wr .stage { background:rgba(255,255,255,.70); border:1px solid #E5E0EC; border-radius:10px; padding:11px; }
-.wr .stage img { width:100%; height:202px; object-fit:contain; display:block; }
-.wr .eyebrow { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; margin-bottom:5px; }
-.wr .caption { font-size:.82rem; color:#6B7280; line-height:1.32; }
-.wr .arrow { color:#7F1084; text-align:center; }
+.recon-bg { display:grid; grid-template-columns:34% minmax(0,1fr); gap:28px; margin-top:16px; align-items:center; }
+.recon-bg .lead { font-size:1.18rem; line-height:1.38; color:#1F1B2E; }
+.recon-bg .lead b { color:#7F1084; }
+.recon-bg .reason { margin-top:20px; display:grid; gap:10px; }
+.recon-bg .reason > div { display:grid; grid-template-columns:30px minmax(0,1fr); align-items:start; font-size:.86rem; line-height:1.35; color:#374151; }
+.recon-bg .reason > div > div { display:block; }
+.recon-bg .reason span { color:#E97132; font-weight:700; }
+.recon-flow { display:grid; grid-template-columns:1fr 44px 1.08fr 44px 1fr; align-items:center; min-width:0; }
+.recon-flow .stage { min-height:198px; border:1px solid #E5E0EC; border-radius:12px; background:rgba(255,255,255,.78); padding:16px 14px; }
+.recon-flow .tag { font-size:.70rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; }
+.recon-flow .big { font-size:1.05rem; font-weight:700; line-height:1.25; margin-top:8px; color:#1F1B2E; }
+.recon-flow .small { font-size:.79rem; line-height:1.35; color:#6B7280; margin-top:8px; }
+.recon-flow .arrow { text-align:center; color:#7F1084; font-size:1.8rem; font-weight:700; }
+.recon-flow .samples { height:78px; position:relative; margin-top:12px; border-bottom:1px solid #D8D2E0; }
+.recon-flow .samples i { position:absolute; width:8px; height:8px; border-radius:50%; background:#E97132; }
+.recon-flow .field { height:78px; margin-top:12px; border-radius:7px; background:radial-gradient(circle at 28% 42%,#E8C6EA 0 10%,transparent 11%),radial-gradient(circle at 67% 60%,#C6DDEA 0 13%,transparent 14%),linear-gradient(135deg,#F8EFF8,#E8F4F7); border:1px solid #E5E0EC; }
+.recon-flow .tool { background:#FAF2FB; border-color:#7F1084; display:flex; flex-direction:column; justify-content:center; text-align:center; }
 </style>
 
-<div class="wr">
+<div class="recon-bg">
   <div>
-    <div class="lead">A rig observes <span style="color:#E97132;">100 fixed probes</span>, but engineering decisions require the <b>continuous field between them</b>.</div>
-    <div class="why">
-      <div><span>01</span><b>No full field is measured.</b> The missing locations cannot be looked up.</div>
-      <div><span>02</span><b>No DNS is available online.</b> There is no reference trajectory to imitate.</div>
-      <div><span>03</span><b>Flow evolves continuously.</b> The reconstruction must remain meaningful between samples.</div>
+    <div class="lead">Most instruments observe a system only at <b>selected locations or times</b>, while interpretation requires the state of the <b>whole domain</b>.</div>
+    <div class="reason">
+      <div><span>01</span><div>Measurements are local and incomplete.</div></div>
+      <div><span>02</span><div>Quantities of interest depend on spatial structure between measurements.</div></div>
+      <div><span>03</span><div>Reconstruction supplies a coherent field estimate for analysis and decision-making.</div></div>
     </div>
   </div>
 
-  <div class="pipe">
+  <div class="recon-flow">
     <div class="stage">
-      <div class="eyebrow" style="color:#E97132;">Measure</div>
-      <img :src="'/images/why_probes_only.png'" />
-      <div class="caption"><b>K = 100</b> fixed velocity probes sample the DNS field only at their locations.</div>
+      <div class="tag">Available</div><div class="big">Partial measurements</div>
+      <div class="samples"><i style="left:12%;top:48%;"></i><i style="left:36%;top:20%;"></i><i style="left:61%;top:58%;"></i><i style="left:84%;top:31%;"></i></div>
+      <div class="small">isolated samples of an evolving system</div>
     </div>
-    <div class="arrow"><div style="font-size:2.2rem; line-height:1;">→</div><div style="font-size:.68rem; font-weight:700; letter-spacing:.05em;">infer<br/>with PDE</div></div>
+    <div class="arrow">→</div>
+    <div class="stage tool"><div class="tag" style="color:#7F1084;">Tool</div><div class="big" style="color:#7F1084;font-size:1.25rem;">Reconstruction</div><div class="small">infer what happens between observations</div></div>
+    <div class="arrow">→</div>
     <div class="stage">
-      <div class="eyebrow" style="color:#7F1084;">Need</div>
-      <img :src="'/images/why_full_field.png'" />
-      <div class="caption">A <b>256² continuous field</b> supplies structures, gradients, and loads away from probes.</div>
+      <div class="tag">Required</div><div class="big">Continuous field</div><div class="field"></div>
+      <div class="small">structures, gradients, and system-wide quantities</div>
     </div>
   </div>
 </div>
@@ -107,22 +113,9 @@ Physics-Constrained Continuous-Time<br/>Reconstruction of Turbulent Flows from <
 教授原話：「說明為什麼要做 reconstruction 問題 —— 因為真實情況只有 sensor，沒有全場資料，
 所以需要 reconstruction 來重建。」
 
-口述：「工程現場能拿到的只有左邊：幾個固定位置的探針，隨時間取樣。但要判斷流場結構、
-梯度、受力，需要的是右邊的連續場。兩者之間沒有任何『抄答案』的來源 —— 現場不存在 DNS ——
-所以中間那一步只能用**推論**：從探針讀值加上統御方程把場推出來。這就是本研究要解的問題。」
-
-⚠️ 與下一頁的分工：本頁只講「為何需要」，**不碰數學性質**。
-下一頁 (The sparse-sensor reconstruction problem) 才講 under-determined、compressed sensing
-所需點數、physics as prior。不要在本頁提 25–50× 那組數字，會重複。
-
-圖為**實測資料**，由 `scripts/plot_slide_why_reconstruction.py` 產生：
-- 場：DNS Re=10⁴、N=256、t = 5.0 的渦度 ω
-- 位置：EXP-245 active baseline 所用的 LES_T50 QR-pivot 佈點（K=100）
-- 兩張圖**共用同一組 colormap 與 clim**（±18.2 s⁻¹），左圖每個點就是右圖在該位置的實際值。
-  這是 2026-07-18 改版的重點：舊版左圖是白底橘點、與右圖無共同色標，看不出
-  「左圖是右圖的取樣」，只像兩張不相干的圖。
-
-委員若問「右圖是哪個 case」→ 答：Re=10⁴ DNS，t = 5 s 的渦度場，非示意圖。
+本頁只建立一般背景：儀器通常只能量到局部，但分析與工程決策需要整個空間中的結構、梯度與
+整體量。因此需要 reconstruction 作為「局部觀測到連續場」之間的工具。不要在本頁提 K、DNS、
+Navier–Stokes 或本研究架構；那些條件留到 literature review 後的 problem formulation。
 -->
 
 ---
@@ -286,51 +279,114 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 
 <style>
 .pinn-old { display:none; }
-.pinn { display:grid; grid-template-columns: 62% 38%; gap:18px; margin-top:12px; }
-.pinn .panel { border:1px solid #DDD6E5; border-radius:10px; padding:13px 15px; background:rgba(255,255,255,.74); }
-.pinn .tag { font-size:.72rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; margin-bottom:8px; }
-.pinn .flow { display:grid; grid-template-columns:1.05fr 26px 1.25fr 26px 1fr; align-items:center; }
-.pinn .box { border:1px solid #D8D2E0; border-radius:7px; padding:10px 8px; min-height:62px; text-align:center; background:#fff; }
-.pinn .box .small { font-size:.72rem; color:#6B7280; line-height:1.28; }
-.pinn .box .main { font-size:.91rem; font-weight:700; color:#1F1B2E; line-height:1.25; }
+.pinn { display:none; }
+.pinn .panel { border:1px solid #DDD6E5; border-radius:11px; padding:11px 14px; background:rgba(255,255,255,.76); }
+.pinn .head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+.pinn .tag { font-size:.74rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+.pinn .desc { font-size:.76rem; color:#6B7280; }
+.pinn .train-flow { display:grid; grid-template-columns:1fr 22px 1.18fr 22px 1fr 22px 1.25fr 22px .9fr; align-items:center; }
+.pinn .infer-flow { display:grid; grid-template-columns:1fr 32px 1.3fr 32px 1fr; align-items:center; }
+.pinn .box { border:1px solid #D8D2E0; border-radius:7px; padding:8px 7px; min-height:56px; display:flex; flex-direction:column; justify-content:center; text-align:center; background:#fff; }
+.pinn .box .small { font-size:.70rem; color:#6B7280; line-height:1.22; margin-top:2px; }
+.pinn .box .main { font-size:.86rem; font-weight:700; color:#1F1B2E; line-height:1.22; }
 .pinn .net { position:relative; background:#F4F6F9; border-color:#0F2D52; }
-.pinn .net::before { content:'n layers × m neurons'; position:absolute; top:-22px; left:0; right:0; font-size:.72rem; font-weight:700; color:#0F2D52; }
-.pinn .arr { text-align:center; color:#7F1084; font-size:1.35rem; font-weight:700; }
-.pinn .losses { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px; }
-.pinn .loss { border-radius:7px; padding:9px 10px; border:1px solid #E9C9B2; background:#FEF6F1; }
-.pinn .loss b { display:block; font-size:.76rem; letter-spacing:.04em; color:#E97132; }
-.pinn .loss span { font-size:.78rem; color:#374151; line-height:1.25; }
-.pinn .opt { margin-top:11px; display:grid; grid-template-columns:1fr 32px 1.4fr; align-items:center; }
-.pinn .opt .update { border-radius:7px; background:#FAF2FB; border:1px solid #7F1084; padding:9px; text-align:center; font-size:.83rem; color:#7F1084; font-weight:700; }
-.pinn .infer { display:flex; flex-direction:column; justify-content:center; }
-.pinn .infer .step { border-left:3px solid #7F1084; padding:9px 0 9px 11px; margin:2px 0; }
-.pinn .infer .step b { display:block; font-size:.9rem; color:#1F1B2E; }
-.pinn .infer .step span { font-size:.78rem; color:#6B7280; line-height:1.28; }
+.pinn .net::before { content:'n layers × m neurons'; position:absolute; top:-17px; left:0; right:0; font-size:.67rem; font-weight:700; color:#0F2D52; }
+.pinn .arr { text-align:center; color:#7F1084; font-size:1.2rem; font-weight:700; }
+.pinn .loss-stack { display:grid; grid-template-rows:1fr 1fr; gap:5px; }
+.pinn .loss { border-radius:6px; padding:5px 7px; border:1px solid #E9C9B2; background:#FEF6F1; text-align:left; }
+.pinn .loss b { display:block; font-size:.68rem; letter-spacing:.04em; color:#E97132; }
+.pinn .loss span { font-size:.68rem; color:#374151; line-height:1.15; }
+.pinn .optimizer { background:#FAF2FB; border-color:#7F1084; }
+.pinn .feedback { margin:7px 10% 0 15%; border-top:1.5px solid #7F1084; position:relative; text-align:center; color:#7F1084; font-size:.70rem; font-weight:700; padding-top:3px; }
+.pinn .feedback::before { content:'↖'; position:absolute; left:-11px; top:-12px; font-size:1rem; }
+.pinn .frozen { background:#FAF2FB; border-color:#7F1084; }
+.pinn > .panel:last-child { padding:8px 14px; }
+.pinn > .panel:last-child .head { margin-bottom:4px; }
+.pinn > .panel:last-child .box { min-height:46px; padding:6px 7px; }
+.pinn .inference-note { text-align:center; font-size:.70rem; color:#6B7280; margin-top:2px; }
 </style>
 
 <div class="pinn">
   <div class="panel">
-    <div class="tag" style="color:#7F1084;">01 Training — update θ</div>
-    <div class="flow">
-      <div class="box"><div class="main">coordinates</div><div class="small">(x, y, t)</div></div><div class="arr">→</div>
-      <div class="box net"><div class="main">neural field N(·; θ)</div><div class="small">outputs u, v, p</div></div><div class="arr">→</div>
-      <div class="box"><div class="main">autodiff</div><div class="small">∂t, ∇, ∇²</div></div>
+    <div class="head"><div class="tag" style="color:#7F1084;">01 Training</div><div class="desc">evaluate two residuals, then update the network weights</div></div>
+    <div class="train-flow">
+      <div class="box"><div class="main">Coordinates</div><div class="small">(x, y, t)</div></div><div class="arr">→</div>
+      <div class="box net"><div class="main">Neural field N(·; θ)</div><div class="small">trainable weights θ</div></div><div class="arr">→</div>
+      <div class="box"><div class="main">Prediction</div><div class="small">u, v, p</div></div><div class="arr">→</div>
+      <div class="loss-stack"><div class="loss"><b>DATA RESIDUAL</b><span>compare at measured points</span></div><div class="loss"><b>PDE RESIDUAL</b><span>autodiff → governing equations</span></div></div><div class="arr">→</div>
+      <div class="box optimizer"><div class="main" style="color:#7F1084;">Loss → optimizer</div><div class="small">back-propagation</div></div>
     </div>
-    <div class="losses">
-      <div class="loss"><b>DATA LOSS</b><span>match velocity at sensor locations</span></div>
-      <div class="loss"><b>PHYSICS LOSS</b><span>NS residual and ∇·u = 0</span></div>
-    </div>
-    <div class="opt"><div style="font-size:.84rem; color:#374151; text-align:right;">L(θ) = data + physics</div><div class="arr">→</div><div class="update">optimizer → back-propagation → updated θ</div></div>
+    <div class="feedback">optimizer changes θ; the cycle repeats until the residuals are minimized</div>
   </div>
-  <div class="panel infer">
-    <div class="tag" style="color:#0F2D52;">02 Inference — θ frozen</div>
-    <div class="step"><b>New query</b><span>choose any coordinate (x, y, t)</span></div>
-    <div style="margin-left:18px; color:#7F1084; font-size:1.4rem; line-height:1;">↓</div>
-    <div class="step"><b>One forward pass</b><span>N(x, y, t; θ*) — no optimizer and no loss evaluation</span></div>
-    <div style="margin-left:18px; color:#7F1084; font-size:1.4rem; line-height:1;">↓</div>
-    <div class="step"><b>Continuous field value</b><span>u, v, p at the requested point</span></div>
+  <div class="panel">
+    <div class="head"><div class="tag" style="color:#0F2D52;">02 Inference</div><div class="desc">freeze θ* and evaluate the learned field directly</div></div>
+    <div class="infer-flow">
+      <div class="box"><div class="main">Query coordinate</div><div class="small">any (x, y, t)</div></div><div class="arr">→</div>
+      <div class="box frozen"><div class="main" style="color:#7F1084;">Trained field N(·; θ*)</div><div class="small">one forward pass</div></div><div class="arr">→</div>
+      <div class="box"><div class="main">Field value</div><div class="small">u, v, p</div></div>
+    </div>
+    <div class="inference-note">No loss evaluation, optimizer, or back-propagation</div>
   </div>
 </div>
+
+<svg class="pinn-fixed" viewBox="0 0 880 312" style="width:100%;height:auto;margin-top:8px;">
+  <defs>
+    <marker id="pinn-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#7F1084"/>
+    </marker>
+  </defs>
+
+  <rect x="1" y="1" width="878" height="203" rx="11" fill="rgba(255,255,255,.78)" stroke="#DDD6E5"/>
+  <text x="16" y="25" fill="#7F1084" style="font-size:12px;font-weight:700;letter-spacing:.07em;">01 TRAINING</text>
+  <text x="108" y="25" fill="#6B7280" style="font-size:11px;">evaluate data and PDE residuals, then update the weights</text>
+
+  <g style="font-family:Inter,Arial,sans-serif;">
+    <rect x="18" y="72" width="116" height="54" rx="7" fill="#FFF" stroke="#D8D2E0"/>
+    <text x="76" y="95" text-anchor="middle" fill="#1F1B2E" style="font-size:12px;font-weight:700;">Coordinates</text>
+    <text x="76" y="113" text-anchor="middle" fill="#6B7280" style="font-size:10px;">(x, y, t)</text>
+    <path d="M134 99 H177" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <rect x="184" y="72" width="154" height="54" rx="7" fill="#F4F6F9" stroke="#0F2D52"/>
+    <text x="261" y="95" text-anchor="middle" fill="#1F1B2E" style="font-size:12px;font-weight:700;">Neural field N(·; θ)</text>
+    <text x="261" y="113" text-anchor="middle" fill="#6B7280" style="font-size:10px;">trainable weights θ</text>
+    <path d="M199 62 V54 H323 V62" fill="none" stroke="#0F2D52" stroke-width="1"/>
+    <text x="261" y="48" text-anchor="middle" fill="#0F2D52" style="font-size:10px;font-weight:700;">n layers × m neurons</text>
+    <path d="M338 99 H376" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <rect x="383" y="72" width="116" height="54" rx="7" fill="#FFF" stroke="#D8D2E0"/>
+    <text x="441" y="95" text-anchor="middle" fill="#1F1B2E" style="font-size:12px;font-weight:700;">Prediction</text>
+    <text x="441" y="113" text-anchor="middle" fill="#6B7280" style="font-size:10px;">u, v, p</text>
+    <path d="M499 99 H526 V65 H548" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <path d="M526 99 V140 H548" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <circle cx="526" cy="99" r="3" fill="#7F1084"/>
+    <rect x="555" y="40" width="142" height="51" rx="6" fill="#FEF6F1" stroke="#E9C9B2"/>
+    <text x="566" y="59" fill="#E97132" style="font-size:10px;font-weight:700;letter-spacing:.04em;">DATA RESIDUAL</text>
+    <text x="566" y="77" fill="#374151" style="font-size:10px;">prediction vs. measurements</text>
+    <rect x="555" y="115" width="142" height="51" rx="6" fill="#FEF6F1" stroke="#E9C9B2"/>
+    <text x="566" y="134" fill="#E97132" style="font-size:10px;font-weight:700;letter-spacing:.04em;">PDE RESIDUAL</text>
+    <text x="566" y="152" fill="#374151" style="font-size:10px;">autodiff → equations</text>
+    <path d="M697 65 H724 V83 H742" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <path d="M697 140 H724 V103 H742" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <rect x="749" y="66" width="111" height="55" rx="7" fill="#FAF2FB" stroke="#7F1084"/>
+    <text x="804.5" y="89" text-anchor="middle" fill="#7F1084" style="font-size:12px;font-weight:700;">Total loss</text>
+    <text x="804.5" y="107" text-anchor="middle" fill="#6B7280" style="font-size:10px;">combine residuals</text>
+    <path d="M804 121 V139" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <rect x="749" y="146" width="111" height="38" rx="7" fill="#FFF" stroke="#7F1084"/>
+    <text x="804.5" y="169" text-anchor="middle" fill="#7F1084" style="font-size:12px;font-weight:700;">Optimizer</text>
+    <path d="M749 165 H710 V190 H261 V133" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+    <text x="484" y="186" text-anchor="middle" fill="#7F1084" style="font-size:10px;font-weight:700;">update θ</text>
+  </g>
+
+  <rect x="1" y="219" width="878" height="87" rx="11" fill="rgba(255,255,255,.78)" stroke="#DDD6E5"/>
+  <text x="16" y="242" fill="#0F2D52" style="font-size:12px;font-weight:700;letter-spacing:.07em;">02 INFERENCE</text>
+  <text x="119" y="242" fill="#6B7280" style="font-size:11px;">freeze θ*; no loss, optimizer, or back-propagation</text>
+  <rect x="22" y="254" width="210" height="39" rx="7" fill="#FFF" stroke="#D8D2E0"/>
+  <text x="127" y="278" text-anchor="middle" fill="#1F1B2E" style="font-size:12px;font-weight:700;">Query coordinate (x, y, t)</text>
+  <path d="M232 273 H303" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+  <rect x="310" y="254" width="260" height="39" rx="7" fill="#FAF2FB" stroke="#7F1084"/>
+  <text x="440" y="278" text-anchor="middle" fill="#7F1084" style="font-size:12px;font-weight:700;">Trained field N(·; θ*)</text>
+  <path d="M570 273 H641" fill="none" stroke="#7F1084" stroke-width="1.5" marker-end="url(#pinn-arrow)"/>
+  <rect x="648" y="254" width="210" height="39" rx="7" fill="#FFF" stroke="#D8D2E0"/>
+  <text x="753" y="278" text-anchor="middle" fill="#1F1B2E" style="font-size:12px;font-weight:700;">Field value (u, v, p)</text>
+</svg>
 
 <FooterLogos />
 
@@ -338,18 +394,11 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 [What a PINN does · 1min] 2026-07-18 依指導教授 meeting 新增。
 教授原話：「加一頁說明 PINNs 的功能，以及如何運作。」
 
-口述順序（依圖上的兩個編號框）：
-**① Training** —— 由左至右一條主線：
-1. **功能**：網路吃座標 (x, y, t)，吐該點的 (u, v, p)。它本身就是一個連續場的函數表示，
-   不是格點上的數值解 —— 所以可以在任意座標查詢。
-2. **關鍵機制**：∂u/∂t、∇u、∇²u 全部由 **autodiff 對輸入微分**得到，不需要網格、
-   不需要差分格式。這是 PINN 與傳統 CFD 最根本的差別，也是為何它能在任意點求殘差。
-3. **兩個殘差**：上路是 NS 殘差（autodiff 之後），下路是 sensor misfit（直接比對輸出，
-   不經 autodiff）—— 圖上這兩條路徑刻意分開走，不交叉。
-4. **加權求和成 L(θ) → optimizer → 反向更新 θ**，回到網路，形成訓練迴圈（紫色迴路）。
-
-**② Inference** —— θ 凍結後只剩一次前向傳遞：查詢任意 (x, y, t) 得到 (u, v, p)，
-不需網格、不需時間推進、迴圈裡沒有 solver。這正是它相對傳統 CFD 的速度來源。
+口述順序依上下兩張 card：
+**① Training** —— 座標送入 neural field 得到預測；預測同時與量測形成 data residual，並由
+autodiff 代入統御方程形成 PDE residual。兩者合成 loss，optimizer 透過 back-propagation 更新 θ。
+**② Inference** —— θ* 凍結後，只需把查詢座標送入已訓練的 neural field，直接得到場值；
+不再計算 loss，也沒有 optimizer 或 back-propagation。
 
 ⚠️ 2D 形式（x, y, t → u, v, p），與本研究的 Kolmogorov case 一致；
 教授提供的參考圖為 3D（含 z, w），已依其確認改為 2D。
@@ -358,7 +407,7 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 PI-CON 與 vanilla PINN 的差別（sensor 讀進網路 vs 只進 loss）在 Motivation 段的
 「Operator vs. plain PINN」頁才展開，本頁不要提前講，否則兩頁重複。
 
-圖為 SVG 手繪示意；hidden layer 只畫兩排代表「多層全連接」，非實際層數。
+圖中的 n layers × m neurons 是一般神經網路表示，不對應本研究的實際層數與寬度。
 -->
 
 ---
@@ -450,61 +499,56 @@ fair baseline、**無文獻 citation**，放進 literature review 會變成「�
 # What prior methods are trained against
 
 <style>
-/* 一個顏色一個意思，三色各司其職，不可再增：
-     橘 #E97132 = loss 對著什麼擬合（本頁的論點）
-     深藍 #0F2D52 = 模型主體（結構性標示，非好壞判斷）
-   其餘一律中性；每格都上色就等於沒有重點。 */
-.dns { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px; margin-bottom: 0; }
-.dns .bb { color: #0F2D52; font-weight: 700; }
-.dns tr.ours .bb { color: #7F1084; }
-.dns th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.90rem; text-transform: uppercase;
-          letter-spacing: 0.04em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; vertical-align: bottom; }
-.dns th.key { color: #E97132; }
-.dns td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.25; }
-.dns .who { font-size: 0.90rem; color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.dns .who span { font-weight: 400; color: #9CA3AF; }
-.dns td.key { color: #E97132; font-weight: 600; }
-.dns tr.ours td { background: #F7EDF8; border-bottom: none; color: #6B7280; }
-.dns tr.ours .who { color: #7F1084; }
-.dns tr.ours td.key { color: #7F1084; font-weight: 700; }
+.dns { width:100%; border-collapse:collapse; font-size:.90rem; margin-top:14px; }
+.dns th { text-align:left; font-weight:700; color:#9CA3AF; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; padding:0 10px 6px; border-bottom:1px solid #D8D2E0; }
+.dns th.key { color:#E97132; }
+.dns td { padding:8px 10px; border-bottom:1px solid #F1EDF5; color:#374151; vertical-align:middle; line-height:1.22; }
+.dns .model { display:block; color:#1F1B2E; font-size:.94rem; font-weight:600; }
+.dns .cite { display:block; color:#9CA3AF; font-size:.76rem; line-height:1.18; margin-top:1px; white-space:normal; }
+.dns .mechanism { font-weight:600; color:#1F1B2E; }
+.dns .target { color:#E97132; font-weight:700; }
+.dns .req { display:block; margin-top:2px; color:#E97132; font-size:.72rem; font-weight:700; letter-spacing:.03em; }
+.dns-summary { margin-top:14px; padding-left:12px; border-left:2px solid #E97132; color:#374151; font-size:.90rem; line-height:1.3; }
 </style>
 
 <table class="dns">
 <thead>
 <tr>
-<th style="width: 20%;">Work</th>
-<th style="width: 27%;">Architecture</th>
-<th style="width: 18%;">Case</th>
-<th style="width: 35%;" class="key">What the loss is fitted to</th>
+<th style="width:25%;">Work</th>
+<th style="width:25%;">Reconstruction mechanism</th>
+<th style="width:20%;">Flow case</th>
+<th style="width:30%;" class="key">Training target</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td class="who">SHRED <span>Williams 2024, Proc. R. Soc. A</span></td>
-<td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
+<td><span class="model">SHRED</span><span class="cite">Williams et al. (2024)<br/>Proc. R. Soc. A</span></td>
+<td class="mechanism">LSTM stack + shallow decoder</td>
 <td>Isotropic (JHTDB), Re 2.3×10⁴</td>
-<td class="key">The full state, ‖x − H(y)‖₂</td>
+<td><span class="target">Full state, ‖x − H(y)‖₂</span><br/><span class="req">FULL FIELD REQUIRED</span></td>
 </tr>
 <tr>
-<td class="who">Senseiver <span>Santos 2023, Nat. Mach. Intell.</span></td>
-<td><b class="bb">Perceiver IO</b>, cross-attention to latent</td>
+<td><span class="model">Senseiver</span><span class="cite">Santos et al. (2023)<br/>Nat. Mach. Intell.</span></td>
+<td class="mechanism">Perceiver IO, cross-attention</td>
 <td>Re not stated</td>
-<td class="key">“A dense set of observations is needed to train”</td>
+<td><span class="target">Dense observations for training</span><br/><span class="req">FULL FIELD REQUIRED</span></td>
 </tr>
 <tr>
-<td class="who">FLRNet <span>Nguyen 2024, arXiv</span></td>
-<td><b class="bb">CNN</b> VAE + Fourier features + <b class="bb">MLP</b></td>
+<td><span class="model">FLRNet</span><span class="cite">Nguyen et al. (2024)<br/>arXiv</span></td>
+<td class="mechanism">CNN-VAE + Fourier features + MLP</td>
 <td>Cylinder, Re 300–10³</td>
-<td class="key">The full field, VAE + perceptual loss</td>
+<td><span class="target">Full field, VAE + perceptual loss</span><br/><span class="req">FULL FIELD REQUIRED</span></td>
 </tr>
 <tr>
-<td class="who">FLRONet <span>Vo Dang 2024, J. Comput. Inf. Sci. Eng.</span></td>
-<td><b class="bb">DeepONet</b>, <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
+<td><span class="model">FLRONet</span><span class="cite">Vo Dang &amp; Nguyen (2024)<br/>J. Comput. Inf. Sci. Eng.</span></td>
+<td class="mechanism">DeepONet, FNO branch + MLP trunk</td>
 <td>Cylinder, Re not stated</td>
-<td class="key">Paired CFD fields</td>
+<td><span class="target">Paired CFD fields</span><br/><span class="req">FULL FIELD REQUIRED</span></td>
 </tr>
 </tbody>
 </table>
+
+<div class="dns-summary"><b>Comparison:</b> the architectures differ, but every method learns against a dense reference field. That supervision is the common deployment bottleneck.</div>
 
 
 <FooterLogos />
@@ -586,7 +630,7 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
    on a grid」。
 3. **真正的 DeepONet 對照在內部**：chapter01:128 的 O1 criterion 就是「reduce KE error by at
    least two percentage points relative to the **vanilla DeepONet baseline** at p<0.01」——
-   那是 2×2 ablation 的 B0（主結果頁：B0 8.23% → B3 5.71%，−2.52 pp, p=3.0×10⁻⁷）。
+   那是 2×2 ablation 的 B0（主結果頁：B0 8.23% → B3 5.71%，−2.53 pp, p=3.0×10⁻⁷）。
    即 vanilla DeepONet 是以 baseline 而非文獻列的形式對照，因為沒有已發表工作在此 regime
    跑過 vanilla DeepONet，只能自己重跑才是公平比較（chapter04:39 不採他人未經本協定重跑的數字）。
 
@@ -709,66 +753,77 @@ Objective 段的「Same regime」頁才出現。
 
 <SectionTag>§ Motivation · operator vs. plain PINN</SectionTag>
 
-# Operator vs. plain PINN
+# The key distinction is <span style="color:#7F1084;">where the measurements enter</span>
 
 <style>
-.ov { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
-.ov .hd { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-.ov .eqw { margin-top: 6px; padding: 9px 10px; border-radius: 5px; }
-.ov .eqw > * { display: block !important; width: 100% !important; }
-.ov .wh { font-size: 0.78rem; color: #6B7280; margin-top: 5px; line-height: 1.4; }
-.ov .pt { font-size: 0.86rem; color: #374151; margin-top: 9px; line-height: 1.45; }
+.opcmp { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:14px; }
+.opcmp .panel { border:1px solid #E5E0EC; border-radius:10px; padding:13px 15px 12px; background:rgba(255,255,255,.82); }
+.opcmp .panel.operator { border-color:#C9A6CC; background:#FAF2FB; }
+.opcmp .head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:9px; }
+.opcmp .name { font-size:.88rem; font-weight:700; color:#0F2D52; }
+.opcmp .operator .name { color:#7F1084; }
+.opcmp .tag { font-size:.68rem; color:#6B7280; }
+.opcmp .flow { display:grid; grid-template-columns:1.12fr 24px 1fr 24px .9fr; align-items:center; gap:3px; margin-top:10px; }
+.opcmp .node { min-height:58px; border:1px solid #D8DCE3; border-radius:7px; background:#fff; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:6px; color:#1F1B2E; font-size:.74rem; line-height:1.28; }
+.opcmp .node.fit { border-color:#E7B78F; background:#FFF7F1; color:#9A4B16; font-weight:700; }
+.opcmp .node.map { border-color:#A96BAD; color:#7F1084; font-weight:700; }
+.opcmp .arr { color:#9CA3AF; text-align:center; font-size:1rem; }
+.opcmp .stage { margin-top:11px; color:#6B7280; font-size:.67rem; letter-spacing:.06em; text-transform:uppercase; font-weight:700; }
+.opcmp .infer { display:grid; grid-template-columns:1fr 24px 1fr 24px .9fr; align-items:center; gap:3px; margin-top:5px; }
+.opcmp .merge { display:grid; grid-template-columns:1fr 24px 1.1fr 24px .9fr; grid-template-rows:1fr 1fr; align-items:center; gap:6px 3px; margin-top:10px; }
+.opcmp .merge .model { grid-column:3; grid-row:1 / 3; min-height:112px; }
+.opcmp .merge .out { grid-column:5; grid-row:1 / 3; min-height:76px; }
+.opcmp .merge .to-model { grid-column:2; }
+.opcmp .merge .to-out { grid-column:4; grid-row:1 / 3; }
+.opcmp .note { margin-top:11px; padding-top:8px; border-top:1px solid #E5E7EB; color:#4B5563; font-size:.76rem; line-height:1.35; }
 </style>
 
-<div class="ov">
+<div class="opcmp">
 
-<div>
-<div class="hd" style="color:#0F2D52;">Plain PINN <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9CA3AF;">Raissi 2019, J. Comput. Phys.</span></div>
-<div class="eqw" style="background:#F4F6F9; font-size:0.66em;">
-
-$$\mathbf{u}(\mathbf{x},t)\;\approx\;\mathcal{N}_\theta(\mathbf{x},t)$$
-
+<div class="panel">
+  <div class="head"><span class="name">Plain PINN</span><span class="tag">measurements enter through optimization</span></div>
+  <div class="stage">Training</div>
+  <div class="flow">
+    <div class="node">sensor values<br/>+ NS residual</div><div class="arr">→</div>
+    <div class="node fit">optimize θ</div><div class="arr">→</div><div class="node">fitted weights</div>
+  </div>
+  <div class="stage">Inference</div>
+  <div class="infer">
+    <div class="node">query<br/>(x, y, t)</div><div class="arr">→</div>
+    <div class="node">PINN Nθ<br/><span style="color:#6B7280;">coordinate model</span></div><div class="arr">→</div><div class="node">û(x, y, t)</div>
+  </div>
+  <div class="note">At inference, the sensor history is no longer an input; its information is stored indirectly in θ.</div>
 </div>
-<div class="wh">The network maps a <b>coordinate</b> to the field value.</div>
-<div class="pt">One flow per fit. The sensor values enter only through the loss, so a new sensor record means <b style="color:#E97132;">training again from scratch</b>.</div>
-<svg viewBox="0 0 390 72" style="width:100%; margin-top:12px;">
-  <rect x="8" y="18" width="92" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52"/><text x="54" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;font-weight:700;">(x, y, t)</text>
-  <path d="M100 36 H150" stroke="#9CA3AF"/><path d="M156 36 l-8 -4 v8 z" fill="#9CA3AF"/><rect x="164" y="18" width="92" height="36" rx="5" fill="#fff" stroke="#0F2D52"/><text x="210" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;">N(·; θ)</text>
-  <path d="M256 36 H306" stroke="#9CA3AF"/><path d="M312 36 l-8 -4 v8 z" fill="#9CA3AF"/><rect x="320" y="18" width="62" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52"/><text x="351" y="40" text-anchor="middle" fill="#0F2D52" style="font-size:12px;font-weight:700;">u(x,t)</text>
-</svg>
-</div>
 
-<div>
-<div class="hd" style="color:#7F1084;">Neural operator <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#9CA3AF;">DeepONet — Lu 2021, Nat. Mach. Intell.</span></div>
-<div class="eqw" style="background:#FAF2FB; font-size:0.66em;">
-
-$$\mathbf{u}(\mathbf{x},t)\;\approx\;\sum_{k=1}^{p} b_k(\mathbf{s})\,\tau_k(\mathbf{x},t)$$
-
-</div>
-<div class="wh"><b>b</b> reads the sensor record <b>s</b> = {u(x<sub>j</sub>, t<sub>i</sub>)}; <b>τ</b> reads the query coordinate.</div>
-<div class="pt">The sensor record is an <b style="color:#7F1084;">argument of the map</b>, not a term in the loss, so one trained model serves a new record.</div>
-<svg viewBox="0 0 390 72" style="width:100%; margin-top:12px;">
-  <rect x="8" y="5" width="80" height="28" rx="5" fill="#FAF2FB" stroke="#7F1084"/><text x="48" y="23" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">sensors s</text><path d="M88 19 H126" stroke="#C9A6CC"/><path d="M132 19 l-8 -4 v8 z" fill="#C9A6CC"/><rect x="140" y="5" width="78" height="28" rx="5" fill="#fff" stroke="#7F1084"/><text x="179" y="23" text-anchor="middle" fill="#7F1084" style="font-size:11px;">branch b</text>
-  <rect x="8" y="40" width="80" height="28" rx="5" fill="#FAF2FB" stroke="#7F1084"/><text x="48" y="58" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">query (x,t)</text><path d="M88 54 H126" stroke="#C9A6CC"/><path d="M132 54 l-8 -4 v8 z" fill="#C9A6CC"/><rect x="140" y="40" width="78" height="28" rx="5" fill="#fff" stroke="#7F1084"/><text x="179" y="58" text-anchor="middle" fill="#7F1084" style="font-size:11px;">trunk τ</text>
-  <path d="M218 19 C245 19 245 36 268 36 M218 54 C245 54 245 36 268 36" stroke="#C9A6CC" fill="none"/><circle cx="282" cy="36" r="14" fill="#fff" stroke="#7F1084"/><text x="282" y="40" text-anchor="middle" fill="#7F1084" style="font-size:15px;font-weight:700;">·</text><path d="M296 36 H330" stroke="#C9A6CC"/><path d="M336 36 l-8 -4 v8 z" fill="#C9A6CC"/><text x="355" y="40" fill="#7F1084" style="font-size:12px;font-weight:700;">u(x,t)</text>
-</svg>
+<div class="panel operator">
+  <div class="head"><span class="name">Operator formulation</span><span class="tag">measurements enter the forward pass</span></div>
+  <div class="stage">Conditioned query</div>
+  <div class="merge">
+    <div class="node">sensor history<br/>s(·)</div><div class="arr to-model">→</div>
+    <div class="node map model">operator Gθ[s]<br/><span style="font-weight:400;color:#6B7280;">measurement-conditioned<br/>coordinate model</span></div>
+    <div class="arr to-out">→</div><div class="node out">û(x, y, t)</div>
+    <div class="node">query<br/>(x, y, t)</div><div class="arr to-model">→</div>
+  </div>
+  <div class="note">The sensor record and query coordinate jointly determine each reconstructed value.</div>
 </div>
 
 </div>
 
-<div class="mt-5 px-4 py-3 rounded text-base leading-snug" style="background: rgba(127,16,132,0.06); border-left: 4px solid #7F1084;">
-<b style="color:#7F1084;">Why an operator</b>, a <b>sparse sensor history</b>, not just a coordinate, has to drive the reconstruction
+<div class="mt-4 px-4 py-3 rounded text-base leading-snug" style="background:rgba(127,16,132,.06); border-left:4px solid #7F1084;">
+<b style="color:#7F1084;">Why this matters:</b> the reconstruction is explicitly conditioned on what the instruments measured, while remaining queryable at arbitrary space–time coordinates.
 </div>
 
 <FooterLogos />
 
 <!--
-[Why neural operator · 2min] 從第三頁延伸：上一張說明為何用 NN 而非 POD/4D-Var/KF，這張說明為何用 operator 而非 vanilla PINN。對照表 5+1 row，PINO column 用 ① ② ③ ④ 標號四個對 sparse-sensor 的關鍵 advantage：
-① Sensor input 從點變函數（branch ingests trajectory）
-② Query 任意 (x, t)，不綁特定問題
-③ Generalisation amortised across instances
-④ PDE residual 直接在 operator output 上（highlight row）
-下一張 K=100 CS bound 量化結構難度。
+[Why operator formulation · 2min] 口述只問一個問題：「量測到底從哪裡進入模型？」
+左邊 plain PINN 的 sensor values 只出現在 training loss；推論時 Nθ 只讀 coordinate，
+所以量測資訊被烘進 θ。右邊把 sensor history s(·) 與 query (x,y,t) 同時送進 Gθ，
+每個輸出都明確 conditioned on measurements。這是 function-conditioned reconstruction 的
+概念，不預設 DeepONet、FNO 或 branch/trunk；下一頁才介紹具體 operator family。
+
+⚠️ 不可口述成「新 flow 不需重訓」。chapter01 明確限定 fitting offline and per-case，
+cross-realisation amortisation 未驗證。本頁主張的是 measurement-as-input + query-anywhere。
 -->
 
 ---
@@ -785,7 +840,8 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 
 <style>
 .op { display: grid; grid-template-columns: 1fr 1fr; column-gap: 22px; margin-top: 14px; }
-.op .hd { font-size: 1.20rem; font-weight: 700; letter-spacing: 0.02em; text-transform: none; margin-bottom: 6px; }
+.op .hd { font-size: 1.42rem; font-weight: 700; letter-spacing: 0.01em; text-transform: none; margin-bottom: 6px; }
+.op .hd span { font-size: 1rem; }
 .op .note { font-size: 0.84rem; line-height: 1.45; color: #374151; margin-top: 8px; }
 </style>
 
@@ -889,151 +945,35 @@ points」—— 這是我們為何仍需改造 DeepONet 的伏筆，但**留待 
 
 <NavBar active="motivation" />
 
-<SectionTag>§ Literature review · four gaps</SectionTag>
-
-# What this work must close
-
-<style>
-/* 對齊 slide 6 / 7 的表格語彙：一個強調色，一個意思 —— 橘色只標「缺什麼」。 */
-.gp { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; }
-.gp th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
-         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
-.gp th.key { color: #E97132; }
-/* 「Our answer」欄用紫色並加左邊界:它與中間欄語意相反(我們補上 vs 別人沒補),
-   沒有視覺區隔時讀者會把中間欄誤讀成「已經補上缺口的文獻」。 */
-.gp th.ans, .gp td.ans { color: #7F1084; font-weight: 700; border-left: 1px solid #E8E0EC; }
-.gp td { padding: 11px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.3; }
-/* 中間欄的研究線名用中性深灰:紫色在本簡報專屬「我們」,
-   若這裡也紫就會與右欄的 Our answer 撞色,又把「沒補上」讀成「補上了」。 */
-.gp td b { color: #374151; font-weight: 700; }
-.gp td.ans b, .gp td.ans { color: #7F1084; }
-.gp .n { color: #E97132; font-weight: 700; }
-.gp td.key { color: #1F1B2E; font-weight: 600; }
-.gp tr.sens td { background: #FEF6F1; border-bottom: none; }
-.gp tr.sens td.key { color: #E97132; }
-</style>
-
-<table class="gp">
-<thead>
-<tr>
-<th style="width: 4%;"></th>
-<th style="width: 30%;" class="key">What is missing</th>
-<th style="width: 46%;">Not addressed by</th>
-<th style="width: 20%;" class="ans">Our answer</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td class="n">1</td>
-<td class="key">Ground-truth field to train against</td>
-<td><b>ROM &amp; sparse identification</b>, <b>deep super-resolution</b>, <b>operator learning</b> <span class="opacity-70">— all need an offline trajectory or paired fields</span></td>
-<td class="ans">architecture</td>
-</tr>
-<tr>
-<td class="n">2</td>
-<td class="key">Sensors read as input</td>
-<td><b>Stabilized PINNs</b> <span class="opacity-70">— sensors only score the loss</span>, <b>operator learning</b> <span class="opacity-70">— branch needs a dense grid</span></td>
-<td class="ans">architecture</td>
-</tr>
-<tr>
-<td class="n">3</td>
-<td class="key">Uneven clocks under PDE autodiff</td>
-<td><b>Liquid NN / continuous-time</b> <span class="opacity-70">— never PDE-constrained</span>, <b>data assimilation</b> <span class="opacity-70">— adjoint cost at high Re</span></td>
-<td class="ans">architecture</td>
-</tr>
-<tr class="sens">
-<td class="n">4</td>
-<td class="key">Sensing configuration mapped</td>
-<td><b>All surveyed works</b> <span class="opacity-70">— one error, one fixed setup, sensor positions taken as</span> <b>given</b></td>
-<td class="ans" style="color:#E97132;">sensing study</td>
-</tr>
-</tbody>
-</table>
-
-<div class="mt-3 text-sm" style="color:#374151;">
-Gaps 1–3 are architectural <span style="color:#C9C6D0;">→</span> PI-CON <span style="color:#C9C6D0;">, </span> Gap 4 is not <span style="color:#C9C6D0;">→</span> more sensors, better placement, or a better model?
-</div>
-
-<FooterLogos />
-
-<!--
-[Literature review 1/2 · 口述（表下敘事與註記已刪，字太小）：
-「這些方法都報 few-percent error，但全都對著 full reference field 訓練；surveyed works 裡只有三篇
-不用 reference field —— 下一頁就是那三篇。」
-「七篇 surveyed works 沒有一篇報 parameter count；上表四篇裡有三篇未報 Reynolds number。」
-  —— 委員問「為何不比參數量 / Re」時照此答。
-[Literature review 1/2 · 1.5min] 對應 thesis Table 1.1 (tab:lit_summary, chapter01.tex:23-83)，
-但不逐條列七行——論文自己說那七條線是要被 consolidate 成四個 Gap 的（chapter01:21），
-重點是「卡在哪」不是「有幾條」。完整七行表在 thesis Table 1.1，被問細節時翻論文。
-注意：他人方法參數量 thesis 未載，不可臆造。
-
-⚠️ 2026-07-17 重大修正：本頁原本列的四個 gap 是**投影片自創**的四個架構 gap
-（reference field / solver in the loop / reads sensors / met a PDE），**與論文的四個 Gap 不同**，
-而且把論文的 Gap 4 弄丟了。後果：整個 O2/O3（貢獻的一半）在文獻回顧裡沒有對應的缺口，
-Objective 那頁的 O2/O3 因此顯得沒有來由。
-
-現改為論文 chapter01:108-118 的原四條：
-  Gap 1 (ch01:108) No ground-truth field to train against
-  Gap 2 (ch01:111) The model must read the sensor stream, not merely be scored by it
-  Gap 3 (ch01:114) Sensors report on uneven clocks, but the model must stay differentiable for the PDE
-  Gap 4 (ch01:117) How the sensing configuration (count, placement, noise) governs reconstruction is unmapped
-底部條依 chapter01:106 原文：「The first three gaps are architectural; the fourth asks how sensor
-count, placement, and noise govern the achievable result. The proposed work addresses Gaps 1--3
-with a new architecture and Gap 4 with a systematic sensing study.」
-
-口述 Gap 4（本頁新增，最重要的一條，直接鋪陳 O2/O3 與 LES placement 管線）：
-「所有 surveyed works 都只報一個 setup 的單一總誤差，sensor 位置一律當作**給定**的 —— 沒有人
-把 count / placement / noise 拆開量。所以無從判斷下一步該加感測器、改佈點、還是換模型。」
-（chapter01:118 原文：「Without this map, it is unclear whether the productive next step is more
-sensors, better placement, cleaner sensing, or a better model.」）
-—— 這個「positions are taken as given」的觀察出自 JY_prelim.pptx (2025-12 預口試稿) slide 8：
-該表 Sensor Strategy 一欄七篇全是 Given mask / Given tracks / Given sites / Given coverage /
-Given labels / As given。那一欄重複七次本身就是論證，不需修辭。
-
-⚠️ 已移除底部原本的「The low-error methods are all in row one」條：那句在講 slide 6 的論點
-（它們對著 reference field 擬合），本頁的落點應是「四個 gap 怎麼分工」。
--->
-
----
-
-<NavBar active="motivation" />
-
 <SectionTag>§ Motivation · problem formulation</SectionTag>
 
-# The reconstruction problem, now located
+# A rig provides sparse histories and physics—not a full field
 
 <style>
-.ps { display:grid; grid-template-columns: 38% 62%; gap:28px; margin-top:18px; align-items:start; }
-.ps .statement { font-size:1.14rem; line-height:1.38; color:#1F1B2E; }
-.ps .statement b { color:#7F1084; }
-.ps .terms { margin-top:20px; border-top:1px solid #E5E0EC; padding-top:11px; }
-.ps .terms div { font-size:.84rem; color:#374151; line-height:1.35; margin:9px 0; }
-.ps .terms span { display:inline-block; width:74px; color:#9CA3AF; font-weight:700; font-size:.70rem; letter-spacing:.05em; text-transform:uppercase; }
-.ps .map { display:grid; grid-template-columns:1fr 36px 1fr 36px 1fr; align-items:center; }
-.ps .node { min-height:150px; padding:15px 12px; border-radius:10px; background:rgba(255,255,255,.78); border:1px solid #E5E0EC; }
-.ps .node .tag { font-size:.70rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6B7280; }
-.ps .node .num { font-size:2.35rem; color:#7F1084; font-weight:700; line-height:1; margin:10px 0 6px; }
-.ps .node .body { font-size:.82rem; color:#374151; line-height:1.32; }
-.ps .arrow { text-align:center; font-size:1.55rem; color:#7F1084; font-weight:700; }
+.ps { margin-top:18px; }
+.ps .available { font-size:.73rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#6B7280; margin-bottom:7px; }
+.ps .map { display:grid; grid-template-columns:1fr 44px 1fr 64px 1.08fr; align-items:center; }
+.ps .node { min-height:176px; padding:17px 16px; border-radius:11px; background:rgba(255,255,255,.82); border:1px solid #E5E0EC; }
+.ps .node .tag { font-size:.72rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6B7280; }
+.ps .node .hero { font-size:1.78rem; color:#0F2D52; font-weight:700; line-height:1.1; margin:13px 0 9px; }
+.ps .node .body { font-size:.86rem; color:#374151; line-height:1.36; }
+.ps .symbol { text-align:center; font-size:1.75rem; color:#7F1084; font-weight:700; }
 .ps .answer { background:#FAF2FB; border-color:#7F1084; }
+.ps .answer .hero, .ps .answer .tag { color:#7F1084; }
+.ps .constraint { margin-top:14px; padding:11px 15px; border-left:4px solid #E97132; background:#FEF6F1; color:#374151; font-size:.92rem; line-height:1.3; }
+.ps .constraint b { color:#E97132; }
 </style>
 
 <div class="ps">
-  <div>
-    <div class="statement">The literature gap is not merely “use a neural network.” It is to reconstruct a flow from <b>what a rig can actually supply</b>: sparse sensor histories and a governing PDE, with no full field in training.</div>
-    <div class="terms">
-      <div><span>Given</span>K = 100 fixed readings of (u, v), plus the Navier–Stokes residual</div>
-      <div><span>Wanted</span>u(x, t) at any coordinate, rather than a fixed-grid output</div>
-      <div><span>Constraint</span>no reference field at training or inference time</div>
-    </div>
-  </div>
+  <div class="available">Available during deployment</div>
   <div class="map">
-    <div class="node"><div class="tag">measurement</div><div class="num" style="color:#E97132;">100</div><div class="body">fixed probe locations report a partial time history</div></div>
-    <div class="arrow">+</div>
-    <div class="node"><div class="tag">physical prior</div><div class="num">NS</div><div class="body">continuity and momentum restrict admissible fields</div></div>
-    <div class="arrow">→</div>
-    <div class="node answer"><div class="tag" style="color:#7F1084;">target</div><div class="num">u(x,t)</div><div class="body">a continuous, query-anywhere reconstruction</div></div>
+    <div class="node"><div class="tag">Sparse measurements</div><div class="hero" style="color:#E97132;">K = 100 probes</div><div class="body">Each fixed location reports only its velocity history: <b>y<sub>k</sub>(t) = (u,v)</b>.</div></div>
+    <div class="symbol">+</div>
+    <div class="node"><div class="tag">Known physical prior</div><div class="hero">Navier–Stokes</div><div class="body">Momentum and continuity restrict which full fields are physically admissible.</div></div>
+    <div class="symbol">→</div>
+    <div class="node answer"><div class="tag">Required output</div><div class="hero">û(x,t)</div><div class="body">A continuous reconstruction that can be queried at any coordinate—not only on a fixed grid.</div></div>
   </div>
+  <div class="constraint"><b>Unavailable:</b> no dense reference field may supervise training or enter inference.</div>
 </div>
 
 <FooterLogos />
@@ -1048,7 +988,7 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 
 <SectionTag>§ Motivation · resolution limit under a sparse sensor budget</SectionTag>
 
-# What resolution a sensor budget buys
+# Sensor-count scale and spectral conditioning at K = 100
 
 <style>
 .rs { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 3px;
@@ -1104,34 +1044,32 @@ The disk |k| ≤ k<sub>max</sub> holds ≈ <b>πk<sub>max</sub>²</b> modes; set
 
 <style>
 .resolution-old { display:none; }
-.resolution { display:grid; grid-template-columns:30% 42% 28%; gap:18px; align-items:stretch; margin-top:14px; }
+.resolution { display:grid; grid-template-columns:34% 66%; gap:20px; align-items:stretch; margin-top:13px; }
 .resolution .cardx { background:rgba(255,255,255,.78); border:1px solid #E5E0EC; border-radius:10px; padding:14px; }
 .resolution .tiny { font-size:.72rem; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:#6B7280; }
-.resolution .formula { font-size:1.27rem; color:#7F1084; font-weight:700; text-align:center; margin:17px 0 10px; }
+.resolution .formula { font-size:1.18rem; color:#7F1084; font-weight:700; text-align:center; margin:16px 0 13px; padding:10px 6px; background:#FAF2FB; border-radius:7px; }
 .resolution .copy { font-size:.85rem; color:#374151; line-height:1.4; }
-.resolution .hero { font-size:2.55rem; line-height:1; color:#7F1084; font-weight:700; letter-spacing:-.04em; margin:12px 0 6px; }
-.resolution .band { margin-top:17px; height:27px; display:grid; grid-template-columns:56% 24% 20%; border-radius:5px; overflow:hidden; }
-.resolution .band div { display:flex; align-items:center; justify-content:center; font-size:.67rem; font-weight:700; }
-.resolution .plot img { width:100%; height:218px; object-fit:contain; display:block; }
+.resolution .evidence { display:grid; grid-template-columns:78px 1fr; column-gap:10px; row-gap:9px; align-items:baseline; margin-top:16px; padding-top:12px; border-top:1px solid #E5E0EC; }
+.resolution .evidence b { color:#7F1084; font-size:.82rem; }
+.resolution .evidence span { color:#374151; font-size:.80rem; line-height:1.3; }
+.resolution .plot img { width:100%; height:270px; object-fit:contain; display:block; }
 </style>
 
 <div class="resolution">
   <div class="cardx">
-    <div class="tiny">From sensor count to scale</div>
-    <div class="formula">k<sub>max</sub> ≈ √(K/π)</div>
-    <div class="copy">A disk of Fourier modes up to k<sub>max</sub> contains approximately πk<sub>max</sub>² modes. Equating that count to K gives a <b>sensor-count scale</b>, not a hard recovery bound.</div>
-  </div>
-  <div class="cardx">
-    <div class="tiny">K = 100 sensors</div>
-    <div class="hero">k ≈ 5.64</div>
-    <div class="copy">The DNS contains <b>98.9%</b> of its energy below this scale. Conditioning then degrades from κ ≈ 7 at k ≤ 5 to κ ≈ 7×10² at k ≤ 8.</div>
-    <div class="band"><div style="background:#F7EDF8;color:#7F1084;">energy-dominant</div><div style="background:#FEF6F1;color:#E97132;">ill-conditioned</div><div style="background:#F1F1F3;color:#6B7280;">unseen</div></div>
-    <div class="copy" style="display:flex; justify-content:space-between; margin-top:4px; font-size:.72rem;"><span>0</span><span>5.64</span><span>≈ 8</span><span>k</span></div>
+    <div class="tiny">Mode-counting estimate</div>
+    <div class="formula">k<sub>sensor</sub> ≡ √(K/π) = 5.64</div>
+    <div class="copy">Equating K point measurements to the approximate number πk² of Fourier modes defines a <b>sensor-count scale</b>. It is not a recovery bound.</div>
+    <div class="evidence">
+      <b>Energy</b><span>98.9% of DNS kinetic energy lies below k<sub>sensor</sub>.</span>
+      <b>k ≤ 5</b><span>well-conditioned measurement map, κ ≈ 7.</span>
+      <b>k ≤ 8</b><span>still observable but ill-conditioned, κ ≈ 7×10².</span>
+    </div>
   </div>
   <div class="cardx plot">
-    <div class="tiny">DNS spectrum and cumulative energy</div>
+    <div class="tiny">DNS spectrum and cumulative energy at t = 5</div>
     <img :src="'/images/nyquist_recoverability.png'" />
-    <div class="copy" style="font-size:.75rem;">Dashed line: k<sub>max</sub> = √(K/π). Energy below the line is available, not automatically recoverable.</div>
+    <div class="copy" style="font-size:.77rem;">Dashed line: k<sub>sensor</sub> = √(K/π). Energy below the line is <b>available</b>, not automatically recoverable.</div>
   </div>
 </div>
 
@@ -1226,7 +1164,7 @@ supervision」的 Senseiver 與 FLRONet。
 答：**架構家族相同，但無法做同 regime 的數值對打** —— 它需要成對 CFD 場，在本研究的
 工程約束（現場無 DNS）下根本訓練不起來。差別不在架構優劣，在監督訊號能不能在現場取得。
 真正的 branch–trunk 對照是內部的 B0 vanilla DeepONet（主結果頁 8.23% → 5.71%，
-−2.52 pp, p=3.0×10⁻⁷），因為沒有已發表工作在此 regime 跑過 vanilla DeepONet，
+−2.53 pp, p=3.0×10⁻⁷），因為沒有已發表工作在此 regime 跑過 vanilla DeepONet，
 只能自己重跑才是公平比較（chapter04:39 不採未經本協定重跑的他人數字）。
 
 == 口述三個 take-away（2026-07-16 從頁面移除的三張卡，改用講的）==
@@ -1369,51 +1307,61 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 
 <SectionTag>§ Application case · the Kolmogorov flow</SectionTag>
 
-# Kolmogorov flow at <span style="color:#7F1084;">Re = 10⁴</span> <span style="font-size:0.62em; color:#6B7280; font-weight:400;">(DNS solution)</span>
+# Reference units are prescribed; flow scales are realised
 
 <style>
-.kf { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px;
-      align-items: baseline; font-size: 0.80rem; margin-top: 6px; }
-.kf .k { color: #6B7280; white-space: nowrap; }
-.kf .v { color: #1F1B2E; }
-.nd { border-left: 2px solid #7F1084; padding-left: 11px; margin-top: 7px; font-size: 0.80rem; line-height: 1.4; }
+.ndflow { display:grid; grid-template-columns:43% 57%; gap:22px; margin-top:12px; align-items:start; }
+.ndflow .flow-gif { width:100%; height:330px; object-fit:contain; border:1px solid #E5E0EC; border-radius:10px; background:rgba(255,255,255,.76); }
+.ndflow .caption { margin-top:5px; text-align:center; color:#6B7280; font-size:.74rem; }
+.ndflow .box { border:1px solid #E5E0EC; border-radius:9px; background:rgba(255,255,255,.80); padding:10px 13px; margin-bottom:8px; }
+.ndflow .label { font-size:.70rem; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; font-weight:700; margin-bottom:6px; }
+.ndflow .refs { display:flex; flex-wrap:wrap; gap:6px 18px; color:#374151; font-size:.80rem; line-height:1.35; }
+.ndflow .refs b { color:#0F2D52; }
+.ndflow .vars { display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; color:#1F1B2E; font-size:.82rem; }
+.ndflow .vars span { white-space:nowrap; }
+.ndflow .ns { border-color:#C9A6CC; background:#FAF2FB; }
+.ndflow .equation { text-align:center; color:#0F2D52; font-size:.81rem; line-height:1.55; white-space:nowrap; }
+.ndflow .eqstack { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+.ndflow .eqstack .primary { color:#0F2D52; font-size:.76rem; font-weight:600; }
+.ndflow .eqstack .secondary { color:#6B7280; font-size:.72rem; }
+.ndflow .eqstack .params { white-space:nowrap; }
+.ndflow .case { margin-top:4px; text-align:center; color:#6B7280; font-size:.74rem; }
 </style>
 
-<div class="grid grid-cols-2 gap-5 mt-2 items-stretch">
-
-<div class="flex justify-center items-center">
-  <img :src="'/images/kolmogorov_dns_vorticity_anim.gif'"
-       class="rounded-lg border" style="border-color:#E5E0EC; max-height: 228px; width: auto;" />
-</div>
-
-<div class="space-y-2">
-
-<Card>
-<LabelTiny>Incompressible Navier–Stokes</LabelTiny>
-<div class="mt-1 text-center" style="color:#0F2D52; font-size: 0.88rem; line-height: 1.5;">
-∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + ν∇²<b>u</b> + <b>f</b>,&nbsp;&nbsp; ∇·<b>u</b> = 0
-</div>
-<div class="kf">
-<span class="k">Forcing</span><span class="v"><b>f</b> = (A sin(2πk<sub>f</sub> y), 0),&nbsp; A = 0.1 m/s², k<sub>f</sub> = 2 m⁻¹</span>
-<span class="k">Domain</span><span class="v">Ω = [0, 1]² m², doubly periodic</span>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Characteristic scales &amp; Reynolds number</LabelTiny>
-<div class="kf">
-<span class="k">Length</span><span class="v">L<sup>★</sup> = 1 m <span style="color:#9CA3AF;">— the box edge</span></span>
-<span class="k">Velocity</span><span class="v">U<sup>★</sup> = 1 m/s <span style="color:#9CA3AF;">— reference scale</span></span>
-<span class="k">Viscosity</span><span class="v">ν<sup>★</sup> = 10⁻⁴ m²/s</span>
-<span class="k">Reynolds</span><span class="v"><b style="color:#7F1084;">Re ≡ U<sup>★</sup>L<sup>★</sup>/ν<sup>★</sup> = 10⁴</b></span>
-</div>
-<div class="nd">
-Lengths &divide; L<sup>★</sup>, velocities &divide; U<sup>★</sup> &rarr; <b>ν = 1/Re</b>. Every quantity from here on is <b style="color:#7F1084;">dimensionless</b>.
-</div>
-</Card>
-
-</div>
-
+<div class="ndflow">
+  <div>
+    <img :src="'/images/kolmogorov_dns_vorticity_anim.gif'" class="flow-gif" />
+    <div class="caption">DNS vorticity · periodic unit square</div>
+  </div>
+  <div>
+    <div class="box">
+      <div class="label">Reference normalisation <span style="font-weight:400;text-transform:none;letter-spacing:0;">(chosen units)</span></div>
+      <div class="vars">
+        <span>x<sup>*</sup> = x / L<sub>0</sub></span>
+        <span>t<sup>*</sup> = tU<sub>0</sub> / L<sub>0</sub></span>
+        <span><b>u</b><sup>*</sup> = <b>u</b> / U<sub>0</sub></span>
+        <span>p<sup>*</sup> = p / U<sub>0</sub>²</span>
+      </div>
+      <div class="case">L<sub>0</sub> = box edge and U<sub>0</sub> = control velocity define the code units; Re<sub>0</sub> ≡ U<sub>0</sub>L<sub>0</sub>/ν = 10⁴.</div>
+    </div>
+    <div class="box">
+      <div class="label">Flow-derived characteristic scales <span style="font-weight:400;text-transform:none;letter-spacing:0;">(measured from DNS)</span></div>
+      <div class="vars">
+        <span>λ<sub>f</sub> = L<sub>0</sub>/k<sub>f</sub> = <b>0.5 L<sub>0</sub></b></span>
+        <span>U<sub>rms</sub> = <b>0.503 U<sub>0</sub></b></span>
+        <span>t<sub>f</sub> = λ<sub>f</sub>/U<sub>rms</sub> = <b>0.995 T<sub>0</sub></b></span>
+        <span>Re<sub>f</sub> = U<sub>rms</sub>λ<sub>f</sub>/ν = <b>2.51×10³</b></span>
+      </div>
+    </div>
+    <div class="box ns">
+      <div class="label" style="color:#7F1084;">Nondimensional system actually solved <span style="font-weight:400;text-transform:none;letter-spacing:0;">(stars omitted hereafter)</span></div>
+      <div class="eqstack">
+        <div class="primary">∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + (1/Re<sub>0</sub>)∇²<b>u</b> + <b>f</b></div>
+        <div class="primary">∇·<b>u</b> = 0</div>
+        <div class="secondary params">Ω = [0,1]² &nbsp; · &nbsp; ν = 10⁻⁴ &nbsp; · &nbsp; <b>f</b> = (0.1 sin 4πy, 0)</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <FooterLogos />
@@ -1421,27 +1369,21 @@ Lengths &divide; L<sup>★</sup>, velocities &divide; U<sup>★</sup> &rarr; <b>
 <!--
 [Kolmogorov flow (DNS solution) · 1.5min] 2026-07-18 依指導教授 meeting 改版。
 
-教授要求三項，均已落頁：
-1. 標題加註 (DNS solution) —— 讓委員知道這頁講的是參考解怎麼來的，不是本方法。
-2. 補上特徵長度 L★、特徵速度 U★、黏度 ν★ 的定義，再定義 Re，最後說明如何無因次化。
-3. 移除 injection-scale Reynolds（原本與 control Re 並列，兩個 Re 易混淆）。
+本頁區分 reference units 與 flow-derived scales。L0（box edge）與 U0（control velocity）是
+無因次化 convention；λf 與 Urms 則分別由 forcing wavelength 與實際 DNS 場決定。
+遠端實際 trajectory（20% burn-in 後）計得 Urms=0.502625、tf=0.994776、Ref=2513.13。
 
 口述順序（照卡片由上而下）：
-「先看尺度：長度取箱邊 L★ = 1 m，速度取參考尺度 U★ = 1 m/s，黏度 ν★ = 10⁻⁴ m²/s。
-三者定義出控制 Reynolds 數 Re = U★L★/ν★ = 10⁴ —— 注意這是**透過 ν★ 指定**的，
-不是從流場實際量出來的。把長度除以 L★、速度除以 U★ 之後，黏度項變成 ν = 1/Re，
-所以**從這頁之後所有量都是無因次的**，後面不再標單位。」
-依據 chapter03.tex:20 原文（「non-dimensionalised with the box edge L★ = 1 m and a reference
-velocity U★ = 1 m/s as unit scales ... equivalently ν = 1/Re in dimensionless form,
-prescribed through ν★ rather than derived from the realised flow」）。
+「上面 L0、U0 是用來定義 code units 的 reference scales，所以取 1 本身沒有問題；
+但它們不是流場自然產生的特徵。這個 Kolmogorov flow 真正由物理解出的尺度是 forcing
+wavelength λf=0.5L0 與 realised Urms=0.503U0，因此 injection-scale Reynolds number
+是 2.51×10³，與 prescribed control Re0=10⁴ 分開報。」
 
-⚠️ 本頁是全簡報「無因次化」的宣告點：其後各頁的 t = 5、KE、rel-L₂ 等一律不帶單位。
-（圖檔軸標籤仍保留單位，與論文圖表規則一致 —— 此為 2026-07-18 裁決。）
+壓力 p 是 kinematic pressure，因此以 Uref² 無因次化，不另寫密度 ρ。
 
-⚠️ 預期提問：「injection scale 的 Reynolds 數是多少？」（頁面已移除，必須口頭答得出來）
-→ Re_f ≡ U_rms·λ_f/ν★ ≈ 2.5×10³，其中 λ_f = 1/k_f = 0.5 m、U_rms = 0.503 m/s
-   （chapter03.tex:26-31）。它比控制 Re 小一個數量級，因為受迫湍流的實際 U_rms 落在
-   參考速度之下。論文把它與 control Re 分開報，正是避免兩者被當成同一個量。
+⚠️ 本頁是全簡報「無因次 convention」的宣告點：其後各頁的 t = 5、KE、rel-L₂ 等一律不帶單位。
+
+⚠️ Ref 比 control Re0 小，因為 λf=0.5L0 且 realised Urms=0.503U0；兩者不可混稱。
 → 若委員進一步問「那這個場到底多湍流」：誠實答能譜斜率 −4.61、[0,1]² 箱內無延伸慣性range
    （chapter03:113），本研究定位在工程重建而非湍流物理。
 -->
@@ -1480,21 +1422,22 @@ prescribed through ν★ rather than derived from the realised flow」）。
 <span class="k">Scheme</span><span class="v">pseudo-spectral, 2/3 dealiasing, ETDRK4, fp64</span>
 <span class="k">Grid</span><span class="v">run <b style="color:#7F1084;">1024²</b>, stored <b>256²</b></span>
 <span class="k">Time step</span><span class="v">Δt = 2.5×10⁻⁴ <span style="color:#9CA3AF;">— solver integration step</span></span>
+<span class="k">Simulation time</span><span class="v"><b>t ∈ [0, 5]</b> <span style="color:#9CA3AF;">— T = 5</span></span>
 <span class="k">Sampling</span><span class="v">Δt<sub>s</sub> = 0.025 <span style="color:#9CA3AF;">— every 100 steps</span></span>
-<span class="k">Snapshots</span><span class="v">N<sub>t</sub> = 201 <span style="color:#9CA3AF;">— over t ∈ [0, 5]</span></span>
+<span class="k">Snapshots</span><span class="v">N<sub>t</sub> = 201 <span style="color:#9CA3AF;">— including t = 0</span></span>
 </div>
 </Card>
 
 <Card>
 <LabelTiny>What was verified</LabelTiny>
 <table class="vf">
-<tr><td class="c">Resolution <span style="color:#9CA3AF;">k<sub>max</sub>η ≥ 1.5</span></td><td class="m">7.61 / 1.91</td><td class="j"><span class="ok">✓</span> <span style="color:#9CA3AF;">run / stored</span></td></tr>
-<tr><td class="c">Spectrum tail slope</td><td class="m">−4.61</td><td class="j"><span class="ok">✓</span></td></tr>
-<tr><td class="c">Courant <span style="color:#9CA3AF;">≤ 0.5</span></td><td class="m">0.13</td><td class="j"><span class="ok">✓</span></td></tr>
-<tr><td class="c">Solver divergence</td><td class="m">≲ 10⁻¹²</td><td class="j"><span class="ok">✓</span></td></tr>
-<tr><td class="c">Turnover coverage</td><td class="m">2.51</td><td class="j"><span class="warn">limited</span></td></tr>
+<tbody>
+<tr><td class="c">Grid convergence</td><td class="m">ΔKE ≤ 0.064 %</td><td class="j"><span class="ok">verified</span></td></tr>
+<tr><td class="c">Time-step convergence</td><td class="m">Δu<sub>rel-L₂</sub> = 7.0×10⁻⁶</td><td class="j"><span class="ok">verified</span></td></tr>
+<tr><td class="c">Spectral divergence</td><td class="m">‖∇·u‖<sub>∞</sub> ≤ 7×10⁻¹⁵</td><td class="j"><span class="ok">round-off</span></td></tr>
+</tbody>
 </table>
-<div class="cap2"><b style="color:#E97132;">Not met:</b> ideal is ≳ 50 turnovers; multi-seed compensates. No single-realisation statistics are claimed.</div>
+<div class="cap2"><b style="color:#0F2D52;">DNS verified:</b> independent grid, time-step, and constraint checks passed.</div>
 </Card>
 
 </div>
@@ -1502,7 +1445,7 @@ prescribed through ν★ rather than derived from the realised flow」）。
 <div>
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <img :src="'/images/sensor_distribution_kolmogorov_K100.png'" style="width: 100%; max-height: 246px; object-fit: contain;" />
-<div class="cap2">DNS vorticity field with the <b style="color:#7F1084;">K = 100</b> sensor sites overlaid. Positions are chosen once by QR-pivoting on a POD basis and are <b>held fixed</b> for training and inference; only (u, v) at these points is read.</div>
+<div class="cap2"><b style="color:#7F1084;">K = 100</b> fixed sensors; observed quantities: (u, v).</div>
 </Card>
 </div>
 
@@ -1516,9 +1459,104 @@ prescribed through ν★ rather than derived from the realised flow」）。
 （"Kolmogorov flow at Re = 10⁴"）專責，兩頁曾重複。不要再把方程加回本頁。
 - DNS algorithm：pseudo-spectral with 2/3 dealiasing [Orszag 1971; Boyd 2001] + ETDRK4 fp64 [Cox–Matthews 2002; Kassam–Trefethen 2005]
 - Grid 256²、Δt = 2.5e-4、snapshot Δt_s = 0.025、N_t = 201、T = 5
-- DNS verification 3 條件：k_max·η = 1.91 ≥ 1.5 (Pope 2000) ✓、KE plateau + CFL ≈ 0.18 < 0.5 ✓、T/t_eddy = 2.51 turnovers ⚠（誠實揭露 statistical window 有限，靠 multi-seed 彌補）
+- DNS verification 在頁面只保留三個直接對照，避免把 criterion 當成 convergence 證明：
+  1. Grid：獨立 N=256 與 N=1024、相同 IC 的 post-spin-up KE 最大相對差 0.064%；
+     K≤5.64 band 的 spectrum difference 0.05%。來源 docs/grid_independence_re10000.md、
+     docs/gi_test_re10000_analysis.md。
+  2. Time step：N=256、T=0.5，將 Δt=2.5e-4 減半至 1.25e-4；t=0.5 的
+     rel-L2(u)=7.01e-6、rel-L2(v)=6.78e-6，時間離散誤差比空間誤差小約 160×。
+  3. Divergence：1024² spectral solver 每個存檔點以 spectral derivative 計算
+     max|∇·u|；home-gpu /home/latteine/gi_test_re10000/N1024.log 的最大值為
+     6.88e-15（t=0），其後約 3e-16–1.5e-15。頁面保守寫 ≤7e-15。
+
+預備追問：k_max·η 如何得到？20% burn-in 後 ε=ν〈ω²〉=6.27e-3，
+η=(ν³/ε)^(1/4)=3.55e-3；stored N=256 且 2/3 dealias，
+k_max,phys=(N/3)(2π/L)=536.2，因此 k_maxη=1.91（run N=1024 為 7.61）。
+這是 resolution sanity check，不把 Pope-2000 criterion 單獨當成 2-D grid-convergence proof；
+主證據是上面的 direct N-ref comparison。
+
+預備追問：原本的 0.13 是什麼？它是 U_rms Δt/Δx_run =
+0.503×2.5e-4/(1/1024)=0.129，應稱 CFL_rms，不是 CFL_max，因此已從頁面移除。
+
+⚠️ T=5 只有約 2.51 box-scale turnover times；本研究把它當單一 transient reconstruction
+trajectory，不主張 statistically stationary ensemble。五個 training seeds 只量 optimisation
+stochasticity，不能補償 flow-statistical window。
 - Sparse-sensor card：K = 100, QR-pivot POD [Manohar 2018], operator target G_θ, loss 只用 sensor + NS（不偷 DNS / ω / E(k)）
 右 col 維持 sensor placement 圖。把 engineering target（KE/div/k_f amp 數字）移到 §Results，§Setup 不背具體閾值。
+-->
+
+---
+
+<NavBar active="method" />
+
+<SectionTag>§ Application case · DNS-free sensor placement</SectionTag>
+
+# How sensor locations are generated without DNS
+
+<style>
+.lesst { display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:2px;
+         align-items:baseline; font-size:.73rem; margin-top:3px; }
+.lesst .k { color:#6B7280; white-space:nowrap; }
+.lesst .v { color:#1F1B2E; }
+.lesvf { width:100%; border-collapse:collapse; font-size:.71rem; margin-top:3px; }
+.lesvf td { padding:2px 0; vertical-align:baseline; }
+.lesvf td.c { color:#6B7280; padding-right:10px; white-space:nowrap; }
+.lesvf td.m { text-align:right; font-variant-numeric:tabular-nums; color:#1F1B2E; font-weight:600;
+              padding-right:7px; white-space:nowrap; }
+.lesvf td.j { width:1%; white-space:nowrap; }
+.lescap { font-size:.69rem; color:#6B7280; line-height:1.35; margin-top:4px; }
+.lespipe { margin-top:5px; padding-top:5px; border-top:1px solid #E5E0EC; text-align:center;
+           color:#374151; font-size:.71rem; }
+</style>
+
+<div class="grid gap-3 mt-2" style="grid-template-columns:1.06fr .94fr;">
+
+<div class="space-y-1">
+
+<Card>
+<LabelTiny>LES solver for placement</LabelTiny>
+<div class="lesst">
+<span class="k">Purpose</span><span class="v"><b style="color:#7F1084;">large-scale proxy for QR-pivot only</b></span>
+<span class="k">Equation</span><span class="v">filtered NS with SGS stress and linear friction</span>
+<span class="k">Solver</span><span class="v">pseudo-spectral, 2/3 dealiasing, RK2 Heun, fp64</span>
+<span class="k">Grid / horizon</span><span class="v"><b>N = 256</b>, T<sub>end</sub> = 50</span>
+<span class="k">Closure</span><span class="v">Bardina scale-similarity + spectral hyperviscosity</span>
+<span class="k">Friction</span><span class="v"><b style="color:#E97132;">r = 2.86×10⁻²</b> <span style="color:#9CA3AF;">— absent from DNS</span></span>
+<span class="k">Cost</span><span class="v">approximately <b>1/16 of DNS</b></span>
+</div>
+</Card>
+
+<Card>
+<LabelTiny>What was verified</LabelTiny>
+<table class="lesvf">
+<tbody>
+<tr><td class="c">Incompressibility</td><td class="m">‖∇·u‖<sub>max</sub> = 2.29×10⁻¹³</td><td class="j"><span class="ok">verified</span></td></tr>
+<tr><td class="c">Alias control</td><td class="m">tail decay = 5.14×10³²</td><td class="j"><span class="ok">verified</span></td></tr>
+<tr><td class="c">Statistical window</td><td class="m">T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = 4.9 &lt; 10</td><td class="j"><span class="warn">not established</span></td></tr>
+</tbody>
+</table>
+<div class="lescap"><b style="color:#0F2D52;">Accepted for placement only:</b> no claim of statistically converged LES data.</div>
+</Card>
+
+</div>
+
+<div>
+<Card style="padding-top:.6rem; padding-bottom:.6rem;">
+<img :src="'/images/les_T50_vorticity_with_sensors.png'" style="width:100%; max-height:250px; object-fit:contain;" />
+<div class="lespipe"><b>LES large-scale field</b> <span style="color:#C9C6D0;">→</span> QR-pivot <span style="color:#C9C6D0;">→</span> <b style="color:#7F1084;">K = 100 fixed locations</b></div>
+<div class="lescap">DNS supplies (u, v) only at these coordinates for the offline study.</div>
+</Card>
+</div>
+
+</div>
+
+<FooterLogos />
+
+<!--
+[LES placement · 1.5min] This page follows the DNS setup because it explains where the K=100 locations come from.
+DNS remains the offline reference; LES is a cheaper deployment-time proxy used only by QR-pivot. The LES is
+numerically resolved and divergence-free for its discretisation, but the statistical window is not established
+(T_end/tau_int=4.9<10). This does not justify LES statistics; downstream placement quality is evaluated against DNS.
 -->
 
 ---
@@ -1533,47 +1571,110 @@ prescribed through ν★ rather than derived from the realised flow」）。
 .lg { display: flex; gap: 20px; align-items: center; font-size: 0.76rem; color: #374151; margin-top: 3px; }
 .lg .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 6px;
           vertical-align: -2px; }
+.archviz { position:relative; }
 </style>
 
 <div class="lg">
 <span><span class="sw" style="background:#0F2D52;"></span>Inherited DeepONet backbone</span>
 <span><span class="sw" style="background:#D97757;"></span><b>Added in this work</b></span>
-<span><span class="sw" style="background:#FFF7EE; border:1px dashed #D97757;"></span>Basis produced for the inner product</span>
+<span><span class="sw" style="background:#F7FAFD; border:1px dashed #0F2D52;"></span>DeepONet basis tensors</span>
+<span><span class="sw" style="background:#FAF2FB; border:1px solid #7F1084;"></span>Training loop</span>
 </div>
 
 <div class="bg-gray-50 border border-gray-200 rounded-lg p-2 mt-2">
 
-```mermaid {scale: 0.62}
-graph LR
-  A["K=100 sensors<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>201 × 100 × 2</span>"]
-  B["CfC branch<br/>continuous-time<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>201 × 100 × 256</span>"]
-  C["Queries x,t<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>Nq × 4</span>"]
-  D["Fourier embed<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>Nq × 128</span>"]
-  M["MLP trunk<br/><span style='font-size:0.8em !important;color:#CFE0F2 !important'>Nq × 256</span>"]
-  T["trunk_basis<br/><span style='font-size:0.8em !important;color:#C2603A !important'>Nq × 3 × 256</span>"]
-  X(("Cross-Attn<br/>+ dist. bias<br/><span style='font-size:0.8em !important;color:#FFEDE4 !important'>Nq × 100 × 256</span>"))
-  Br["branch_basis<br/><span style='font-size:0.8em !important;color:#C2603A !important'>Nq × 3 × 256</span>"]
-  F{{"Inner<br/>product"}}
-  O["u, v, p<br/><span style='font-size:0.8em !important;color:#6B7280 !important'>Nq × 3</span>"]
-  A --> B
-  C --> D
-  D --> M
-  M --> T
-  M --> X
-  B --> X
-  X --> Br
-  T --> F
-  Br --> F
-  F --> O
-  style F fill:#D97757,color:#fff,stroke:#D97757
-  style X fill:#D97757,color:#fff,stroke:#D97757
-  style T fill:#FFF7EE,color:#D97757,stroke:#D97757,stroke-dasharray: 3 3
-  style Br fill:#FFF7EE,color:#D97757,stroke:#D97757,stroke-dasharray: 3 3
-  style B fill:#0F2D52,color:#fff,stroke:#0F2D52
-  style D fill:#0F2D52,color:#fff,stroke:#0F2D52
-  style M fill:#0F2D52,color:#fff,stroke:#0F2D52
-  linkStyle default font-size:9px,color:#6B7280
-```
+<div class="archviz">
+
+<svg viewBox="0 0 1200 350" style="width:100%;height:auto;display:block;" aria-label="PI-CON architecture and training loop">
+  <defs>
+    <marker id="arch-forward-arrow" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#4B5563"/>
+    </marker>
+    <marker id="arch-train-arrow" markerWidth="7" markerHeight="7" refX="6.2" refY="3.5" orient="auto">
+      <path d="M0,0 L7,3.5 L0,7 Z" fill="#7F1084"/>
+    </marker>
+  </defs>
+
+  <!-- Forward paths: all use one shared arrow definition and coordinate system. -->
+  <g fill="none" stroke="#4B5563" stroke-width="1.5" marker-end="url(#arch-forward-arrow)">
+    <path d="M150 58 H190"/>
+    <path d="M350 58 H390"/>
+    <path d="M530 58 H620"/>
+    <path d="M500 90 C500 118 492 128 486 147"/>
+    <path d="M170 200 H190"/>
+    <path d="M365 195 H420"/>
+    <path d="M520 195 H620"/>
+    <path d="M775 58 C820 58 820 116 842 128"/>
+    <path d="M775 198 C810 198 820 180 842 170"/>
+    <path d="M920 150 H990"/>
+  </g>
+
+  <!-- Query path. -->
+  <rect x="20" y="25" width="130" height="65" fill="#F4F1FF" stroke="#9B7CF8" stroke-width="1.3"/>
+  <text x="85" y="53" text-anchor="middle" fill="#1F1B2E" style="font-size:14px;font-weight:600;">Queries x,t</text>
+  <text x="85" y="75" text-anchor="middle" fill="#6B7280" style="font-size:11.5px;">Nq × 4</text>
+
+  <rect x="190" y="25" width="160" height="65" fill="#D97757" stroke="#D97757" stroke-width="1.3"/>
+  <text x="270" y="52" text-anchor="middle" fill="#FFF" style="font-size:15px;font-weight:700;">Fourier embed</text>
+  <text x="270" y="75" text-anchor="middle" fill="#FFEDE4" style="font-size:11.5px;font-weight:600;">Nq × 128</text>
+
+  <rect x="390" y="25" width="140" height="65" fill="#0F2D52" stroke="#0F2D52" stroke-width="1.3"/>
+  <text x="460" y="52" text-anchor="middle" fill="#FFF" style="font-size:15px;font-weight:700;">MLP trunk</text>
+  <text x="460" y="75" text-anchor="middle" fill="#CFE0F2" style="font-size:11.5px;font-weight:600;">Nq × 256</text>
+
+  <rect x="620" y="25" width="155" height="65" fill="#F7FAFD" stroke="#0F2D52" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <text x="697.5" y="52" text-anchor="middle" fill="#0F2D52" style="font-size:14px;font-weight:600;">trunk_basis</text>
+  <text x="697.5" y="75" text-anchor="middle" fill="#536B86" style="font-size:11.5px;font-weight:600;">Nq × 3 × 256</text>
+
+  <!-- Sensor path. -->
+  <rect x="20" y="165" width="150" height="70" fill="#F4F1FF" stroke="#9B7CF8" stroke-width="1.3"/>
+  <text x="95" y="194" text-anchor="middle" fill="#1F1B2E" style="font-size:14px;font-weight:600;">K=100 sensors</text>
+  <text x="95" y="217" text-anchor="middle" fill="#6B7280" style="font-size:11.5px;">201 × 100 × 2</text>
+
+  <rect x="190" y="155" width="175" height="80" fill="#D97757" stroke="#D97757" stroke-width="1.3"/>
+  <text x="277.5" y="184" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">CfC branch</text>
+  <text x="277.5" y="204" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">continuous-time</text>
+  <text x="277.5" y="224" text-anchor="middle" fill="#FFEDE4" style="font-size:11.5px;font-weight:600;">201 × 100 × 256</text>
+
+  <circle cx="470" cy="195" r="50" fill="#D97757" stroke="#D97757" stroke-width="1.3"/>
+  <text x="470" y="181" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">Cross-Attn</text>
+  <text x="470" y="201" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">+ dist. bias</text>
+  <text x="470" y="223" text-anchor="middle" fill="#FFEDE4" style="font-size:10.5px;font-weight:600;">Nq × 100 × 256</text>
+
+  <rect x="620" y="165" width="155" height="65" fill="#F7FAFD" stroke="#0F2D52" stroke-width="1.3" stroke-dasharray="5 4"/>
+  <text x="697.5" y="192" text-anchor="middle" fill="#0F2D52" style="font-size:14px;font-weight:600;">branch_basis</text>
+  <text x="697.5" y="215" text-anchor="middle" fill="#536B86" style="font-size:11.5px;font-weight:600;">Nq × 3 × 256</text>
+
+  <!-- DeepONet readout. -->
+  <path d="M842 120 H898 L920 150 L898 180 H842 L820 150 Z" fill="#0F2D52" stroke="#0F2D52" stroke-width="1.3"/>
+  <text x="870" y="144" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">Inner</text>
+  <text x="870" y="163" text-anchor="middle" fill="#FFF" style="font-size:14px;font-weight:700;">product</text>
+
+  <rect x="990" y="120" width="120" height="60" fill="#F4F1FF" stroke="#9B7CF8" stroke-width="1.3"/>
+  <text x="1050" y="145" text-anchor="middle" fill="#1F1B2E" style="font-size:14px;font-weight:600;">u, v, p</text>
+  <text x="1050" y="166" text-anchor="middle" fill="#6B7280" style="font-size:11.5px;">Nq × 3</text>
+
+  <!-- Training loop: output → loss → optimizer → the two trainable paths. -->
+  <g fill="none" stroke="#7F1084" stroke-width="1.8" marker-end="url(#arch-train-arrow)">
+    <path d="M1050 180 V302 H1042"/>
+    <path d="M820 302 H792"/>
+    <path d="M570 302 H520 L280 302 V236"/>
+    <path d="M520 302 H560 V108 H420 V91"/>
+  </g>
+
+  <rect x="820" y="279" width="220" height="46" rx="7" fill="#FEF6F1" stroke="#E9A97E" stroke-width="1.3"/>
+  <text x="930" y="297" text-anchor="middle" fill="#7F1084" style="font-size:12.5px;font-weight:700;">LOSS</text>
+  <text x="930" y="315" text-anchor="middle" fill="#374151" style="font-size:11px;">sensor MSE + NS residual</text>
+
+  <rect x="570" y="279" width="220" height="46" rx="7" fill="#FAF2FB" stroke="#C9A6CC" stroke-width="1.3"/>
+  <text x="680" y="297" text-anchor="middle" fill="#7F1084" style="font-size:12.5px;font-weight:700;">OPTIMIZER</text>
+  <text x="680" y="315" text-anchor="middle" fill="#374151" style="font-size:11px;">SOAP + Schedule-Free</text>
+
+  <circle cx="520" cy="302" r="3" fill="#7F1084"/>
+  <text x="425" y="332" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">back-propagation updates branch and trunk</text>
+</svg>
+
+</div>
 
 <div class="text-[10px] px-1" style="color:#9CA3AF;">
 Tensor shapes. Sensor path fixed per trajectory (201 time steps × 100 sensors); query path batched over
@@ -1583,7 +1684,7 @@ Tensor shapes. Sensor path fixed per trajectory (201 time steps × 100 sensors);
 </div>
 
 <div class="mt-2" style="font-size:0.88rem; color:#374151;">
-<b style="color:#7F1084;">PI-CON</b> — Physics-Informed Continuous-time Operator Network: a DeepONet readout with a continuous-time sensor branch, a distance-biased cross-attention fusion, and an Augmented-Lagrangian continuity constraint.
+<b style="color:#7F1084;">PI-CON</b> — <b>P</b>hysics-<b>I</b>nformed <b>C</b>ontinuous-time <b>O</b>perator <b>N</b>etwork: a DeepONet readout with a continuous-time sensor branch, a distance-biased cross-attention fusion, and an Augmented-Lagrangian continuity constraint.
 </div>
 
 <FooterLogos />
@@ -1591,13 +1692,23 @@ Tensor shapes. Sensor path fixed per trajectory (201 time steps × 100 sensors);
 <!--
 [Architecture · 1.5min] 2026-07-18 依指導教授 meeting 改版：
 (a) 標題不再用 "Three additions"；(b) 加上底色圖例（深藍＝沿用的 DeepONet backbone、
-橘＝本研究新增、虛線米底＝供內積的 basis）；(c) 三張說明卡移到下一頁；
+橘＝本研究新增、虛線藍框＝DeepONet 內積前的 basis tensors）；(c) 三張說明卡移到下一頁；
 (d) **PI-CON 這個名稱在本頁首次正式登場**（教授指定的位置，前面各頁一律不提前用）。
 
-口述：「先看顏色：深藍是沿用 DeepONet 原有的骨架 —— Fourier embedding 與 MLP trunk；
-橘色是本研究新增的三個部分。資料有兩條路徑：上路是 100 個感測器的時間訊號進 CfC branch，
-下路是查詢座標 (x, t) 進 trunk。兩者在 cross-attention 匯合，各自產生一組 basis，
-最後做內積得到該點的 u, v, p。」
+口述：「先看顏色：深藍是 DeepONet 原有的結構 —— MLP trunk、兩組 basis，以及最後的
+inner product；橘色是加入的 Fourier embedding、CfC branch 與 distance-biased
+cross-attention。資料有兩條路徑：100 個感測器的時間訊號由 CfC 編碼，query coordinate
+先做 Fourier embedding 再進 trunk；cross-attention 讓 query 取回 sensor context。
+虛線框不是新 layer，而是兩條路徑產生、交給原始 DeepONet inner product 的 basis tensors。
+輸出在訓練時進入 sensor MSE + NS residual，SOAP optimizer 再以 back-propagation 更新全部 θ；
+這條紫色回授線是 training loop，inference 時不執行。」
+
+顏色語意核對：
+- Fourier embedding：非原始 DeepONet，橘色；vanilla B0 為公平比較也保留相同 encoding，
+  不代表它是 DeepONet 原生元件。
+- CfC branch、cross-attention + distance bias：PI-CON 新增，橘色。
+- MLP trunk、basis-factorisation role、inner-product readout：DeepONet 原有，深藍／虛線藍。
+- Input/output tensors：淡紫中性色，不屬於 inherited/added module。
 
 ⚠️ 本頁只講「是什麼」，三個新增元件「為何需要」在下一頁。不要在此展開，否則兩頁重複。
 -->
@@ -1657,7 +1768,7 @@ At K = 100, a vanilla DeepONet does reconstruct, but not well enough to be usefu
 教授原話「做不出來」經 2026-07-18 確認指的是「**重建結果不好**」,故頁面寫
 「does reconstruct, but not well enough to be useful」。若寫成無法訓練,委員翻到
 主結果頁的 ablation 表就能反駁。
-數字來源:主結果頁 B0 8.23 % → B3 5.71 %,−2.52 pp,p = 3.0×10⁻⁷（chapter04, n=5 seeds）。
+數字來源:主結果頁 B0 8.23 % → B3 5.71 %,−2.53 pp,p = 3.0×10⁻⁷（chapter04, n=5 seeds）。
 
 三個 Gap 的對應（chapter01:108-118）：CfC → Gap 2/3、cross-attention → Gap 2、AL → Gap 1。
 -->
@@ -1781,29 +1892,33 @@ f<sub>1</sub> fast-response, f<sub>2</sub> slow-relaxation, <b style="color:#0F2
 <div class="grid gap-5 mt-2" style="grid-template-columns: 1.12fr 0.88fr;">
 
 <Card>
-<LabelTiny>① ATTENTION READOUT [Vaswani 2017]</LabelTiny>
+<LabelTiny>① CROSS-ATTENTION READOUT [VASWANI 2017]</LabelTiny>
 
-<div class="mt-1 text-xs leading-snug"><b style="color:#7F1084;">① Score</b>, <b style="color:#7F1084;">② Retrieve</b></div>
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+For each target point <b style="color:#0F2D52;">q = (x, t)</b>, attention asks: <b>which sensors are most informative here?</b>
+</div>
 
-<div class="mt-1" style="font-size: 0.95em;">
+<div class="mt-2" style="font-size: 0.98em;">
 
-$$A_{qk} = \mathrm{softmax}_k\!\left(\mathbf{Q}_q^{\top} \mathbf{K}_k \big/ \sqrt{d_{\text{hidden}}} \;+\; b_{qk}\right)$$
+$$A_{qk}=\operatorname{softmax}_k\!\left(\mathbf Q_q^{\mathsf T}\mathbf K_k/\sqrt{d}+b(r_{qk})\right)$$
 
 </div>
 
-<div style="font-size: 0.95em;">
+<div class="mt-1 text-xs" style="display:grid; grid-template-columns:max-content 1fr; column-gap:9px; row-gap:2px; align-items:baseline; color:#374151;">
+<b style="color:#0F2D52;">Q<sub>q</sub><sup>T</sup>K<sub>k</sub>/√d</b><span>learned query–sensor similarity</span>
+<b style="color:#D97757;">b(r<sub>qk</sub>)</b><span>periodic spatial-distance bias</span>
+</div>
 
-$$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{\text{branch}}(q)$$
+<div class="mt-1" style="font-size: 0.97em;">
+
+$$\mathbf c(q)=\sum_{k=1}^{K} A_{qk}\,\underbrace{\mathbf V_k}_{\text{sensor information}}$$
 
 </div>
 
-<div class="mt-1 text-xs" style="display:grid; grid-template-columns:max-content 1fr max-content 1fr; column-gap:8px; row-gap:1px; align-items:baseline;">
-<b style="color:#0F2D52;">Q<sub>q</sub></b><span>from the <b style="color:#0F2D52;">trunk</b>, Fourier (x, t)</span>
-<b style="color:#7F1084;">b<sub>qk</sub></b><span>MLP<sub>relpos</sub>(r<sub>qk</sub>), r<sub>qk</sub> = smoothed torus distance</span>
-<b style="color:#D97757;">K<sub>k</sub></b><span><b style="color:#D97757;">sensor token</b>, W<sub>K</sub>, scored</span>
-<b style="color:#7F1084;">d<sub>hidden</sub></b><span>key/query dim, softmax scaling</span>
-<b style="color:#D97757;">V<sub>k</sub></b><span><b style="color:#D97757;">same token</b>, W<sub>V</sub>, retrieved</span>
-<b style="color:#7F1084;">c<sub>branch</sub></b><span>branch context, residual MLP</span>
+<div class="mt-1 px-2 py-1 rounded text-xs" style="background:#FAF2FB; color:#374151; text-align:center;">
+<b style="color:#7F1084;">Compare</b> q with all sensors <span style="color:#C9C6D0;">→</span>
+<b style="color:#7F1084;">normalise</b> scores into A<sub>qk</sub> <span style="color:#C9C6D0;">→</span>
+<b style="color:#7F1084;">combine</b> V<sub>k</sub> into c(q)
 </div>
 
 </Card>
@@ -1873,7 +1988,8 @@ $$\textstyle\sum_{k=1}^{K} A_{qk}\,\mathbf{V}_k \;\longrightarrow\; \mathbf{c}_{
 Q 來自 trunk，K 與 V 來自 sensor token —— 所以是 cross 不是 self。」（chapter02:290-292） 少談 Transformer 內部細節，照 thesis §2.3 的骨架講：
 「Two modifications adapt it to fluid reconstruction: an isotropic relative-position bias and a causal lookup over sensor time.」(chapter02:257)
 頂部一句話：vanilla DeepONet inner product 是 global、沒 spatial prior，所以換成 cross-attention 做 sparse-to-dense readout（chapter02:135 原話）。
-卡 1：機制 — 先 Score（A_qk = softmax(QK/√d + b_qk)）再 Retrieve（Σ A_qk V_k → c_branch）。
+卡 1：保留 cross-attention 的原始數學定義，不改成另一個概念；只把兩個 score 項直接標成
+      query–sensor similarity 與 spatial-distance bias，並用 Compare → Weight → Combine 三步白話解讀。
       為何叫 cross 不叫 self：self-attention 的 Q/K/V 同源，這裡 Q 來自 trunk（查詢點）、
       K 與 V 來自同一個 sensor token H_q[k] 走 W_K / W_V 兩個投影（chapter02:290-292）。
       卡上用顏色編碼：Q 深藍（trunk）、K 與 V 橘（sensor token，同源）。
@@ -1889,56 +2005,6 @@ Q 來自 trunk，K 與 V 來自 sensor token —— 所以是 cross 不是 self�
 移除原本「卡 2：CFD analogue — learnable RBF interpolant」：該類比全論文不存在（chapter02 提 RBF 0 次），
 且 RBF 在論文裡只是被打敗的 baseline（chapter04:219，pointwise u rel-L₂ 低 47–74%）— 講它等於自找交叉詰問。
 -->
-
----
-
-<NavBar active="method" />
-
-<SectionTag>§ Method · Large-Eddy Simulation (LES) proxy</SectionTag>
-
-# LES proxy — DNS-free sensor placement
-
-<div class="grid grid-cols-5 gap-4 mt-1">
-
-<div class="col-span-3 space-y-2">
-
-<Card>
-<LabelTiny>FILTERED NAVIER–STOKES</LabelTiny>
-
-<div class="mt-2 text-xs leading-snug">
-
-$$\partial_t \bar{u}_i + \bar{u}_j\,\partial_j \bar{u}_i = -\partial_i \bar{p} + \nu\,\nabla^2 \bar{u}_i \;-\; \partial_j \tau_{ij}^{\mathrm{SGS}} \;-\; r\,\bar{u}_i + f_i$$
-
-</div>
-
-<div class="mt-2 text-xs leading-snug space-y-0.5">
-<div><b>Domain</b>&nbsp; same Ω, BC, forcing as DNS</div>
-<div><b>Friction</b>&nbsp; <b style="color:#E97132;">r = 2.86×10⁻² s⁻¹</b> — arrests the inverse cascade, <b>absent from the DNS</b></div>
-<div><b>Closure</b>&nbsp; Bardina scale-similarity + spectral hyperviscosity</div>
-<div><b>Setup</b>,  N = 256, T<sub>end</sub> = 50, cost ≈ <b style="color:#7F1084;">1/16 DNS</b></div>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>LES VERIFICATION</LabelTiny>
-
-<div class="mt-2 text-xs leading-snug space-y-1" style="color:#374151;">
-<div><b style="color:#0F2D52;">Resolution and stability</b> ✓</div>
-<div><b style="color:#E97132;">Statistical convergence not established</b>, T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = <b>4.9</b> &lt; 10</div>
-<div class="pt-1" style="border-top: 1px dashed #E5E0EC;"><b>Role</b>&nbsp; <b style="color:#0F2D52;">placement only</b> — needs large-scale structure, not statistics</div>
-</div>
-</Card>
-
-</div>
-
-<div class="col-span-2">
-<img :src="'/images/les_T50_vorticity_with_sensors.png'" class="rounded-lg border" style="border-color:#E5E0EC; max-height: 360px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">Fig. 2, LES vorticity with K = 100 QR-pivot sensors</div>
-</div>
-
-</div>
-
-<FooterLogos />
 
 <!--
 [LES generation · 2min] 教授九點 (4) (5) 落實：LES 也要把 CFD 重要參數寫清楚 + 解析度/穩定度判斷標準。
@@ -1969,9 +2035,9 @@ statistically steady state」。tab:les_verification 亦已標為「Statistical 
      實測 k ∈ [2,85] 全帶 0/84 個波數落在 [0.5,2] 內，物理上不可能通過。
 被問「統計窗夠不夠」：**誠實答未達**（T_end/τ_int = 4.9 < 10），並說明為何不影響本研究 ——
 LES 的角色是提供佈點所需的大尺度空間結構，不是提供收斂統計量；佈點品質的證據是下游結果
-（EXP-245 LES placement KE 5.71 ± 0.11%，與 DNS-oracle 4.68% 同級、皆遠低於 10% 門檻），
+（EXP-245 LES placement KE 5.71 ± 0.12%，與 DNS-oracle 4.68% 同級、皆遠低於 10% 門檻），
 不是 LES 自身的統計收斂。不要答 eddy-turnover（用錯時間尺度）。
-底部 Pill 用 final fair-comparison 口徑：LES placement 是 EXP-245 main pipeline，KE 5.71 ± 0.11%；不要再用舊 placement-ablation 的 12.36% / 9.40% 作主張。
+底部 Pill 用 final fair-comparison 口徑：LES placement 是 EXP-245 main pipeline，KE 5.71 ± 0.12%；不要再用舊 placement-ablation 的 12.36% / 9.40% 作主張。
 -->
 
 ---
@@ -2125,29 +2191,43 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 # Model and training configuration
 
-<div class="text-xs mt-1" style="color:#9CA3AF;">
-Flow, DNS, sensors and LES placement are given earlier; this page adds only the model and training values.
-</div>
-
 <style>
 .pgrid { display: grid; grid-template-columns: max-content 1fr; column-gap: 20px; row-gap: 7px;
          font-size: 0.9rem; line-height: 1.35; margin-top: 10px; }
 .pgrid .k { color: #7F1084; font-weight: 600; white-space: nowrap; }
 .pgrid .v { color: #1F1B2E; }
 .pgrid .cite { color: #9CA3AF; }
+.dimtable { width:100%; border-collapse:collapse; table-layout:fixed; margin-top:10px; font-size:.72rem; line-height:1.2; }
+.dimtable th { padding:0 6px 5px; color:#9CA3AF; font-size:.60rem; text-transform:uppercase;
+               letter-spacing:.05em; text-align:left; border-bottom:1px solid #E5E0EC; }
+.dimtable td { padding:7px 6px; color:#374151; border-bottom:1px solid #F1EDF5; vertical-align:top; }
+.dimtable td:first-child { color:#7F1084; font-weight:700; }
+.dimtable td:last-child { color:#6B7280; font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+                          font-size:.66rem; white-space:nowrap; }
+.dimsum { display:flex; justify-content:space-between; gap:12px; margin-top:8px; padding-top:7px;
+          border-top:1px solid #E5E0EC; color:#374151; font-size:.72rem; }
+.dimsum b { color:#7F1084; }
 </style>
 
-<div class="grid grid-cols-2 gap-6 mt-4">
+<div class="grid gap-6 mt-3" style="grid-template-columns:1.1fr 0.9fr;">
 
 <Card>
-<LabelTiny>Model</LabelTiny>
-<div class="pgrid">
-<div class="k">Architecture</div><div class="v">DeepONet + CfC branch + cross-attention readout</div>
-<div class="k">Width</div><div class="v">d<sub>model</sub> = 256, d<sub>emb</sub> = 128 (Fourier, 16 harmonics)</div>
-<div class="k">Branch</div><div class="v">spatial CfC × 1 + temporal CfC × 1</div>
-<div class="k">Readout</div><div class="v">cross-attention, 1 head, |r| bias</div>
-<div class="k">Size</div><div class="v"><b>3.14 M</b> parameters</div>
-<div class="k">Query grid</div><div class="v">128² (DNS 256²/4, avoids Nyquist)</div>
+<LabelTiny>Network size</LabelTiny>
+<table class="dimtable">
+<colgroup><col style="width:34%"><col style="width:30%"><col style="width:36%"></colgroup>
+<thead><tr><th>Module</th><th>Size</th><th>Tensor</th></tr></thead>
+<tbody>
+<tr><td>Sensor encoder</td><td>1 residual block</td><td>201 × 100 × 256</td></tr>
+<tr><td>CfC branch</td><td>1 layer + 2 attention<br>blocks, 4 heads</td><td>201 × 100 × 256</td></tr>
+<tr><td>Fourier embed</td><td>16 harmonics</td><td>N<sub>q</sub> × 128</td></tr>
+<tr><td>MLP trunk</td><td>1 residual block</td><td>N<sub>q</sub> × 256</td></tr>
+<tr><td>Cross-attention</td><td>1 layer, 1 head</td><td>N<sub>q</sub> × 100 × 256</td></tr>
+<tr><td>Inner product</td><td>3 fields × rank 256</td><td>N<sub>q</sub> × 3</td></tr>
+</tbody>
+</table>
+<div class="dimsum">
+<span>Total trainable parameters <b>3.14 M</b></span>
+<span>Query grid <b>128 × 128</b> <span class="cite">(DNS: 256 × 256)</span></span>
 </div>
 </Card>
 
@@ -2177,11 +2257,24 @@ Flow, DNS, sensors and LES placement are given earlier; this page adds only the 
   - Sensors 卡（K=100 (u,v)、LES-derived QR-pivot）→ 已在 slide 11 與 slide 15（LES proxy）講過。
 本頁只保留「別處沒有的數值」：model 尺寸與 training 預算。前面各頁講「為什麼」，本頁給「多少」。
 
-頁面所有數值均對照本檔 backup 頁「Configuration parameters — full reference」核對（2026-07-16）：
-d_model=256 · d_emb=128 (Fourier, harmonics=16, σ=2.0 learnable) · branch = spatial CfC ×1 +
-temporal CfC ×1 · trunk = 1 layer × 256 hidden, operator rank 256 · readout = cross-attn 1 head
-+ |r| bias · 3.14M params · query grid 128² · lr=10⁻³ warm-up 2000 · 1024 collocation ·
+頁面所有數值已於 2026-07-18 直接對照 configs/stable/exp_245.toml 與 src/pi_con/{encoders,decoder}.py：
+spatial encoder = 1 residual block, 256 channels, internal hidden 512；temporal branch = 1 CfC layer ×
+256 neurons；sensor-token mixing = 2 self-attention blocks × 4 heads；query trunk = 1 residual block ×
+256 neurons；decoder cross-attention = 1 head；operator rank = 256；d_emb=128（16 harmonics）；
+3.14M params · evaluation query grid 128²（DNS reference 256²）· lr=10⁻³ warm-up 2000 · 1024 collocation ·
 20 000 iters × n=5 (seeds 42,1,2,3,4) · single RTX 3090 24GB ~2h45m/seed。
+
+⚠️ 2026-07-19 改寫左卡：原本是 component × depth × hidden width × additional setting 的四欄表，
+列出 512-neuron inner layer / operator rank 256 / 16 harmonics 這些前面從未出現過的量，
+粒度比架構頁細一階。現在改成「Module × Size × Tensor」，**每一列都對應架構圖（slide 16）
+的一個方塊**，第三欄就是圖上已經印過的 tensor shape → 講到這頁時可以說「這就是剛才那張圖，
+補上尺寸」，不再有憑空冒出的數字。
+模組歸屬已核對 src/pi_con/{operator,encoders}.py 與 exp_245.toml：
+num_spatial_cfc_layers=1（SpatialSetEncoder，1 residual block）；
+num_temporal_cfc_layers=1 + num_token_attention_layers=2 × token_attention_heads=4
+（兩個 self-attention block 屬 TemporalCfCEncoder，**不是** spatial encoder — 舊 slide 的
+「Sensor mixing」獨立成列會讓人以為它在 encoder 那側）。
+未印在表上、被問再口述：spatial encoder 內層 hidden = 2×d_model = 512。
 
 未印在本頁但 backup 有（被問再翻）：SOAP β=(0.9, 0.999)、precond_freq=2、Polyak averaging；
 GradNorm 每 1000 步更新、EMA 0.9、init 權重 (1, 0.01, 0.01, 0.01)；AL ρ=0.1、λ_clip=10。
@@ -2221,14 +2314,13 @@ $$\overline{\mathrm{KE\_MAPE}} = \frac{1}{|T|}\sum_{t}\frac{\bigl|\mathrm{KE}_{\
 </div>
 
 <div class="ngrid">
-<div class="sym">KE MAPE</div><div class="def"><b>headline</b>, t ∈ [0, 5] s, also called <i>KE rel-err</i></div>
-<div class="sym">KE(t)</div><div class="def">½ ∫<sub>Ω</sub> (u² + v²) dx</div>
-<div class="sym">rel-L∞</div><div class="def">pointwise max error / DNS max</div>
-<div class="sym">t* = 5 rel-L₂</div><div class="def">final-snapshot error</div>
+<div class="sym">rel-L₂(u,v,ω)</div><div class="def">global field error</div>
+<div class="sym">KE MAPE</div><div class="def"><b>headline</b>; KE(t) = ½∫<sub>Ω</sub>(u²+v²) dx</div>
+<div class="sym">RMSE<sub>u,v</sub>(t)</div><div class="def">time-resolved, absolute (not normalised)</div>
 <div class="sym">div ratio</div><div class="def">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></div>
 </div>
 
-<div class="foot mt-1">4th-order central differences on 128² grid.</div>
+<div class="foot mt-1">Derivatives: 4th-order central differences, 128² grid.</div>
 </Card>
 
 <Card>
@@ -2264,13 +2356,13 @@ $$\mathcal{L}_{\text{AL}} = \lambda\,C + \tfrac{\rho}{2}\,C^2, \qquad C \equiv \
 <FooterLogos />
 
 <!--
-[Evaluation metrics · 1.5min] 教授要求「交代清楚誤差怎麼算」+「maximum error 或指定時間點 error 比較好」：
-左卡 4 個誤差層級：
-  (1) 全域時間平均 rel-L₂
-  (2) 最壞點 rel-L_∞（pointwise max / DNS pointwise max）— 教授指定
-  (3) 指定時間點 t* = 5 的 snapshot rel-L₂（rollout 結尾最難）— 教授指定
-  (4) bulk: KE(t)、div_L₂(t)
-最後標明：4 階中央差分、128² eval grid、div 對照 DNS FD floor。
+[Evaluation metrics · 1.5min] 左卡只保留後續結果頁實際引用的四個量：
+  (1) 全時空 global rel-L₂(u,v,ω)：主結果表與各 sensing ablation 使用。
+  (2) KE MAPE：headline bulk metric，所有主比較使用。
+  (3) 逐時 RMSE_u,v(t)：Temporal diagnostics 的速度誤差曲線使用；用絕對誤差避免分母隨時間改變。
+  (4) div ratio：continuity diagnostic，與 resolved-bandwidth FD floor 比較。
+rel-L∞ 在簡報結果中完全未使用，故刪除；t*=5 rel-L₂ 只是既有 rel-L₂ 在特定快照的取值，
+不再冒充一個獨立 metric。最後標明：4 階中央差分、128² eval grid。
 右卡 Loss formulation：4-task GradNorm weighted sum **+ L_AL**。底部紅線：「DNS field 從不入 L」標明工程不可遷移性。
 注意：avoid 「approximately / matches」這類 hardness/marketing 語。
 
@@ -2296,18 +2388,18 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 </div>
 
 <style>
-.m22 { display: grid; grid-template-columns: max-content 1fr 1fr max-content; column-gap: 10px; row-gap: 5px; align-items: center; margin-top: 6px; margin-bottom: 0; }
-.m22 .hd { font-size: 0.78rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.03em; text-align: center; }
-.m22 .rl { font-size: 0.82rem; color: #6B7280; white-space: nowrap; }
-.m22 .mg { font-size: 0.72rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; text-align: center; }
-.m22 .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
-.m22 .cell.best { border-color: #7F1084; background: #FAF3FB; }
-.m22 .id { display: block; font-size: 0.90rem; color: #9CA3AF; letter-spacing: 0.05em; white-space: nowrap; }
-.m22 .val { display: block; font-size: 1.05rem; font-weight: 700; color: #1F1B2E; line-height: 1.15; }
-.m22 .cell.best .val { color: #7F1084; }
-.m22 .dv { font-size: 0.90rem; font-weight: 700; text-align: center; }
-.m22 .good { color: #7F1084; }
-.m22 .bad  { color: #E97132; }
+.abmatrix { display: grid; grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr) max-content; column-gap: 10px; row-gap: 5px; align-items: center; margin-top: 6px; margin-bottom: 0; }
+.abmatrix .hd { font-size: 0.78rem; color: #6B7280; text-transform: uppercase; letter-spacing: 0.03em; text-align: center; }
+.abmatrix .rl { font-size: 0.82rem; color: #6B7280; white-space: nowrap; }
+.abmatrix .mg { font-size: 0.72rem; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; text-align: center; }
+.abmatrix .cell { border: 1px solid #E5E0EC; border-radius: 6px; padding: 7px 4px; text-align: center; background: #FFF; }
+.abmatrix .cell.best { border-color: #7F1084; background: #FAF3FB; }
+.abmatrix .id { display: block; font-size: 0.90rem; color: #9CA3AF; letter-spacing: 0.05em; white-space: nowrap; }
+.abmatrix .val { display: block; font-size: 1.05rem; font-weight: 700; color:#1F1B2E; line-height: 1.15; }
+.abmatrix .cell.best .val { color: #7F1084; }
+.abmatrix .dv { font-size: 0.90rem; font-weight: 700; text-align: center; }
+.abmatrix .good { color: #7F1084; }
+.abmatrix .bad  { color: #E97132; }
 .rg { display: grid; grid-template-columns: 1fr max-content; column-gap: 12px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
 .rg .k { font-size: 0.90rem; color: #374151; }
 .rg .n { font-size: 0.90rem; font-weight: 700; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; color: #1F1B2E; }
@@ -2320,7 +2412,7 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <Card>
 <LabelTiny>2×2 ablation, KE MAPE (%, n = 5, lower is better)</LabelTiny>
 
-<div class="m22">
+<div class="abmatrix">
 <div></div>
 <div class="hd">no cross-attn</div>
 <div class="hd">+ cross-attn</div>
@@ -2329,7 +2421,7 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <div class="rl">no CfC</div>
 <div class="cell"><span class="id">B0</span><span class="val">8.23</span></div>
 <div class="cell"><span class="id">B2</span><span class="val">7.03</span></div>
-<div class="dv good">−1.20</div>
+<div class="dv good">−1.21</div>
 
 <div class="rl">+ CfC</div>
 <div class="cell"><span class="id">B1</span><span class="val">9.23</span></div>
@@ -2337,12 +2429,12 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <div class="dv good">−3.52</div>
 
 <div class="mg">Δ from CfC</div>
-<div class="dv bad">+1.00</div>
+<div class="dv bad">+0.99</div>
 <div class="dv good">−1.32</div>
 <div></div>
 </div>
 
-<div class="foot mt-2">Bottom row flips sign: CfC costs <b style="color:#E97132;">+1.00</b> alone, buys <b style="color:#7F1084;">−1.32</b> with cross-attention.</div>
+<div class="foot mt-2">Bottom row flips sign: CfC costs <b style="color:#E97132;">+0.99</b> alone, buys <b style="color:#7F1084;">−1.32</b> with cross-attention.</div>
 </Card>
 </div>
 
@@ -2351,20 +2443,19 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <Card>
 <LabelTiny>KE decomposition &nbsp;<span class="opacity-60">(pp)</span></LabelTiny>
 <div class="rg">
-<div class="k">cross-attention</div><div class="n" style="color:#7F1084;">−1.20</div>
-<div class="k">CfC</div><div class="n" style="color:#E97132;">+1.00</div>
-<div class="k">CfC × cross-attention</div><div class="n" style="color:#7F1084;">−2.32</div>
-<div class="k tot">total &nbsp;B3 − B0</div><div class="n tot">−2.52</div>
+<div class="k">cross-attention</div><div class="n" style="color:#7F1084;">−1.21</div>
+<div class="k">CfC</div><div class="n" style="color:#E97132;">+0.99</div>
+<div class="k">CfC × cross-attention</div><div class="n" style="color:#7F1084;">−2.31</div>
+<div class="k tot">total &nbsp;B3 − B0</div><div class="n tot">−2.53</div>
 </div>
-<div class="mt-2 text-xs" style="color:#6B7280;">Additive about the B0 reference cell (8.23 %); interaction outweighs either main effect.</div>
 </Card>
 
 <Card>
 <LabelTiny>Welch t-test &nbsp;<span class="opacity-60">(n = 5 seeds)</span></LabelTiny>
 <div class="rg">
-<div class="k">B3 &nbsp;PI-CON</div><div class="n" style="color:#7F1084;">5.71 ± 0.11 %</div>
+<div class="k">B3 &nbsp;PI-CON</div><div class="n" style="color:#7F1084;">5.71 ± 0.12 %</div>
 <div class="k">B0 &nbsp;vanilla DeepONet</div><div class="n">8.23 ± 0.22 %</div>
-<div class="k tot">gap</div><div class="n tot" style="color:#7F1084;">−30.6 % rel</div>
+<div class="k tot">gap</div><div class="n tot" style="color:#7F1084;">−30.7 % rel</div>
 </div>
 </Card>
 
@@ -2375,7 +2466,7 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <FooterLogos />
 
 <!--
-[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition (about B0=8.23)：cross-attn −1.20pp（dominant lever）、CfC +1.00pp（worse alone）、interaction −2.32pp、sum −2.52pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.52pp（−30.6% relative）、t=22.9、p=3.0×10⁻⁷、Cohen's d=14.5（統計顯著性從投影片移來，字太小委員看不清，改口述）。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
+[Architectural ablation · 2min] 長條圖：4 個架構變體 B0/B1/B2/B3 的 KE MAPE 比較（按 KE 排序）。右上 KE decomposition：cross-attn −1.21pp（dominant lever）、CfC +0.99pp（worse alone）、interaction −2.31pp、sum −2.53pp。右下 multi-seed n=5 t-test：B3 vs B0 −2.53pp（−30.7% relative）、t=22.9、p=3.0×10⁻⁷、Cohen's d=14.5（統計顯著性從投影片移來，字太小委員看不清，改口述）。v-clicks：①兩個 component 都 essential、cross-attn 強 lever ②operator framework > raw capacity (PINN 3.24M < DeepONet 1.28M)。
 -->
 
 ---
@@ -2454,7 +2545,7 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Key metrics &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
 <div class="bg2">
-<div class="k">KE MAPE</div><div class="v"><b style="color:#7F1084;">5.71 ± 0.11 %</b></div>
+<div class="k">KE MAPE</div><div class="v"><b style="color:#7F1084;">5.71 ± 0.12 %</b></div>
 <div class="k">u rel-L₂</div><div class="v">13.65 ± 0.06 %</div>
 <div class="k">v rel-L₂</div><div class="v">17.52 ± 0.10 %</div>
 <div class="k">ω rel-L₂</div><div class="v">41.79 ± 0.12 %</div>
@@ -2484,7 +2575,7 @@ k_max ≈ 5.64；越過它 conditioning 急遽變差（κ 7 → 7×10²），加
 「modes 比 measurements 多 / 不可觀測」—— 那要到 k ≈ 8 才成立（appendix06 的 SVD：2K=200 個
 (u,v) 觀測、M=196，k ≲ 8 內每個 mode 都 full-rank 可觀測）。原本這裡有張 Ceiling 卡寫同樣的
 5.64 與同樣的結論，與第 8 頁逐字重複、且右欄已擠爆，故移除改為口述。
-左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.11%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
+左 metrics 用 EXP-245 main (LES_T50, 20k, n=5)：KE 5.71 ± 0.12%, ω rel-L₂ 41.79%, div ratio 0.39%。右三個 Card 解讀：①DNS reference 有什麼 (k_f forcing + cascade) ②PI-CON 抓到什麼 (主 vortex + k_f mode 對的振幅相位，小尺度 smoothed) ③Error 結構性 (集中在 high-shear edges, 不是 random noise)。後面 spectral analysis 量化這個 information bound。
 -->
 
 ---
@@ -2499,7 +2590,7 @@ k_max ≈ 5.64；越過它 conditioning 急遽變差（κ 7 → 7×10²），加
 
 <Card>
 <img :src="'/images/kinetic_energy_vs_time.png'" class="rounded" style="max-height: 252px; width: 100%; object-fit: contain;" />
-<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.11 %</b> (n = 5), follows DNS decay 0.161 → 0.122, IC warm-up t &lt; 2 s.</div>
+<div class="foot mt-1">KE MAPE <b style="color:#7F1084;">5.71 ± 0.12 %</b> (n = 5), follows DNS decay 0.161 → 0.122, IC warm-up t &lt; 2 s.</div>
 </Card>
 
 <Card>
@@ -2512,7 +2603,7 @@ k_max ≈ 5.64；越過它 conditioning 急遽變差（κ 7 → 7×10²），加
 <FooterLogos />
 
 <!--
-[Temporal diagnostics · 1.5min] 兩張圖：KE(t)（MAPE 5.71 ± 0.11%, n=5, 追 DNS chaotic decay
+[Temporal diagnostics · 1.5min] 兩張圖：KE(t)（MAPE 5.71 ± 0.12%, n=5, 追 DNS chaotic decay
 0.161→0.122 m²/s²）、velocity RMSE u/v(t)（0.115→0.03 m/s, ±1σ band n=5）。
 div ratio 0.39% 接近 resolved-bandwidth FD floor。
 
@@ -2558,7 +2649,7 @@ isotropic kernel 是未排除的競爭解釋（見已停用的 velocity-error ba
 
 <SectionTag>§ Results · sensor placement axis (O3)</SectionTag>
 
-# DNS-free placement — competitive, not equivalent
+# Sensor placement without DNS access
 
 <style>
 .pl { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px;
@@ -2591,7 +2682,7 @@ Same B3 backbone, 1024 collocation, 20 k iterations, n = 5, sensor values always
 <tr class="main">
 <td>LES T = 50 &nbsp;<span class="sub">main pipeline</span></td>
 <td class="no">No</td>
-<td>5.71 ± 0.11</td>
+<td>5.71 ± 0.12</td>
 <td>13.65 / 17.52</td>
 </tr>
 <tr>
@@ -2666,7 +2757,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 
 <SectionTag>§ Results · vs an open-loop forward-CFD forecast</SectionTag>
 
-# Forward-CFD diverges; its statistics do not show it
+# Trajectory divergence of the forward-CFD reference
 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
@@ -2781,19 +2872,22 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
 
 <SectionTag>§ Results · vs classical sensor-only interpolation</SectionTag>
 
-# Lower KE does not mean a better field
+# Kinetic energy error versus pointwise accuracy
 
 <style>
-.fb { width: 100%; border-collapse: collapse; font-size: 1.02rem; margin-top: 16px; }
+.fb { width: 100%; border-collapse: collapse; font-size: 0.98rem; margin-top: 8px; }
 .fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.86rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 10px 8px 10px; border-bottom: 1px solid #D8D2E0; }
 .fb th.m { text-align: left; }
-.fb td { padding: 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
+.fb td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
          font-variant-numeric: tabular-nums; }
 .fb td.m { text-align: left; color: #1F1B2E; white-space: nowrap; }
 .fb tr.ours td { background: #F7EDF8; border-bottom: none; font-weight: 700; }
 .fb .win { color: #7F1084; font-weight: 700; }
 .fb .trap { color: #E97132; font-weight: 700; }
+.setup { display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:6px;
+         margin-top:14px; font-size:.80rem; line-height:1.3; color:#374151; }
+.setup .n { color:#7F1084; font-weight:700; white-space:nowrap; }
 </style>
 
 <table class="fb">
@@ -2805,15 +2899,15 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
   </thead>
   <tbody>
     <tr>
-      <td class="m">Radial basis function (RBF) <span style="color:#9CA3AF;">multiquadric, <span class="raw">ε</span> = 10</span></td>
+      <td class="m">Radial basis function (RBF)</td>
       <td class="trap">5.08</td><td>30.02</td><td>34.43</td><td>58.33</td>
     </tr>
     <tr>
-      <td class="m">Inverse distance weighting (IDW) <span style="color:#9CA3AF;">p = 2</span></td>
+      <td class="m">Inverse distance weighting (IDW)</td>
       <td>66.66</td><td>52.88</td><td>62.02</td><td>81.89</td>
     </tr>
     <tr>
-      <td class="m">Divergence-free trigonometric least squares <span style="color:#9CA3AF;">k<sub>max</sub> = 5</span></td>
+      <td class="m">Divergence-free trigonometric least squares (trig-LSQ)</td>
       <td class="trap">4.42</td><td>25.87</td><td>31.96</td><td>63.41</td>
     </tr>
     <tr class="ours">
@@ -2823,11 +2917,14 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
   </tbody>
 </table>
 
-<div class="mt-4" style="font-size:1.0rem; color:#374151;">
-Pointwise u, v, <span class="raw">ω</span> <span style="color:#C9C6D0;">→</span> PI-CON <b style="color:#7F1084;">−47 %</b> vs trig-LSQ <span style="color:#C9C6D0;">, </span> <b style="color:#7F1084;">−74 %</b> vs IDW
+<div class="setup">
+<div class="n">RBF</div><div>multiquadric kernel fitted through all 100 sensor values; shape <span class="raw">ε</span> = 10, of order one sensor spacing</div>
+<div class="n">IDW</div><div>weighted average of the 100 values, weight <span class="raw">∝</span> 1/d²; exact at the sensors, flat in between</div>
+<div class="n">trig-LSQ</div><div>least squares on a divergence-free Fourier basis truncated at k<sub>max</sub> = 5, the K = 100 Nyquist scale</div>
 </div>
 
-<div class="foot mt-2">Source, appendix <span class="raw">tab:fair_baselines</span>, same LES-derived K = 100 sensors as the main baseline.</div>
+
+<div class="foot mt-1">Shape parameters fixed from a-priori scales, not tuned against DNS. Source, appendix <span class="raw">tab:fair_baselines</span>.</div>
 
 <FooterLogos />
 
@@ -2843,6 +2940,23 @@ Parfenyev）的比較是規格對照，不是數值比較（Re 差 7.7× 以上�
 - 三個 baseline 都是 sensor-only（訓練與推論皆不碰 DNS），與 PI-CON 同約束，所以公平。
 - RBF 的 ε=10、trig-LSQ 的 k_max=5 都由 a-priori 尺度定（sensor 間距、K=100 Nyquist），
   非為了壓低 DNS error 而調 —— 這點被問「你是不是挑弱的對手」時要講。
+
+⚠️ 2026-07-19 底部結論句已整行刪除 —— 表格自己看得出來（PI-CON 三個 L₂ 欄全紫、
+   數值約為 trig-LSQ 的一半），數字用講的即可。要講的版本：
+   「u rel-L₂ 相對 trig-LSQ 降 47 %、相對 IDW 降 74 %；v 和 ω 也降 34–72 %。」
+   **注意 47/74 只是 u 一個場**（25.87→13.65、52.88→13.65，與 appendix07:78 原文一致），
+   三場平均其實是 42 % / 65 %，口頭不可講成「三個場都降 47–74 %」。
+   實測六值：vs trig-LSQ u 47.2 / v 45.2 / ω 34.1；vs IDW u 74.2 / v 71.8 / ω 49.0。
+
+⚠️ 2026-07-19 另修兩處：
+ (1) 底部結論句原寫「Pointwise u, v, ω → −47 % / −74 %」——**那兩個數字只是 u 一個場**
+     （25.87→13.65 = 47.2%；52.88→13.65 = 74.2%，與 appendix07:78 原文一致）。
+     三場平均其實是 42 % / 65 %，掛 u,v,ω 的標籤等於把三個場混在一起報，會被抓。
+     已改成「u rel-L₂ → −47 % / −74 %」，並補 (v and ω: −34 % to −72 %) 避免被問「那另外兩個呢」。
+     實測六個值：vs trig-LSQ u 47.2 / v 45.2 / ω 34.1；vs IDW u 74.2 / v 71.8 / ω 49.0。
+ (2) 三個方法原本只在名字後面掛一個裸參數（ε=10 / p=2 / k_max=5），沒說方法本身怎麼運作。
+     已改成表格下方三行 setup，各一句講清楚做什麼 + 參數的物理來源。
+     參數不是調出來的這件事從 notes 移到 slide 上（原本只有我知道，委員看不到）。
 
 ⚠️ appendix07 另有紀錄：trig-LSQ 在 k_max=8/12、RBF 在壞長度尺度下，誤差會大好幾個數量級。
    那些不穩定變體「excluded from the main comparison table」—— 我們選的是它們的強項組態，不是弱項。
@@ -2907,7 +3021,7 @@ scaling estimate 非 prediction。兩個 caveat 已放回頁面（右卡）。�
 
 <SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Sensor noise — reliability, not feasibility
+# Reconstruction accuracy under sensor noise
 
 <style>
 .nz { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 14px; margin-bottom: 0;
@@ -3054,7 +3168,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <div class="col">
 <h4 style="color:#7F1084;">Supported</h4>
-<div class="row"><b style="color:#7F1084;">KE &amp; mean-flow monitoring</b><br/><span class="ar">→</span> 5.71 ± 0.11 %</div>
+<div class="row"><b style="color:#7F1084;">KE &amp; mean-flow monitoring</b><br/><span class="ar">→</span> 5.71 ± 0.12 %</div>
 <div class="row mt-2"><b style="color:#7F1084;">Phase-locked control</b> @ k<sub>f</sub><br/><span class="ar">→</span> amp 0.99, phase ≲ 0.09 rad</div>
 <div class="row mt-2"><b style="color:#7F1084;">Incompressibility check</b><br/><span class="ar">→</span> div 0.39 % = FD floor</div>
 <div class="row mt-2"><b style="color:#7F1084;">Streaming deployment</b><br/><span class="ar">→</span> causal, queries at any t</div>
@@ -3074,7 +3188,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 <FooterLogos />
 
 <!--
-[Engineering applicability · 2min] 左卡：K=100 可支援的 use case — KE & mean-flow monitoring (5.71 ± 0.11%)、phase-locked control (forcing mode amplitude/phase recovered)、incompressibility check (resolved-bandwidth FD floor)、streaming deployment (filtering mode)。右卡：不適用 case — small-scale turbulence stats、fine vorticity filaments、acoustic/shock localisation 需多模態。Inference cost 移到下一頁獨立比較。
+[Engineering applicability · 2min] 左卡：K=100 可支援的 use case — KE & mean-flow monitoring (5.71 ± 0.12%)、phase-locked control (forcing mode amplitude/phase recovered)、incompressibility check (resolved-bandwidth FD floor)、streaming deployment (filtering mode)。右卡：不適用 case — small-scale turbulence stats、fine vorticity filaments、acoustic/shock localisation 需多模態。Inference cost 移到下一頁獨立比較。
 -->
 
 ---
@@ -3093,7 +3207,6 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 .ct .det { font-size: 0.95rem; color: #6B7280; margin-top: 4px; line-height: 1.4; }
 .ct .det b { color: #7F1084; }
 .ct .ob { font-size: 0.66rem; font-weight: 700; color: #16A34A; white-space: nowrap; padding: 8px 0; letter-spacing: 0.04em; }
-.ct .sec .num, .ct .sec .ttl, .ct .sec .ob { color: #9CA3AF; }
 .ar { color: #9CA3AF; font-weight: 400; }
 </style>
 
@@ -3102,7 +3215,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 <div class="num">①</div>
 <div class="body">
 <div class="ttl">PI-CON — a sparse-sensor inverse operator</div>
-<div class="det">K = 100, Re = 10⁴, sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.11 %</b></div>
+<div class="det">K = 100, Re = 10⁴, sensor + PDE only <span class="ar">→</span> KE <b>5.71 ± 0.12 %</b></div>
 </div>
 
 <div class="num">②</div>
@@ -3115,12 +3228,6 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 <div class="body">
 <div class="ttl">Cross-Reynolds feasibility</div>
 <div class="det">Re = 10⁶ <span class="ar">→</span> KE <b>6.10 %</b> <span style="color:#9CA3AF;">(single seed)</span></div>
-</div>
-
-<div class="num" style="color:#9CA3AF;">④</div>
-<div class="body">
-<div class="ttl" style="color:#9CA3AF;">KE alone mis-ranks <span style="color:#C9C6D0; font-weight:400;">(secondary)</span></div>
-<div class="det">Interpolation posts lower KE with a worse field</div>
 </div>
 
 </div>
@@ -3139,7 +3246,7 @@ Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">, </spa
 
 口述（頁面已移除，被問才給）：
 ① cross-attention 是 dominant standalone lever，CfC 透過 interaction 生效（2×2 分解：
-   cross-attn −1.20、CfC +1.00、interaction −2.32、total −2.52 pp；p = 3.0×10⁻⁷）
+   cross-attn −1.21、CfC +0.99、interaction −2.31、total −2.53 pp；p = 3.0×10⁻⁷）
 ② 數量：K 100 → 400 使 KE 5.90 → 1.76 %；位置：placement σ ≈ 6× training σ；
    噪音：10 % → KE 6.08 %。三軸皆在 10 % 門檻內。
 ③ Re = 10⁶ 用 K = 200，KE 6.10 % ≈ Re = 10⁴ baseline。chapter05:20 明載
@@ -3156,7 +3263,11 @@ Eight sensing configurations, KE <b>1.76 – 7.95 %</b> <span class="ar">, </spa
 not a multi-seed benchmark」，故 ③ 保留該但書）；④ chapter04:219 的 47–74 %
 （Appendix app:fair_baselines）。
 
-④ 刻意灰階：thesis/CLAUDE.md 定調它是次要貢獻，不與前三條等重。
+⚠️ 2026-07-19：④「KE alone mis-ranks」已從本頁移除（原本灰階列為次要貢獻）。
+   thesis chapter05 仍是四條，投影片只列三條 —— 被問「論文寫四條為何只講三條」時答：
+   第四條是前三條的判讀方式，已在 §Results「Lower KE does not mean a better field」
+   那頁完整呈現（RBF 5.08 / trig-LSQ 4.42 的 KE 比我們低但 u rel-L₂ 差近兩倍），
+   不另立為並列貢獻。**不要說「論文沒有這條」——論文有。**
 -->
 
 ---
@@ -3233,159 +3344,10 @@ Validated scope <span style="color:#C9C6D0;">, </span> K = 100 <span style="colo
 - 「Uniform sensor clock」：CfC 的存在理由就是讀不規則時鐘，但 benchmark 均勻取樣 →
   這個能力從未被實驗觸及。補法最便宜：既有 201 frames 加時間軸 mask，對照 GRU + Δt，
   不需新 DNS。這也直接檢驗論文標題的「Continuous-Time」。
-- 它同時解釋主結果頁 CfC 單獨 +1.00 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
+- 它同時解釋主結果頁 CfC 單獨 +0.99 pp：均勻時鐘下 Δt 為定值，chapter02.tex:212 的
   Δt 閘門吃不到變異，CfC 退化為多帶參數的 gated RNN，變差是預期而非意外。
 - 「Periodic domain」：cylinder wake 已有初步驗證（Appendix），非全新領域。
 
 ⚠️ 「Uniform sensor clock」這條 thesis §5.3 原本沒有，2026-07-16 查證時發現 chapter05.tex:43
 已有對應的 \textbf{Temporal sampling} 條目（先前 note 說「論文沒有」是過時資訊）。
--->
-
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Results · filtering vs smoothing mode</SectionTag>
-
-# Filtering vs smoothing
-
-<style>
-.fs { width: 100%; border-collapse: collapse; font-size: 1.0rem; margin-top: 20px; }
-.fs th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.72rem; text-transform: uppercase;
-         letter-spacing: 0.05em; padding: 0 12px 8px 12px; border-bottom: 1px solid #D8D2E0; }
-.fs td { padding: 14px 12px; border-bottom: 1px solid #F1EDF5; color: #374151; }
-.fs .m { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.fs .m span { display: block; font-weight: 400; color: #9CA3AF; font-size: 0.72em; margin-top: 2px; }
-.fs tr.ours td { background: #F7EDF8; border-bottom: none; color: #7F1084; font-weight: 700; }
-</style>
-
-<table class="fs">
-<thead>
-<tr>
-<th style="width: 22%;">Mode</th>
-<th style="width: 30%;">CfC scan</th>
-<th style="width: 24%;">KE MAPE</th>
-<th style="width: 24%;">Evidence</th>
-</tr>
-</thead>
-<tbody>
-<tr class="ours">
-<td class="m" style="color:#7F1084;">Filtering <span style="color:#B98ABD;">default</span></td>
-<td>forward only</td>
-<td>5.71 ± 0.11 %</td>
-<td>n = 5</td>
-</tr>
-<tr>
-<td class="m">Smoothing</td>
-<td>forward + backward</td>
-<td>5.74 %</td>
-<td>single seed</td>
-</tr>
-</tbody>
-</table>
-
-<div class="mt-6" style="display:grid; grid-template-columns:max-content 1fr; column-gap:16px; row-gap:7px; align-items:baseline; font-size:0.95rem;">
-<span style="color:#9CA3AF;">Accuracy</span><span style="color:#374151;">Comparable — smoothing is <b>not</b> rejected on accuracy</span>
-<span style="color:#9CA3AF;">Why filtering</span><span style="color:#374151;">Reads no future sensor <span style="color:#C9C6D0;">, </span> half the compute <span style="color:#C9C6D0;">, </span> the n = 5 validated recipe</span>
-</div>
-
-<FooterLogos />
-
-<!--
-[Filtering vs smoothing · 1min] 兩個 CfC mode 對照。filtering = forward-only scan，query 只讀到 t_q
-（streaming-deployable）；smoothing = forward + backward，query 看得到完整 sensor 序列（offline batch）。
-
-⚠️ 2026-07-17 重寫：原標題「Filtering stays default for deployment, not because smoothing fails」
-是「A, not B」句型且折兩行；原頁面把「filtering = forward scan / smoothing = forward+backward」
-的定義用散文寫了兩行，又用兩張卡各三條 bullet 重述表格已有的資訊。現在定義收進表格的
-「CfC scan」欄，結論收成兩行。
-
-口述（頁面不印）：
-- EXP-294 是 final-protocol 的 smoothing 重跑，**不再支持舊版的 smoothing failure story**；
-  它與 filtering 接近（5.74 vs 5.71）。
-- 但 filtering 仍是預設，理由是工程面而非精度面：不讀未來 sensor（可串流部署）、
-  少一次 backward scan（半 compute）、且 EXP-245 n=5 是主 baseline。
-- 若委員問「那為什麼不用 smoothing」→ 答：它沒輸，只是證據是單 seed，而部署要的是
-  filtering 的因果性；離線批次重建才輪得到 smoothing。
--->
-
----
-
-<NavBar active="summary" />
-
-<SectionTag>§ Appendix · anticipated Q&A</SectionTag>
-
-# Anticipated questions
-
-<style>
-.qa { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 14px; }
-.qa th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.66rem; text-transform: uppercase;
-         letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
-.qa td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: top; }
-.qa .q { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
-.qa .n { color: #9CA3AF; font-weight: 700; font-size: 0.8em; }
-.qa .ok { color: #7F1084; font-weight: 700; }
-.qa .gap { color: #E97132; font-weight: 700; }
-</style>
-
-<table class="qa">
-<thead>
-<tr><th style="width: 5%;"></th><th style="width: 37%;">Question</th><th style="width: 58%;">Short answer</th></tr>
-</thead>
-<tbody>
-<tr><td class="n">Q1</td><td class="q">DNS resolution adequate?</td>
-<td><span class="ok">k<sub>max</sub>, &#951; = 1.91 &#8805; 1.5</span> (Pope 2000)</td></tr>
-<tr><td class="n">Q2</td><td class="q">Energy-spectrum slope?</td>
-<td>&#8722;4.61, steeper than k&#8315;&#179; &#183; no inertial range in a [0,1]&#178; box</td></tr>
-<tr><td class="n">Q3</td><td class="q">T = 5 vs Lyapunov time?</td>
-<td>2.51 turnovers &#183; <span class="gap">short window</span>, n = 5 partly compensates</td></tr>
-<tr><td class="n">Q4</td><td class="q">Is AL just SIMPLE/PISO?</td>
-<td>Lagrangian analogue, not algorithmically equivalent</td></tr>
-<tr><td class="n">Q5</td><td class="q">Is divergence controlled?</td>
-<td><span class="ok">0.39 %</span> = resolved-bandwidth FD floor &#183; not sub-DNS</td></tr>
-<tr><td class="n">Q6</td><td class="q">Is the PINN baseline a straw man?</td>
-<td>B0 vanilla DeepONet is the fair one &#183; &#8722;2.52 pp, p = 3&#215;10&#8315;&#8311;</td></tr>
-<tr><td class="n">Q7</td><td class="q">Pressure error?</td>
-<td><span class="gap">Open</span> &#183; gauge-removed p<sub>rms</sub> = 0.231, evaluator pending</td></tr>
-<tr><td class="n">Q8</td><td class="q">Why not forward CFD?</td>
-<td>Same attractor, decorrelated phase &#183; u rel-L&#8322; <b>152.8 %</b></td></tr>
-</tbody>
-</table>
-
-<FooterLogos />
-
-<!--
-[Anticipated Q&A · appendix] 八個 CFD-rigour 問題的預備答案。
-
-⚠️ 2026-07-17 重做。修了兩件事：
-1. SectionTag 原寫「§ Disabled」，但本頁早已被啟用 —— 標籤與狀態矛盾。改為「§ Appendix」。
-2. 原本八張卡塞完整答案，實測 **ov = 546px（canvas 只有 552px）** —— 內容是投影片的兩倍高，
-   後四題完全掉出畫面。現改為**索引式**：頁面只放問題 + 一句結論，完整答案在下方 note。
-   這頁的用途是 Q&A 時讓委員看見「這些都想過了」，細節用講的。
-
-== 完整答案（口述用）==
-Q1 DNS 解析度：&#949; = 6.27e-3、&#951; = 3.55e-3、k_max = 85.3 mode（2/3 dealiased）
-   &#8658; k_max,phys = 536；k_max&#183;&#951; = 1.91 &#8805; 1.5 (Pope 2000) &#8658; adequate。
-Q2 能譜斜率：k > k_f 擬合得 &#8722;4.61 (R&#178; = 0.99)，比理論 k&#8315;&#179; 更陡。Re = 10&#8308; 在 [0,1]&#178; 盒子裡
-   沒有明確的 inertial enstrophy range，k_f 以上由耗散主導；inverse cascade 不存在（k_f 以下只有 k = 1）。
-Q3 T=5 vs Lyapunov：U_rms = 0.50、t_eddy = L/U_rms = 1.99 &#8658; T = 5 &#8776; 2.51 turnovers；
-   &#955;_L proxy &#8776; 1/t_eddy = 0.50 &#8658; ~2.5 e-foldings。**誠實承認統計窗有限**，multi-seed n = 5 只是部分彌補。
-Q4 AL vs SIMPLE：SIMPLE 是 elliptic Poisson、non-local、在網格上逐點精確；AL 是純量 &#955;、
-   對平均殘差做 gradient ascent、在抽樣 collocation 上以期望值意義成立。同一個約束，不同的執行機制。
-Q5 散度：EXP-245 div ratio = 0.39 &#177; 0.006%。DNS 全場 FD ratio 較高是因為它含未解析的高 k 內容；
-   把 DNS band-limit 到重建頻寬後，floor &#8776; 0.38%。**只能宣稱「達到 resolved-bandwidth FD floor」，
-   禁止說「比 DNS 更不可壓縮」**（thesis/CLAUDE.md 明列禁項）。
-Q6 PINN straw-man：坦承 PINN 沒有 sensor cloud 的 set-encoder。**B0 vanilla DeepONet 才是公平的
-   架構 baseline**（同樣 set-encoded input），B3 vs B0 的 &#8722;2.52 pp、p = 3.0&#215;10&#8315;&#8311; 才是隔離出
-   「operator branch + CfC + cross-attn」增益的證據。PINN 那列是資訊性的，不是 headline claim。
-Q7 壓力：DNS 參考 p_rms（去 gauge）= 0.231，分母已定。分子 &#8214;p_pred &#8722; p_DNS + C&#8214;&#8322; 需要擴充
-   evaluator（約 1 小時工）。在那之前，momentum residual 可能被任意 p gauge 滿足 —— **誠實揭露為
-   CFD-rigour gap**，不要辯護。
-Q8 Forward CFD（2026-05-15 實跑，home-gpu, ETDRK4 20000 steps, 27.5 min）：
-   POD-projection IC（rank 40，由 K=100 sensor 建，構造上 div-free）&#8594; ETDRK4 積分到 t = 5, fp64。
-   KE MAPE 3.85%（比 PI-CON 的 5.71% 還好）**但** u rel-L&#8322; 152.8% / v rel-L&#8322; 203.9%
-   （PI-CON 13.65% / 17.52%，&#8805; 11&#215; 差），forcing 造成的異向性 u_std/v_std 從 2.32 (DNS) 漂到 0.90。
-   判讀：**同一個混沌吸引子上的另一個典型樣本，2.5 t_eddy 後相位完全去相關**。
-   回應策略：「KE MAPE alone mis-ranks chaotic systems；pointwise rel-L&#8322; 差 11 倍才是 operator
-   framework 的價值所在。」
 -->
