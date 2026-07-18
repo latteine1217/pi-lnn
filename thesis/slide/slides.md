@@ -196,7 +196,7 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 
 <SectionTag>§ Literature review · four gaps</SectionTag>
 
-# Four gaps across seven research lines
+# Four gaps
 
 <style>
 /* 對齊 slide 6 / 7 的表格語彙：一個強調色，一個意思 —— 橘色只標「缺什麼」。 */
@@ -204,7 +204,14 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 .gp th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
          letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
 .gp th.key { color: #E97132; }
+/* 「Our answer」欄用紫色並加左邊界:它與中間欄語意相反(我們補上 vs 別人沒補),
+   沒有視覺區隔時讀者會把中間欄誤讀成「已經補上缺口的文獻」。 */
+.gp th.ans, .gp td.ans { color: #7F1084; font-weight: 700; border-left: 1px solid #E8E0EC; }
 .gp td { padding: 11px 10px; border-bottom: 1px solid #F1EDF5; color: #6B7280; vertical-align: top; line-height: 1.3; }
+/* 中間欄的研究線名用中性深灰:紫色在本簡報專屬「我們」,
+   若這裡也紫就會與右欄的 Our answer 撞色,又把「沒補上」讀成「補上了」。 */
+.gp td b { color: #374151; font-weight: 700; }
+.gp td.ans b, .gp td.ans { color: #7F1084; }
 .gp .n { color: #E97132; font-weight: 700; }
 .gp td.key { color: #1F1B2E; font-weight: 600; }
 .gp tr.sens td { background: #FEF6F1; border-bottom: none; }
@@ -216,34 +223,34 @@ Learns a <b>mapping</b>, not one solution · <b style="color:#7F1084;">branch re
 <tr>
 <th style="width: 4%;"></th>
 <th style="width: 30%;" class="key">What is missing</th>
-<th style="width: 46%;">Left open by</th>
-<th style="width: 20%;">Answered by</th>
+<th style="width: 46%;">Not addressed by</th>
+<th style="width: 20%;" class="ans">Our answer</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td class="n">1</td>
 <td class="key">Ground-truth field to train against</td>
-<td>POD · DMD · QR-pivot <span class="opacity-70">[Sirovich 1987 · Manohar 2018]</span> · DeepONet · FNO <span class="opacity-70">[Lu 2021 · Li 2021]</span> · SHRED · Senseiver · FLRNet</td>
-<td>architecture</td>
+<td><b>ROM &amp; sparse identification</b> · <b>deep super-resolution</b> · <b>operator learning</b> <span class="opacity-70">— all need an offline trajectory or paired fields</span></td>
+<td class="ans">architecture</td>
 </tr>
 <tr>
 <td class="n">2</td>
 <td class="key">Sensors read as input</td>
-<td>PINN · PirateNet <span class="opacity-70">[Raissi 2019 · Wang 2024]</span> — scored by sensors · operator nets need a dense grid</td>
-<td>architecture</td>
+<td><b>Stabilized PINNs</b> <span class="opacity-70">— sensors only score the loss</span> · <b>operator learning</b> <span class="opacity-70">— branch needs a dense grid</span></td>
+<td class="ans">architecture</td>
 </tr>
 <tr>
 <td class="n">3</td>
 <td class="key">Uneven clocks under PDE autodiff</td>
-<td>Neural / Latent ODE <span class="opacity-70">[Chen 2018 · Rubanova 2019]</span> · CfC <span class="opacity-70">[Hasani 2022]</span> — never PDE-constrained</td>
-<td>architecture</td>
+<td><b>Liquid NN / continuous-time</b> <span class="opacity-70">— never PDE-constrained</span> · <b>data assimilation</b> <span class="opacity-70">— adjoint cost at high Re</span></td>
+<td class="ans">architecture</td>
 </tr>
 <tr class="sens">
 <td class="n">4</td>
 <td class="key">Sensing configuration mapped</td>
-<td><b>All surveyed works</b> — one error, one fixed setup · sensor positions taken as <b>given</b></td>
-<td><b style="color:#E97132;">sensing study</b></td>
+<td><b>All surveyed works</b> <span class="opacity-70">— one error, one fixed setup · sensor positions taken as</span> <b>given</b></td>
+<td class="ans" style="color:#E97132;">sensing study</td>
 </tr>
 </tbody>
 </table>
@@ -334,13 +341,13 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 <tr>
 <td class="who">SHRED <span>Williams 2024</span></td>
 <td><b class="bb">LSTM</b> stack + shallow FC decoder</td>
-<td>Isotropic turbulence (JHTDB)</td>
+<td>Isotropic (JHTDB), Re 2.3×10⁴</td>
 <td class="key">The full state · ‖x − H(y)‖₂</td>
 </tr>
 <tr>
 <td class="who">Senseiver <span>Santos 2023</span></td>
 <td><b class="bb">Perceiver IO</b> · cross-attention to latent</td>
-<td>—</td>
+<td>Re not stated</td>
 <td class="key">“A dense set of observations is needed to train”</td>
 </tr>
 <tr>
@@ -352,7 +359,7 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 <tr>
 <td class="who">FLRONet <span>Vo Dang 2024</span></td>
 <td><b class="bb">DeepONet</b> · <b class="bb">FNO</b> branch + <b class="bb">MLP</b> trunk</td>
-<td>Cylinder (CFDBench)</td>
+<td>Cylinder, Re not stated</td>
 <td class="key">Paired CFD fields</td>
 </tr>
 <tr class="ours">
@@ -376,10 +383,26 @@ Given labels / As given。那一欄重複七次本身就是論證，不需修辭
 才有意義）；sensor 數在此頁不承擔論點。Re 併入 Case 欄，未報者留白（—），不特別標色 ——
 那是缺席，不是警訊。
 
-逐格出處（2026-07-15 查證）：
+⚠️⚠️ 口試發言警告（2026-07-18 查證後新增）：**不可說「我的 Re 比所有文獻都高」。**
+SHRED 用的 JHTDB forced isotropic turbulence 資料集規格公開：**integral scale Re = 23,298**
+（Re_λ = 433, 1024³, ν=1.85e-4；來源 turbulence.pha.jhu.edu 官方 dataset 頁）——
+**是我們 Re=10⁴ 的 2.3 倍**，且為 3D isotropic 真湍流（有完整慣性range），
+而我們是 2D Kolmogorov、Re_f≈2.5×10³、能譜斜率 −4.61、無慣性range。
+流體領域委員很可能認得 JHTDB，講錯會被當場反駁並連累其他 claim 的可信度。
+
+**正確說法（把 SHRED 的高 Re 轉成我們的論據）**：
+「在**不使用全場監督**的同類方法裡，我們的 Re 最高（slide 7：Mo & Magri 34、Kelshaw 34、
+Parfenyev 1.3×10³、我們 10⁴，7.7×）。至於 Re 更高的 SHRED（2.3×10⁴），它需要完整流場
+當監督訊號 —— 那正是本研究不需要的東西。」
+→ Re 的 head-to-head 只在 slide 7（same regime）成立；本頁的論點是**監督訊號**不是 Re。
+
+逐格出處（2026-07-15 查證；Re 欄 2026-07-18 補）：
 - SHRED (arXiv 2301.12011): stacked LSTM + shallow FC decoder；loss 原文
-  「minimize reconstruction loss ∑ᵢ‖xᵢ − H̃({yⱼ})‖₂」→ 對全場 state 監督；JHTDB isotropic
-  turbulence；Re 未報。
+  「minimize reconstruction loss ∑ᵢ‖xᵢ − H̃({yⱼ})‖₂」→ 對全場 state 監督。
+  流場原文：「the pressure field of a forced isotropic turbulent flow from the Johns Hopkins
+  Turbulence Database」「generated by direct numerical simulation using 1024³ nodes」。
+  **論文本身未報 Re**；表格填的 2.3×10⁴ 是該 JHTDB 資料集的公開規格，非論文所報 ——
+  被問來源時要如此區分。
 - Senseiver (Nature MI 2023): Perceiver IO 系 cross-attention 編碼進 latent；OSTI 摘要原文
   「a dense set of observations is needed to train」；Re / sensor 數未報；正文付費牆。
 - FLRNet (arXiv 2411.13815): conv VAE + Gaussian Fourier (m=4, σ=5) + MLP 5×128；
@@ -445,7 +468,7 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
 
 <SectionTag>§ Literature review · same-regime works</SectionTag>
 
-# Same-regime works
+# Same regime: sensors + PDE, no reference field
 
 <style>
 .hh { width: 100%; border-collapse: collapse; font-size: 1.02rem; margin-top: 16px; }
@@ -485,7 +508,7 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
 <tr>
 <td class="who">Parfenyev et al. 2024 <span>coordinate-MLP PINN</span></td>
 <td>1.3×10³</td>
-<td>none</td>
+<td>150 / snapshot <span style="display:block; color:#9CA3AF; font-size:0.72em;">3×10⁴ scattered (r, t)</span></td>
 <td>✗ loss term only</td>
 <td>query-anywhere</td>
 </tr>
@@ -499,6 +522,10 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
 </tbody>
 </table>
 
+<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; align-items:baseline; font-size:0.88rem; border-left:2px solid #7F1084; padding-left:12px;">
+<span style="color:#9CA3AF;">Gap</span><span style="color:#374151;">No surveyed work combines <b style="color:#7F1084;">query-anywhere readout</b>, <b style="color:#7F1084;">sensors as input</b>, and <b style="color:#7F1084;">Re = 10⁴</b>.</span>
+</div>
+
 <FooterLogos />
 
 <!--
@@ -506,11 +533,30 @@ readout**」。先前本表把它的 Architecture 寫成「FNO branch + MLP trun
 「同 regime（sensor + PDE、無 full reference field）survey 只找到這三篇，PI-CON 與它們並列。」
 —— "the survey finds no others" 是回應委員「怎麼知道這是全部」的關鍵，務必口頭講出。
 
+== 預期提問：「FLRONet 在上一頁，為什麼不在這張表？」（2026-07-18 補）==
+**因為納入標準是監督訊號，不是架構。** 本表的 regime 定義（已寫進標題）＝ sensors + PDE
+residual、無 full reference field。FLRONet 訓練對著 **paired CFD fields**，屬全場監督，
+故歸在 slide 6（該頁的軸正是「對什麼擬合」）。論文對應：chapter01:101 是共享 sensor+PDE
+監督的三篇；chapter01:103 另立一段講「query-anywhere 且讀 sensor、卻仍需 dense full-field
+supervision」的 Senseiver 與 FLRONet。
+
+⚠️ 這題有後半段，要主動接上：FLRONet 是 chapter01:103 明載的
+「**the closest published architecture to the present branch--trunk readout**」——
+架構上最接近的一篇。委員會追問「那你跟它比了嗎？」
+答：**架構家族相同，但無法做同 regime 的數值對打** —— 它需要成對 CFD 場，在本研究的
+工程約束（現場無 DNS）下根本訓練不起來。差別不在架構優劣，在監督訊號能不能在現場取得。
+真正的 branch–trunk 對照是內部的 B0 vanilla DeepONet（主結果頁 8.23% → 5.71%，
+−2.52 pp, p=3.0×10⁻⁷），因為沒有已發表工作在此 regime 跑過 vanilla DeepONet，
+只能自己重跑才是公平比較（chapter04:39 不採未經本協定重跑的他人數字）。
+
 == 口述三個 take-away（2026-07-16 從頁面移除的三張卡，改用講的）==
 ① Reynolds number：最接近的一篇仍低 7.7×（1.3×10³ vs 10⁴），兩篇 CNN 低 300×（34 vs 10⁴）。
 ② Measurement model：Mo & Magri 用 2.3× 於我們的 probe 數（230 vs 100）；
-   Parfenyev 根本沒有固定測站 —— 它抽 3×10⁴ 個隨機 (r, t) 樣本，那是任何 rig 都裝不出來的
-   量測模型（chapter01:99 原文「not one a rig can install」）。
+   Parfenyev 沒有固定測站，但**量測量遠多於我們** —— 3×10⁴ 個隨機 (r, t) 樣本，
+   平均每 snapshot 150 點（vs 我們 100 個固定測站），那是任何 rig 都裝不出來的
+   量測模型（chapter01:101「not one a rig can install」）。
+   ⚠️ 講法要小心：不可說「Parfenyev 不需要 sensor」——它用得比我們多，優勢在於
+   我們的量測模型工程可實現、它的不可實現。這是 trade-off 不是我們贏在資訊量。
 ③ 本頁的落點：**沒有任何 surveyed work 同時做到 query-anywhere + sensors-as-input + Re=10⁴**
    —— 表格右兩欄加上 Re 欄一起看就是這個結論，指著表講即可，不需要再印一次。
 
@@ -532,15 +578,23 @@ residual 的橘都代表「比我們差」）—— 每格都是重點就等於�
   可微 pseudospectral residual。
 - Parfenyev 2024 (arXiv 2404.01193): Re≈1.3×10³、Ndata=3×10⁴ (≈0.2%)、coordinate MLP
   7×250、autodiff residual、scattered 量測。
+  ✅ 2026-07-18 直接查證 arXiv 全文，原文：「measurements reveal the velocity field at
+  N_data points, which are **randomly scattered within the observation area and time
+  interval**」「around 0.2% of the total data... **On average, this corresponds to 150
+  points per snapshot** compared to 65536 points at full resolution」。
+  → 確認 (a) 隨機散布非固定測站、(b) 每 snapshot 150 點。
+  ⚠️ 本頁 Probes 欄一度誤寫「none」——那是錯的（它有 3×10⁴ 個量測），且對我們不利
+  （讓 Parfenyev 看起來不需要量測 = 比我們強）。已改為「150 / snapshot」。
 窮盡性：chapter01:99 界定同 regime 者恰為三篇，此表即全集。
 
 ⚠️ 兩個已知問題（尚未修 thesis）：
 1. 舊版本頁曾寫「Mo & Magri KE MAPE ~23% → ours 5.71%」——該 23% 全 repo 無來源，
    原文亦無近似值（唯一「over 20%」是其 loss 變體間的相對比較）。已移除。
    chapter04:39 本就聲明不採用未經本協定重跑的他人數字為證據。
-2. chapter01:99 稱三篇「each returns a fixed mesh」且「rather than continuous
-   automatic differentiation」——對 Parfenyev 為誤述（它是 coordinate MLP + autodiff）。
-   需修論文。
+2. ~~chapter01:99 稱三篇「each returns a fixed mesh」對 Parfenyev 為誤述~~
+   → **已修正，2026-07-18 複查**：chapter01:101 現行文字已正確區分
+   「The two convolutional works return a fixed mesh」與「The PINN evaluates anywhere,
+   but its 3×10⁴ measurements are (r,t) pairs scattered...」。論文無需再改。
 不要在口試宣稱與 Mo & Magri 的 head-to-head 數值優勢：指標不同、Re 差 300 倍。
 -->
 
@@ -1674,7 +1728,7 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Band-resolved relative error vs time &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
-<img :src="'/images/band_energy_rel_error_vs_time.png'" class="mt-1" style="width: 100%; object-fit: contain;" />
+<img :src="'/images/band_energy_rel_error_vs_time.png'" class="mt-1" style="width: 100%; max-height: 248px; object-fit: contain;" />
 </Card>
 </div>
 
@@ -1694,11 +1748,11 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
 <LabelTiny>Why KE 5.7 % but <span class="raw">ω</span> 41.8 %</LabelTiny>
 <div class="bg2">
-<div class="k">Low band k ≤ 5</div><div class="v">≈ 99 % of energy · error <b>2.5 %</b> (median)</div>
-<div class="k">Mid k · 5–16</div><div class="v"><b>53 %</b> — about half the band energy recovered</div>
-<div class="k">High k &gt; 16</div><div class="v"><b>99.9 %</b> — no energy placed in the band</div>
+<div class="k">k ≤ 5</div><div class="v">99 % of energy · err <b>2.5 %</b></div>
+<div class="k">k · 5–16</div><div class="v"><b>53 %</b> · about half recovered</div>
+<div class="k">k &gt; 16</div><div class="v"><b>99.9 %</b> · no energy placed</div>
 </div>
-<div class="mt-1 text-xs" style="color:#6B7280;">KE weights energy; ω rel-L₂ is broadband pointwise.</div>
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">KE weights energy; ω is broadband pointwise.</div>
 </Card>
 
 </div>
@@ -2010,14 +2064,14 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
 
 <SectionTag>§ Results · vs classical sensor-only interpolation</SectionTag>
 
-# Classical interpolation — lower KE, worse field
+# Lower KE does not mean a better field
 
 <style>
 .fb { width: 100%; border-collapse: collapse; font-size: 1.02rem; margin-top: 16px; }
 .fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.86rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 10px 8px 10px; border-bottom: 1px solid #D8D2E0; }
 .fb th.m { text-align: left; }
-.fb td { padding: 15px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
+.fb td { padding: 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
          font-variant-numeric: tabular-nums; }
 .fb td.m { text-align: left; color: #1F1B2E; white-space: nowrap; }
 .fb tr.ours td { background: #F7EDF8; border-bottom: none; font-weight: 700; }
@@ -2025,9 +2079,6 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
 .fb .trap { color: #E97132; font-weight: 700; }
 </style>
 
-<div class="grid gap-4 mt-1" style="grid-template-columns: 1.62fr 0.38fr;">
-
-<div>
 <table class="fb">
   <thead>
     <tr>
@@ -2055,29 +2106,11 @@ PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean�
   </tbody>
 </table>
 
+<div class="mt-4" style="font-size:1.0rem; color:#374151;">
+Pointwise u, v, <span class="raw">ω</span> <span style="color:#C9C6D0;">→</span> PI-CON <b style="color:#7F1084;">−47 %</b> vs trig-LSQ <span style="color:#C9C6D0;">·</span> <b style="color:#7F1084;">−74 %</b> vs IDW
+</div>
+
 <div class="foot mt-2">Source · appendix <span class="raw">tab:fair_baselines</span> · same LES-derived K = 100 sensors as the main baseline.</div>
-</div>
-
-<div class="space-y-3">
-
-<Card>
-<LabelTiny>Cause</LabelTiny>
-<div class="mt-2 text-xs leading-snug">
-Contraction toward the <b>inter-sensor mean</b>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>u rel-L₂ reduction</LabelTiny>
-<div class="mt-2 text-xs leading-snug">
-<b style="color:#7F1084;">47.2 %</b> vs trig. LSQ<br/>
-<b style="color:#7F1084;">74.2 %</b> vs IDW
-</div>
-</Card>
-
-</div>
-
-</div>
 
 <FooterLogos />
 
