@@ -1661,7 +1661,7 @@ error panel 獨立縮放 —— 委員問「顏色能不能直接比」時照此
 
 <SectionTag>§ Results · vorticity error interpretation</SectionTag>
 
-# Error structure — the K = 100 bound
+# Error structure across wavenumbers
 
 <style>
 .bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
@@ -1895,7 +1895,7 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 
 <SectionTag>§ Results · vs an open-loop forward-CFD forecast</SectionTag>
 
-# Forward-CFD — same spectrum, unrelated field
+# Forward-CFD diverges; its statistics do not show it
 
 <style>
 .fc { display: grid; grid-template-columns: max-content 1fr 1fr; column-gap: 14px; row-gap: 5px;
@@ -1911,32 +1911,33 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Radial energy spectrum at t = 5</LabelTiny>
-<img :src="'/images/forward_cfd_spectrum_t5.png'" class="mt-1" style="width: 100%; max-height: 262px; object-fit: contain;" />
+<LabelTiny>Velocity rel-L₂ &nbsp;<span class="opacity-60">· full window, no selection</span></LabelTiny>
+<img :src="'/images/forward_cfd_divergence.png'" class="mt-1" style="width: 100%; max-height: 240px; object-fit: contain;" />
 </Card>
 </div>
 
 <div class="col-span-2 space-y-2">
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Near t = 5 &nbsp;<span class="opacity-60">(Re = 10⁴, K = 100)</span></LabelTiny>
+<LabelTiny>u rel-L₂ &nbsp;<span class="opacity-60">· start → end</span></LabelTiny>
 <div class="fc">
-<div></div><div class="hd">Forward-CFD</div><div class="hd">PI-CON</div>
-<div class="k">KE rel-err <span style="color:#C9C6D0;">t <span class="raw">≳</span> 3.3</span></div><div class="v">3.85 %</div><div class="v good">1.62 ± 0.09 %</div>
-<div class="k">u rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">152.8 %</div><div class="v good">7.28 ± 0.14 %</div>
-<div class="k">v rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">203.9 %</div><div class="v good">16.38 ± 0.34 %</div>
-<div class="k">ω rel-L₂ <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">144.0 %</div><div class="v good">38.36 ± 0.45 %</div>
-<div class="k">σ<sub>u</sub>/σ<sub>v</sub> <span style="color:#C9C6D0;">t = 5</span></div><div class="v bad">0.90</div><div class="v good">2.30</div>
+<div></div><div class="hd">t = 0</div><div class="hd">t = 5</div>
+<div class="k">Forward-CFD</div><div class="v">5.2 %</div><div class="v bad">152.8 %</div>
+<div class="k">PI-CON</div><div class="v">26.9 %</div><div class="v good">7.28 %</div>
 </div>
-<div class="mt-1 text-[10px] leading-snug" style="color:#6B7280;">
-<b>Not the headline numbers</b> · KE is the t <span class="raw">≳</span> 3.3 mean, matched to the forecast at t = 5.
+<div class="mt-1 text-xs leading-snug" style="color:#374151;">
+Open-loop starts <b>better</b>, <b style="color:#E97132;">diverges 29×</b>.<br/>
+Sensor-conditioned <b style="color:#7F1084;">converges</b>.
 </div>
 </Card>
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>KE alone mis-ranks</LabelTiny>
+<LabelTiny>Statistics look fine</LabelTiny>
 <div class="mt-1 text-xs leading-snug" style="color:#374151;">
-KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
+At t = 5: <b>KE −3.85 %</b> · <b>enstrophy +3.46 %</b> · spectrum within <b>≈10 %</b>.
+</div>
+<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
+On the attractor, <b style="color:#E97132;">wrong phase</b> · σ<sub>u</sub>/σ<sub>v</sub> 2.32 → 0.90.
 </div>
 </Card>
 
@@ -1944,36 +1945,58 @@ KE puts them <b>2.4×</b> apart. Pointwise: <b style="color:#E97132;">21×</b>.
 
 </div>
 
-<div class="foot mt-1 text-[10px]">Open-loop, not matched assimilation · POD-40 from <b>200 offline DNS snapshots</b>.</div>
+<div class="foot text-[10px]" style="margin-top: 2px;">Gappy-POD init (rank 40, Everson & Sirovich 1995) · open-loop, not matched assimilation · basis from <b>200 offline DNS snapshots</b> — more than PI-CON sees.</div>
 
 <FooterLogos />
 
 <!--
-[Forward-CFD · 2min] 底部 note 精簡後的完整口徑：forward-CFD 從 K=100 sensor 在 t=0 建 divergence-free 場，
-之後自由積分、不再 assimilate 任何資料（open-loop）；且它用了 200 個 DNS snapshots offline 建 POD-rank-40 basis
-—— 比 PI-CON（只看 sensor stream）多得多的資訊。所以這不是公平的 matched-assimilation baseline，是誠實揭露 forward-CFD 的優勢。
-[Forward-CFD · 2min] 圖下小字精簡後的完整口徑（原註記字太小已縮）：
-  DNS anisotropy σ_u/σ_v = 2.32。此頁 KE 是 late-window (t ≳ 3.3) mean、u/v/ω 是 t=5 snapshot，
-  為何 KE 用窗平均而非 t=5 單點：evaluator 不存單張 snapshot 的 KE（appendix07:100 caption 原文
-  「the evaluator stores no single-snapshot KE」）。t ≳ 3.3 這個窗是為了對齊 forward-CFD 的 t=5
-  forecast，不是挑對我們有利的區間 —— 委員問「為何兩欄時間窗不同」照此答。
-  兩者都對齊 forward-CFD forecast 的比較窗；main-result 的 KE MAPE 5.71%、u rel-L₂ 13.65%
-  則是整個 t ∈ [0,5] 窗的均值。委員若追問「這數字跟主結果為何不同」照此回答。
-[Forward-CFD · 2min] 委員第一反射問題「為何不直接 forward CFD」的正面回答。
-主視覺＝能譜重疊圖（thesis/figures/results/forward_cfd_spectrum_t5.png；論文未引用此圖，
-appendix07 只有 tab:forward_cfd 表）。
+[Forward-CFD · 2min] 底部 note 精簡後的完整口徑：這不是自創方法，是兩個既有方法的組合 ——
+用 gappy POD（Everson & Sirovich 1995, JOSA A）從 K=100 sensor 在 t=0 建 divergence-free 場，之後自由積分、
+不再 assimilate 任何資料，即 data assimilation 領域的 open-loop / free-run 對照組；且它用了 200 個 DNS
+snapshots offline 建 rank-40 basis —— 比 PI-CON（只看 sensor stream）多得多的資訊。
+所以這不是公平的 matched-assimilation baseline，是誠實揭露 forward-CFD 的優勢。
+若被問「這方法叫什麼」：gappy-POD initialisation + open-loop forward integration，forward-CFD 只是本文簡稱。
+⚠️ 2026-07-18 改版：本頁原本是「Forward-CFD t=5 snapshot vs PI-CON t≳3.3 late-window mean」
+的數字表 —— 兩欄取不同時間窗，且 PI-CON 那欄用的 late-window 剛好避開 warm-up，看起來像
+挑對自己有利的窗（fresh-eyes 委員 review 直接點名此頁）。改為全窗軌跡圖後不需要挑窗：
+兩個端點都報，方向自明。舊的「為何兩欄窗不同」辯護稿已刪除，別再照舊講。
 
-講法：先指圖 ——「DNS 與 forward-CFD 的能譜在兩個多 decade 上幾乎完全重疊，每個尺度的
-能量都一樣」；再指右表 ——「但 u rel-L₂ 是 152.8%」。統計上分不出、逐點上毫無關係，
-這正是 KE 誤導排序的原因：KE 只差 2.4×，pointwise 差 21×。呼應 §Conclusion ④
-KE-as-misleading。
+主視覺＝發散軌跡圖（thesis/figures/results/forward_cfd_divergence.png，
+scripts/plot_forward_cfd_divergence.py 產生）。
+
+講法：指圖左側 ——「forward-CFD 的起點其實比我們好：u rel-L₂ 只有 5.2%，因為它離線用了
+200 張 DNS snapshot 建 POD-rank-40 基底。」再指右側 ——「open-loop 積分 5 秒後，chaotic
+amplification 把它放大 29 倍到 152.8%；而 PI-CON 起點差（26.9%，IC warm-up）卻一路收斂
+到 7.28%，因為它全程 re-condition on the sensor stream。兩條軌跡在 t≈2 交叉。」
+這就是「為何不能直接 forward CFD」的完整答案：不是它一開始就爛，是它會發散。
+
+⚠️ 圖的誠實性：橘色只有 t=0 與 t=5 **兩個實測點**，中間那條淡虛線是首尾連線、不是實測
+軌跡（npz 只存這兩張場）。委員若問「中間長怎樣」→ 誠實答：沒有存中間快照，只能說端點。
+不可宣稱那條線是量到的。
+
+右下卡是 KE-as-misleading 的最強證據（呼應 §Conclusion ④）：t=5 時 forward-CFD 的
+KE 只差 −3.85%、enstrophy +3.46%、能譜在 k∈[1,120] 內差 ≈10% —— 統計量全部「看起來沒事」，
+但場已經完全去相關（u 152.8%）。σ_u/σ_v 從 DNS 的 2.32 掉到 0.90 是額外一擊：連
+second-order statistic 都偏了。它留在 attractor 上，但相位錯了。
 
 σ_u/σ_v = 0.90 是額外一擊：forward-CFD 連 Kolmogorov 流的各向異性都弄丟了
 （DNS 2.32、PI-CON 2.30），所以它不只是「統計對、相位錯」，連 second-order statistic
 都偏了。
 
-數字全部出自 appendix07 tab:forward_cfd（appendix07.tex:106-113）。
-算術：3.85/1.62 = 2.38 → 2.4×；152.8/7.28 = 21.0 → 21×。
+數字來源：forward-CFD 端點與統計量出自 reports/forward_cfd_baseline_T5_rank40.json
+（metrics_at_t0 / metrics_at_T，可從同名 .npz 重算驗證）與 appendix07.tex:106-119；
+PI-CON 端點為 artifacts/exp245_seeds/eval_245_seed{a..e}_final 的 n=5 mean。
+算術：152.8/5.2 = 29.3 → 29×（forward-CFD 發散）；7.28/26.9 = 0.27（PI-CON 收斂）；
+同一時刻 t=5 的 pointwise 對比 152.8/7.28 = 21×。
+（舊的「KE 2.4× vs pointwise 21×」對比已隨頁面改版移除：PI-CON 的 late-window KE 1.62%
+不再出現在頁面上，那個比值現在無對應數字，別再講。）
+
+⚠️ 可重現性缺口（2026-07-18 發現，尚未處理）：產生 forward-CFD 資料的 solver
+`forward_cfd_baseline.py` **不在 repo，也不在 git 全歷史**，只留下 .npz/.json 產物。
+現有數字可從 .npz 重算驗證（我核對過 152.8/203.9 完全吻合），但無法重跑或改變設定
+（例如補存中間快照）。委員若問「這個 baseline 怎麼跑的」→ 可答方法（POD-rank-40 從
+200 張 DNS snapshot 建基底 + ETDRK4 積分，dt=2.5e-4，20000 步，見 json metadata），
+但不宜宣稱可立即重現。
 
 ⚠️ 必講的 caveat（appendix07:85, 100 明載）：這是 open-loop forecast reference，
 不是 matched assimilation baseline；且 forward-CFD 另外用了 200 張 DNS snapshot
@@ -2302,70 +2325,6 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <!--
 [Engineering applicability · 2min] 左卡：K=100 可支援的 use case — KE & mean-flow monitoring (5.71 ± 0.11%)、phase-locked control (forcing mode amplitude/phase recovered)、incompressibility check (resolved-bandwidth FD floor)、streaming deployment (filtering mode)。右卡：不適用 case — small-scale turbulence stats、fine vorticity filaments、acoustic/shock localisation 需多模態。Inference cost 移到下一頁獨立比較。
--->
-
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Results · pipeline cost</SectionTag>
-
-# Pipeline cost against the DNS reference
-
-<style>
-.ct { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 5px; }
-.ct th { font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase;
-         color: #9CA3AF; text-align: left; padding: 0 8px 2px 0; font-weight: 700; }
-.ct th.r, .ct td.r { text-align: right; }
-.ct td { padding: 2px 8px 2px 0; color: #374151; border-top: 1px solid #F0EDF4; }
-.ct tr.grp td { border-top: none; padding-top: 6px; padding-bottom: 1px;
-                font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
-                text-transform: uppercase; color: #7F1084; }
-.ct td.num { font-variant-numeric: tabular-nums; font-weight: 700; color: #1F1B2E; }
-.ct td.hw { color: #9CA3AF; font-size: 0.78rem; }
-.ct tr.sub td { color: #6B7280; }
-.ct tr.ref td.num { color: #E97132; }
-.ct tr.rat td { border-top: 1.5px solid #D8D2E0; padding-top: 7px; font-weight: 700; color: #1F1B2E; }
-.ct tr.rat td.num { color: #7F1084; }
-</style>
-
-<table class="ct">
-<thead><tr>
-<th style="width:31%;">Stage</th><th style="width:35%;">Configuration</th>
-<th class="r" style="width:18%;">Wall-clock</th><th style="width:16%;">Hardware</th>
-</tr></thead>
-<tbody>
-<tr class="grp"><td colspan="4">One-time setup</td></tr>
-<tr><td>LES placement solve</td><td>256², 50 000 steps (Δt = 10⁻⁴)</td><td class="num r">7.6 min</td><td class="hw">CPU (numpy)</td></tr>
-<tr><td>Operator training</td><td>20 000 steps</td><td class="num r">1.33 h</td><td class="hw">1 × GPU</td></tr>
-
-<tr class="grp"><td colspan="4">Per-trajectory inference</td></tr>
-<tr><td>Encode sensor series</td><td>T = 201, K = 100 (n = 20)</td><td class="num r">70.7 ± 3.8 ms</td><td class="hw">M3 MPS</td></tr>
-<tr><td>Field query</td><td>16 384 pts/batch (n = 30) · 31 030 q/s</td><td class="num r">527.8 ± 17.1 ms</td><td class="hw">M3 MPS</td></tr>
-<tr><td>Full-sequence reconstruction</td><td>603 fields, 128²</td><td class="num r">9.7 min</td><td class="hw">M3 MPS</td></tr>
-
-<tr class="grp"><td colspan="4">Reference</td></tr>
-<tr class="ref"><td>DNS solve</td><td>1024², 20 000 steps</td><td class="num r">3.27 h</td><td class="hw">CPU (numpy)</td></tr>
-
-<tr class="rat"><td>Setup vs DNS solve</td><td>1.46 h vs 3.27 h</td><td class="num r">2.2 ×</td><td class="hw" style="color:#7F1084;">lower</td></tr>
-<tr class="rat" style="border:none;"><td style="border-top:none;">Reconstruction vs DNS solve</td><td style="border-top:none;">9.7 min vs 3.27 h</td><td class="num r" style="border-top:none;">20 ×</td><td class="hw" style="border-top:none;color:#7F1084;">faster</td></tr>
-</tbody>
-</table>
-
-<div class="mt-2" style="font-size:0.79rem; color:#6B7280; border-left:2px solid #E97132; padding-left:10px; line-height:1.45;">
-Both ratios mix hardware (GPU training, MPS inference vs CPU DNS solve). And <b style="color:#E97132;">speed is not the case for the operator</b>: forward simulation cannot reconstruct from sparse sensors, and the DNS does not exist on a new scene.
-</div>
-
-<FooterLogos />
-
-<!--
-[Pipeline cost · 1.5min] 對應論文 tab:inference_cost (chapter04:495)。念法：setup 一次性 1.46 h（LES 7.6 min 佈點 + training 1.33 h）對 DNS 1024² 的 3.27 h；訓練完後每條軌跡重建 9.7 min，對 3.27 h 是 20×，達到 §research_questions 的 ≥5× 門檻。encode 只佔全序列重建的 0.06%（chapter04:524）—— encode 一次、之後任意座標查詢邊際成本近乎零。
-
-⚠️ 兩個 caveat 必須主動講，不要等被問（chapter04:493 原文）：
-(1) 硬體不對等 — training 用 GPU、inference 用 M3 MPS、DNS solve 用 CPU numpy，比值混了三種硬體，不是 apples-to-apples。
-(2) 更重要：速度**不是**這個方法的論據。forward simulation 根本無法從稀疏感測重建流場，而且新場景上 DNS 不存在。這頁是回答「成本可不可接受」，不是宣稱「比 DNS 快所以贏」。
-被問「那為什麼要放這張表」→ 答：證明工程可用性的成本面，不是 selling point。
-被問「20× 在 3D 還成立嗎」→ 答：單次高保真解越貴、margin 越大（3D / multi-physics / higher-Re），但本研究未驗證，是 open follow-up（chapter04:493 明載）。
 -->
 
 ---
