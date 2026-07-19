@@ -129,202 +129,6 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 </div>
 
 <div class="mt-1">
-<svg class="pinn-old" viewBox="0 0 900 372" style="width:100%;height:auto;max-height:344px;">
-
-  <!-- ============ panel ① TRAINING ============ -->
-  <rect x="10" y="28" width="880" height="246" rx="8" fill="#FCFCFD" stroke="#D8D2E0" stroke-width="1.2" stroke-dasharray="6 4"/>
-  <text x="24" y="20" fill="#0F2D52" style="font-size:11.5px;font-weight:700;letter-spacing:0.06em;">① TRAINING — fit the weights θ</text>
-
-  <!-- network edges -->
-  <g stroke="#0F2D52" stroke-width="0.6" opacity="0.22">
-    <line x1="112" y1="122" x2="150" y2="76"/>
-    <line x1="112" y1="122" x2="150" y2="104"/>
-    <line x1="112" y1="122" x2="150" y2="132"/>
-    <line x1="112" y1="122" x2="150" y2="160"/>
-    <line x1="150" y1="76" x2="205" y2="76"/>
-    <line x1="150" y1="76" x2="205" y2="104"/>
-    <line x1="150" y1="76" x2="205" y2="132"/>
-    <line x1="150" y1="76" x2="205" y2="160"/>
-    <line x1="150" y1="104" x2="205" y2="76"/>
-    <line x1="150" y1="104" x2="205" y2="104"/>
-    <line x1="150" y1="104" x2="205" y2="132"/>
-    <line x1="150" y1="104" x2="205" y2="160"/>
-    <line x1="150" y1="132" x2="205" y2="76"/>
-    <line x1="150" y1="132" x2="205" y2="104"/>
-    <line x1="150" y1="132" x2="205" y2="132"/>
-    <line x1="150" y1="132" x2="205" y2="160"/>
-    <line x1="150" y1="160" x2="205" y2="76"/>
-    <line x1="150" y1="160" x2="205" y2="104"/>
-    <line x1="150" y1="160" x2="205" y2="132"/>
-    <line x1="150" y1="160" x2="205" y2="160"/>
-    <line x1="205" y1="76" x2="260" y2="76"/>
-    <line x1="205" y1="76" x2="260" y2="104"/>
-    <line x1="205" y1="76" x2="260" y2="132"/>
-    <line x1="205" y1="76" x2="260" y2="160"/>
-    <line x1="205" y1="104" x2="260" y2="76"/>
-    <line x1="205" y1="104" x2="260" y2="104"/>
-    <line x1="205" y1="104" x2="260" y2="132"/>
-    <line x1="205" y1="104" x2="260" y2="160"/>
-    <line x1="205" y1="132" x2="260" y2="76"/>
-    <line x1="205" y1="132" x2="260" y2="104"/>
-    <line x1="205" y1="132" x2="260" y2="132"/>
-    <line x1="205" y1="132" x2="260" y2="160"/>
-    <line x1="205" y1="160" x2="260" y2="76"/>
-    <line x1="205" y1="160" x2="260" y2="104"/>
-    <line x1="205" y1="160" x2="260" y2="132"/>
-    <line x1="205" y1="160" x2="260" y2="160"/>
-    <line x1="260" y1="76" x2="298" y2="122"/>
-    <line x1="260" y1="104" x2="298" y2="122"/>
-    <line x1="260" y1="132" x2="298" y2="122"/>
-    <line x1="260" y1="160" x2="298" y2="122"/>
-  </g>
-  <g fill="#0F2D52">
-    <circle cx="150" cy="76" r="5.5"/>
-    <circle cx="150" cy="104" r="5.5"/>
-    <circle cx="150" cy="132" r="5.5"/>
-    <circle cx="150" cy="160" r="5.5"/>
-    <circle cx="205" cy="76" r="5.5"/>
-    <circle cx="205" cy="104" r="5.5"/>
-    <circle cx="205" cy="132" r="5.5"/>
-    <circle cx="205" cy="160" r="5.5"/>
-    <circle cx="260" cy="76" r="5.5"/>
-    <circle cx="260" cy="104" r="5.5"/>
-    <circle cx="260" cy="132" r="5.5"/>
-    <circle cx="260" cy="160" r="5.5"/>
-  </g>
-
-  <!-- neuron-count annotation with a span bracket -->
-  <path d="M120 62 L120 54 L290 54 L290 62" fill="none" stroke="#9CA3AF" stroke-width="1"/>
-  <text x="205" y="46" text-anchor="middle" fill="#0F2D52" style="font-size:11.5px;font-weight:700;">n layers × m neurons</text>
-  <text x="250" y="200" text-anchor="middle" fill="#9CA3AF" style="font-size:11.5px;font-weight:400;">N(x, y, t ; θ)</text>
-
-  <!-- inputs -->
-  <circle cx="58" cy="88" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="58" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">x</text>
-  <circle cx="58" cy="122" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="58" y="122" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">y</text>
-  <circle cx="58" cy="156" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="58" y="156" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">t</text>
-
-  <!-- outputs -->
-  <circle cx="340" cy="88" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="340" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">u</text>
-  <circle cx="340" cy="122" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="340" y="122" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">v</text>
-  <circle cx="340" cy="156" r="14" fill="#FFF" stroke="#0F2D52" stroke-width="1.6"/>
-  <text x="340" y="156" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:13px;font-weight:700;font-style:italic;">p</text>
-
-  <!-- outputs -> autodiff -->
-  <line x1="356" y1="96" x2="390" y2="80" stroke="#7F1084" stroke-width="1.5"/>
-  <path d="M397 77 L389 77 L392 84 Z" fill="#7F1084"/>
-  <rect x="400" y="48" width="140" height="56" rx="5" fill="#FAF2FB" stroke="#7F1084" stroke-width="1.5"/>
-  <text x="470" y="66" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">AUTODIFF</text>
-  <text x="470" y="88" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:12px;font-weight:400;">∂u/∂t,  ∇u,  ∇²u</text>
-
-  <!-- autodiff -> PDE residual -->
-  <line x1="540" y1="76" x2="560" y2="76" stroke="#E97132" stroke-width="1.5"/>
-  <path d="M567 76 L559 72.5 L559 79.5 Z" fill="#E97132"/>
-  <rect x="570" y="44" width="200" height="64" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
-  <text x="670" y="59" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">PDE RESIDUAL</text>
-  <text x="670" y="78" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:10.5px;font-weight:400;">∂u/∂t + (u·∇)u + ∇p − ν∇²u</text>
-  <text x="670" y="96" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">∇·u = 0</text>
-
-  <!-- outputs -> sensor misfit (orthogonal routing, no crossings) -->
-  <path d="M356 150 L370 150 Q378 150 378 158 L378 177 Q378 185 386 185 L560 185" fill="none" stroke="#E97132" stroke-width="1.5"/>
-  <path d="M567 185 L559 181.5 L559 188.5 Z" fill="#E97132"/>
-  <rect x="570" y="160" width="200" height="50" rx="5" fill="#FEF6F1" stroke="#E97132" stroke-width="1.5"/>
-  <text x="670" y="174" text-anchor="middle" dominant-baseline="central" fill="#E97132" style="font-size:10.5px;font-weight:700;letter-spacing:0.05em;">SENSOR MISFIT</text>
-  <text x="670" y="195" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">u(x&#8342;, t) − u&#8342;&#7506;&#7495;&#738;</text>
-
-  <!-- residuals -> total loss -->
-  <line x1="770" y1="76" x2="789" y2="114" stroke="#9CA3AF" stroke-width="1.4"/>
-  <path d="M795 121 L787 118 L793 113 Z" fill="#9CA3AF"/>
-  <line x1="770" y1="185" x2="789" y2="147" stroke="#9CA3AF" stroke-width="1.4"/>
-  <path d="M795 140 L793 148 L787 143 Z" fill="#9CA3AF"/>
-  <rect x="800" y="104" width="78" height="54" rx="5" fill="#F4F0F7" stroke="#7F1084" stroke-width="1.5"/>
-  <text x="839" y="122" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:15px;font-weight:700;font-style:italic;">L(θ)</text>
-  <text x="839" y="142" text-anchor="middle" dominant-baseline="central" fill="#9CA3AF" style="font-size:9.5px;font-weight:400;">weighted sum</text>
-
-  <!-- loss -> optimizer -->
-  <path d="M839 158 L839 233 Q839 241 831 241 L768 241" fill="none" stroke="#7F1084" stroke-width="1.5"/>
-  <path d="M761 241 L769 237.5 L769 244.5 Z" fill="#7F1084"/>
-  <rect x="556" y="224" width="200" height="34" rx="5" fill="#F4F0F7" stroke="#7F1084" stroke-width="1.5"/>
-  <text x="656" y="241" text-anchor="middle" dominant-baseline="central" fill="#7F1084" style="font-size:11.5px;font-weight:700;">OPTIMIZER &#8201;·&#8201; gradient descent</text>
-
-  <!-- optimizer -> back into the network -->
-  <path d="M556 241 L128 241 Q120 241 120 233 L120 192" fill="none" stroke="#7F1084" stroke-width="1.5"/>
-  <path d="M120 185 L116.5 193 L123.5 193 Z" fill="#7F1084"/>
-  <text x="340" y="230" text-anchor="middle" fill="#7F1084" style="font-size:11px;font-weight:700;">update θ by back-propagation</text>
-
-  <!-- ============ panel ② INFERENCE ============ -->
-  <rect x="10" y="300" width="880" height="62" rx="8" fill="#FAFAFC" stroke="#0F2D52" stroke-width="1.2"/>
-  <text x="24" y="292" fill="#0F2D52" style="font-size:11.5px;font-weight:700;letter-spacing:0.06em;">② INFERENCE — θ frozen</text>
-
-  <rect x="30" y="313" width="132" height="36" rx="5" fill="#FFF" stroke="#0F2D52" stroke-width="1.3"/>
-  <text x="96" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">any (x, y, t)</text>
-  <line x1="162" y1="331" x2="182" y2="331" stroke="#9CA3AF" stroke-width="1.3"/>
-  <path d="M189 331 L181 327.5 L181 334.5 Z" fill="#9CA3AF"/>
-  <rect x="192" y="313" width="140" height="36" rx="5" fill="#F4F6F9" stroke="#0F2D52" stroke-width="1.3"/>
-  <text x="262" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:700;">N( · ; θ*)</text>
-  <line x1="332" y1="331" x2="352" y2="331" stroke="#9CA3AF" stroke-width="1.3"/>
-  <path d="M359 331 L351 327.5 L351 334.5 Z" fill="#9CA3AF"/>
-  <rect x="362" y="313" width="106" height="36" rx="5" fill="#FFF" stroke="#0F2D52" stroke-width="1.3"/>
-  <text x="415" y="331" text-anchor="middle" dominant-baseline="central" fill="#0F2D52" style="font-size:11.5px;font-weight:400;">u, v, p</text>
-  <text x="492" y="331" dominant-baseline="central" fill="#6B7280" style="font-size:11.5px;font-weight:400;">one forward pass &#8201;·&#8201; no mesh, no time-stepping, no solver in the loop</text>
-
-</svg>
-</div>
-
-<style>
-.pinn-old { display:none; }
-.pinn { display:none; }
-.pinn .panel { border:1px solid #DDD6E5; border-radius:11px; padding:11px 14px; background:rgba(255,255,255,.76); }
-.pinn .head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
-.pinn .tag { font-size:.74rem; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
-.pinn .desc { font-size:.76rem; color:#6B7280; }
-.pinn .train-flow { display:grid; grid-template-columns:1fr 22px 1.18fr 22px 1fr 22px 1.25fr 22px .9fr; align-items:center; }
-.pinn .infer-flow { display:grid; grid-template-columns:1fr 32px 1.3fr 32px 1fr; align-items:center; }
-.pinn .box { border:1px solid #D8D2E0; border-radius:7px; padding:8px 7px; min-height:56px; display:flex; flex-direction:column; justify-content:center; text-align:center; background:#fff; }
-.pinn .box .small { font-size:.70rem; color:#6B7280; line-height:1.22; margin-top:2px; }
-.pinn .box .main { font-size:.86rem; font-weight:700; color:#1F1B2E; line-height:1.22; }
-.pinn .net { position:relative; background:#F4F6F9; border-color:#0F2D52; }
-.pinn .net::before { content:'n layers × m neurons'; position:absolute; top:-17px; left:0; right:0; font-size:.67rem; font-weight:700; color:#0F2D52; }
-.pinn .arr { text-align:center; color:#7F1084; font-size:1.2rem; font-weight:700; }
-.pinn .loss-stack { display:grid; grid-template-rows:1fr 1fr; gap:5px; }
-.pinn .loss { border-radius:6px; padding:5px 7px; border:1px solid #E9C9B2; background:#FEF6F1; text-align:left; }
-.pinn .loss b { display:block; font-size:.68rem; letter-spacing:.04em; color:#E97132; }
-.pinn .loss span { font-size:.68rem; color:#374151; line-height:1.15; }
-.pinn .optimizer { background:#FAF2FB; border-color:#7F1084; }
-.pinn .feedback { margin:7px 10% 0 15%; border-top:1.5px solid #7F1084; position:relative; text-align:center; color:#7F1084; font-size:.70rem; font-weight:700; padding-top:3px; }
-.pinn .feedback::before { content:'↖'; position:absolute; left:-11px; top:-12px; font-size:1rem; }
-.pinn .frozen { background:#FAF2FB; border-color:#7F1084; }
-.pinn > .panel:last-child { padding:8px 14px; }
-.pinn > .panel:last-child .head { margin-bottom:4px; }
-.pinn > .panel:last-child .box { min-height:46px; padding:6px 7px; }
-.pinn .inference-note { text-align:center; font-size:.70rem; color:#6B7280; margin-top:2px; }
-</style>
-
-<div class="pinn">
-  <div class="panel">
-    <div class="head"><div class="tag" style="color:#7F1084;">01 Training</div><div class="desc">evaluate two residuals, then update the network weights</div></div>
-    <div class="train-flow">
-      <div class="box"><div class="main">Coordinates</div><div class="small">(x, y, t)</div></div><div class="arr">→</div>
-      <div class="box net"><div class="main">Neural field N(·; θ)</div><div class="small">trainable weights θ</div></div><div class="arr">→</div>
-      <div class="box"><div class="main">Prediction</div><div class="small">u, v, p</div></div><div class="arr">→</div>
-      <div class="loss-stack"><div class="loss"><b>DATA RESIDUAL</b><span>compare at measured points</span></div><div class="loss"><b>PDE RESIDUAL</b><span>autodiff → governing equations</span></div></div><div class="arr">→</div>
-      <div class="box optimizer"><div class="main" style="color:#7F1084;">Loss → optimizer</div><div class="small">back-propagation</div></div>
-    </div>
-    <div class="feedback">optimizer changes θ; the cycle repeats until the residuals are minimized</div>
-  </div>
-  <div class="panel">
-    <div class="head"><div class="tag" style="color:#0F2D52;">02 Inference</div><div class="desc">freeze θ* and evaluate the learned field directly</div></div>
-    <div class="infer-flow">
-      <div class="box"><div class="main">Query coordinate</div><div class="small">any (x, y, t)</div></div><div class="arr">→</div>
-      <div class="box frozen"><div class="main" style="color:#7F1084;">Trained field N(·; θ*)</div><div class="small">one forward pass</div></div><div class="arr">→</div>
-      <div class="box"><div class="main">Field value</div><div class="small">u, v, p</div></div>
-    </div>
-    <div class="inference-note">No loss evaluation, optimizer, or back-propagation</div>
-  </div>
 </div>
 
 <svg class="pinn-fixed" viewBox="0 0 880 312" style="width:100%;height:auto;margin-top:8px;">
@@ -757,7 +561,6 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 </div>
 
 
-
 <FooterLogos />
 
 <!--
@@ -820,62 +623,6 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 # Sensor-count scale and spectral conditioning at K = 100
 
 <style>
-.rs { display: grid; grid-template-columns: max-content 1fr; column-gap: 12px; row-gap: 3px;
-      align-items: baseline; font-size: 0.77rem; margin-top: 4px; }
-.rs .k { color: #6B7280; white-space: nowrap; }
-.eb { width: 100%; border-collapse: collapse; font-size: 0.79rem; margin-top: 4px; }
-.eb th { text-align: right; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
-         color: #9CA3AF; font-weight: 700; padding: 0 6px 4px 6px; border-bottom: 1px solid #E5E0EC; }
-.eb th.l { text-align: left; }
-.eb td { padding: 3px 6px; text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
-.eb td.l { text-align: left; color: #1F1B2E; font-weight: 600; }
-.eb tr.hi td { background: #F7EDF8; color: #7F1084; font-weight: 700; }
-</style>
-
-<div class="resolution-old grid grid-cols-5 gap-5 mt-2 items-start">
-
-<div class="col-span-2 space-y-1">
-
-<Card>
-<LabelTiny>Sensor Nyquist scale</LabelTiny>
-<div class="mt-1 text-xs leading-snug" style="color:#6B7280;">
-<b style="color:#374151;">Wavenumber k</b> indexes the spatial Fourier transform of the field: low k = large vortices, high k = fine structures.
-</div>
-<div class="mt-1 text-xs leading-snug" style="color:#374151;">
-The disk |k| ≤ k<sub>max</sub> holds ≈ <b>πk<sub>max</sub>²</b> modes; setting that equal to <b>K</b> gives
-</div>
-<div class="mt-1 text-center">
-<span class="eq" style="font-size: 0.92rem; padding: 0.25rem 0.7rem;">k<sub>max</sub> ≈ √(K/π)</span>
-</div>
-<div class="rs">
-<span class="k">At K = 100</span><span><b style="color:#7F1084;">k<sub>max</sub> ≈ 5.64</b> — a scale, not a wall</span>
-<span class="k">Beyond it</span><span>conditioning worsens, κ: 7 → 7×10² <span style="color:#9CA3AF;">(observable to k ≈ 8)</span></span>
-</div>
-</Card>
-
-<Card>
-<LabelTiny>Energy below that scale</LabelTiny>
-<table class="eb">
-<thead><tr><th class="l">Sensors</th><th><span class="raw">k<sub>max</sub></span></th><th>DNS energy inside</th></tr></thead>
-<tbody>
-<tr class="hi"><td class="l">K = 100</td><td>5.64</td><td>98.9 %</td></tr>
-<tr><td class="l">K = 200</td><td>7.98</td><td>99.7 %</td></tr>
-<tr><td class="l">K = 400</td><td>11.28</td><td>99.9 %</td></tr>
-</tbody>
-</table>
-</Card>
-
-</div>
-
-<div class="col-span-3">
-<img :src="'/images/nyquist_recoverability.png'" class="rounded-lg border" style="border-color:#E5E0EC; width: 100%; max-height: 236px; object-fit: contain;" />
-<div class="foot mt-1">DNS energy spectrum (a), cumulative fraction (b); dashed line = k<sub>max</sub> = √(K/π). The fractions report energy <b>available</b> below the scale at t = 5, not a proof that higher-k energy is unrecoverable.</div>
-</div>
-
-</div>
-
-<style>
-.resolution-old { display:none; }
 .resolution { display:grid; grid-template-columns:34% 66%; gap:20px; align-items:stretch; margin-top:13px; }
 .resolution .cardx { background:rgba(255,255,255,.78); border:1px solid #E5E0EC; border-radius:10px; padding:14px; }
 .resolution .tiny { font-size:.72rem; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:#6B7280; }
@@ -1496,8 +1243,6 @@ At K = 100 a vanilla DeepONet does reconstruct, but at <b>8.23 %</b> KE it misse
 -->
 
 
-
-
 ---
 
 <NavBar active="method" />
@@ -1684,12 +1429,6 @@ $$\mathbf c(q)=\sum_{k=1}^{K} A_{qk}\,\underbrace{\mathbf V_k}_{\text{sensor sta
 </Card>
 
 </div>
-
-<style>
-/* 兩條 attention 公式相鄰，KaTeX 自帶的 display margin 疊起來會頂出頁尾。
-   只收這一頁的公式間距，不動別頁（Slidev 會把此 style scope 到本 slide）。 */
-.slidev-page-13 .katex-display { margin: 0.15em 0 !important; }
-</style>
 
 <FooterLogos />
 
