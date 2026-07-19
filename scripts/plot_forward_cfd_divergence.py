@@ -14,9 +14,14 @@ Why : 原本的 P25 用表格比較,但兩欄取了不同時間窗(forward-CFD �
 
 資料誠實性
 ==========
-forward-CFD 只存了 t=0 與 t=5 兩張場(reports/forward_cfd_baseline_T5_rank40.npz;
-產生它的 solver 腳本不在 repo 也不在 git 歷史)。因此它只畫兩個實測 marker,
-中間以虛線連接並在圖例標明無中間快照——不以插值冒充實測軌跡。
+開放迴路軌跡取自 `reports/forward_cfd_rerun_T5_rank40.npz`——由 repo 內的
+`scripts/forward_cfd_baseline.py --integrate` 重跑產生,每 0.025 s 存一幀(201 幀),
+故為**逐時實測**軌跡,不再是首尾兩點的示意連線。
+
+⚠️ 這是重跑,不是原始 .npz。原始產物只存首尾兩張場,且其 solver 腳本不在 git 歷史;
+本腳本的配方經指紋比對(5 項中 4 項吻合、IC 殘差約 1%)重建。混沌放大使兩者端點不同
+(u 160.3% vs 152.8%、v 172.9% vs 203.9%),因此**兩批資料不可混用**——圖與 appendix07
+的數字必須同時出自重跑。
 """
 from __future__ import annotations
 
@@ -34,7 +39,7 @@ from pi_con.plot_style import apply_journal_rcparams, PICON  # noqa: E402
 # 與 band-energy / enstrophy 圖同一組防呆:glob 但斷言數量。
 SEED_GLOB = "artifacts/exp245_seeds/eval_245_seed?_final"
 N_SEEDS_EXPECTED = 5
-FCFD_JSON = ROOT / "reports/forward_cfd_baseline_T5_rank40.json"
+FCFD_NPZ = ROOT / "reports/forward_cfd_rerun_T5_rank40.npz"
 OUT_STEM = ROOT / "thesis/figures/results/forward_cfd_divergence"
 
 FCFD_C = "#E97132"  # forward-CFD:橘(與 PI-CON 紫/藍區隔,colourblind-safe)
@@ -56,18 +61,17 @@ def load_picon() -> tuple[np.ndarray, dict[str, np.ndarray]]:
     return t, {c: np.stack([s[f"{c}_rel_L2"] for s in series]) * 100.0 for c in ("u", "v")}
 
 
-def load_forward_cfd() -> dict[str, tuple[float, float]]:
-    """Return {component: (rel-L2 at t=0, rel-L2 at t=5)} in percent."""
-    d = json.loads(FCFD_JSON.read_text())
-    t0, tT = d["metrics_at_t0"], d["metrics_at_T"]
-    print(f"[data] forward-CFD: {d['method']}, POD rank {d['pod_rank']} "
-          f"from {d['pod_snapshots_used']} DNS snapshots")
-    return {c: (t0[f"{c}_rel_L2"] * 100.0, tT[f"{c}_rel_L2"] * 100.0) for c in ("u", "v")}
+def load_forward_cfd() -> tuple[np.ndarray, dict[str, np.ndarray]]:
+    """Return (time, {component: rel-L2 series in percent}) for the open-loop free run."""
+    d = np.load(FCFD_NPZ)
+    print(f"[data] open-loop free run: {len(d['time'])} frames from {FCFD_NPZ.name} "
+          f"(rerun of scripts/forward_cfd_baseline.py --integrate)")
+    return d["time"], {c: d[f"{c}_rel_L2"] * 100.0 for c in ("u", "v")}
 
 
 def main() -> None:
     t, picon = load_picon()
-    fcfd = load_forward_cfd()
+    t_f, fcfd = load_forward_cfd()
 
     apply_journal_rcparams()
     fig, ax = plt.subplots(figsize=(5.6, 3.2))
@@ -85,22 +89,13 @@ def main() -> None:
     ax.semilogy(t, mean, color=PICON, linewidth=1.7, zorder=4,
                 label=r"PI-CON, sensor-conditioned (mean $\pm 1\sigma$, $n=5$)")
 
-    e0, e5 = fcfd["u"]
-    # forward-CFD 只有首尾兩張場。用「標註箭頭」而非資料線:箭頭是示意的視覺語言,
-    # 不會被誤讀成量到的軌跡;直線在對數軸上則會被讀成實測的指數成長。
-    ax.annotate("", xy=(4.86, e5 * 0.82), xytext=(0.14, e0 * 1.18),
-                arrowprops=dict(arrowstyle="-|>", color=FCFD_C, linewidth=1.3,
-                                linestyle=(0, (5, 3)), alpha=0.75,
-                                shrinkA=2, shrinkB=2), zorder=2)
-    ax.semilogy([0.0, 5.0], [e0, e5], color=FCFD_C, linestyle="none",
-                marker="o", markersize=7.5, markerfacecolor="white",
-                markeredgewidth=1.9, zorder=5,
-                label=r"Forward-CFD, open-loop (only these 2 are stored)")
-    # 只標放大倍率;「中間沒有快照」已由圖例的 "only these 2 are stored" 說明,不重複。
-    ax.text(2.5, 33, r"$\times 29$", color=FCFD_C, fontsize=9.5,
-            ha="center", va="bottom", rotation=20, fontweight="bold")
+    f = fcfd["u"]
+    ax.semilogy(t_f, f, color=FCFD_C, linewidth=1.7, zorder=4,
+                label=r"Open-loop free run (no data assimilated)")
+    ax.text(2.55, 26, rf"$\times {f[-1] / f[0]:.1f}$", color=FCFD_C, fontsize=9.5,
+            ha="center", va="bottom", rotation=27, fontweight="bold")
 
-    ax.set_xlabel(r"time $t$ (s)")
+    ax.set_xlabel(r"time $t$")
     ax.set_ylabel(r"$u$ rel-$L_2$ (%)")
     ax.set_xlim(0, 5)
     ax.set_ylim(3.5, 400)
@@ -113,8 +108,8 @@ def main() -> None:
     print(f"[saved] {OUT_STEM}.pdf / .png")
     for comp in ("u", "v"):
         a = picon[comp]
-        e0, e5 = fcfd[comp]
-        print(f"  {comp}: forward-CFD {e0:5.1f}% -> {e5:6.1f}%  ({e5/e0:.1f}x, diverges) | "
+        e0, e5 = fcfd[comp][0], fcfd[comp][-1]
+        print(f"  {comp}: open-loop {e0:5.2f}% -> {e5:6.1f}%  ({e5/e0:.1f}x, diverges) | "
               f"PI-CON {a[:, 0].mean():5.1f}% -> {a[:, -1].mean():5.2f}%  "
               f"({a[:, -1].mean()/a[:, 0].mean():.2f}x, converges)")
 

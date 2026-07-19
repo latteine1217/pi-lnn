@@ -7,7 +7,7 @@
     "build": "slidev build",
     "export": "slidev export",
     "export-pdf": "slidev export --output pi-lnn-talk.pdf",
-    "export-pptx": "slidev export --format pptx --per-slide --output pi-lnn-defense.pptx"
+    "export-pptx": "slidev export --format pptx --per-slide --wait 2500 --wait-until networkidle --output pi-lnn-defense.pptx"
   },
   "dependencies": {
     "@slidev/cli": "^52.15.2",
