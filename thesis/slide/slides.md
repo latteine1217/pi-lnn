@@ -988,7 +988,7 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <Card>
 <LabelTiny>LES solver for placement</LabelTiny>
 <div class="lesst">
-<span class="k">Purpose</span><span class="v"><b style="color:#7F1084;">large-scale proxy for QR-pivot only</b></span>
+<span class="k">Purpose</span><span class="v"><b style="color:#7F1084;">choose where the sensors go — nothing else</b></span>
 <span class="k">Equation</span><span class="v">filtered NS with SGS stress and linear friction</span>
 <span class="k">Solver</span><span class="v">pseudo-spectral, 2/3 dealiasing, RK2 Heun, fp64</span>
 <span class="k">Grid / horizon</span><span class="v"><b>N = 256</b>, T<sub>end</sub> = 50</span>
@@ -1016,7 +1016,9 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <Card style="padding-top:.6rem; padding-bottom:.6rem;">
 <img :src="'/images/les_T50_vorticity_with_sensors.png'" style="width:100%; max-height:250px; object-fit:contain;" />
 <div class="lespipe"><b>LES large-scale field</b> <span style="color:#C9C6D0;">→</span> QR-pivot <span style="color:#C9C6D0;">→</span> <b style="color:#7F1084;">K = 100 fixed locations</b></div>
-<div class="lescap">DNS supplies (u, v) only at these coordinates for the offline study.</div>
+<div class="lescap" style="color:#374151; margin-top:6px; padding-top:6px; border-top:1px solid #E5E0EC;">
+<b style="color:#7F1084;">Coordinates are the only output.</b> The LES field is <b>never training data</b> — the network sees sensor values at those points plus the NS residual, and nothing else.
+</div>
 </Card>
 </div>
 
@@ -1026,10 +1028,12 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 
 <!--
 [LES 佈點 · 1.5min]
-• LES 只做佈點，DNS 仍是 reference
-• 數值達標，統計窗未建立（4.9 < 10）
+• **LES 只決定 sensor 放在哪裡，不是訓練資料**（教授 2026-07-20 指定要講明）
+  一句話版本：「LES 唯一的產出是 100 個座標。之後訓練看到的是那些點上的量測值加 NS residual，
+  LES 場本身從頭到尾沒有進過網路。」
+• 數值面達標（div 2.29×10⁻¹³、無 aliasing），但統計窗未建立（4.9 < 10）—— 這不影響佈點用途
 ⚠️ closure 是 hyperviscosity 單獨用；Bardina 只在 low-fidelity 變體
-⚠️ 不可宣稱 LES 收斂
+⚠️ 不可宣稱 LES 統計收斂。佈點品質的證據在下游：LES 5.71 % vs DNS-oracle 4.68 %
 -->
 
 ---
@@ -1712,7 +1716,7 @@ $$\mathcal{L}_{\text{AL}} = \lambda\,\mathcal{L}_{\text{cont}} + \tfrac{\rho}{2}
 </div>
 
 <div class="mt-3 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
-<b style="color:#7F1084;">Invariant</b>,  DNS field never enters ℒ.
+<b style="color:#7F1084;">Invariant</b>,  no full field — DNS or LES — ever enters ℒ.
 </div>
 </Card>
 
@@ -1723,7 +1727,7 @@ $$\mathcal{L}_{\text{AL}} = \lambda\,\mathcal{L}_{\text{cont}} + \tfrac{\rho}{2}
 <!--
 [誤差指標與 loss · 1.5min]
 • 四個量：global rel-L₂／KE MAPE／逐時 RMSE／div ratio
-• 底線：DNS field 從不進 L
+• 底線：**DNS 或 LES 全場都不進 L**。LES 只決定 sensor 放哪裡，不是訓練資料
 ⚠️ continuity 進 loss **兩次**（GradNorm + AL）；AL 刻意放在 GradNorm 之外
 -->
 
