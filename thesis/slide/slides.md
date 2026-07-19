@@ -2084,63 +2084,64 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 # Sensor placement without DNS access
 
 <style>
-.pl { width: 100%; border-collapse: collapse; font-size: 0.90rem; margin-top: 12px;
-      font-variant-numeric: tabular-nums; }
-.pl th { text-align: right; font-weight: 700; color: #7F1084; font-size: 0.90rem;
-         padding: 0 12px 7px 12px; border-bottom: 2px solid #7F1084; white-space: nowrap; }
-.pl th:first-child { text-align: left; }
-.pl td { padding: 10px 12px; border-bottom: 1px solid #E5E0EC; color: #374151; text-align: right; }
-.pl td:first-child { text-align: left; color: #1F1B2E; }
-.pl tr.main td { background: rgba(127, 16, 132, 0.09); font-weight: 700; color: #7F1084; }
-.pl .no  { color: #7F1084; font-weight: 700; }
-.pl .yes { color: #E97132; font-weight: 700; }
-.pl .sub { font-weight: 400; color: #9CA3AF; }
+.plc { width:100%; border-collapse:collapse; margin-top:22px; font-size:1.05rem;
+       font-variant-numeric:tabular-nums; }
+.plc th { text-align:right; font-weight:700; color:#374151; font-size:0.92rem;
+          padding:0 16px 12px; border-bottom:1.5px solid #1F1B2E; white-space:nowrap; }
+.plc th:first-child { text-align:left; }
+.plc td { padding:16px 16px; border-bottom:1px solid #E5E0EC; color:#374151; text-align:right; }
+.plc td:first-child { text-align:left; color:#1F1B2E; }
+.plc tr:last-child td { border-bottom:1.5px solid #1F1B2E; }
+.plc .sub { font-weight:400; color:#9CA3AF; font-size:0.88em; }
+.plc tr.main td:first-child { font-weight:700; }
 </style>
 
-<div class="text-xs mt-1" style="color:#6B7280;">
-Same B3 backbone, 1024 collocation, 20 k iterations, n = 5, sensor values always come from the K = 100 positions only.
-</div>
-
-<table class="pl">
+<table class="plc">
 <thead>
 <tr>
 <th>Placement strategy</th>
-<th>DNS full field to place?</th>
+<th>DNS field required</th>
 <th>KE MAPE (%)</th>
-<th><span class="raw">u / v rel-L₂</span> (%)</th>
+<th><span class="raw">u</span> rel-L₂ (%)</th>
+<th><span class="raw">v</span> rel-L₂ (%)</th>
 </tr>
 </thead>
 <tbody>
 <tr class="main">
-<td>LES T = 50 &nbsp;<span class="sub">dimensionless, main pipeline</span></td>
-<td class="no">No</td>
+<td>LES <span class="raw">T</span> = 50 <span class="sub">main pipeline</span></td>
+<td>No</td>
 <td>5.71 ± 0.12</td>
-<td>13.65 / 17.52</td>
+<td>13.65</td>
+<td>17.52</td>
 </tr>
 <tr>
-<td>DNS QR-pivot &nbsp;<span class="sub">oracle</span></td>
-<td class="yes">Yes</td>
-<td><b>4.68 ± 0.06</b></td>
-<td>15.34 / 18.10</td>
+<td>DNS QR-pivot <span class="sub">oracle</span></td>
+<td>Yes</td>
+<td>4.68 ± 0.06</td>
+<td>15.34</td>
+<td>18.10</td>
 </tr>
 <tr>
-<td>Random uniform &nbsp;<span class="sub">no-effort fallback</span></td>
-<td class="no">No</td>
+<td>Random uniform <span class="sub">fallback</span></td>
+<td>No</td>
 <td>7.95 ± 0.68</td>
-<td>17.20 / 21.62</td>
+<td>17.20</td>
+<td>21.62</td>
 </tr>
 </tbody>
 </table>
+
+<div class="foot mt-4">Same B3 backbone, 1024 collocation points, 20 000 iterations, n = 5 seeds; sensor values are drawn from the K = 100 positions only. KE MAPE reported as mean ± standard deviation.</div>
 
 <FooterLogos />
 
 <!--
 [佈點 · 2min]
-• ① oracle 贏 KE、LES 贏 pointwise → **trade-off**　② −2.24 pp vs random　③ variance 6.4×
-• 三者皆 < 10 % → O3「影響 reliability 不影響 feasibility」
+• 三種佈點的 KE MAPE 皆 < 10 % → feasibility；數值隨位置變 → reliability（O3）
+• trade-off：oracle 贏 KE（4.68），但 LES 贏 pointwise（u/v 13.65/17.52 vs 15.34/18.10）
+• LES vs random 差 −2.24 pp；placement variance ≈ 6.4× training variance
 ⚠️ 不可拿 LES 能譜比 DNS 當品質證據
 -->
-
 
 ---
 
