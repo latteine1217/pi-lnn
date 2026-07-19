@@ -1045,55 +1045,87 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 # Picking the K = 100 locations
 
 <style>
-.qp { display:flex; align-items:stretch; gap:11px; margin-top:20px; }
-.qp .bx { flex:1; background:rgba(255,255,255,.75); border:1px solid #E5E0EC; border-radius:9px;
-          padding:16px 17px; display:flex; flex-direction:column; }
-.qp .bx .ttl { font-size:1.0rem; font-weight:700; color:#1F1B2E; margin-bottom:8px; }
-.qp .bx .sub { font-size:.85rem; color:#6B7280; line-height:1.45; }
-.qp .ar { align-self:center; color:#C9C6D0; font-size:1.4rem; }
-.qp .last { background:#FAF2FB; border-color:#C9A6CC; }
-.qp .last .ttl { color:#7F1084; }
-.feat { display:flex; gap:7px; margin-top:7px; flex-wrap:wrap; }
-.feat span { background:#FFF7EE; border:1px solid #E9A97E; border-radius:5px;
-             padding:3px 10px; font-size:.92rem; color:#1F1B2E; }
-.rule { margin-top:18px; padding:16px 20px; border-radius:8px;
+.qp   { display:grid; grid-template-columns:repeat(4, 1fr); gap:0; margin-top:22px; }
+.qp .cell { position:relative; padding:0 22px 0 0; }
+.qp .cell:not(:last-child)::after {
+        content:"→"; position:absolute; right:2px; top:82px;
+        color:#D8D2E0; font-size:1.3rem; }
+.qp .no  { font-size:.66rem; font-weight:700; letter-spacing:.08em;
+           color:#E97132; text-transform:uppercase; }
+.qp .ttl { font-size:1.02rem; font-weight:700; color:#1F1B2E; margin-top:3px; line-height:1.25; }
+.qp .art { margin-top:12px; height:78px; display:flex; align-items:center; }
+.qp .art p { margin:0; }
+.qp .art .katex { font-size:1.02rem; }
+.qp .sub { font-size:.80rem; color:#6B7280; line-height:1.4; margin-top:6px; }
+.qp .sub p { margin:0; }
+.qp .cell.last .no { color:#7F1084; }
+.matx { display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; width:112px; }
+.matx i { height:10px; background:#D8D2E0; border-radius:1px; }
+.matx i.pick { background:#7F1084; }
+.rule { margin-top:18px; padding:15px 19px; border-radius:8px;
         background:rgba(127,16,132,0.06); border-left:4px solid #7F1084;
-        font-size:1.08rem; color:#374151; line-height:1.5; }
+        font-size:1.05rem; color:#374151; line-height:1.5; }
+.rule p { margin:0; }
 </style>
 
 <div class="qp">
 
-  <div class="bx">
-    <div class="ttl">1 · Read the LES</div>
-    <div class="sub">velocity over time on the LES grid</div>
-  </div>
-  <span class="ar">→</span>
-
-  <div class="bx">
-    <div class="ttl">2 · Five fields per point</div>
-    <div class="feat">
-      <span class="raw">u</span><span class="raw">v</span><span class="raw">ω</span>
-      <span class="raw">|∇u|</span><span class="raw">|∇v|</span>
+  <div class="cell">
+    <div class="no">Step 1</div>
+    <div class="ttl">Run the LES</div>
+    <div class="art">
+      <img :src="'/images/les_vorticity_thumb.png'" style="height:74px; width:74px; border-radius:5px; border:1px solid #E5E0EC;" />
     </div>
-    <div class="sub" style="margin-top:6px;">each scaled to unit variance</div>
+    <div class="sub">the large-scale flow, over time</div>
   </div>
-  <span class="ar">→</span>
 
-  <div class="bx">
-    <div class="ttl">3 · One column per point</div>
-    <div class="sub">a matrix of every grid point's signal history</div>
+  <div class="cell">
+    <div class="no">Step 2</div>
+    <div class="ttl">Five fields per point</div>
+    <div class="art">
+
+$u,\;\; v,\;\; \omega,\;\; |\nabla u|,\;\; |\nabla v|$
+
+</div>
+    <div class="sub">each scaled to unit variance</div>
   </div>
-  <span class="ar">→</span>
 
-  <div class="bx last">
-    <div class="ttl">4 · Column-pivoted QR</div>
-    <div class="sub">keeps <b style="color:#7F1084;">K = 100</b> columns</div>
+  <div class="cell">
+    <div class="no">Step 3</div>
+    <div class="ttl">One column per point</div>
+    <div class="art">
+      <div class="matx">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+    </div>
+    <div class="sub">every grid point's signal history</div>
+  </div>
+
+  <div class="cell last">
+    <div class="no">Step 4</div>
+    <div class="ttl">Column-pivoted QR</div>
+    <div class="art">
+      <div class="matx">
+        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
+        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
+        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
+      </div>
+    </div>
+    <div class="sub">
+
+keeps $K = 100$ of them
+
+</div>
   </div>
 
 </div>
 
 <div class="rule">
-At each step it keeps the point whose signal is <b>least explained by the points already kept</b> — so the K locations carry as little repeated information as possible.
+
+Each step keeps the point whose signal is **least explained by the points already kept** — so the $K$ locations repeat as little information as possible.
+
 </div>
 
 <div class="foot mt-3">Gradients enter because a point on a shear layer tells you more than one inside a smooth patch. No DNS field is read at any step.</div>
@@ -1103,12 +1135,13 @@ At each step it keeps the point whose signal is <b>least explained by the points
 <!--
 [QR 佈點 · 1.5min]
 • 講法：「不是隨便挑，也不是挑速度最大的點 —— 是挑**彼此最不重複**的點」
-• 五個場：u、v、ω、|∇u|、|∇v|，各除以自身 std（否則梯度量級會壓過速度）
-• QR pivoting 每一步挑「扣掉已選點能解釋的部分後，殘量最大」的那個 column
+• 五個場各除以自身 std（否則梯度量級會壓過速度）
+• 第 3、4 格小方塊是示意：每個 column = 一個格點，QR 挑出其中 100 個（紫色）
 • 為何帶梯度：剪切層上的點變化大、資訊多；平滑區的點彼此高度重複
-⚠️ 這裡**沒有 POD／SVD／秩截斷** —— 是對 raw feature matrix 直接做 column-pivoted QR。
+⚠️ 這裡**沒有 POD／SVD／秩截斷** —— 對 raw feature matrix 直接做 column-pivoted QR。
    不可說成「取 leading modes」（CLAUDE.md 明列此禁項）
-⚠️ 實作核對 scripts/generate_sensors_qrpivot_from_les.py:93 的 features_used
+⚠️ 特徵清單核對 scripts/generate_sensors_qrpivot_from_les.py:93 的 features_used
+⚠️ 行內公式要編譯，該 <div> 內容前後必須留空行（markdown-it 不處理 raw HTML 區塊內的 $）
 -->
 
 ---
@@ -2414,6 +2447,36 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <NavBar active="results" />
 
+<SectionTag>§ Results · what the noise does to the field</SectionTag>
+
+# Vorticity under increasing sensor noise
+
+<Card style="padding: 0.6rem 0.8rem;" class="mt-2">
+<img :src="'/images/noise_vorticity_comparison.png'" style="width: 100%; max-height: 272px; object-fit: contain;" />
+</Card>
+
+<div class="mt-3" style="font-size:1.05rem; color:#374151;">
+The field is <b style="color:#7F1084;">visually unchanged</b> from 0 % to 10 % noise.
+</div>
+
+<div class="foot mt-1">Single snapshot at <span class="raw">t</span> = 5, seed 42. Each row shares one colour scale.</div>
+
+<FooterLogos />
+
+<!--
+[噪音下的渦度場 · 1min]
+• 一句話：**六格看起來一樣** —— 10 % 噪音沒有把場毀掉
+• 誤差是結構性的（渦核、剪切層），不是隨機雜訊；位置與 sensor 上限限制的地方相同
+• 兩列各自共用色階，否則欄與欄不可比
+⚠️ 圖上**不標各欄 rel-L₂**：這是 t=5 單幀單 seed，1 % 那格（37.50 %）比 0 %（38.03 %）低，
+   會招來「噪音怎麼讓結果變好」。逐級數字看前一頁的表（全時空、n=5，那裡是單調的）
+⚠️ 被問單幀數字 → 誠實答單幀波動大，論文用 "monotone in the aggregate"（chapter04:443）
+-->
+
+---
+
+<NavBar active="results" />
+
 <SectionTag>§ Results · engineering applicability</SectionTag>
 
 # What K = 100 sensors support
@@ -2534,69 +2597,4 @@ Showed cross-Reynolds feasibility at <b>Re = 10⁶</b> <i>(6.10 %, single seed)<
 ⚠️ 數字出處：log:132／580／1561／208／385・chapter04:117／247
 ⚠️ 第 4 條用「降 70 %」避開 single-seed 與 n=5 混用
 ⚠️ 未裁決：p24 寫 −2.52，論文寫 −2.53
--->
-
----
-
-<NavBar active="summary" />
-
-<SectionTag>§ Conclusion · limitations and future work</SectionTag>
-
-# Limitations and future work
-
-<style>
-.lx { width: 100%; border-collapse: collapse; margin-top: 16px; }
-.lx th { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-         padding: 0 8px 4px 8px; border-bottom: 1px solid #D8D2E0; text-align: left; }
-.lx td { padding: 13px 8px; border-bottom: 1px solid #F1EDF5; vertical-align: top; }
-.lx .lim { font-size: 1.0rem; color: #1F1B2E; font-weight: 600; width: 42%; }
-.lx .lim span { font-weight: 400; color: #9CA3AF; font-size: 0.92em; }
-.lx .arw { color: #C9C6D0; width: 12px; padding: 13px 0; }
-.lx .fix { font-size: 1.0rem; color: #374151; }
-.lx .fix b { color: #7F1084; }
-</style>
-
-<table class="lx">
-<thead><tr><th style="color:#E97132;">Limitation</th><th></th><th style="color:#7F1084;">Future work</th></tr></thead>
-<tbody>
-<tr>
-<td class="lim">Uniform sensor clock</td>
-<td class="arw">→</td>
-<td class="fix">Irregular-clock test on the existing frames</td>
-</tr>
-<tr>
-<td class="lim">Gaussian noise only</td>
-<td class="arw">→</td>
-<td class="fix">Bias, drift, dropout, calibration</td>
-</tr>
-<tr>
-<td class="lim">Periodic domain, single forcing</td>
-<td class="arw">→</td>
-<td class="fix">Wall-bounded geometries</td>
-</tr>
-<tr>
-<td class="lim">Cross-Re single seed</td>
-<td class="arw">→</td>
-<td class="fix">Multi-seed at Re = 10⁶</td>
-</tr>
-<tr>
-<td class="lim">CFD-rigour gaps</td>
-<td class="arw">→</td>
-<td class="fix">Reynolds stresses, TKE budget, 4D-Var baseline</td>
-</tr>
-</tbody>
-</table>
-
-<div class="mt-4" style="color:#374151; font-size: 0.95rem;">
-Validated scope <span style="color:#C9C6D0;">, </span> K = 100 <span style="color:#C9C6D0;">, </span> Re = 10⁴ <span style="color:#C9C6D0;">, </span> 2-D periodic Kolmogorov
-</div>
-
-<FooterLogos />
-
-<!--
-[限制與未來工作 · 1.5min]
-• Uniform clock 要主動展開：CfC 的賣點從未被測；補法＝既有 frames 加時間 mask
-　 它也解釋 CfC 單獨 +0.99 pp（Δt 定值 → 閘門吃不到變異）
-• Periodic domain：cylinder 已有初步驗證
-⚠️ 論文 7 條只印 5 條。備答：K-scaling 非嚴格擬合、per-case fitting 無跨場景泛化
 -->
