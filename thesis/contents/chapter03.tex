@@ -384,7 +384,7 @@ The four neural variants reconstruct the field from the same $K=100$ sensor stre
 \end{itemize}
 
 \paragraph{Reference-only baseline (not engineering-transferable).}
-\textbf{Gappy POD} requires the full DNS snapshot matrix to build its POD basis and is \emph{not engineering-transferable} under the deployment regime of \S\ref{sec:engineering_constraint}; it is reported only as an upper reference for spectral-truncation reconstruction quality, not as a comparable method. The \textbf{forward-CFD initial-condition reconstruction} likewise needs offline DNS snapshots for its POD basis and is labelled accordingly.
+\textbf{Gappy POD} requires the full DNS snapshot matrix to build its POD basis and is \emph{not engineering-transferable} under the deployment regime of \S\ref{sec:engineering_constraint}; it is reported only as an upper reference for spectral-truncation reconstruction quality, not as a comparable method. The same holds for any gappy-POD reconstruction that reads the sensor stream at every step: the linear projection recovers the field well but only because the basis already encodes the full field, so it is an upper reference rather than a deployable method.
 
 \section{Open-Source Availability}
 \label{sec:impl_env}

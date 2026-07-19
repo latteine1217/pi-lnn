@@ -2132,31 +2132,6 @@ Same B3 backbone, 1024 collocation, 20 k iterations, n = 5, sensor values always
 </tbody>
 </table>
 
-<div class="grid grid-cols-3 gap-4 mt-5 text-xs">
-
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>KE and pointwise L₂ trade off</LabelTiny>
-<div class="mt-1 leading-snug" style="color:#374151;">
-The oracle takes <b>KE</b>. LES takes <b>pointwise L₂</b> — and needs no DNS field to place.
-</div>
-</Card>
-
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Placement is worth 2.24 pp</LabelTiny>
-<div class="mt-1 leading-snug" style="color:#374151;">
-LES over random: <b style="color:#7F1084;">−2.24 pp</b> of KE for one cheap LES run.
-</div>
-</Card>
-
-<Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Reliability, not feasibility</LabelTiny>
-<div class="mt-1 leading-snug" style="color:#374151;">
-Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the spread from training seeds (± 0.11). All three clear 10 %.
-</div>
-</Card>
-
-</div>
-
 <FooterLogos />
 
 <!--
@@ -2166,81 +2141,6 @@ Spread from <b>placement</b> (± 0.68) is <b style="color:#E97132;">6×</b> the 
 ⚠️ 不可拿 LES 能譜比 DNS 當品質證據
 -->
 
-
----
-
-<NavBar active="results" />
-
-<SectionTag>§ Results · vs an open-loop free run (no data assimilated)</SectionTag>
-
-# Trajectory divergence of the open-loop free run
-
-<style>
-.olp { display:flex; align-items:stretch; gap:8px; margin-top:10px; }
-.olp .st { flex:1; background:rgba(255,255,255,.72); border:1px solid #E5E0EC; border-radius:7px;
-           padding:8px 11px; font-size:.80rem; line-height:1.35; color:#1F1B2E; }
-.olp .st .no { display:inline-block; width:16px; height:16px; border-radius:50%;
-               background:#E97132; color:#fff; font-size:.66rem; font-weight:700;
-               text-align:center; line-height:16px; margin-right:6px; }
-.olp .st .sub { color:#6B7280; font-size:.73rem; }
-.olp .ar { align-self:center; color:#C9C6D0; font-size:1rem; }
-.olp .picon { flex:1; background:#FAF2FB; border:1px solid #C9A6CC; border-radius:7px;
-              padding:8px 11px; font-size:.80rem; line-height:1.35; color:#1F1B2E; }
-.olp .picon .no { background:#7F1084; }
-.st5 { display:grid; grid-template-columns:1fr max-content; column-gap:12px; row-gap:10px;
-       align-items:baseline; font-size:.95rem; font-variant-numeric:tabular-nums; margin-top:6px; }
-.st5 .lab { color:#6B7280; }
-</style>
-
-<div class="olp">
-  <div class="st"><span class="no">1</span><b>Sensors at <span class="raw">t</span> = 0 only</b><br><span class="sub">the same K = 100 values</span></div>
-  <span class="ar">→</span>
-  <div class="st"><span class="no">2</span><b>Gappy POD, rank 40</b><br><span class="sub">divergence-free start field</span></div>
-  <span class="ar">→</span>
-  <div class="st"><span class="no">3</span><b>Same DNS solver, free run</b><br><span class="sub">no sensor data after <span class="raw">t</span> = 0</span></div>
-  <span class="ar" style="color:#7F1084;">vs</span>
-  <div class="picon"><b style="color:#7F1084;">PI-CON</b><br><span class="sub">reads the sensors at <b style="color:#7F1084;">every</b> <span class="raw">t</span></span></div>
-</div>
-
-<div class="grid grid-cols-5 gap-4 mt-3">
-
-<div class="col-span-3">
-<Card style="padding: 0.5rem 0.7rem;">
-<img :src="'/images/forward_cfd_divergence.png'" style="width: 100%; max-height: 196px; object-fit: contain;" />
-<div class="text-[10px] leading-snug" style="color:#9CA3AF; margin-top:2px;">POD basis from <b>200 offline DNS snapshots</b> [Everson &amp; Sirovich 1995] — more than PI-CON ever sees.</div>
-</Card>
-</div>
-
-<div class="col-span-2">
-<Card style="padding-top: 0.9rem; padding-bottom: 0.9rem;">
-<LabelTiny>At <span class="raw">t</span> = 5</LabelTiny>
-<div class="st5">
-<span class="lab">KE</span><span>−9.3 %</span>
-<span class="lab">Enstrophy</span><span>−10.5 %</span>
-<span class="lab">Cumulative spectrum</span><span>9.6 %</span>
-<span style="color:#1F1B2E; font-weight:600;">The field itself</span><span style="color:#E97132; font-weight:700;">160 % wrong</span>
-</div>
-<div class="mt-4 pt-3 text-xs leading-snug" style="color:#6B7280; border-top:1px solid #E5E0EC;">
-The forecast stays on the attractor — at the <b style="color:#E97132;">wrong phase</b>. Growth is chaotic sensitivity to the start field, <b>not solver error</b>.
-</div>
-</Card>
-</div>
-
-</div>
-
-
-<FooterLogos />
-
-<!--
-[Open-loop free run · 2min]
-• 三步流程：t=0 的 100 個量測 → gappy POD rank 40 補成無散度初始場 → 同一支 DNS solver 自由積分
-• 我們唯一的差別：全程讀 sensor。指圖：兩線 t≈1 交叉，橘線 t=2.4 穿越 100 %，末端 160.3 %（30×）
-• 右卡：bulk 只差 9–10 %，場卻錯 160 % → **17× 落差**，KE 會騙人
-⚠️ 曲線是**重跑**（scripts/forward_cfd_baseline.py --integrate，201 幀）。原始 .npz 只存首尾兩點，
-   solver 不在 git 歷史；重跑 5 項指紋中 4 項吻合、IC 殘差約 1 %。混沌放大使端點不同
-   （u 160.3 vs 152.8、v 172.9 vs 203.9）→ **兩批不可混用**，appendix07 已同步改用重跑值
-⚠️ 非 matched baseline —— POD 基底用了 200 張離線 DNS，比我們看到的多
--->
 
 ---
 
