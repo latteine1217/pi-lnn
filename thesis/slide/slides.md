@@ -988,7 +988,7 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <Card>
 <LabelTiny>LES solver for placement</LabelTiny>
 <div class="lesst">
-<span class="k">Purpose</span><span class="v"><b style="color:#7F1084;">choose where the sensors go — nothing else</b></span>
+<span class="k">Purpose</span><span class="v"><b style="color:#7F1084;">to decide where the sensors go</b></span>
 <span class="k">Equation</span><span class="v">filtered NS with SGS stress and linear friction</span>
 <span class="k">Solver</span><span class="v">pseudo-spectral, 2/3 dealiasing, RK2 Heun, fp64</span>
 <span class="k">Grid / horizon</span><span class="v"><b>N = 256</b>, T<sub>end</sub> = 50</span>
@@ -1017,7 +1017,7 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <img :src="'/images/les_T50_vorticity_with_sensors.png'" style="width:100%; max-height:250px; object-fit:contain;" />
 <div class="lespipe"><b>LES large-scale field</b> <span style="color:#C9C6D0;">→</span> QR-pivot <span style="color:#C9C6D0;">→</span> <b style="color:#7F1084;">K = 100 fixed locations</b></div>
 <div class="lescap" style="color:#374151; margin-top:6px; padding-top:6px; border-top:1px solid #E5E0EC;">
-<b style="color:#7F1084;">Coordinates are the only output.</b> The LES field is <b>never training data</b> — the network sees sensor values at those points plus the NS residual, and nothing else.
+<b style="color:#7F1084;">The LES gives us 100 coordinates. That is all.</b> It is never training data — the network is trained on sensor values and the NS residual.
 </div>
 </Card>
 </div>
@@ -1034,6 +1034,81 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 • 數值面達標（div 2.29×10⁻¹³、無 aliasing），但統計窗未建立（4.9 < 10）—— 這不影響佈點用途
 ⚠️ closure 是 hyperviscosity 單獨用；Bardina 只在 low-fidelity 變體
 ⚠️ 不可宣稱 LES 統計收斂。佈點品質的證據在下游：LES 5.71 % vs DNS-oracle 4.68 %
+-->
+
+---
+
+<NavBar active="method" />
+
+<SectionTag>§ Application case · which points carry the most information</SectionTag>
+
+# Picking the K = 100 locations
+
+<style>
+.qp { display:flex; align-items:stretch; gap:11px; margin-top:20px; }
+.qp .bx { flex:1; background:rgba(255,255,255,.75); border:1px solid #E5E0EC; border-radius:9px;
+          padding:16px 17px; display:flex; flex-direction:column; }
+.qp .bx .ttl { font-size:1.0rem; font-weight:700; color:#1F1B2E; margin-bottom:8px; }
+.qp .bx .sub { font-size:.85rem; color:#6B7280; line-height:1.45; }
+.qp .ar { align-self:center; color:#C9C6D0; font-size:1.4rem; }
+.qp .last { background:#FAF2FB; border-color:#C9A6CC; }
+.qp .last .ttl { color:#7F1084; }
+.feat { display:flex; gap:7px; margin-top:7px; flex-wrap:wrap; }
+.feat span { background:#FFF7EE; border:1px solid #E9A97E; border-radius:5px;
+             padding:3px 10px; font-size:.92rem; color:#1F1B2E; }
+.rule { margin-top:18px; padding:16px 20px; border-radius:8px;
+        background:rgba(127,16,132,0.06); border-left:4px solid #7F1084;
+        font-size:1.08rem; color:#374151; line-height:1.5; }
+</style>
+
+<div class="qp">
+
+  <div class="bx">
+    <div class="ttl">1 · Read the LES</div>
+    <div class="sub">velocity over time on the LES grid</div>
+  </div>
+  <span class="ar">→</span>
+
+  <div class="bx">
+    <div class="ttl">2 · Five fields per point</div>
+    <div class="feat">
+      <span class="raw">u</span><span class="raw">v</span><span class="raw">ω</span>
+      <span class="raw">|∇u|</span><span class="raw">|∇v|</span>
+    </div>
+    <div class="sub" style="margin-top:6px;">each scaled to unit variance</div>
+  </div>
+  <span class="ar">→</span>
+
+  <div class="bx">
+    <div class="ttl">3 · One column per point</div>
+    <div class="sub">a matrix of every grid point's signal history</div>
+  </div>
+  <span class="ar">→</span>
+
+  <div class="bx last">
+    <div class="ttl">4 · Column-pivoted QR</div>
+    <div class="sub">keeps <b style="color:#7F1084;">K = 100</b> columns</div>
+  </div>
+
+</div>
+
+<div class="rule">
+At each step it keeps the point whose signal is <b>least explained by the points already kept</b> — so the K locations carry as little repeated information as possible.
+</div>
+
+<div class="foot mt-3">Gradients enter because a point on a shear layer tells you more than one inside a smooth patch. No DNS field is read at any step.</div>
+
+<FooterLogos />
+
+<!--
+[QR 佈點 · 1.5min]
+• 講法：「不是隨便挑，也不是挑速度最大的點 —— 是挑**彼此最不重複**的點」
+• 五個場：u、v、ω、|∇u|、|∇v|，各除以自身 std（否則梯度量級會壓過速度）
+• QR pivoting 每一步挑「扣掉已選點能解釋的部分後，殘量最大」的那個 column
+• 為何帶梯度：剪切層上的點變化大、資訊多；平滑區的點彼此高度重複
+⚠️ 這裡**沒有 POD／SVD／秩截斷** —— 是對 raw feature matrix 直接做 column-pivoted QR。
+   不可說成「取 leading modes」（CLAUDE.md 明列此禁項）
+⚠️ 實作核對 scripts/generate_sensors_qrpivot_from_les.py:93 的 features_used
 -->
 
 ---
@@ -1716,7 +1791,7 @@ $$\mathcal{L}_{\text{AL}} = \lambda\,\mathcal{L}_{\text{cont}} + \tfrac{\rho}{2}
 </div>
 
 <div class="mt-3 pt-2 text-xs leading-snug" style="border-top: 1px solid #E5E0EC; color:#374151;">
-<b style="color:#7F1084;">Invariant</b>,  no full field — DNS or LES — ever enters ℒ.
+<b style="color:#7F1084;">No full field enters ℒ</b> — not the DNS, not the LES.
 </div>
 </Card>
 
