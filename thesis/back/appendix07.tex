@@ -8,7 +8,7 @@ The diagnostics below define what the final recipe does \emph{not} claim. They a
 
 \begin{table}[!htbp]
     \centering
-    \caption{Boundary diagnostics for alternative recipe choices at $Re=10\,000$, $K=100$. Metrics are percentages unless noted. The multi-seed main baseline remains $5.71 \pm 0.11\%$ KE error.}
+    \caption{Boundary diagnostics for alternative recipe choices at $Re=10\,000$, $K=100$. Metrics are percentages unless noted. The multi-seed main baseline remains $5.71 \pm 0.12\%$ KE error.}
     \label{tab:boundary_diagnostics}
     \footnotesize
     \setlength{\tabcolsep}{3pt}
@@ -34,7 +34,7 @@ The diagnostics below define what the final recipe does \emph{not} claim. They a
     \midrule
     Filtering vs.\ smoothing
     & Compare deployable filtering against offline bidirectional smoothing.
-    & Filtering KE $5.71 \pm 0.11$; smoothing KE $5.74$.
+    & Filtering KE $5.71 \pm 0.12$; smoothing KE $5.74$.
     & Future-sensor access gives no clear gain in this single-seed diagnostic; filtering remains the deployable default. \\
     \bottomrule
     \end{tabularx}
@@ -69,7 +69,7 @@ Three classical reconstructions respect the same sensor-only constraint as PI-CO
     IDW ($p=2$)                           & $66.66$ & $52.88$ & $62.02$ & $81.89$ & $74.2\%$ \\
     Div-free trig.\ LSQ ($k_{\max}=5$)    & $4.42$  & $25.87$ & $31.96$ & $63.41$ & $47.2\%$ \\
     \midrule
-    \textbf{PI-CON (ours, $n=5$)}         & $5.71 {\pm} 0.11$ & $\mathbf{13.65 {\pm} 0.06}$ & $\mathbf{17.52 {\pm} 0.10}$ & $\mathbf{41.79 {\pm} 0.12}$ & -- \\
+    \textbf{PI-CON (ours, $n=5$)}         & $5.71 {\pm} 0.12$ & $\mathbf{13.65 {\pm} 0.06}$ & $\mathbf{17.52 {\pm} 0.10}$ & $\mathbf{41.77 {\pm} 0.12}$ & -- \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -82,10 +82,10 @@ The refreshed interpolation sweep also shows strong hyperparameter sensitivity: 
 \section{Open-Loop Forward-CFD Baseline}
 \label{sec:forward_cfd_baseline}
 
-A natural CFD-side reference reconstructs a divergence-free initial field from the $K=100$ sensor measurements at $t=0$, then forward-integrates the pseudo-spectral ETDRK4 solver used for the reference DNS. Both the Proper Orthogonal Decomposition (POD) reconstruction and the forward integration run on the stored $256^2$ snapshot grid (Table~\ref{tab:dns_params}); only the scoring reference remains the $1024^2$ DNS downsampled to $256^2$. Because the field is reconstructed from the initial-time sensors alone and then integrated freely, with no later sensor data assimilated, this is an open-loop forecast reference rather than a matched assimilation baseline: it isolates what a purely physics-driven forecast attains from the initial-time sensor budget without learned components, whereas PI-CON ingests the full sensor time series.
+A natural CFD-side reference combines two established components. First, a divergence-free initial field is reconstructed from the $K=100$ sensor measurements at $t=0$ by gappy Proper Orthogonal Decomposition (gappy POD)~\cite{EversonSirovich1995Gappy}, which recovers modal coefficients from partial observations through a least-squares fit at the observed locations. Second, the reconstructed field is advanced by the pseudo-spectral ETDRK4 solver used for the reference DNS while no further observations are ingested, the open-loop (free-run) configuration used as the standard no-assimilation control in data assimilation~\cite{Asch2016DA}. Both the gappy-POD reconstruction and the forward integration run on the stored $256^2$ snapshot grid (Table~\ref{tab:dns_params}); only the scoring reference remains the $1024^2$ DNS downsampled to $256^2$. Because the field is reconstructed from the initial-time sensors alone and then integrated freely, with no later sensor data assimilated, this is an open-loop forecast reference rather than a matched assimilation baseline: it isolates what a purely physics-driven forecast attains from the initial-time sensor budget without learned components, whereas PI-CON ingests the full sensor time series.
 
 \paragraph{Construction.}
-Leading-rank $r=40$ POD modes are computed from $200$ DNS snapshots over $t\in[0,5]$ jointly over the $u$ and $v$ channels; the modes are divergence-free by construction. Sensor measurements at $t=0$ are projected onto these modes by least squares,
+Leading-rank $r=40$ POD modes are computed from $200$ DNS snapshots over $t\in[0,5]$ jointly over the $u$ and $v$ channels; the modes are divergence-free by construction. Sensor measurements at $t=0$ are projected onto these modes by the gappy-POD least-squares problem,
 \begin{equation}
     \min_{\boldsymbol\alpha}\;\big\Vert \mathbf{y}_{\rm sensor} - \boldsymbol\Phi_{\rm at\,sensor}\boldsymbol\alpha \big\Vert_2^2,\qquad
     \hat{\mathbf{u}}_0(\mathbf{x}) = \bar{\mathbf{u}}(\mathbf{x}) + \sum_{r}\alpha_r\,\boldsymbol\Phi_r(\mathbf{x}),

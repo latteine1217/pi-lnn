@@ -216,7 +216,29 @@ EXP-080 re-eval KE 9.78% vs 原紀錄 10.68% 為 ±6% reproducibility band 內�
 
 腳本：[`kolmogorov_generate/dns/forward_cfd_baseline.py`](../../kolmogorov_generate/dns/forward_cfd_baseline.py)
 
-Pipeline：DNS snapshots (n=200) → 中心化 + SVD 取 leading 40 modes（div-free by construction） → K=100 sensor 量測在 POD basis 做 least-squares projection → 還原 u₀, v₀ → ETDRK4 (dt = 2.5×10⁻⁴, fp64, 256²) forward 20,000 步到 t = 5。
+Pipeline：DNS snapshots (n=200) → SVD 取 leading 40 modes（div-free by construction） → K=100 sensor 量測在 POD basis 做 least-squares projection → 還原 u₀, v₀ → ETDRK4 (dt = 2.5×10⁻⁴, fp64, 256²) forward 20,000 步到 t = 5。
+
+> **⚠️ 「中心化」一詞已於 2026-07-18 移除**：本行原寫「中心化 + SVD」，但 `scripts/forward_cfd_baseline.py:85` 的逆向重建（經 lstsq residual 指紋比對，差 0.18%）明確記載 **不減時間平均**，理由是「減平均會讓 lstsq 奇異值與 json 的 `leading_singular_values_used` 對不上」。以指紋比對為準，原描述有誤。
+
+**Solver 設定（2026-07-18 從 DNS config 與 solver 原始碼實讀補上）**
+
+forward CFD **不另設 solver 參數**，而是沿用產生參考 DNS 的同一支 `KolmogorovFlowDNS`，只覆寫初始場：
+
+| 項目 | 值 | 出處 |
+|---|---|---|
+| Forcing 形式 | **Kolmogorov forcing，僅作用於 x-momentum**：`f_x = A·sin(k_phys·y)`, `f_y = 0` | `generate_kolmogorov_dns_fp64.py:265-271` |
+| Forcing 參數 | `A = 0.1`, `k_f = 2`, `L = 1.0` → `k_phys = 2π·k_f/L = 4π` → **`f_x = 0.1·sin(4πy)`** | DNS config + solver line 262 |
+| Forcing 時間相依 | **無**（stationary，初始化時預先算好，積分中不變） | solver line 274-275 |
+| Dealiasing | **`3/2` padding rule**（非 2/3 截斷遮罩）：`pad_N = 3N/2 = 384`，非線性項在 384² 網格上算完再轉回 | solver line 204-206 |
+| Dealias mask | 3/2 模式下 `dealias_mask = ones`（不做譜截斷） | solver line 233-237 |
+| 其他 | `nu = 1e-4`（Re=10⁴）, `dt = 2.5e-4`, `T_end = 5.0`, `enforce_zero_mean = true`, `seed = 42`, `save_interval = 100`（→ 每幀 0.025 s） | DNS config |
+
+**IC 前處理**（`forward_cfd_baseline.py:170-174`）：POD 重建場 → 套 `dealias_mask` → `_project_hat`（divergence-free 投影）→ zero-mean。
+註：因 3/2 模式下 mask 為全 1，該行乘法實際上是 no-op，真正生效的只有投影與零均值。
+
+**⚠️ 解析度不對稱**：參考 DNS（N=256）是由 **N=1024 降採樣**而來（config `source_N=1024`, `downsample_stride=4`），而 forward CFD 在 **N=256 上積分**。兩者有效解析度不同，這本身即為誤差來源之一，不可忽略。
+
+> **術語補註（2026-07-18）**：本節的 "Forward CFD baseline" 是**內部簡稱，不是文獻方法名**（原始記錄保留不改）。方法本身是兩個既有方法的組合：IC 重建那一步是 **gappy POD**（Everson & Sirovich, *JOSA A* 12:1657–1664, 1995，從 partial observations 以 least squares 回推 modal coefficients）；之後不再吸收觀測的自由積分是 **open-loop / free-run**（data assimilation 領域的標準 no-assimilation 對照組）。論文正式用詞見 [`thesis/back/appendix07.tex`](../../thesis/back/appendix07.tex) §Open-Loop Forward-CFD Baseline。命名統一背景見 [`docs/metric_choice_note.md`](../metric_choice_note.md) §3。
 
 執行環境：home-gpu (WSL2, Python 3.14.4, numpy 2.3.5, 12 cores)；27.5 min wall time（POD SVD 24 s + ETDRK4 1651 s）。
 
@@ -235,7 +257,7 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 - T = 5 對應 ~2.5 t_eddy（見 §Pope criterion）；2-D Kolmogorov 在此尺度上是 chaotic regime。
 - Forward CFD 在 **bounded statistics**（KE）上接近 DNS（3.85 % rel-err），因為 stationary forcing 把 KE 鎖在 attractor 上，這是 trivial preservation。
 - 但 **phase information**（pointwise u, v）幾乎完全 decorrelated（rel-L₂ > 1，意指 ‖error‖ 比 ‖ref‖ 還大），這是 chaos divergence 的直接後果（λ_L ≈ 1/t_eddy ⇒ 2.5 e-foldings）。
-- PI-CON 用 continuous-time conditioning + sensor 重複量測，把 pointwise correlation 保在 ~20 %（time-avg），是 **operator framework 處理 ill-posed inverse problem** 的直接證據；同一 K = 100 sensor input 與同一 PDE，pointwise 誤差差 7–8×。
+- PI-CON 用 continuous-time conditioning + sensor 重複量測，把 pointwise correlation 保在 ~20 %（time-avg）；同一 K = 100 sensor input 與同一 PDE，pointwise 誤差差 7–8×。此對照證明的是 **「持續量測」相對「單次量測」的優勢**，**不是** operator framework 相對傳統方法的優勢——持續同化本身是 nudging / continuous DA 的既有做法（Azouani–Olson–Titi 2014；Clark Di Leoni et al. PRX 2020），詳見 `docs/literature_review.md` §2.7.2。
 - **單一 KE rel-err 指標 對 chaotic system 會 mis-rank**：委員若以 KE 攻擊「forward CFD 已經更好」，回擊 = u/v rel-L₂ 才是 phase tracking 指標，PI-CON 在這層比 forward CFD 強 ~ order of magnitude。
 
 **Same-attractor vs different-solution 判定（2026-05-15，從 .npz 快速 stats + spectrum 對比）**：
@@ -252,7 +274,19 @@ artifacts：`reports/forward_cfd_baseline_T5_rank40.{json,npz}`（pulled back fr
 | **v_std** | 0.197 | 0.364 | — | **anisotropy drift** |
 | **u_std / v_std** | **2.32** | **0.90** | — | DNS 保留 forcing anisotropy；forward 漂到 equipartition |
 
-結論：forward CFD **沒有跑到另一個解**（不是 laminar Kolmogorov fixed point、不是 phase-locked periodic orbit），KE / enstrophy / spectrum shape 都在同一 attractor 上；但 chaos divergence 把 IC 推到 attractor 上「另一個典型 sample」，並且把 DNS 在 T=5 仍保留的 forcing-induced anisotropy（u_std/v_std = 2.32）抹掉變成接近 equipartition（0.90）。換句話說，forward CFD 抓到了 attractor 的長時間平均特徵，但完全失去了 DNS t=5 這個特定 phase realization。PI-CON 因有 sensor 每 0.025 t 重新量測，把 phase realization 鎖住，這是 operator framework 的決定性貢獻。
+結論：forward CFD **沒有跑到另一個解**（不是 laminar Kolmogorov fixed point、不是 phase-locked periodic orbit），KE / enstrophy / spectrum shape 都在同一 attractor 上；但 chaos divergence 把 IC 推到 attractor 上「另一個典型 sample」，並且把 DNS 在 T=5 仍保留的 forcing-induced anisotropy（u_std/v_std = 2.32）抹掉變成接近 equipartition（0.90）。換句話說，forward CFD 抓到了 attractor 的長時間平均特徵，但完全失去了 DNS t=5 這個特定 phase realization。PI-CON 因有 sensor 每 0.025 t 重新量測，把 phase realization 鎖住——這是**持續量測**的貢獻，與 nudging / continuous DA 同源，不可宣稱為 operator framework 或本研究的首創。
+
+**⚠️ Baseline 定位（2026-07-18 補，全文查證後）**：本 forward CFD baseline 在資料同化語彙中屬 *open-loop estimation*（只同化一次），是 DA 家族的**退化情形**；其兩個組件（gappy POD 反推 IC、前向積分）皆為既有標準方法。對應的「強版本」是 nudging / 4D-Var，已有完整文獻。
+
+但**組件既有 ≠ 此組合有前案**：「gappy POD rank-40 + ETDRK4 + 2D Kolmogorov Re=10⁴」這個具體配對經 5 組檢索**未找到前案**，惟該檢索僅及 title/abstract，而此類 baseline 通常只寫在 methods 段，**故不足以宣稱無前案**。完整三層區分與檢索紀錄見 `docs/literature_review.md` §2.7.1。
+
+**「no-assimilation control」的宣稱分兩層**：概念層（free-run 是 DA 的標準無同化對照）**有教科書支持**，thesis appendix07 已引 `Asch2016DA`（Asch, Bocquet & Nodet, SIAM 2016），此寫法成立。但**不可宣稱此具體實作形式常見**：同領域抽查 4 篇（Di Leoni PRX 2020、2505.05955、Plogmann 2405.20160、Mons et al. 2409.00260），**0/4 採用「估 IC → 完整 solver open-loop 積分」**。
+
+撰稿寫成：「我們**建構**一個 no-assimilation 對照組（gappy POD 估 IC + 同一 solver open-loop 積分）；相較既有工作常用的空間內插對照（Mons et al. 2024 用 thin-plate spline），本對照額外提供完整 NS 動力學，是**更強**的比較基準。」不宣稱方法新穎性，亦不宣稱有直接前案。詳見 `docs/literature_review.md` §2.7.1。
+
+正確的防禦不是「PI-CON 打敗 nudging」（未做此實驗，且該主張不成立），而是**資料量 regime 的差異**：Clark Di Leoni et al. (PRX 2020) 實測 configuration-space nudging 達成 full synchronization 需臨界體積分率 `φ_c ≈ 0.2`（20% 體積持續同化）；本專案 K=100 / 256² 覆蓋率為 **0.15%**，低約兩個數量級。故本研究處於**嚴重欠觀測 regime**，遠低於已發表的 nudging 同步門檻。
+
+⚠️ **外推限制**：`φ_c ≈ 0.2` 量測自 **3D HIT**（Re=3900 / 25000）。本專案為 **2D Kolmogorov**，逆能量串級與守恆結構不同，該門檻**不保證可直接外推**。撰稿只能寫「遠低於 3D HIT 已知門檻」，不可寫成「低於 2D 的門檻」。完整證據見 `docs/literature_review.md` §2.7.2。
 
 ### Still-pending CFD-rigour tasks（Q7、Q8 已完成）
 

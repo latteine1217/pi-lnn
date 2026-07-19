@@ -32,6 +32,9 @@
 | **B. DNS-supervised + Physics** | 訓練時讀取 full-field DNS 作為 perceptual / spectral / VAE supervision；推論時可只用 sensor | ❌ 工程不可遷移 | FLRNet (perceptual VAE), CoNFiLD (latent diffusion) |
 | **C. DNS pretrained operator** | 預訓練於 DNS pairs（input field → output field），fine-tune 或 zero-shot 用 sensor 推論 | △ 部份可遷移 | FLRONet, Energy Transformer, Senseiver |
 | **D. Adjoint / Variational DA** | 4D-Var weak/strong constraint；不需 NN training pair | ✅ 完全可遷移（但每個 case 都要重跑優化） | He et al. JFM 2024 (turbulent jet), Mons et al. (RANS-DA) |
+| **E. Nudging / continuous DA** | 在 NS 方程加回饋項 `−α·I(u − u_obs)`，持續同化觀測；無 NN | ✅ 完全可遷移（但每個 case 都要跑完整 solver） | Azouani–Olson–Titi 2014 (理論), Clark Di Leoni et al. PRX 2020 (3D HIT 實測) |
+
+> **2026-07-18 修正（全文查證）**：Regime C 的 FLRONet 經 arXiv v6 全文核對後，實際上**沒有任何 physics/PDE 項**，且訓練直接以 complete velocity field 為 ground truth，工程可遷移性應為 ❌ 而非 △。詳見 §2.3。
 
 ### 1.2 Target Case 比對
 
@@ -116,16 +119,31 @@
 
 ### 2.3 DNS-pretrained Operator（部份可遷移）
 
-#### [FLRONet 2024] *Deep Operator Learning for High-Fidelity Flow Reconstruction*（arXiv 2412.08009 v3）
+#### [FLRONet] *Deep Operator Learning for High-Fidelity Flow Reconstruction*（arXiv 2412.08009 **v6**；已發表 ASME **2026**, DOI `10.1115/1.4070332`）
 
-| 欄位 | 內容 |
+> **2026-07-18 全文查證更新**。前一版本記載基於 arXiv v3 abstract；以下每一列均來自 v6 LaTeX 原始碼實讀，標註行號。
+
+| 欄位 | 內容（全文核實） |
 |---|---|
-| Architecture | DeepONet branch (2D-FNO) + trunk (sinusoidal MLP)，輸入：sensor 時間切片，輸出：space-time field |
-| **Supervision** | DNS pairs (sensor input → DNS field output)；訓練於 CFDBench dataset |
-| Test cases | **CFDBench cylinder flow**；**未報告 Kolmogorov** |
-| Result | 「sensor 缺失下 robust，超解析度可行」（具體 KE rel-err 數字未在 abstract） |
-| 我們的對應架構相似度 | **極高**：我們也是 DeepONet branch + trunk + sensor encoding；差別在於 (1) 我們 trunk 用 CfC 取代 sinusoidal MLP；(2) 我們不靠 DNS supervision |
-| **可借鑑點** | branch 用 **2D-FNO 替代 self-attention** 在 spatially 結構化資料上可能更有效；但這會重新引入 grid-dependence |
+| Architecture | DeepONet branch (FNO) + trunk；**另有 Voronoi embedding 層**處理 sensor 缺失 + sinusoid embedding 處理時間相關性 |
+| **Supervision** | **純全場監督，無 physics**。原文 line 256：「we randomly selected a single snapshot to record **the complete velocity field, which served as the ground truth**」 |
+| **PDE / 不可壓縮項** | **完全沒有**。全文 grep `nabla` / `incompressib` / `divergence` / `continuity equation` / `governing equation` / `PDE residual` / `\partial` → **ZERO HITS**。全文 5 次「physics」全部在 related work 描述**他人**工作 |
+| Training detail | Adam, lr = 10⁻³（line 258）。**論文未寫出訓練 loss 方程式**，僅給驗證指標 MAE（ℓ₁, eq. 5） |
+| Sensor | 隨機 32 點；140×240 grid |
+| Test case | CFDBench **cylinder**，50 個 case 為 inlet velocity 0.1→5.0 m/s |
+| **Reynolds 範圍** | **Re ∈ [20, 1000]**（CFDBench 原文 line 452 明載）。以其 baseline ρ=10, μ=0.001, d=0.02 驗算 Re = 200·u → u∈[0.1,5.0] 對應 Re∈[20,1000]，自洽 |
+| Speed claim | **16 ms/frame on A100**（line 89），宣稱 real-time |
+| 與 PI-CON 的關係 | 架構相似度**極高**（同為 DeepONet branch+trunk + sensor encoding），但**訓練 regime 完全相反**：FLRONet 需 complete field GT，PI-CON 只用 sensor MSE + PDE residual |
+
+**對本研究的三點意涵**：
+
+1. **差異化軸線確立且乾淨**：同為 operator learning 稀疏重建，FLRONet 需全場真值訓練（依本專案 `ENGINEERING_VISION` 判準屬工程不可遷移），PI-CON 不需。這是可寫進 Contributions 的第一順位差異。
+2. **Regime 差異可量化**：FLRONet 最難的 case 是 Re=1000 的**週期性 Kármán 渦街**；PI-CON 跑 Re=10⁴ 的 **chaotic 2D 湍流**，Re 高一個數量級且動力學性質不同（週期 vs 混沌）。註：本專案 EXP-230 有 Re=1000 baseline 可作為對接點。
+3. **速度數字僅供 related work 對照，不構成威脅**：FLRONet 宣稱 16 ms/frame (**A100**)；本專案實測 full 128² field query 527.8 ± 17.1 ms (**M3 MPS**)。兩者算力差約 50–100×，**未經正規化不可比較，不得據此宣稱任一方較快**。本專案的速度陳述屬 capability claim（快到足以支撐 sparse monitoring），不需要優先權，故 FLRONet 的存在不影響之。zero-shot 連續查詢同理：那是 DeepONet 的既有性質（Lu Lu 2019），雙方皆具備，本就非任一方的創新點。
+
+> **對 §3.2 的淨影響：零。** FLRONet 未觸及本專案四條 contribution 中的任何一條（CfC+DeepONet 組合、sensor-position-aware collocation、K=100 @ Re=10⁴ sensor-only 成績、information-theoretic ceiling 量化）。所需動作是**新增一段 related work 區隔訓練 regime**，非重寫 Contributions。
+
+**殘留風險**：期刊定稿版（ASME 2026）未核對，與 arXiv v6 可能有差異。引用前建議取期刊版確認 loss 設計未變。
 
 #### [Zhang & Krotov & Karniadakis 2025] *Energy Transformer for Sparse Reconstruction*（J. Comp. Phys. 2025, arXiv 2501.08339）
 
@@ -226,6 +244,95 @@
 
 ---
 
+### 2.7 經典前案與 Nudging 路線（2026-07-18 新增；先前版本完全缺席）
+
+> **緣起**：檢查 `forward_cfd_baseline` 的定義時發現，本文獻回顧從未收錄「稀疏重建的經典解法」與「持續同化（nudging）」兩條線。以下 citation 全部經 CrossRef 查證，DOI 已核對。
+
+#### 2.7.1 Forward CFD baseline 的組成件均為既有方法
+
+本專案的 `forward_cfd_baseline`（POD rank-40 反推 IC → ETDRK4 前向積分至 t=5，見 `docs/archive/diagnostics_log.md` Q8）**的組件**均為既有標準方法。**組件既有 ≠ 該組合有前案**，三層必須分開（見本節末「三層區分」）：
+
+| 組件 | 文獻出處 | DOI | 查證 |
+|---|---|---|---|
+| Sparse → full field 的 POD 反推（**Gappy POD**） | Everson & Sirovich, *JOSA A*, 1995 | `10.1364/josaa.12.001657` | ✅ CrossRef |
+| Gappy POD 用於 unsteady flow sensing | Willcox, *Computers & Fluids*, 2006（另有 2004 AIAA 會議版 `10.2514/6.2004-2415`） | `10.1016/j.compfluid.2004.11.006` | ✅ CrossRef |
+| QR-pivoting sensor placement | Manohar, Brunton, Kutz & Brunton, *IEEE Control Systems Magazine*, 2018 | `10.1109/mcs.2018.2810460` | ✅ CrossRef |
+| Nudging / continuous DA 理論 | Azouani, Olson & Titi, *J. Nonlinear Sci.*, 2014 | `10.1007/s00332-013-9189-y` | ✅ CrossRef |
+
+**三層區分（2026-07-18 修訂，先前版本把三層壓成一層，屬過度宣稱）**
+
+| 層次 | 判定 | 證據狀態 |
+|---|---|---|
+| **(a) 組件**：gappy POD、譜方法前向積分 | ✅ 既有 | 已查證，DOI 見上表 |
+| **(b-1) free-run / open-loop 作為 no-assimilation control 的**概念** | ✅ 既有，教科書級 | 論文已引 Asch, Bocquet & Nodet (2016) SIAM《Data Assimilation》`10.1137/1.9781611974546`（thesis `Asch2016DA`）。**此為適格來源** |
+| **(b-2) 此概念在近期流體 DA 論文中的**具體實作形式** | ⚠️ 抽查 4 篇，**0 篇**採用「估 IC → 完整 solver open-loop 積分」 | 見下方 methods 抽查；此為 prevalence 觀察，**不否定 (b-1)** |
+| **(c) 此具體配對**：gappy POD rank-40 + ETDRK4 + 2D Kolmogorov Re=10⁴ | ❓ **未檢索到前案** | 見下方檢索限制 |
+
+**(c) 的檢索紀錄（2026-07-18）**：跑了 5 組 query（arXiv × 4、OpenAlex × 1），涵蓋 gappy-POD-initialized forecast、open-loop free run baseline、POD IC + error growth 等組合。最接近的三篇均**不是**同一件事：
+
+- *Forecasting 3D turbulent recirculating flows from sparse sensor data*（arXiv 2505.05955, 2025）— POD + Koopman 建**線性動力系統**外推，非用真實 NS solver 積分
+- *Real-time forecasting of chaotic dynamics from sparse data and autoencoders*（arXiv 2508.08729, 2025）— CAE + ESN + **EnKF 持續同化**，屬 closed-loop，非 open-loop
+- *Multi-scale data reconstruction of turbulent rotating flows with Gappy POD…*（arXiv 2210.11921, 2022）— gappy POD 做 inpainting **重建**，無前向預測
+
+**⚠️ 檢索限制（不可略過）**：此類 baseline 通常寫在論文 methods 段的一兩句話裡，**不會出現在 title / abstract**，而本次僅能做 title/abstract 關鍵字檢索；Semantic Scholar 因無 API key 全程 rate-limited 未取得結果。故「未檢索到前案」**只能作為弱證據，不足以宣稱無前案**。
+
+**(b) 的 methods 段抽查（2026-07-18，4 篇全文實讀）**
+
+先前版本宣稱「open-loop free run 是 DA 標準對照組、**每篇 DA 論文都會跑**」。前半（概念是標準）由 `Asch2016DA` 教科書支持、成立；**後半（每篇都跑）經抽查證偽**：
+
+| 論文 | 有無 no-assimilation baseline | 其 baseline 的實際形式 |
+|---|---|---|
+| Clark Di Leoni et al. PRX 2020（nudging, 3D HIT） | ❌ 無 | 改以掃 α、φ 參數空間呈現；只比 nudged vs reference |
+| *Forecasting 3D recirculating flows*（2505.05955） | ❌ 無 | 比較 estimated vs true POD coefficients |
+| Plogmann, Brenner & Jenny（2405.20160, spectral adjoint） | ✅ 有 | **未同化的 URANS baseline**（無 IC 估計步驟，形式不同） |
+| **Mons et al.**（2409.00260, PC-CNN — 本專案最可比同類設定） | ✅ 有 | **thin-plate spline 空間內插**（逐 snapshot，無前向積分） |
+
+**結論：2/4 有某種 no-assimilation baseline，但 0/4 採用「從稀疏觀測估 IC → 用完整 solver open-loop 積分」的形式。**
+
+**這對本專案是正面結果**：本 baseline 不但不是稻草人，反而**比最可比同類工作（Mons et al.）所用的 spline 內插更強**——內插只用空間資訊，本 baseline 額外給了完整 NS 動力學與正確的 solver。打贏一個更強的對照組，論證力更高。
+
+**論文寫作含意（結論，2026-07-18 二度修訂）**：
+
+- ✗ 不要寫「我們提出一種新的 forward CFD baseline」→ 招致「自製稻草人」質疑
+- ✗ 不要寫「forward CFD 是文獻既有方法」→ 無此名稱之方法，(c) 亦未證實有前案
+- ✅ 可寫「open-loop free-run 是 DA 的 no-assimilation control」→ 有 `Asch2016DA` 教科書支持（thesis appendix07 已如此處理）
+- ✗ 但不要寫「**每篇** DA 論文都跑這個對照」或暗示此具體實作形式常見 → 抽查 0/4
+- ✅ **應寫**：「我們建構一個 no-assimilation 對照組：以 gappy POD（Everson & Sirovich 1995）從 K=100 感測器估初始場，再用**與 DNS 相同的 solver** open-loop 積分。相較於既有工作常用的空間內插對照（如 Mons et al. 2024 的 thin-plate spline），此對照額外提供完整 NS 動力學，因而是更強的比較基準。」
+
+此寫法三層皆成立：組件有出處、對照強度有同類比較支撐、實例化誠實歸屬本專案，且**不依賴 (c) 的檢索結果**。
+
+命名沿用 `docs/metric_choice_note.md`：正式描述為 **gappy-POD initialisation + open-loop (free-run) forward integration**。
+
+> **命名以 `docs/metric_choice_note.md` 為準**（該檔 2026-07-18 已統一）：`forward_cfd_baseline` / "forward CFD" 是**本專案內部簡稱，不是文獻方法名**；正式描述為 **gappy-POD initialisation + open-loop (free-run) forward integration**。
+>
+> 該檔另有一項本節未涵蓋的關鍵區分：**forward CFD 是比較集合中唯一的 *forecast*，其餘（含 PI-CON、trig-LSQ）皆為 *reconstruction*（皆見 t=5 sensor）**——任務類別不同，自成一格。此區分比本節的論述更精確，撰稿時應優先採用。本節僅補充其**文獻源頭與 DOI**，兩處若有出入以 `metric_choice_note.md` 為準。
+
+#### 2.7.2 ⚠️ Clark Di Leoni, Mazzino & Biferale — Nudging the NSE（*Phys. Rev. X* 10, 011023, 2020）
+
+DOI `10.1103/physrevx.10.011023`（arXiv 1905.05860）。**這是 forward CFD baseline 最強的反方**，且發在 PRX。以下數據取自 arXiv 全文實讀。
+
+| 項目 | 內容（全文核實） |
+|---|---|
+| 對象 | 3D homogeneous isotropic turbulence |
+| 三種觀測型態 | (i) Eulerian（固定空間位置）、(ii) Fourier（波數區間）、(iii) Lagrangian（移動探針） |
+| 參數 | RUN1: Re=3900, 256³；RUN2: Re=25000, 1024³（table, line 413–417） |
+| 觀測實作 | 非單點，而是在半徑 `r = 1.25η` 的小球內 nudge（line 463） |
+| **關鍵門檻** | **達成 full synchronization 的臨界體積分率 `φ_c ≈ 0.2`**（line 922）；對應 `k_c ~ 0.2 k_η`（line 805） |
+
+**對本研究最重要的一句話（可直接用於口試防禦）**：
+
+> Di Leoni 等人證明，configuration-space nudging 要達到 full synchronization 需要 **φ_c ≈ 0.2**，即 20% 的體積被持續同化。本專案 K=100 / 256² 的覆蓋率為 **0.15%**，比該門檻低約**兩個數量級**。
+
+因此正確的 framing **不是**「PI-CON 打敗 nudging」，而是：
+
+> 本研究所處的是**嚴重欠觀測（severely under-observed）regime**，遠低於任何已發表的 nudging 同步門檻。在此資料量下 nudging 並不預期能同步，這正是需要 operator 學習先驗的原因。
+
+這條論述同時**解釋**了本專案的 observability wall（`k ≲ 8`）與實測 `k_cut ≈ 4.7`，兩者互相佐證。
+
+**⚠️ 外推限制（不可忽略）**：`φ_c ≈ 0.2` 是 **3D HIT** 的量測值。本專案是 **2D Kolmogorov**，2D 的逆能量串級與守恆結構不同，**該門檻不保證可直接外推**。撰稿時必須明示此限制，只能寫成「遠低於 3D HIT 已知門檻」，不可寫成「低於 2D 的門檻」。
+
+---
+
 ## [SECTION 3] PI-CON 立基點 / 創新點總結
 
 ### 3.1 立基點（已驗證可行）
@@ -253,6 +360,17 @@
 - Fourier feature for spectral bias：**Tancik 2020, Wang 2021 已系統化**
 - DeepONet：**Lu Lu 2019，PI-DeepONet 2021**
 - Causal training：**Wang Sifan 2022 已推**
+- **DeepONet 做 sparse-sensor 重建本身：FLRONet (ASME 2026) 已做**（差異在訓練 regime，非架構，見 §2.3）
+- **稀疏量測反推全場：Gappy POD (Everson & Sirovich 1995) 已有三十年**
+- **靠持續同化鎖住 chaotic phase：nudging 文獻已完整處理**（AOT 2014 理論；Di Leoni PRX 2020 實測）
+  - 影響範圍**僅限措辭**：`docs/archive/diagnostics_log.md` Q8 的「這是 operator framework 的**決定性貢獻**」屬過度宣稱，應改為「持續量測相對單次量測的優勢」並 cross-ref Di Leoni。
+  - **不影響 §3.2 任何一條 contribution**。
+
+> **2026-07-18 自我更正**：本節初版曾另列「速度不可當獨佔賣點」與「zero-shot 連續查詢已被 FLRONet 做過」兩條，**均已撤除**，理由如下——
+> 1. **速度**：§3.2 從未以速度為創新點。CLAUDE.md `Paper_Main_Message` 的「快速」是**能力主張**（快到足以支撐 sparse monitoring），不是**新穎性主張**（首個快的方法）。兩者不可混為一談。且 FLRONet 的 16 ms 是 A100、本專案 527.8 ms 是 M3 MPS，算力差約 50–100×，**未正規化即宣稱「數字不利」不成立**。
+> 2. **Zero-shot 連續查詢**：這是 DeepONet 自 Lu Lu 2019 起的既有性質，本專案本就未宣稱首創，列入「不是首創」屬無的放矢。
+>
+> 教訓：區分 **capability claim**（本方法能做到 X）與 **novelty claim**（本方法首先做到 X）。前者不需要優先權，被他人做過不構成威脅。
 
 ---
 
@@ -387,9 +505,18 @@
 - [Du et al. — Conditional neural field latent diffusion / CoNFiLD (Nature Communications 2024)](https://www.nature.com/articles/s41467-024-54712-1)
 - [PINN-DA-SA — Turbulence model augmented PINN (Phys. Rev. Fluids 2024)](https://link.aps.org/doi/10.1103/PhysRevFluids.9.034605)
 
+### 經典前案與 Nudging（2026-07-18 新增，DOI 全數經 CrossRef 查證）
+
+- Everson & Sirovich — Karhunen–Loève procedure for gappy data, *JOSA A*, 1995 — `10.1364/josaa.12.001657`
+- Willcox — Unsteady flow sensing and estimation via the gappy POD, *Computers & Fluids*, 2006 — `10.1016/j.compfluid.2004.11.006`
+- Manohar, Brunton, Kutz & Brunton — Data-driven sparse sensor placement for reconstruction, *IEEE Control Systems Magazine*, 2018 — `10.1109/mcs.2018.2810460`
+- Azouani, Olson & Titi — Continuous data assimilation using general interpolant observables, *J. Nonlinear Sci.*, 2014 — `10.1007/s00332-013-9189-y`
+- **Clark Di Leoni, Mazzino & Biferale — Synchronization to Big Data: Nudging the NSE, *Phys. Rev. X* 10, 011023, 2020 — `10.1103/physrevx.10.011023`（必引；見 §2.7.2）**
+- CFDBench — A Large-Scale Benchmark for ML Methods in Fluid Dynamics, arXiv 2310.05963（cylinder case Re ∈ [20,1000]，原文 line 452 實讀確認）。**作者名尚未查證，引用前須補**
+
 ### arXiv preprints (not yet venue-locked)
 
-- [FLRONet — Deep Operator Learning for Sparse Reconstruction (arXiv 2412.08009)](https://arxiv.org/abs/2412.08009)
+- [FLRONet — Deep Operator Learning for Sparse Reconstruction (arXiv 2412.08009)](https://arxiv.org/abs/2412.08009) — **已發表 ASME 2026, `10.1115/1.4070332`；非 preprint，見 §2.3**
 - [FLRNet — VAE + Fourier feature reconstruction (arXiv 2411.13815)](https://arxiv.org/abs/2411.13815)
 - [Energy Transformer for sparse reconstruction (arXiv 2501.08339, J. Comp. Phys. 2025)](https://arxiv.org/abs/2501.08339)
 - [Wang Sifan — Simulating 3D Turbulence with PINN (arXiv 2507.08972)](https://arxiv.org/abs/2507.08972)

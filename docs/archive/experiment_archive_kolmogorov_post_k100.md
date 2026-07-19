@@ -618,7 +618,7 @@ CS 精確重建需 M ≥ O(s log N) ≈ 5000 sensors（s≈328，N=65536）；K=
 - Paper value:
   - **Concrete evidence**: sensor placement 不是 arbitrary engineering choice；QR-pivot 提供 5-6× pointwise advantage，這是 Manohar 2018 在我們具體配置（K=100, Re=10⁴, K=10000 步 PINN）下的數值再驗證
   - 可寫進論文 §5 ablation 或 §6.4 future work（"sensor placement strategy as a critical engineering choice"）
-  - 與 forward CFD POD baseline 並列：sensor measurement 提供 phase lock 是 operator framework 的決定性貢獻，**但前提是 sensor placement 為 information-theoretically near-optimal**
+  - 與 forward CFD POD baseline 並列：sensor measurement 提供 phase lock 是**持續量測**的貢獻（與 nudging / continuous DA 同源，非 operator framework 或本研究首創），**但前提是 sensor placement 為 information-theoretically near-optimal**。措辭依據見 `docs/literature_review.md` §2.7.2 與 `docs/archive/diagnostics_log.md` Q8。
 
 - artifacts: `artifacts/kolmogorov/deeponet-cfc-re10000-exp101-b3-random-seed42/`（含 checkpoint, log, summary.json, 10 個 evaluation PNG）；training.log + eval.log 保留供後續論文寫作引用
 - Supersedes: PENDING 條目（2026-05-15 寫入時為 in-progress）
