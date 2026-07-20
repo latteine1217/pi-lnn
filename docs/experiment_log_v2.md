@@ -117,7 +117,7 @@ Collocation:  1024
 Iterations:   20000     (升級自 10k, per 收斂分析: L_phys step 10k 仍 monotone 下降)
 Warmup (all): 2000 steps fixed (lr_warmup, time_marching_warmup_steps, lr_decay)
 Seeds:        42 / 1 / 2 / 3 / 4 (n=5)
-KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
+KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 ```
 
 ### EXP-245 n=5 multi-seed metrics
@@ -129,13 +129,13 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 | _c (2)  | 5.6491 % | 13.63 % | 17.48 % | 41.67 % | 23.85 % | 0.40 % | 0.9871 |
 | _d (3)  | 5.7144 % | 13.66 % | 17.46 % | 41.83 % | 24.18 % | 0.39 % | 0.9915 |
 | _e (4)  | 5.5882 % | 13.65 % | 17.44 % | 41.75 % | 23.99 % | 0.39 % | 0.9957 |
-| **mean ± std** | **5.71 ± 0.11 %** | **13.65 ± 0.06 %** | **17.52 ± 0.10 %** | **41.77 ± 0.12 %** | **24.11 ± 0.21 %** | **0.39 ± 0.006 %** | **0.991 ± 0.005** |
+| **mean ± std** | **5.71 ± 0.12 %** | **13.65 ± 0.06 %** | **17.52 ± 0.10 %** | **41.77 ± 0.12 %** | **24.11 ± 0.21 %** | **0.39 ± 0.006 %** | **0.991 ± 0.005** |
 
 ### 10k → 20k upgrade summary（baseline 升級的關鍵改善）
 
 | Metric | 10k single seed=42 | 20k n=5 mean | Δ |
 |---|---|---|---|
-| KE rel-err | 5.97 % | **5.71 ± 0.11 %** | **−4.4 %** relative |
+| KE rel-err | 5.97 % | **5.71 ± 0.12 %** | **−4.4 %** relative |
 | u rel-L₂ | 14.46 % | 13.65 % | −5.6 % |
 | v rel-L₂ | 19.07 % | 17.52 % | −8.1 % |
 | ω rel-L₂ | 43.95 % | 41.77 % | −5.0 % |
@@ -147,7 +147,7 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 **Headline finding**: 20k baseline 三個 metric 出現質變（不只 marginal 改善）:
 1. **div ratio 0.39 % < DNS floor 1.04 %**: PI-CON 在 sensor-only 訓練下達成 **sub-DNS divergence 控制** — paper §Discussion 強 claim
 2. **k_f amp 0.991 ≈ 1.0**: forcing-mode recover 接近完美
-3. **σ = 0.11 pp**: n=5 統計顯著確立, KE 5.71 % 為 publication-grade 數字
+3. **σ = 0.12 pp**: n=5 統計顯著確立, KE 5.71 % 為 publication-grade 數字
 
 > **DNS oracle fair comparison（EXP-271, 2026-05-29）**: 完全相同 config（20k n=5）換回 DNS QR-pivot sensor → KE **4.68 ± 0.06 %**。但 trade-off：DNS 贏整體能量(KE +1.03 pp)、**LES 贏逐點場(u L2 13.65 vs 15.34)**。原「no measurable penalty」claim 已改為 trade-off framing（詳見 §4.3）。
 
@@ -178,17 +178,29 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 | K=100 upper bound on **low (k≤5)** | ❌ falsify（band_low 3.62→2.41 %）|
 | K=100 upper bound on **整體 KE** | ❌ falsify（low band 佔 ~99 % 能量, 10.77→5.97 %）|
 
-## 1.3 Re=10³ reference baseline = **EXP-230**
+## 1.3 Re=10³ reference baseline = **EXP-301**（final protocol；取代 legacy EXP-230）
+
+**EXP-301**（2026-07-20）：Re=10³ 以 **EXP-245 final protocol 重跑**，作為 cross-Re feasibility 的低 Re 端。
 
 | 項目 | 現況 |
 |---|---|
-| Baseline ID | `EXP-230` |
-| Config | `configs/stable/exp_230.toml`（symlink → legacy EXP-030）|
-| KE rel-err | 9.61 % |
-| u RMSE | 5.68e-2 |
-| amp ratio | 1.027 |
+| Baseline ID | `EXP-301`（`ACTIVE`，single seed 42）|
+| Config | `configs/exp_301_b3_re1000_les_20k_seed42.toml`（與 exp_245 逐字節同，僅換 sensor/DNS/Re/artifacts）|
+| Sensor | LES-derived QR-pivot K=100（`re1000/...les_n128_T100standalone`，axis test 11/11 PASS）|
+| Data | DNS Re=10³ N=128 T=5；訓練 20k iters；eval 用 `final.pt`（job 4552）|
+| **KE MAPE** | **2.36 %** |
+| u / v rel-L₂ | 5.79 % / 5.07 % |
+| ω rel-L₂ | 11.70 % |
+| 評估產物 | `artifacts/eval_301_re1000/summary.json`（`ke_rel_err_mean`/`u_rel_l2_mean`/`v_rel_l2_mean`）|
 
-**角色**: Re=10⁴ 主線完成前的 sanity baseline；stable phase 尚未跑 multi-seed 版本（Open Question）。
+**判讀**：
+- 同 metric（ke_rel_err_mean）與 EXP-245 對齊 —— 核對 EXP-245 seed a 該欄 5.90 % ≈ log 的 n=5 mean 5.71 %，三 Re 可比。
+- **同 K=100 下 Re 10³→10⁴：KE 2.36 → 5.71 %**（越高 Re 越難重建，符合物理）。Re=10⁶ 需 K=200 才維持 6.10 %。
+- **legacy EXP-230（9.61 %）已被取代**：那是 d=64 / 5k iters / 32 collocation / 無 AL·GradNorm 的舊配置，其與主線的落差量的是 recipe 不是 Reynolds 數。final protocol 重跑後 2.36 %，比 Re=10⁴ baseline 還低。
+
+**Open**：目前 single seed（42）。exp_301b–e（seed 1–4）config 已備妥未送；升 multi-seed 才可宣稱 mean ± std。
+
+**投影片**：`§ Results · Cross-Reynolds feasibility (O2)` 三 Re 表（10³ 2.36 / 10⁴ 5.71 / 10⁶ 6.10）。**framing 為 feasibility 非 generalisation**（各列 K/seed/config 不同）。
 
 ---
 
@@ -200,7 +212,7 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 
 | ID | Status | Re | K | LES | d_model | iter | KE rel-err | u L₂ | ω L₂ | Ens rel-err | div ratio | k_f amp |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **EXP-245** (20k n=5) | `ACTIVE_BASELINE` | 10⁴ | 100 | T=50 | 256 | 20k | **5.71 ± 0.11 %** | 13.65 | 41.77 | 24.11 | **0.39 %** | **0.991** |
+| **EXP-245** (20k n=5) | `ACTIVE_BASELINE` | 10⁴ | 100 | T=50 | 256 | 20k | **5.71 ± 0.12 %** | 13.65 | 41.77 | 24.11 | **0.39 %** | **0.991** |
 | EXP-262 | `REFERENCE` | 10⁶ | 100 | T=5 | 256 | 10k | 23.73 % | 32.92 % | 71.17 % | 60.93 % | 0.67 % | 0.919 |
 | EXP-264 | `REFERENCE` | 10⁶ | 100 | T=5 | 384 | 50k | 19.02 % | 29.69 % | 67.84 % | 54.99 % | 0.37 % | 0.746 ⚠️ |
 | EXP-265 | `REFERENCE` | 10⁶ | 200 | T=5 | 384 | 50k | 11.39 % | 21.64 % | 62.56 % | 48.11 % | 0.37 % | 0.849 |
@@ -222,12 +234,12 @@ KE rel-err:   5.71 ± 0.11 %   (n=5, σ=0.11 pp, 95% CI [5.61, 5.81] %)
 **Finding 1 — 🌟 EXP-268 KE 6.10 % ≈ Re=10⁴ baseline 5.71 %: cross-Re 主訊息確立**
 
 ```
-Re=10⁴ (EXP-245, K=100, LES T=50, 20k): KE 5.71 ± 0.11 %
+Re=10⁴ (EXP-245, K=100, LES T=50, 20k): KE 5.71 ± 0.12 %
 Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 1 σ_training
 ```
 
 → Paper §Cross-Re 最終 claim:
-> "With quality LES placement (T=50, 50 T_L), K=200 sensors, and XL capacity (d=384, 50k steps), PI-CON achieves **KE rel-err 6.10 %** at Re=10⁶ — comparable to the Re=10⁴ baseline (5.71 ± 0.11 %) using K=100 sensors. This demonstrates that the framework generalizes across two orders of magnitude in Reynolds number, requiring only sensor budget scaling and commensurate training resources."
+> "With quality LES placement (T=50, 50 T_L), K=200 sensors, and XL capacity (d=384, 50k steps), PI-CON achieves **KE rel-err 6.10 %** at Re=10⁶ — comparable to the Re=10⁴ baseline (5.71 ± 0.12 %) using K=100 sensors. This demonstrates that the framework generalizes across two orders of magnitude in Reynolds number, requiring only sensor budget scaling and commensurate training resources."
 
 **Finding 2 — LES quality (T=5 → T=50) is the single largest lever**:
 - EXP-262 → EXP-267: LES T=5 → T=50, same K=100/d=256/10k → KE **−9.15 pp** (−38.6 %)
@@ -289,7 +301,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | EXP-244 | `ORACLE_REFERENCE` | B3 + **4-head** | DNS | **5.51 %** | 16.30 % | 19.69 % | 44.95 % | 0.0436 | 0.0049 | **1.46 %** | 1:16:40 |
 | **EXP-245** (10k single, archived) | `HISTORICAL` | B3 (1-head) | **LES_T50** | 6.92 % | 14.51 % | 19.25 % | 44.32 % | 0.0492 | 0.0055 | 2.85 % | 1:19:53 |
-| **EXP-245** (**20k n=5**) | **`ACTIVE_BASELINE` 🥇** | B3 (1-head) | **LES_T50** | **5.71 ± 0.11 %** | 13.65 ± 0.06 % | 17.52 ± 0.10 % | 41.77 ± 0.12 % | — | **0.0039 ± 6e-5** | — | ~2:30:00 |
+| **EXP-245** (**20k n=5**) | **`ACTIVE_BASELINE` 🥇** | B3 (1-head) | **LES_T50** | **5.71 ± 0.12 %** | 13.65 ± 0.06 % | 17.52 ± 0.10 % | 41.77 ± 0.12 % | — | **0.0039 ± 6e-5** | — | ~2:30:00 |
 | EXP-251 | `ACTIVE_REFERENCE` | B3 + **4-head** | LES_T50 | **6.68 %** | 14.36 % | 19.03 % | 43.89 % | 0.0481 | 0.0054 | 2.62 % | (parallel run) |
 | EXP-246 | `ACTIVE_REFERENCE` | B0 (vanilla) | LES_T50 | 9.96 % | 16.59 % | 22.55 % | 47.94 % | 0.0557 | 0.0063 | **0.72 %** | 0:24:58 |
 | EXP-247 | `ACTIVE_REFERENCE` | B1 (no cross-attn) | LES_T50 | 10.62 % | 18.55 % | 25.51 % | 52.27 % | 0.0677 | 0.0076 | 3.85 % | 0:52:43 |
@@ -304,7 +316,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 2. **1024 collo 大幅縮小 DNS↔LES_T50 gap, 20k baseline 完全 close gap**:
    - 64 collo: DNS 9.40% / LES_T50 12.36% → gap **2.96 pp** (EXP-220 vs EXP-221)
    - 1024 collo 10k: DNS 5.97% / LES_T50 6.92% → gap **0.95 pp** (EXP-241_b vs EXP-245 10k)
-   - **1024 collo 20k**: DNS 10k 5.97% vs LES_T50 20k **5.71 ± 0.11 %** → **LES 20k 已優於 DNS 10k** (paper claim: LES proxy pipeline 在足夠訓練後 match DNS oracle)
+   - **1024 collo 20k**: DNS 10k 5.97% vs LES_T50 20k **5.71 ± 0.12 %** → **LES 20k 已優於 DNS 10k** (paper claim: LES proxy pipeline 在足夠訓練後 match DNS oracle)
 
 3. **Architecture ranking 在 LES_T50 + 1024 collo 重新洗牌**:
    - B3 (5.71 @ 20k / 6.92 @ 10k) > B2 (8.43) > **B0 (9.96)** > PINN-SiLU (10.13) > **B1 (10.62)**
@@ -313,7 +325,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 4. **PINN 1024 collo 大幅 improvement**:
    - PINN-SiLU: 38.50 % (64 collo, EXP-204) → **10.13 %** (1024 collo, EXP-249), -28.4 pp
    - 「plain MLP PINN 比 operator framework 對 collo density 更敏感」— physics regularization 對 PINN 是 dominant lever
-   - 但 absolute KE 仍輸 operators (B3 5.71 ± 0.11 @ 20k < PINN-SiLU 10.13)
+   - 但 absolute KE 仍輸 operators (B3 5.71 ± 0.12 @ 20k < PINN-SiLU 10.13)
    - PINN div_L2 0.024/0.016 反而最低 — PINN 對 incompressibility 嚴格滿足，trade-off vs sensor data fit; 但 EXP-245 20k 已達 div ratio 0.39 % < DNS floor 1.04 %，**operator + 長訓 = best of both**
 
 5. **PINN tanh outlier 13.09 %** confirm SiLU > tanh activation choice（EXP-250 vs EXP-249 +2.96 pp）
@@ -367,7 +379,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 ### Paper-grade findings
 1. **LES proxy pipeline viable**: 3 個 well-formed cross-source placements（EXP-221/222/224）達 KE 12-13% (gap to oracle ~3pp)
 2. **LES 解析度與譜形對齊都不是 bottleneck**: EXP-221 (N=256 譜接近 DNS) ≈ EXP-222 (N=128 過耗散 slope −14) — KE 差 < 0.05 pp
-3. **Statistical convergence 才是 gating**: T_end ≥ 8 turnovers 即夠
+3. ~~**Statistical convergence 才是 gating**: T_end ≥ 8 turnovers 即夠~~ **→ 已證偽，見 §4.5**。正解：T 影響佈點品質（T50→T15 KE +1.23 pp, n=5 t=17.9），但 T=15/T=50 皆未統計收斂（τ_int=10.1 → T50 僅 N_eff≈2.5）；「eddy turnover 數」用錯時間尺度，horizon 為經驗選擇非導出。
 4. **Random ≈ well-formed LES**: K=100 sparse regime 下 placement 演算法影響有限（< 1 pp）
 5. **Real-world engineering pipeline 可行**: 低成本 LES + QR-pivot + 量測 → 重建 達 baseline-quality
 
@@ -382,26 +394,29 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 | EXP-266_c | 2 | 7.89 % | 16.48 % | 20.86 % | 44.96 % | 27.89 % | 0.36 % | 0.962 |
 | EXP-266_d | 3 | 8.03 % | 16.10 % | 20.16 % | 44.73 % | 27.86 % | 0.35 % | 0.966 |
 | EXP-266_e | 4 | 7.40 % | 17.47 % | 21.11 % | 46.10 % | 28.82 % | 0.34 % | 0.995 |
-| **mean ± std** | n=5 | **7.95 ± 0.68 %** | 17.20 ± 1.42 % | 21.62 ± 2.07 % | 46.07 ± 1.92 % | 29.04 ± 1.66 % | **0.35 ± 0.01 %** | 0.973 ± 0.024 |
+| **mean ± std** | n=5 | **7.95 ± 0.76 %** | 17.20 ± 1.42 % | 21.62 ± 2.07 % | 46.07 ± 1.92 % | 29.04 ± 1.66 % | **0.35 ± 0.01 %** | 0.973 ± 0.024 |
+
+> **σ 口徑註記（2026-07-19）**：KE 欄的 σ 已轉為 **sample std（ddof=1）= 0.76**，與 EXP-245 主表口徑一致；該值由上表 per-seed KE 重算，並經「ddof=0 重算得 0.68，與原記錄精確吻合」交叉驗證。
+> 其餘欄位（u/v/ω/Ens/k_f）的 σ 仍為**原始 ddof=0 口徑**：以 per-seed 顯示值無法重建原記錄值（例如 u 欄記 1.42，而顯示值算得 ddof0=1.39 / ddof1=1.56），代表原值來自完整精度資料，而 `EXP-266_a~e` 的 eval artifact 已不在樹中，無法重算。若要統一，需重跑 EXP-266 eval。
 
 ### Headline — Placement variance vs Training variance comparison
 
 | Group | Variance source | n | KE mean | KE σ |
 |---|---|---|---|---|
-| **EXP-245** (a~e) | Training seed (LES_T50 placement 固定) | 5 | **5.71 %** | **0.11 %** |
-| **EXP-266** (a~e) | Placement seed (Random K=100, training seed=42 固定) | 5 | **7.95 %** | **0.68 %** |
+| **EXP-245** (a~e) | Training seed (LES_T50 placement 固定) | 5 | **5.71 %** | **0.12 %** |
+| **EXP-266** (a~e) | Placement seed (Random K=100, training seed=42 固定) | 5 | **7.95 %** | **0.76 %** |
 
 **Key findings (paper-grade)**:
 
-1. **σ_placement / σ_training = 0.68 / 0.11 = 6.2×** — **placement variance dominate, 6 倍於 training stochasticity**
+1. **σ_placement / σ_training = 6.4×** — **placement variance dominate, 6 倍於 training stochasticity**
 2. **LES_T50 vs Random K=100 mean gap = 2.24 pp** (Welch t-test: gap / σ_random ≈ 3.3, **statistically significant p < 0.01**)
 3. **LES_T50 placement 不只 mean better, σ 也小 6×** — placement strategy 既影響 KE 平均值也影響 reproducibility
 4. **div ratio 0.35 ± 0.01 % 在所有 placement seeds 都 < DNS floor 1.04 %** — continuity 控制 **placement-invariant** (sub-DNS divergence claim 對 placement robust)
-5. **EXP-266_b (pseed=1) 是 outlier (9.18 %, +1.23 pp vs group mean)** — Random placement 偶爾 hit bad spatial coverage; LES-derived placement 避免此 outlier (EXP-245 σ=0.11 % 無 outlier)
+5. **EXP-266_b (pseed=1) 是 outlier (9.18 %, +1.23 pp vs group mean)** — Random placement 偶爾 hit bad spatial coverage; LES-derived placement 避免此 outlier (EXP-245 σ=0.12 % 無 outlier)
 
 **Paper §Sensor Placement 新主張**:
 
-> "Sensor placement strategy contributes a variance source 6.2× larger than training stochasticity (σ_placement 0.68 % vs σ_training 0.11 %, both n=5 at fixed K=100). LES-derived QR-pivot placement also improves mean KE by 2.24 percentage points (5.71 % vs 7.95 %, z ≈ 3.3). Engineering deployment should prioritize placement optimization over training repetition."
+> "Sensor placement strategy contributes a variance source 6.4× larger than training stochasticity (σ_placement 0.76 % vs σ_training 0.12 %, both n=5 at fixed K=100). LES-derived QR-pivot placement also improves mean KE by 2.24 percentage points (5.71 % vs 7.95 %, z ≈ 3.3). Engineering deployment should prioritize placement optimization over training repetition."
 
 ## 4.3 DNS-pivot oracle multi-seed（EXP-271, B3 + DNS QR-pivot + 1024 collo + 20k n=5, 2026-05-29）
 
@@ -431,7 +446,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 | 實驗 | Sensor 來源 | KE | u L2 | v L2 | ω L2 | div ratio | kf amp |
 |---|---|---|---|---|---|---|---|
 | **EXP-271** | DNS QR-pivot oracle | **4.68 ± 0.06 %** | 15.34 ± 0.06 % | 18.10 ± 0.03 % | 42.41 ± 0.12 % | 0.36 ± 0.004 % | 0.986 |
-| **EXP-245** | LES_T50（工程可遷移）| 5.71 ± 0.11 % | **13.65 ± 0.06 %** | **17.52 ± 0.10 %** | **41.77 ± 0.12 %** | 0.39 ± 0.006 % | 0.991 |
+| **EXP-245** | LES_T50（工程可遷移）| 5.71 ± 0.12 % | **13.65 ± 0.06 %** | **17.52 ± 0.10 %** | **41.77 ± 0.12 %** | 0.39 ± 0.006 % | 0.991 |
 | **誰贏** | — | DNS +1.03 pp | **LES +1.69 pp** | **LES +0.58 pp** | LES 略 | ~平 | ~平 |
 
 ### Paper-grade findings（2026-05-29 修正：先前誤用 u_rel_l2_last，已改用論文一致的 time-mean u_rel_l2_mean）
@@ -458,7 +473,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 | DNS oracle (EXP-271_a) | — | **4.69 %** | — | — |
 | LES T=50 random-IC (EXP-245_a) | ~22 τ | **5.90 %** | — | — |
 | LES t=30 dns-init (EXP-296) | ~15 τ | **7.79 %** | 45.8 % | 0.38 % |
-| random uniform (EXP-266, n=5) | — | **7.95 ± 0.68 %** | — | — |
+| random uniform (EXP-266, n=5) | — | **7.95 ± 0.76 %** | — | — |
 | LES t=5 dns-init (EXP-297) | ~2.5 τ | **9.12 %** | 49.1 % | 0.36 % |
 
 （EXP-296 train/val KE 7.57/8.65 %；EXP-297 train/val 8.92/9.90 %）
@@ -479,6 +494,50 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 
 ---
 
+## 4.5 LES horizon / fidelity 拆解 + space-filling placement（EXP-298/299/300, 2026-07-17~18）
+
+> **緣起**: 使用者問「LES T=50 是否必要」。舊證據（EXP-221 T50 12.36% ≈ EXP-222 T15 12.40%，64 collo 單 seed）打平，但兩支同時差 N/α/closure/friction，無法歸因。本組在 **current baseline config（B3 / 1024 collo / 20k / seeds 42/1/2/3/4）** 下重跑，變因分離，全部 n=5。
+>
+> **共同對照**: EXP-245 (LES_T50 N256 α1.8) 5.71 ± 0.12%；EXP-271 (DNS oracle) 4.68 ± 0.06%。eval job 4527（298b~e/299）+ 4538（300），evaluator `evaluate_deeponet_cfc.py`，輸出對齊 `<artifacts_dir>/eval`。
+
+### n=5 metrics（time-mean 欄位，與 §4.3 fair-comparison 一致）
+
+| ID | Placement | KE rel-err | u L₂ | v L₂ | ω L₂ | div ratio |
+|---|---|---|---|---|---|---|
+| **EXP-245** | LES_N256 T=50 α=1.8（baseline）| **5.71 ± 0.12** | **13.65 ± 0.06** | **17.52 ± 0.10** | **41.77 ± 0.12** | 0.39 ± 0.01 |
+| **EXP-300** | LES_N128 T=15 **α=1.8**（除 N/T 全對齊 T50）| 6.94 ± 0.10 | 16.13 ± 0.13 | 20.76 ± 0.20 | 44.42 ± 0.11 | 0.36 ± 0.01 |
+| **EXP-299** | LES_N128 T=15 **α=30** Bardina（= EXP-222 sensor）| 6.89 ± 0.30 | 15.72 ± 0.16 | 20.07 ± 0.22 | 45.14 ± 0.34 | 0.35 ± 0.02 |
+| **EXP-298** | **space-filling（FPS，DNS-free，零模擬）** | **4.69 ± 0.10** | 14.73 ± 0.19 | 19.51 ± 0.19 | 44.02 ± 0.36 | 0.39 ± 0.02 |
+| EXP-271 | DNS QR-pivot oracle（參照）| 4.68 ± 0.06 | 15.34 ± 0.06 | 18.10 ± 0.03 | 42.41 ± 0.12 | 0.36 ± 0.004 |
+
+### Findings（Welch t，n=5）
+
+1. **T=50 相對 T=15 的優勢真實且顯著，且來自 T 本身**：EXP-300 vs EXP-245（唯一差 N/T，α/closure/friction/seed 全對齊）KE **+1.23 pp（t=17.9）**、u/v/ω 全部 +2.5~3.2 pp（t=33~39）。
+2. **α bug 對佈點品質無影響（雜訊級）**：EXP-299 vs EXP-300（唯一差 α 30 vs 1.8 + closure/friction）KE **−0.05 pp（t=−0.4）**。→ **佈點看 spatial pattern 不看絕對譜值** 的直接 n=5 證據；「過耗散 slope −14」的 α bug 對 KE 無感。修正 §4.1 finding 3（見下）。
+3. **space-filling（純幾何、零模擬、零 DNS）KE 打平 DNS oracle**：4.69 vs 4.68，**t≈0**；且顯著優於 LES_T50（−1.02 pp，t=14.6）。
+4. **placement 是 KE↔pointwise trade-off，無單方面勝出**：KE 排序 space-fill ≈ DNS-oracle > LES_T50 > LES_T15；但 pointwise（u/v/ω）**LES_T50 最強**，space-fill 在 v/ω 最弱。與 §4.3 的 EXP-245 vs EXP-271 trade-off 同一軸，space-fill 落在「KE 最好/pointwise 最差」端。
+5. **coverage 機制（診斷，非 headline）**: 四組佈點彼此如獨立隨機（兩兩 median NN 0.039–0.047，落在隨機虛無 95% 區間），但每組組內 min-NN 是隨機的 5–13×（QR/FPS 天然排斥相鄰相關點）。coverage 解釋「QR/幾何 > random」，但**解釋不了好佈點之間的排序**（LES 比 space-fill 散得開，KE 卻更差）。
+
+### 對 §4.1 findings 的修正
+
+- **finding 3「Statistical convergence 才是 gating: T_end ≥ 8 turnovers 即夠」→ 已證偽並撤回**。理由：(a) T=15 與 T=50 皆**未統計收斂**（`T_end=400` 診斷量得 τ_int=10.1 → T=50 只有 T/τ_int=4.9、N_eff≈2.5；見 thesis ch03:193 與 AGENTS LES_Quality_Anti_Patterns）；(b)「eddy turnover 數」用錯時間尺度，KE 平衡由 friction `1/(2r)=17.5` 主導。正確表述：**T 影響佈點品質（+1.23 pp/T50→T15），但兩者都非收斂態；horizon 為經驗選擇，非導出。**
+- finding 2「LES 解析度與譜形不是 bottleneck」**維持並強化**：EXP-299 vs EXP-300 的 α（譜形）雜訊級是 n=5 + 變因隔離的新證據。
+
+### 判讀邊界 / 誠實揭露
+
+- EXP-300 vs EXP-245 同時差 **N（256 vs 128）與 T**，非純 T。但 (a) EXP-299 vs EXP-300 證明 N=128 下 α 無關；(b) EXP-221(N256) vs EXP-222(N128) 舊數據 N 打平 → N 幾乎確定非主因，主因是 T。嚴格標為「(T50,N256) vs (T15,N128)」。
+- EXP-298 為 **single-config placement**（FPS 幾何，無 placement seed 變異）；n=5 為 **training seed**。與 EXP-266（random，n=5 placement seed）的變異來源不同，不可直接比 σ。
+- **未主張**: space-fill「打敗」DNS oracle（seed=42 單點 4.54% 是 −1.5σ 抽樣運氣，n=5 為打平）。
+
+### Artifacts
+
+- Config: `configs/exp_298[b-e]_b3_spacefill_seed*.toml`、`configs/exp_299*_b3_les_T15_20k.toml`、`configs/exp_300*_b3_les_T15_alpha1p8_seed*.toml`
+- Sensor: `sensors_spacefill_K100_N256_t0-5_si100.*`（EXP-298）、`..._lesinformed.*`（EXP-299, = EXP-222）、`..._les_n128_T15_alpha1p8.*`（EXP-300, t_spinup=7.5, axis test 9/9 PASS）
+- 新 LES: `data/les/kolmogorov_les_Re10000_N128_T15_alpha1p8_T50aligned.npy`（N=128, T=15, α=1.8, hypervisc, r_scale=35, dealias 2/3, seed=42）+ 收斂診斷 `..._N128_T400_alpha1p8_convergence.npy`（τ_int=10.1）
+- Checkpoint (lab-server): `artifacts/kolmogorov/deeponet-cfc-re10000-exp{298,299,300}*/`；eval job 4527 + 4538
+
+---
+
 # §5 對照群 C：Sensor Amount（K-scaling）
 
 > **2026-05-21 finalized (10k)**: 三點 K-scaling curve 完成。
@@ -488,7 +547,7 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 
 | ID | Status | Configuration | K | collo | iter / n | KE rel-err | u L₂ (last) | v L₂ (last) | ω L₂ (last) | div ratio | k_f amp ratio |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| EXP-245 (20k n=5) | `ACTIVE_BASELINE` | B3 + LES_T50, K=100 reference | 100 | 1024 | 20k / 5 | **5.71 ± 0.11 %** | 13.65 ± 0.06 | 17.52 ± 0.10 | 41.77 ± 0.12 | **0.39 ± 0.006 %** | **0.991 ± 0.005** |
+| EXP-245 (20k n=5) | `ACTIVE_BASELINE` | B3 + LES_T50, K=100 reference | 100 | 1024 | 20k / 5 | **5.71 ± 0.12 %** | 13.65 ± 0.06 | 17.52 ± 0.10 | 41.77 ± 0.12 | **0.39 ± 0.006 %** | **0.991 ± 0.005** |
 | EXP-245 (20k seed=42) | `ACTIVE_REFERENCE` | 同上, single seed | 100 | 1024 | 20k / 1 | 5.90 % | 7.10 % | 16.08 % | 38.03 % | 0.39 % | 0.969 |
 | **EXP-269** | **`ACTIVE_REFERENCE`** | 同上, **K=200**, tm_warmup=2000 fixed | 200 | 1024 | **20k / 1** | **2.47 %** | **4.95 %** | **10.30 %** | **31.36 %** | 0.40 % | **0.998** |
 | **EXP-270** | **`ACTIVE_REFERENCE`** | 同上, **K=400**, collo=512, tm_warmup=2000 fixed | 400 | **512** | **20k / 1** | **1.76 %** | **4.11 %** | **8.64 %** | **29.29 %** | 0.43 % | 0.975 |
@@ -555,7 +614,7 @@ $$
 | ID | Status | Noise σ | KE rel-err | Δ vs clean | u L₂ | v L₂ | ω L₂ | Ens rel-err | k_f amp ratio |
 |---|---|---|---|---|---|---|---|---|---|
 | EXP-245 (10k n=1, archived) | `HISTORICAL` | 0 % (clean, **10k baseline**) | 6.92 % | — | 14.51 % | 19.25 % | 44.32 % | 27.51 % | 0.926 |
-| EXP-245 (20k n=5, current) | `ACTIVE_BASELINE` | 0 % (clean, **20k baseline**) | **5.71 ± 0.11 %** | — | 13.65 ± 0.06 | 17.52 ± 0.10 | 41.77 ± 0.12 | 24.11 ± 0.21 | **0.991 ± 0.005** |
+| EXP-245 (20k n=5, current) | `ACTIVE_BASELINE` | 0 % (clean, **20k baseline**) | **5.71 ± 0.12 %** | — | 13.65 ± 0.06 | 17.52 ± 0.10 | 41.77 ± 0.12 | 24.11 ± 0.21 | **0.991 ± 0.005** |
 | EXP-258 | `ACTIVE_REFERENCE` | 1 % | 6.89 % | -0.03 pp | 14.48 % | 19.09 % | 44.17 % | 27.83 % | 0.971 |
 | EXP-259 | `ACTIVE_REFERENCE` | 3 % | 6.84 % | -0.08 pp | 14.49 % | 19.20 % | 44.31 % | 27.96 % | 0.974 |
 | EXP-260 | `ACTIVE_REFERENCE` | 5 % | 7.07 % | +0.15 pp | 14.71 % | 19.47 % | 44.67 % | 28.56 % | **0.982** |
@@ -899,7 +958,7 @@ Decision gates 評估:
 | E(k_f=2) ratio @last | 0.969 | 0.976 | 更接近 1 |
 
 **判讀**:
-1. **真效果非 seed 雜訊**：paired（seed=42，唯一差 iterations），−0.95 pp ≫ training σ=0.11 pp；4.95% 亦贏 multi-seed mean 5.71%。
+1. **真效果非 seed 雜訊**：paired（seed=42，唯一差 iterations），−0.95 pp ≫ training σ=0.12 pp；4.95% 亦贏 multi-seed mean 5.71%。
 2. **非 sensor overfit**（關鍵反向假設已排除）：val KE 也降（6.53→5.39%，幅度 > train），train/val gap 縮小（0.79→0.55 pp）。overfit 應 val↑/gap↑，觀察到相反 → 真泛化。
 3. **物理同步改善**：l_physics 後半減半、div 0.385→0.32%、E(k_f) 0.969→0.976 → 往「更滿足 NS」收斂，非擬合 sensor。
 
@@ -918,7 +977,7 @@ Decision gates 評估:
 | CfC time encoding | ✗ | ✓ | ✗ | ✓ |
 | Cross-attention | ✗ | ✗ | ✓ | ✓ |
 | KE rel-err (64 collo, n=5 / n=1) | 18.52 ± 0.66 % | 14.65 % | 13.62 % | **10.77 ± 0.52 %** |
-| KE rel-err (1024 collo, LES_T50, seed=42) | 9.96 % | 10.62 % | 8.43 % | **6.92 % (10k) / 5.71 ± 0.11 % (20k n=5)** |
+| KE rel-err (1024 collo, LES_T50, seed=42) | 9.96 % | 10.62 % | 8.43 % | **6.92 % (10k) / 5.71 ± 0.12 % (20k n=5)** |
 
 - **B3 vs B0 stat sig (64 collo)**: Cohen d = 13.09, p < 1e-7
 - **CfC contribution** (64 collo): -3.87 pp
@@ -938,15 +997,15 @@ Decision gates 評估:
 | Random uniform | 13.25 % | 強（無需 LES）| placement-agnostic baseline |
 
 **Placement variance** (EXP-266 n=5, training seed=42 固定):
-- Random K=100: KE 7.95 ± 0.68 %
-- LES_T50 K=100: KE 5.71 ± 0.11 % (EXP-245 同 n=5)
-- σ_placement / σ_training = **6.2×** — placement variance dominant
+- Random K=100: KE 7.95 ± 0.76 %
+- LES_T50 K=100: KE 5.71 ± 0.12 % (EXP-245 同 n=5)
+- σ_placement / σ_training = **6.4×** — placement variance dominant
 
 ## 10.3 Sensor Amount (K-scaling) 結論摘要
 
 | K | KE rel-err (20k single seed) | 角色 |
 |---|---|---|
-| 100 | 5.90 % (single) / 5.71 ± 0.11 % (n=5 baseline) | 工程主線 |
+| 100 | 5.90 % (single) / 5.71 ± 0.12 % (n=5 baseline) | 工程主線 |
 | 200 | **2.47 %** (EXP-269) | K-scaling 中段 |
 | 400 | **1.76 %** (EXP-270) | K-scaling 最佳 |
 
@@ -971,7 +1030,7 @@ Decision gates 評估:
 | Method | KE % | u L2 % | ω L2 % |
 |---|---|---|---|
 | Ours (EXP-080 legacy single seed) | 10.68 | **17.0** | **47.6** |
-| Ours (EXP-245 20k n=5) | **5.71 ± 0.11** | **13.65 ± 0.06** | 41.77 ± 0.12 |
+| Ours (EXP-245 20k n=5) | **5.71 ± 0.12** | **13.65 ± 0.06** | 41.77 ± 0.12 |
 | RBF Multiquadric (best classical KE) | 4.10 | 32.84 | 58.38 |
 | Div-free trig LSQ k ≤ 5 (math KE optimum) | 3.93 | 28.19 | 64.78 |
 
@@ -1023,7 +1082,8 @@ Decision gates 評估:
 | `EXP-221` | `EXP-105 v2` | 2 | LES_N256 T=50 stat-conv, random IC（real-world DNS-free）|
 | `EXP-222` | `EXP-102 v2` | 2 | LES_N128 over-disp stand-alone（low-fidelity LES viable）|
 | `EXP-224` | `EXP-101 v2` | 42 | Random uniform |
-| `EXP-230` | `EXP-030` | — | Re=1000 baseline |
+| `EXP-230` | `EXP-030` | — | Re=1000 baseline（legacy config；已被 EXP-301 取代）|
+| `EXP-301` | — (new 2026-07-20) | 42 | Re=1000 final-protocol 重跑（KE 2.36 %；cross-Re 低端）|
 | `EXP-240_a` | — (new 2026-05-19) | 42 | B0 + LES_T50 (2×3 ablation) |
 | `EXP-240_b` | — (new 2026-05-19) | 42 | B0 + Random (2×3 ablation) |
 | `EXP-241_a` | — (new 2026-05-19) | 42 | Collo density 256 |
@@ -1088,12 +1148,12 @@ Decision gates 評估:
 
 | 問題 | 現況 | 狀態 |
 |---|---|---|
-| **EXP-245 multi-seed (n=5, 20k)** | **已完成** (5.71 ± 0.11 %, σ=0.11 pp 統計顯著確立) | ✅ 2026-05-21 |
+| **EXP-245 multi-seed (n=5, 20k)** | **已完成** (5.71 ± 0.12 %, σ=0.12 pp 統計顯著確立) | ✅ 2026-05-21 |
 | **EXP-241_b multi-seed (n=3-5)** | DNS 對照 single seed=42, KE 5.97 % — paper-grade needs std confirmation | **NEW 高優先** |
 | **EXP-241_c collocation = 4096?** | EXP-241_a (256) → EXP-241_b (1024) 還沒 saturated（5.97 vs 6.88, -0.9pp 下行）；4096 可能再降但 OOM risk | 待開工（需 split-batch fallback）|
 | RTX 3090 paper-grade inference benchmark | EXP-094 M3 baseline 71+1.5 ms 為唯一參考；新 hw 待測 | 待 `benchmark_inference.py` 重跑 |
 | Re=1000 stable phase multi-seed（n=5）| 尚未跑；目前只有 legacy EXP-030 single seed | 待開工 |
-| EXP-266 Random K=100 placement variance (n=5) | **已完成** (KE 7.95 ± 0.68 %, σ_placement / σ_training = 6.2×) | ✅ 2026-05-22 |
+| EXP-266 Random K=100 placement variance (n=5) | **已完成** (KE 7.95 ± 0.76 %, σ_placement / σ_training = 6.4×) | ✅ 2026-05-22 |
 | `EXP-220` (LES_T50) 5-seed placement variance (LES 5 seeds × home-gpu CPU 50+ hr) | 仍 single seed=2; LES-derived placement σ 未估計 | 待開工（paper §Sensor Placement extension）|
 | LES robustness across LES_seed | 目前 LES generator 用 seed=42 single placement; 跨 LES seed 的 sensor variability 未測 | 待開工 |
 | EXP-242 group: multi-constraint AL | **已完成** (EXP-242a/b/c + EXP-243 全 rsync 回, metrics 完整) | ✅ 2026-05-20 |
@@ -1114,7 +1174,7 @@ Decision gates 評估:
 | Cylinder stable phase 整併 | Cylinder 仍用 CEXP-XXX；是否要納入此 v2 system？| 開放討論（傾向維持獨立 v2）|
 | CfC Jacobian spectral radius stability | 未寫腳本 | 待開工（CFD-rigour）|
 | **PCGrad: 方法本質無效 vs 我們的設定壓抑** | **已分離（變因 1）**：PCGrad-only KE −0.11pp（單 seed 雜訊級），cos≈0 為本質特徵 → 結論：data/physics 正交是本質，非 GN/AL 壓抑 | ✅ 2026-06-02 |
-| **EXP-281/282/283 對等 ablation（B0/B1/B2 × n=5 @ 20k）** | **已完成**（train job 3866–3880；eval r740 job 3898）。KE%：B0 **8.23±0.22** / B1 **9.23±0.51** / B2 **7.03±0.14** / B3 **5.71±0.11**。對等預算下排序 B3≺B2≺B0≺B1（與 legacy 64-collo 一致，B0≺B1 再現）。Welch B3 vs B0 −2.53pp (t=22.9, p=3.0e-7, d=14.5) / vs B1 −3.52 (p=5.5e-5) / vs B2 −1.32 (p=2.4e-7)。2×2 reference-cell 分解（B0 baseline, 加和成立）：cross-attn −1.21 / CfC +0.99 / interaction −2.31 pp → **cross-attn dominant，CfC 單獨增誤差、僅與 cross-attn 協同有效**。已填 Table 4.6 + §4.1 significance + §4.4.2 ranking（移除 legacy log ref / open-follow-up） | ✅ 2026-06-04 |
+| **EXP-281/282/283 對等 ablation（B0/B1/B2 × n=5 @ 20k）** | **已完成**（train job 3866–3880；eval r740 job 3898）。KE%：B0 **8.23±0.22** / B1 **9.23±0.51** / B2 **7.03±0.14** / B3 **5.71±0.12**。對等預算下排序 B3≺B2≺B0≺B1（與 legacy 64-collo 一致，B0≺B1 再現）。Welch B3 vs B0 −2.53pp (t=22.9, p=3.0e-7, d=14.5) / vs B1 −3.52 (p=5.5e-5) / vs B2 −1.32 (p=2.4e-7)。2×2 reference-cell 分解（B0 baseline, 加和成立）：cross-attn −1.21 / CfC +0.99 / interaction −2.31 pp → **cross-attn dominant，CfC 單獨增誤差、僅與 cross-attn 協同有效**。已填 Table 4.6 + §4.1 significance + §4.4.2 ranking（移除 legacy log ref / open-follow-up） | ✅ 2026-06-04 |
 | **Paper 圖補強 #3–#6**（mean profile / temporal / dissipation / opt-diagnostics） | **已完成**（seed42 fields eval）：mean ⟨u⟩(y) rel-L2 **1.55%**、Reynolds ⟨u'v'⟩(y) rel-L2 **8.61%**、enstrophy/dissipation deficit **26.4%**(t≥1)、time decorr τ_1/e DNS **0.375s** vs PI-CON **0.400s**、AL λ_cont 單調→**0.39**。圖存 `thesis/figures/results/{mean_profile_reynolds,temporal_consistency,dissipation_budget,optimization_diagnostics}.pdf` | ✅ 2026-06-03 |
 
 ### PCGrad NEUTRAL 結果的混淆變因（要分離「方法 vs 設定」需逐一控制）
@@ -1167,18 +1227,18 @@ Decision gates 評估:
 - **2026-05-23 (Cross-Re ablation ladder 完結, Re=10⁶ ≈ Re=10⁴ baseline)**:
   - LES T=50 Re=10⁶ home-gpu 7.18 hr 完成 (50 T_L)
   - EXP-267 (Re=10⁶ K=100 LES T=50 ablation): KE 23.73 → **14.58 %** (−9.15 pp, LES quality lever > capacity lever)
-  - EXP-268 (Re=10⁶ K=200 LES T=50 + d=384 + 50k): KE **6.10 %** ⭐ ≈ Re=10⁴ baseline 5.71 ± 0.11 %
+  - EXP-268 (Re=10⁶ K=200 LES T=50 + d=384 + 50k): KE **6.10 %** ⭐ ≈ Re=10⁴ baseline 5.71 ± 0.12 %
   - **Paper milestone**: "PI-CON generalizes across Re=10⁴ → Re=10⁶"
 - **2026-05-22 v3 (Placement variance + Re=10⁶ Path A 結案)**:
-  - EXP-266_a~e (Random K=100 × 5 placement seeds): σ_placement / σ_training = **6.2×**, LES_T50 vs Random gap 2.24 pp z≈3.3
+  - EXP-266_a~e (Random K=100 × 5 placement seeds): σ_placement / σ_training = **6.4×**, LES_T50 vs Random gap 2.24 pp z≈3.3
   - EXP-265 (Re=10⁶ K=200 + XL + 50k): KE 11.39 % ✓ engineering viable
   - EXP-264 (Path 2 capacity+step): KE 19.02 %, k_f amp 退步 0.746
 - **2026-05-22 v2 (K-scaling two-layer framing 再修正)**:
   - 區分 **Layer 1 (spectrum cut-off ∝ √K, ✅ 嚴謹)** vs **Layer 2 (scalar KE, ❌ 不繼承 √K)**
   - Re=10⁴ KE 三點「1/√K 看似 fit」= d/δ_ω 50% 改善的 numerical coincidence
-- **2026-05-21 (EXP-245 baseline 升級 10k → 20k n=5, KE 5.71 ± 0.11 %)**:
+- **2026-05-21 (EXP-245 baseline 升級 10k → 20k n=5, KE 5.71 ± 0.12 %)**:
   - EXP-245 升級 iterations 10k → 20k, time_marching_warmup_steps 改 fixed 2000
-  - 5 seeds 全跑完，KE = 5.71 ± 0.11 %
+  - 5 seeds 全跑完，KE = 5.71 ± 0.12 %
   - **三個 metric 出現質變**：div ratio 2.41 % → 0.39 % (< DNS floor 1.04 %); k_f amp 0.926 → 0.991; Ens 27.51 → 24.11 %
 - **2026-05-21 (K-scaling + noise + Re=10⁶ baseline)**: EXP-257/258/259/260/261/262 完成
 - **2026-05-20 (artifacts rsync + forcing + K-scaling K=200 finalize)**:
