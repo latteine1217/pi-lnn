@@ -204,21 +204,25 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 
 <NavBar active="literature" />
 
-<SectionTag>§ Literature review · classical inverse methods</SectionTag>
+<SectionTag>§ Literature review · classical sparse-sensor reconstruction</SectionTag>
 
-# What classical methods require
+# What sparse-sensor reconstructions assume
+
+<div class="text-sm mt-1" style="color:#374151;">
+At each new time, every method receives the same current K = 100 sensor values <span class="raw">y(t)</span>. The table isolates the prior that differentiates them.
+</div>
 
 <style>
-.cl { width: 100%; border-collapse: collapse; font-size: 0.92rem; margin-top: 16px; }
+.cl { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin-top: 8px; }
 .cl th { text-align: left; font-weight: 700; color: #9CA3AF; font-size: 0.68rem; text-transform: uppercase;
          letter-spacing: 0.05em; padding: 0 10px 6px 10px; border-bottom: 1px solid #D8D2E0; }
 .cl th.x { text-align: center; }
-.cl td { padding: 9px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: middle; }
+.cl td { padding: 6px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; vertical-align: middle; }
 .cl td.who { color: #1F1B2E; font-weight: 600; white-space: nowrap; }
 .cl td.src { color: #9CA3AF; font-size: 0.82em; }
 .cl td.x { text-align: center; font-weight: 700; font-size: 1.05rem; }
 .cl .no { color: #E97132; }
-.cl tr.grp td { border-bottom: none; padding-top: 13px; padding-bottom: 2px;
+.cl tr.grp td { border-bottom: none; padding-top: 7px; padding-bottom: 1px;
                 font-size: 0.71rem; font-weight: 700; letter-spacing: 0.05em;
                 text-transform: uppercase; color: #1F1B2E; }
 </style>
@@ -226,38 +230,35 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 <table class="cl">
 <thead>
 <tr>
-<th style="width: 20%;">Method</th>
-<th style="width: 34%;">Source</th>
-<th style="width: 23%;" class="x">Offline field record</th>
-<th style="width: 23%;" class="x">Solver in the loop</th>
+<th style="width: 34%;">Method</th>
+<th style="width: 40%;">Field-filling prior</th>
+<th style="width: 13%;" class="x">Full-field<br/>library?</th>
+<th style="width: 13%;" class="x">Physics<br/>constraint?</th>
 </tr>
 </thead>
 <tbody>
 
-<tr class="grp"><td colspan="4">Reduced-order models</td></tr>
-<tr><td class="who">POD</td><td class="src">Sirovich 1987, Q. Appl. Math.</td><td class="x no">required</td><td class="x">—</td></tr>
-<tr><td class="who">DMD</td><td class="src">Schmid 2010, J. Fluid Mech.</td><td class="x no">required</td><td class="x">—</td></tr>
-<tr><td class="who">QR-pivot</td><td class="src">Manohar 2018, IEEE Control Syst. Mag.</td><td class="x no">required</td><td class="x">—</td></tr>
+<tr class="grp"><td colspan="4">Sensor-only interpolation</td></tr>
+<tr><td class="who">RBF <span style="font-size:.78em; color:#9CA3AF; font-weight:400;">[Hardy 1971]</span></td><td>local smoothness; radial kernel (<span class="raw">ε</span> = 10)</td><td class="x">no</td><td class="x">no</td></tr>
+<tr><td class="who">IDW <span style="font-size:.78em; color:#9CA3AF; font-weight:400;">[Shepard 1968]</span></td><td>nearer sensors receive higher weight (1/d²)</td><td class="x">no</td><td class="x">no</td></tr>
 
-<tr class="grp"><td colspan="4">Data assimilation</td></tr>
-<tr><td class="who">4D-Var</td><td class="src">Asch 2016, SIAM</td><td class="x">—</td><td class="x no">required</td></tr>
-<tr><td class="who">EnKF</td><td class="src">Asch 2016, SIAM</td><td class="x">—</td><td class="x no">required</td></tr>
+<tr class="grp"><td colspan="4">Constrained basis reconstruction</td></tr>
+<tr><td class="who">Divergence-free<br/>trig-LSQ <span style="font-size:.70em; color:#9CA3AF; font-weight:400;">[Fourier basis: Boyd 2001]</span></td><td>diagnostic baseline: divergence-free modes, <span class="raw">k ≤ 5</span></td><td class="x">no</td><td class="x no">yes</td></tr>
+
+<tr class="grp"><td colspan="4">Reduced-order model</td></tr>
+<tr><td class="who">Gappy-POD <span style="font-size:.78em; color:#9CA3AF; font-weight:400;">[Everson &amp; Sirovich 1995]</span></td><td class="no">r POD modes (r = 100 here); learned from 160 DNS fields</td><td class="x no">yes</td><td class="x">no</td></tr>
 
 </tbody>
 </table>
 
-<div class="mt-4" style="display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:5px; align-items:baseline; font-size:0.90rem; border-left:2px solid #E97132; padding-left:12px;">
-<span style="color:#9CA3AF; white-space:nowrap;">On a rig</span><span style="color:#374151;">No field record before it runs <span style="color:#C9C6D0;">, </span> a solver in the loop costs minutes to hours per window at Re = 10⁴</span>
-</div>
-
 <FooterLogos />
 
 <!--
-[傳統方法要什麼 · 1.5min]
-• ROM 要先有完整流場 —— 開機前不存在
-• DA 要 solver 進迴圈 —— Re=10⁴ 太慢
-⚠️ RBF/IDW/trig-LSQ 是自建 baseline，不列文獻
-⚠️ 4D-Var 沒實作 → 誠實答 future work
+[稀疏量測重建的先驗 · 1.5min]
+• RBF/IDW 是 sensor-only interpolation；trig-LSQ 是帶無散低頻基底的 diagnostic constrained reconstruction
+• 三者都只用當下 y(t)，差別在平滑、距離、或 low-band divergence-free 先驗
+• Gappy-POD：offline full fields 先形成 Φ_r；online 用當下 y(t) fit coefficients，再重建該時刻
+• 因此 Gappy 的 r=100 是 DNS-basis oracle；不是 t=0→5 forecast，也不是公平工程比較
 -->
 ---
 
@@ -265,7 +266,11 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 
 <SectionTag>§ Literature review · training supervision in prior work</SectionTag>
 
-# What prior methods are trained against
+# Prior reconstruction methods require full-field supervision
+
+<div class="text-sm mt-1" style="color:#374151;">
+Their architectures differ, but each method is trained against a dense reference field that is unavailable on a deployed rig.
+</div>
 
 <style>
 .dns { width:100%; border-collapse:collapse; font-size:.90rem; margin-top:14px; }
@@ -317,7 +322,7 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 </tbody>
 </table>
 
-<div class="dns-summary"><b>Comparison:</b> the architectures differ, but every method learns against a dense reference field. That supervision is the common deployment bottleneck.</div>
+<div class="dns-summary"><b>Deployment gap:</b> a rig provides sensor histories, not the dense DNS/CFD field required to supervise these methods during training.</div>
 
 
 <FooterLogos />
@@ -468,8 +473,8 @@ The network <b>is</b> the field: training adjusts θ from data and physics; infe
 
 </div>
 
-<div class="mt-4 px-4 py-3 rounded text-base leading-snug" style="background:rgba(127,16,132,.06); border-left:4px solid #7F1084;">
-<b style="color:#7F1084;">Why this matters:</b> the reconstruction is explicitly conditioned on what the instruments measured, while remaining queryable at arbitrary space–time coordinates.
+<div class="mt-3 px-4 py-2 rounded text-sm leading-snug" style="background:rgba(127,16,132,.06); border-left:4px solid #7F1084;">
+<b style="color:#7F1084;">Why this matters:</b> sensor history remains an explicit input at inference, while the field stays queryable at any <i>(x, y, t)</i>.
 </div>
 
 <FooterLogos />
@@ -628,22 +633,24 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 .resolution .tiny { font-size:.72rem; letter-spacing:.07em; text-transform:uppercase; font-weight:700; color:#6B7280; }
 .resolution .formula { font-size:1.12rem; color:#7F1084; font-weight:700; text-align:center; margin:9px 0 9px; padding:7px 6px; background:#FAF2FB; border-radius:7px; }
 .resolution .copy { font-size:.85rem; color:#374151; line-height:1.4; }
-.resolution .evidence { display:grid; grid-template-columns:78px 1fr; column-gap:10px; row-gap:7px; align-items:baseline; margin-top:11px; padding-top:9px; border-top:1px solid #E5E0EC; }
-.resolution .evidence b { color:#7F1084; font-size:.82rem; }
-.resolution .evidence span { color:#374151; font-size:.80rem; line-height:1.3; }
+.resolution .summary { display:flex; flex-direction:column; }
+.resolution .summary .formula { font-size:1.04rem; margin:7px 0; padding:6px; }
+.resolution .summary .copy { font-size:.80rem; line-height:1.31; }
+.resolution .energy-callout { margin-top:auto; padding:12px 11px; background:#F4F6F9; border-left:3px solid #7F1084; border-radius:0 7px 7px 0; }
+.resolution .energy-callout .value { color:#7F1084; font-size:1.55rem; font-weight:700; line-height:1; }
+.resolution .energy-callout .label { margin-top:5px; color:#374151; font-size:.76rem; line-height:1.28; }
 .resolution .plot img { width:100%; height:270px; object-fit:contain; display:block; }
 </style>
 
 <div class="resolution">
-  <div class="cardx">
-    <div class="tiny">Mode-counting estimate</div>
-    <div class="copy" style="margin-bottom:6px;"><b>Wavenumber <span class="raw">k</span></b> = spatial Fourier index. Low <span class="raw">k</span> = large vortices, high <span class="raw">k</span> = fine structures.</div>
+  <div class="cardx summary">
+    <div class="tiny">Sensor budget: K = 100</div>
+    <div class="copy" style="margin-bottom:6px;"><b>Wavenumber <span class="raw">k</span></b>: low = large structures; high = fine structures.</div>
     <div class="formula">k<sub>sensor</sub> ≡ √(K/π) = 5.64</div>
-    <div class="copy">Equating K point measurements to the approximate number πk² of Fourier modes defines a <b>sensor-count scale</b>. It is not a recovery bound.</div>
-    <div class="evidence">
-      <b>Energy</b><span>98.9% of DNS kinetic energy lies below k<sub>sensor</sub>.</span>
-      <b>k ≤ 5</b><span>well-conditioned measurement map, κ ≈ 7.</span>
-      <b>k ≤ 8</b><span>still observable but ill-conditioned, κ ≈ 7×10².</span>
+    <div class="copy"><b>Sensor-count scale:</b> match K points to πk² modes—not a recovery bound.</div>
+    <div class="energy-callout">
+      <div class="value">98.9%</div>
+      <div class="label">of DNS kinetic energy lies below k<sub>sensor</sub>.</div>
     </div>
   </div>
   <div class="cardx plot">
@@ -692,21 +699,21 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 </thead>
 <tbody>
 <tr>
-<td class="who">Mo &amp; Magri 2025 <span>PC-DualConvNet</span></td>
+<td class="who">Mo &amp; Magri 2025 <span>PC-DualConvNet · <i>Physical Review Fluids</i></span></td>
 <td>34</td>
 <td>230</td>
 <td>✓</td>
 <td>128² fixed mesh</td>
 </tr>
 <tr>
-<td class="who">Kelshaw et al. 2022 <span>VDSR CNN</span></td>
+<td class="who">Kelshaw et al. 2022 <span>VDSR CNN · NeurIPS ML4PS Workshop</span></td>
 <td>34</td>
 <td>100</td>
 <td>✓</td>
 <td>150² fixed mesh</td>
 </tr>
 <tr>
-<td class="who">Parfenyev et al. 2024 <span>coordinate-MLP PINN</span></td>
+<td class="who">Parfenyev et al. 2024 <span>coordinate-MLP PINN · <i>JETP Letters</i></span></td>
 <td>1.3×10³</td>
 <td>150 / snapshot <span style="display:block; color:#9CA3AF; font-size:0.72em;">3×10⁴ scattered (r, t)</span></td>
 <td>✗ loss term only</td>
@@ -743,59 +750,48 @@ A network maps a point to a value. An <b>operator</b> maps a whole input functio
 
 <SectionTag>§ Objective</SectionTag>
 
-# Research objective
-
-<div class="mt-2 text-base leading-snug" style="color:#374151;">
-Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stokes residual, with <b style="color:#7F1084;">no DNS field</b> in training, then map how <b style="color:#7F1084;">count, placement, noise</b> govern quality.
-</div>
+# Build a queryable flow field—and map what controls its fidelity
 
 <style>
-.ob { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
-.ob .goal { font-size: 0.85rem; line-height: 1.4; color: #374151; margin-top: 6px; }
-.ob .crit { margin-top: 8px; padding-top: 7px; border-top: 1px solid #EFEAF2; }
-.ob .crit .lb { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.05em;
-                color: #9CA3AF; font-weight: 700; }
-.ob .crit ol { margin: 4px 0 0 0; padding-left: 15px; font-size: 0.78rem; line-height: 1.42; color: #374151; }
-.ob .crit li { margin-bottom: 2px; }
+.objective-target { margin-top:14px; padding:15px 22px; border:1px solid #C9A6CC; border-radius:12px;
+                    background:linear-gradient(100deg,#FAF2FB,rgba(255,255,255,.86)); text-align:center; }
+.objective-target .label { color:#7F1084; font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; font-weight:700; }
+.objective-target .flow { margin-top:3px; color:#1F1B2E; font-size:1.35rem; font-weight:700; line-height:1.25; }
+.objective-target .arrow { color:#7F1084; padding:0 10px; }
+.objective-target .sub { margin-top:5px; color:#6B7280; font-size:.75rem; }
+.objective-work { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:15px; }
+.objective-work .verb { color:#7F1084; font-size:1.05rem; font-weight:700; line-height:1.2; }
+.objective-work .body { margin-top:6px; color:#374151; font-size:.82rem; line-height:1.36; }
+.objective-work .detail { margin-top:10px; padding-top:8px; border-top:1px solid #EFEAF2; color:#6B7280; font-size:.74rem; line-height:1.32; }
 </style>
 
-<div class="ob">
+<div class="objective-target">
+<div class="label">Research target</div>
+<div class="flow"><span>sparse (u, v) sensor histories</span><span class="arrow">→</span><span>2-D velocity field at any (x, t)</span></div>
+<div class="sub">Training constraint: Navier–Stokes residual &nbsp;·&nbsp; <b style="color:#7F1084;">no dense DNS field</b>.</div>
+</div>
+
+<div class="objective-work">
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O1)&nbsp; Accurate &amp; fast reconstructor</LabelTiny>
-<div class="goal">Engineering-grade from <b>sensor + PDE</b> only, queryable at any (x, t).</div>
-<div class="crit">
-<div class="lb">Criterion</div>
-<ol>
-<li>KE rel-err <b>&lt; 10 %</b>, n = 5</li>
-<li><b>−2 pp</b> vs vanilla DeepONet, <b>p &lt; 0.01</b></li>
-<li>Reconstruction <b>≥ 5×</b> faster than re-solving</li>
-</ol>
-</div>
+<LabelTiny style="color:#7F1084;">O1</LabelTiny>
+<div class="verb">Build the field reconstructor</div>
+<div class="body">Train on sensor histories with a Navier–Stokes residual constraint.</div>
+<div class="detail">Read out a continuous field at arbitrary space–time queries.</div>
 </Card>
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O2)&nbsp; Count sets the resolution</LabelTiny>
-<div class="goal">Recoverable band set by <b>sensor count</b>, not architecture.</div>
-<div class="crit">
-<div class="lb">Criterion</div>
-<ol>
-<li>Effective cutoffs <b>bracket √(K/π)</b> ≈ 5.64 at K = 100</li>
-<li>K ∈ {100, 200, 400} shifts the band along <b>√(K/π)</b></li>
-</ol>
-</div>
+<LabelTiny style="color:#7F1084;">O2</LabelTiny>
+<div class="verb">Map the resolution scale</div>
+<div class="body">Vary the number of sensors and examine the flow detail retained.</div>
+<div class="detail">Separate large-scale recovery from missing fine-scale information.</div>
 </Card>
 
 <Card>
-<LabelTiny style="color:#7F1084;">(O3)&nbsp; Placement &amp; noise set reliability</LabelTiny>
-<div class="goal">Placement and noise change reliability, <b>not feasibility</b>.</div>
-<div class="crit">
-<div class="lb">Criterion</div>
-<ol>
-<li>All three placements within target, placement σ <b>≥ 3×</b> seed σ</li>
-<li>Noise to <b>10 %</b> of sensor σ stays within target</li>
-</ol>
-</div>
+<LabelTiny style="color:#7F1084;">O3</LabelTiny>
+<div class="verb">Test reconstruction reliability</div>
+<div class="body">Vary sensor placement and perturb observations with measurement noise.</div>
+<div class="detail">Identify which sensing conditions most affect reconstruction quality.</div>
 </Card>
 
 </div>
@@ -804,10 +800,9 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 
 <!--
 [研究目標 · 1.5min]
-• O1 能力：KE < 10 % (n=5)／≥ 2 pp @ p<0.01／≥ 5× 快
-• O2 數量：k_max = √(K/π) ≈ 5.64
-• O3 位置噪音：影響 reliability，不影響 feasibility
-• 橋接：「三個目標分別由架構、數量、位置噪音回答」
+• 先看中央：研究目標是從稀疏速度量測與 NS 殘差，得到任意 (x,t) 可查詢的 2D 速度場；訓練不使用 DNS 全場
+• O1 建立重建器；O2 將感測器數量和可保留的空間細節連結；O3 檢驗佈點與雜訊下的可靠性
+• 橋接：「後面結果依序回答：能否重建、哪些尺度受限、以及量測條件的影響。」
 -->
 
 ---
@@ -816,70 +811,63 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 
 <SectionTag>§ Application case · the Kolmogorov flow</SectionTag>
 
-# Reference units are prescribed; flow scales are realised
+# Reynolds number follows the benchmark convention
 
 <style>
-.ndflow { display:grid; grid-template-columns:43% 57%; gap:22px; margin-top:12px; align-items:start; }
-.ndflow .flow-gif { width:100%; height:330px; object-fit:contain; border:1px solid #E5E0EC; border-radius:10px; background:rgba(255,255,255,.76); }
-.ndflow .caption { margin-top:5px; text-align:center; color:#6B7280; font-size:.74rem; }
-.ndflow .box { border:1px solid #E5E0EC; border-radius:9px; background:rgba(255,255,255,.80); padding:10px 13px; margin-bottom:8px; }
-.ndflow .label { font-size:.70rem; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; font-weight:700; margin-bottom:6px; }
-.ndflow .refs { display:flex; flex-wrap:wrap; gap:6px 18px; color:#374151; font-size:.80rem; line-height:1.35; }
-.ndflow .refs b { color:#0F2D52; }
-.ndflow .vars { display:grid; grid-template-columns:1fr 1fr; gap:5px 14px; color:#1F1B2E; font-size:.82rem; }
-.ndflow .vars span { white-space:nowrap; }
+.ndflow { display:grid; grid-template-columns:43% 57%; gap:22px; margin-top:8px; align-items:start; }
+.ndflow .flow-gif { width:100%; height:290px; object-fit:contain; border:1px solid #E5E0EC; border-radius:10px; background:rgba(255,255,255,.76); }
+.ndflow .caption { margin-top:4px; text-align:center; color:#6B7280; font-size:.68rem; }
+.ndflow .right { display:flex; flex-direction:column; gap:8px; }
+.ndflow .source { padding:5px 10px; border-left:3px solid #7F1084; color:#374151; font-size:.70rem; line-height:1.28; }
+.ndflow .source b { color:#7F1084; }
+.ndflow .box { border:1px solid #E5E0EC; border-radius:10px; background:rgba(255,255,255,.80); padding:8px 12px; }
+.ndflow .label { font-size:.61rem; letter-spacing:.07em; text-transform:uppercase; color:#6B7280; font-weight:700; margin-bottom:1px; }
 .ndflow .ns { border-color:#C9A6CC; background:#FAF2FB; }
-.ndflow .equation { text-align:center; color:#0F2D52; font-size:.81rem; line-height:1.55; white-space:nowrap; }
-.ndflow .eqstack { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
-.ndflow .eqstack .primary { color:#0F2D52; font-size:.76rem; font-weight:600; }
-.ndflow .eqstack .secondary { color:#6B7280; font-size:.72rem; }
-.ndflow .eqstack .params { white-space:nowrap; }
-.ndflow .case { margin-top:4px; text-align:center; color:#6B7280; font-size:.74rem; }
+.ndflow .math { text-align:center; }
+.ndflow .ns .math :deep(.katex-display) { margin:.25em 0; color:#0F2D52; font-size:.82em; }
+.ndflow .definition { border-color:#7F1084; background:linear-gradient(110deg, #FAF2FB, rgba(255,255,255,.90)); }
+.ndflow .definition .math :deep(.katex-display) { margin:.10em 0 .15em; color:#7F1084; font-size:1.02em; }
+.ndflow .params { text-align:center; color:#6B7280; font-size:.66rem; }
+.ndflow .takeaway { margin:0; text-align:center; color:#374151; font-size:.65rem; line-height:1.22; }
 </style>
 
 <div class="ndflow">
-  <div>
-    <img :src="'/images/kolmogorov_dns_vorticity_anim.gif'" class="flow-gif" />
-    <div class="caption">DNS vorticity · periodic unit square</div>
-  </div>
-  <div>
-    <div class="box">
-      <div class="label">Reference normalisation <span style="font-weight:400;text-transform:none;letter-spacing:0;">(chosen units)</span></div>
-      <div class="vars">
-        <span>x<sup>*</sup> = x / L<sub>0</sub></span>
-        <span>t<sup>*</sup> = tU<sub>0</sub> / L<sub>0</sub></span>
-        <span><b>u</b><sup>*</sup> = <b>u</b> / U<sub>0</sub></span>
-        <span>p<sup>*</sup> = p / U<sub>0</sub>²</span>
-      </div>
-      <div class="case">L<sub>0</sub> = box edge and U<sub>0</sub> = control velocity define the code units; Re<sub>0</sub> ≡ U<sub>0</sub>L<sub>0</sub>/ν = 10⁴.</div>
-    </div>
-    <div class="box">
-      <div class="label">Flow-derived characteristic scales <span style="font-weight:400;text-transform:none;letter-spacing:0;">(measured from DNS)</span></div>
-      <div class="vars">
-        <span>λ<sub>f</sub> = L<sub>0</sub>/k<sub>f</sub> = <b>0.5 L<sub>0</sub></b></span>
-        <span>U<sub>rms</sub> = <b>0.503 U<sub>0</sub></b></span>
-        <span>t<sub>f</sub> = λ<sub>f</sub>/U<sub>rms</sub> = <b>0.995 T<sub>0</sub></b></span>
-        <span>Re<sub>f</sub> = U<sub>rms</sub>λ<sub>f</sub>/ν = <b>2.51×10³</b></span>
-      </div>
-    </div>
-    <div class="box ns">
-      <div class="label" style="color:#7F1084;">Nondimensional system actually solved <span style="font-weight:400;text-transform:none;letter-spacing:0;">(stars omitted hereafter)</span></div>
-      <div class="eqstack">
-        <div class="primary">∂<b>u</b>/∂t + (<b>u</b>·∇)<b>u</b> = −∇p + (1/Re<sub>0</sub>)∇²<b>u</b> + <b>f</b></div>
-        <div class="primary">∇·<b>u</b> = 0</div>
-        <div class="secondary params">Ω = [0,1]² &nbsp; · &nbsp; ν = 10⁻⁴ &nbsp; · &nbsp; <b>f</b> = (0.1 sin 4πy, 0)</div>
-      </div>
-    </div>
-  </div>
+<div>
+<img :src="'/images/kolmogorov_dns_vorticity_anim.gif'" class="flow-gif" />
+<div class="caption">DNS vorticity · periodic unit square</div>
+</div>
+<div class="right">
+<div class="source"><b>Literature anchor.</b> Wang et al. (2025) formulate the same unit-square Kolmogorov benchmark with a viscous coefficient of <span style="white-space:nowrap;">1 / Re</span>.</div>
+<div class="box ns">
+<div class="label" style="color:#7F1084;">Nondimensional Navier–Stokes convention</div>
+
+<div class="math">
+
+$$\partial_t \mathbf{u} + (\mathbf{u}\!\cdot\!\nabla)\mathbf{u} = -\nabla p + \frac{1}{\mathrm{Re}}\nabla^2\mathbf{u} + \mathbf{f}, \qquad \nabla\!\cdot\!\mathbf{u}=0$$
+
+</div>
+<div class="params">Ω = [0,1]² &nbsp; · &nbsp; f = (0.1 sin 4πy, 0)</div>
+</div>
+<div class="box definition">
+<div class="label">Definition used in this work</div>
+
+<div class="math">
+
+$$\boxed{\mathrm{Re}\equiv\frac{1}{\nu}} \qquad \nu=10^{-4}\;\Longrightarrow\;\boxed{\mathrm{Re}=10^4}$$
+
+</div>
+<p class="takeaway">Thus, the coefficient of ∇²u is 10⁻⁴—not a separately estimated flow-scale Reynolds number.</p>
+</div>
+</div>
 </div>
 
 <FooterLogos />
 
 <!--
 [Kolmogorov flow · 1.5min]
-• L₀/U₀ 是 convention；λ_f、U_rms 才是流場解出的尺度
-• Re_f = 2.51×10³ 與 Re₀ = 10⁴ 分開報
-⚠️ 全簡報無因次宣告點 —— 之後一律不帶單位
+• Re 的定義直接跟隨 Wang et al. 的無因次 NS：黏性項係數為 1/Re
+• 因此本設定 ν = 10⁻⁴ 時，Re = 10⁴；不另引入 DNS-derived characteristic Re
+⚠️ 全簡報使用此無因次 convention；不要改寫成未定義的 U L / ν
 • 問「多湍流」→ 斜率 −4.61、無慣性 range
 -->
 
@@ -927,14 +915,11 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <LabelTiny>What was verified</LabelTiny>
 <table class="vf">
 <tbody>
-<tr><td class="c">Resolution <span style="color:#9CA3AF;">[Pope 2000]</span></td><td class="m">k<sub>max</sub><span class="raw">η</span> = 7.61 / 1.91 <span style="color:#9CA3AF;">≥ 1.5</span></td><td class="j"><span class="ok">resolved</span></td></tr>
-<tr><td class="c">Grid independence</td><td class="m">ΔKE ≤ 0.064 %</td><td class="j"><span class="ok">verified</span></td></tr>
-<tr><td class="c">Time-step convergence</td><td class="m">Δu<sub>rel-L₂</sub> = 7.0×10⁻⁶</td><td class="j"><span class="ok">verified</span></td></tr>
-<tr><td class="c">Solver divergence <span style="color:#9CA3AF;">(run grid)</span></td><td class="m">‖∇·u‖<sub>∞</sub> ≲ 10⁻¹²</td><td class="j"><span class="ok">round-off</span></td></tr>
-<tr><td class="c">Turnover coverage</td><td class="m">T/t<sub>eddy</sub> = 2.51 <span style="color:#9CA3AF;">≥ 50 ideal</span></td><td class="j"><span class="warn">limited</span></td></tr>
+<tr><td class="c">Continuity residual <span style="color:#9CA3AF;">(run grid)</span></td><td class="m">‖∇·u‖<sub>∞</sub> ≲ 10⁻¹²</td><td class="j"><span class="ok">round-off</span></td></tr>
+<tr><td class="c">Spatial resolution <span style="color:#9CA3AF;">[Pope 2000]</span></td><td class="m">k<sub>max</sub><span class="raw">η</span> = 7.61 / 1.91 <span style="color:#9CA3AF;">≥ 1.5</span></td><td class="j"><span class="ok">resolved</span></td></tr>
 </tbody>
 </table>
-<div class="cap2"><b style="color:#0F2D52;">Resolved, not statistically converged</b> — one DNS realisation, not an ensemble.</div>
+<div class="cap2"><b style="color:#0F2D52;">Scope:</b> one DNS realisation, not a statistically converged ensemble.</div>
 </Card>
 
 </div>
@@ -952,7 +937,7 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 
 <!--
 [數值設定 · 1.5min]
-• 五列驗證：Pope 7.61/1.91・grid 0.064 %・Δt 7e-6・div ≲1e-12・T/t_eddy 2.51 limited
+• 投影片只留兩個主 gate：continuity residual ≲1e-12（round-off）與 Pope resolution 7.61/1.91
 ⚠️ div 是 solver run grid。儲存場非無散度（實測 8.7e-2）→ 問就答 FD floor 1.04 %
 ⚠️ T/t_eddy 未達標 → 講「單一 realisation」，不可說統計收斂
 -->
@@ -1002,12 +987,11 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 <LabelTiny>What was verified</LabelTiny>
 <table class="lesvf">
 <tbody>
-<tr><td class="c">Incompressibility</td><td class="m">‖∇·u‖<sub>max</sub> = 2.29×10⁻¹³</td><td class="j"><span class="ok">verified</span></td></tr>
+<tr><td class="c">Continuity residual</td><td class="m">‖∇·u‖<sub>max</sub> = 2.29×10⁻¹³</td><td class="j"><span class="ok">round-off</span></td></tr>
 <tr><td class="c">Alias control</td><td class="m">tail decay = 5.14×10³²</td><td class="j"><span class="ok">verified</span></td></tr>
-<tr><td class="c">Statistical window</td><td class="m">T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = 4.9 &lt; 10</td><td class="j"><span class="warn">not established</span></td></tr>
 </tbody>
 </table>
-<div class="lescap"><b style="color:#0F2D52;">Accepted for placement only:</b> no claim of statistically converged LES data.</div>
+<div class="lescap"><b style="color:#0F2D52;">Placement scope:</b> T<sub>end</sub>/<span class="raw">τ</span><sub>int</sub> = 4.9 &lt; 10; no claim of statistically converged LES data.</div>
 </Card>
 
 </div>
@@ -1045,90 +1029,81 @@ Reconstruct 2-D turbulent flow from sparse (u, v) sensors and the Navier–Stoke
 # Picking the K = 100 locations
 
 <style>
-.qp   { display:grid; grid-template-columns:repeat(4, 1fr); gap:0; margin-top:22px; }
-.qp .cell { position:relative; padding:0 22px 0 0; }
-.qp .cell:not(:last-child)::after {
-        content:"→"; position:absolute; right:2px; top:82px;
-        color:#D8D2E0; font-size:1.3rem; }
-.qp .no  { font-size:.66rem; font-weight:700; letter-spacing:.08em;
-           color:#E97132; text-transform:uppercase; }
-.qp .ttl { font-size:1.02rem; font-weight:700; color:#1F1B2E; margin-top:3px; line-height:1.25; }
-.qp .art { margin-top:12px; height:78px; display:flex; align-items:center; }
-.qp .art p { margin:0; }
-.qp .art .katex { font-size:1.02rem; }
-.qp .sub { font-size:.80rem; color:#6B7280; line-height:1.4; margin-top:6px; }
-.qp .sub p { margin:0; }
-.qp .cell.last .no { color:#7F1084; }
-.matx { display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; width:112px; }
-.matx i { height:10px; background:#D8D2E0; border-radius:1px; }
-.matx i.pick { background:#7F1084; }
-.rule { margin-top:18px; padding:15px 19px; border-radius:8px;
-        background:rgba(127,16,132,0.06); border-left:4px solid #7F1084;
-        font-size:1.05rem; color:#374151; line-height:1.5; }
+.qp-flow { display:grid; grid-template-columns:175px 185px 1fr 175px; gap:16px; align-items:center; margin-top:14px; }
+.qp-node { min-width:0; position:relative; }
+.qp-node:not(:last-child)::after { content:"→"; position:absolute; right:-15px; top:64px; color:#C9C6D0; font-size:1.35rem; font-weight:400; }
+.qp-no { font-size:.66rem; font-weight:700; letter-spacing:.08em; color:#E97132; text-transform:uppercase; }
+.qp-node:last-child .qp-no { color:#7F1084; }
+.qp-title { font-size:1.0rem; font-weight:700; color:#1F1B2E; margin-top:3px; line-height:1.2; }
+.qp-caption { font-size:.73rem; color:#6B7280; line-height:1.28; margin-top:6px; }
+.les-thumb { width:108px; height:108px; object-fit:cover; border-radius:7px; border:1px solid #E5E0EC; margin-top:10px; }
+.feat-stack { margin-top:10px; display:grid; gap:3px; width:142px; }
+.feat-stack span { display:block; border-left:3px solid #E97132; background:#F7F4F8; padding:3px 7px; color:#374151; font-size:.73rem; line-height:1.05; }
+.feat-stack .more { color:#7F1084; font-weight:700; border-left-color:#7F1084; }
+.feature-note { color:#7F1084; font-size:.72rem; margin-top:5px; }
+.matrix-wrap { margin-top:10px; display:grid; grid-template-columns:28px 1fr; grid-template-rows:auto 1fr; column-gap:5px; align-items:center; }
+.matrix-top { grid-column:2; display:flex; justify-content:space-between; align-items:center; color:#6B7280; font-size:.62rem; line-height:1; margin-bottom:4px; }
+.matrix-side { grid-row:2; color:#6B7280; font-size:.59rem; line-height:1.05; text-align:center; writing-mode:vertical-rl; transform:rotate(180deg); }
+.matrix { grid-column:2; display:grid; grid-template-columns:repeat(12, 1fr); gap:2px; padding:5px; border:1px solid #D8D2E0; border-radius:4px; background:#FAF9FB; }
+.matrix i { display:block; height:8px; border-radius:1px; background:#D8D2E0; }
+.matrix i.pick { background:#7F1084; }
+.matrix-label { margin-top:4px; color:#374151; font-size:.72rem; text-align:center; }
+.grid-map { position:relative; width:112px; height:112px; margin-top:10px; border:1px solid #C9C6D0; border-radius:5px; background:linear-gradient(90deg, transparent 24%, #E5E0EC 25%, transparent 26%, transparent 49%, #E5E0EC 50%, transparent 51%, transparent 74%, #E5E0EC 75%, transparent 76%), linear-gradient(0deg, transparent 24%, #E5E0EC 25%, transparent 26%, transparent 49%, #E5E0EC 50%, transparent 51%, transparent 74%, #E5E0EC 75%, transparent 76%); }
+.grid-map i { position:absolute; width:9px; height:9px; border-radius:50%; background:#7F1084; box-shadow:0 0 0 2px #fff; }
+.grid-map i:nth-child(1) { left:14px; top:17px; }.grid-map i:nth-child(2) { left:49px; top:12px; }.grid-map i:nth-child(3) { left:83px; top:25px; }.grid-map i:nth-child(4) { left:29px; top:48px; }.grid-map i:nth-child(5) { left:69px; top:57px; }.grid-map i:nth-child(6) { left:94px; top:79px; }.grid-map i:nth-child(7) { left:12px; top:85px; }.grid-map i:nth-child(8) { left:51px; top:92px; }
+.rule { margin-top:13px; padding:12px 17px; border-radius:8px; background:rgba(127,16,132,0.06); border-left:4px solid #7F1084; font-size:.96rem; color:#374151; line-height:1.42; }
 .rule p { margin:0; }
 </style>
 
-<div class="qp">
+<div class="qp-flow">
+  <div class="qp-node">
+    <div class="qp-no">Step 1</div>
+    <div class="qp-title">Run the LES</div>
+    <img class="les-thumb" :src="'/images/les_vorticity_thumb.png'" />
+    <div class="qp-caption">large-scale flow over <i>T</i> snapshots</div>
+  </div>
 
-  <div class="cell">
-    <div class="no">Step 1</div>
-    <div class="ttl">Run the LES</div>
-    <div class="art">
-      <img :src="'/images/les_vorticity_thumb.png'" style="height:74px; width:74px; border-radius:5px; border:1px solid #E5E0EC;" />
+  <div class="qp-node">
+    <div class="qp-no">Step 2</div>
+    <div class="qp-title">Stack five signals</div>
+    <div class="feat-stack">
+      <span><i>u</i>, <i>v</i></span><span><i>ω</i></span><span>|∇<i>u</i>|, |∇<i>v</i>|</span><span class="more">at every time</span>
     </div>
-    <div class="sub">the large-scale flow, over time</div>
+    <div class="feature-note">each channel → unit variance</div>
   </div>
 
-  <div class="cell">
-    <div class="no">Step 2</div>
-    <div class="ttl">Five fields per point</div>
-    <div class="art">
-
-$u,\;\; v,\;\; \omega,\;\; |\nabla u|,\;\; |\nabla v|$
-
-</div>
-    <div class="sub">each scaled to unit variance</div>
-  </div>
-
-  <div class="cell">
-    <div class="no">Step 3</div>
-    <div class="ttl">One column per point</div>
-    <div class="art">
-      <div class="matx">
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+  <div class="qp-node">
+    <div class="qp-no">Step 3</div>
+    <div class="qp-title">Build the feature matrix</div>
+    <div class="matrix-wrap">
+      <div class="matrix-top"><span>grid point 1</span><span>…</span><span>grid point <i>N</i>²</span></div>
+      <div class="matrix-side">5 features × <i>T</i> times</div>
+      <div class="matrix">
+        <i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i><i class="pick"></i><i></i><i></i><i></i><i></i>
       </div>
     </div>
-    <div class="sub">every grid point's signal history</div>
+    <div class="matrix-label"><i>A</i> ∈ ℝ<sup>5<i>T</i> × <i>N</i>²</sup> · one full column = one location</div>
   </div>
 
-  <div class="cell last">
-    <div class="no">Step 4</div>
-    <div class="ttl">Column-pivoted QR</div>
-    <div class="art">
-      <div class="matx">
-        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
-        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
-        <i class="pick"></i><i></i><i></i><i class="pick"></i><i></i><i class="pick"></i><i></i>
-      </div>
-    </div>
-    <div class="sub">
-
-keeps $K = 100$ of them
-
-</div>
+  <div class="qp-node">
+    <div class="qp-no">Step 4</div>
+    <div class="qp-title">Pivoted QR → locations</div>
+    <div class="grid-map"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="qp-caption"><b style="color:#7F1084;">K = 100</b> selected columns become fixed sensor coordinates</div>
   </div>
-
 </div>
 
 <div class="rule">
 
-Each step keeps the point whose signal is **least explained by the points already kept** — so the $K$ locations repeat as little information as possible.
+QR keeps the next **least-explained full column** — a location whose <i>whole signal history</i> adds new information beyond the points already selected.
 
 </div>
 
-<div class="foot mt-3">Gradients enter because a point on a shear layer tells you more than one inside a smooth patch. No DNS field is read at any step.</div>
+<div class="foot mt-2">Gradients make shear-layer points distinguishable from smooth patches. The placement uses LES only; no DNS field is read.</div>
 
 <FooterLogos />
 
@@ -1136,7 +1111,8 @@ Each step keeps the point whose signal is **least explained by the points alread
 [QR 佈點 · 1.5min]
 • 講法：「不是隨便挑，也不是挑速度最大的點 —— 是挑**彼此最不重複**的點」
 • 五個場各除以自身 std（否則梯度量級會壓過速度）
-• 第 3、4 格小方塊是示意：每個 column = 一個格點，QR 挑出其中 100 個（紫色）
+• 中央矩陣是示意：每個完整 column = 一個格點的 5T 維 signal history；紫色為 QR 選中的整欄
+• 右邊小座標圖表示欄索引回到物理空間後，成為 K=100 個固定 sensor coordinates
 • 為何帶梯度：剪切層上的點變化大、資訊多；平滑區的點彼此高度重複
 ⚠️ 這裡**沒有 POD／SVD／秩截斷** —— 對 raw feature matrix 直接做 column-pivoted QR。
    不可說成「取 leading modes」（CLAUDE.md 明列此禁項）
@@ -1199,9 +1175,9 @@ Each step keeps the point whose signal is **least explained by the points alread
   <text x="85" y="53" text-anchor="middle" fill="#1F1B2E" style="font-size:14px;font-weight:600;">Queries x,t</text>
   <text x="85" y="75" text-anchor="middle" fill="#6B7280" style="font-size:11.5px;">Nq × 4</text>
 
-  <rect x="190" y="25" width="160" height="65" fill="#0F2D52" stroke="#0F2D52" stroke-width="1.3"/>
+  <rect x="190" y="25" width="160" height="65" fill="#D97757" stroke="#D97757" stroke-width="1.3"/>
   <text x="270" y="52" text-anchor="middle" fill="#FFF" style="font-size:15px;font-weight:700;">Fourier embed</text>
-  <text x="270" y="75" text-anchor="middle" fill="#CFE0F2" style="font-size:11.5px;font-weight:600;">Nq × 128</text>
+  <text x="270" y="75" text-anchor="middle" fill="#FFEDE4" style="font-size:11.5px;font-weight:600;">Nq × 128</text>
 
   <rect x="390" y="25" width="140" height="65" fill="#0F2D52" stroke="#0F2D52" stroke-width="1.3"/>
   <text x="460" y="52" text-anchor="middle" fill="#FFF" style="font-size:15px;font-weight:700;">MLP trunk</text>
@@ -1277,10 +1253,10 @@ Tensor shapes. Sensor path fixed per trajectory (201 time steps × 100 sensors);
 
 <!--
 [架構 · 1.5min]
-• 深藍＝沿用（含 Fourier embed）／橘＝新增（CfC、cross-attn）
+• 深藍＝DeepONet 原有骨架／橘＝本研究加入（Fourier embed、CfC、cross-attn）
 • 兩條路徑 + 紫線 training loop
 • PI-CON 名稱首次登場
-⚠️ Fourier 是藍不是橘（B0 也有）
+• Fourier embedding 並非原生 DeepONet；B0 保留它只是為了 matched-budget comparison
 ⚠️ 只講「是什麼」，為什麼在下一頁
 -->
 
@@ -1561,58 +1537,79 @@ $$\mathbf c(q)=\sum_{k=1}^{K} A_{qk}\,\underbrace{\mathbf V_k}_{\text{sensor sta
 
 # Augmented Lagrangian on ∇·u
 
+<style>
+.al-proof { margin-top:9px; }
+.al-proof .pair { display:grid; grid-template-columns:1fr max-content 1fr; gap:8px; align-items:center; margin-top:18px; }
+.al-proof .case { padding:11px 7px; border:1px solid #E5E0EC; border-radius:8px; background:rgba(255,255,255,.65); text-align:center; }
+.al-proof .case .tag { color:#6B7280; font-size:.63rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; }
+.al-proof .case .value { margin-top:4px; color:#374151; font-size:1.55rem; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+.al-proof .case.ours { border-color:#C9A6CC; background:#FAF2FB; }
+.al-proof .case.ours .tag, .al-proof .case.ours .value { color:#7F1084; }
+.al-proof .equals { color:#7F1084; font-size:1.35rem; font-weight:700; }
+.al-proof .hero-label { margin-top:7px; text-align:center; color:#6B7280; font-size:.73rem; }
+.al-proof .check { margin-top:16px; padding:12px; border:1px solid #C9A6CC; border-radius:8px; background:#FAF2FB; }
+.al-proof .check .label { color:#7F1084; font-size:.66rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+.al-proof .check .text { margin-top:4px; color:#374151; font-size:.86rem; font-weight:600; line-height:1.3; }
+.al-proof .role { margin-top:12px; padding:9px 10px; border-left:3px solid #7F1084; background:#F7F4F8; color:#374151; font-size:.78rem; line-height:1.3; }
+.al-proof .caveat { margin-top:9px; text-align:center; color:#9CA3AF; font-size:.68rem; line-height:1.25; }
+</style>
+
 <div class="grid grid-cols-2 gap-5 mt-3 text-sm">
 
 <Card>
 <LabelTiny>AUGMENTED LAGRANGIAN (AL) ON CONTINUITY</LabelTiny>
 
-<div class="mt-2" style="font-size: 0.82em;">
+<div class="mt-2" style="font-size: 0.94em;">
 
-$$\mathcal{L}_{\text{AL}} \;=\; \lambda\,\mathcal{L}_{\text{cont}} \;+\; \tfrac{\rho}{2}\,\mathcal{L}_{\text{cont}}^{\,2}$$
+$$\mathcal{L}_{\text{AL}} \;=\; \lambda\,\mathcal{L}_{\text{cont}} \;+\; \tfrac{0.1}{2}\,\mathcal{L}_{\text{cont}}^{\,2}$$
 
 </div>
 
-<div class="mt-1" style="font-size: 0.82em;">
+<div class="mt-1" style="font-size: 0.94em;">
 
 $$\mathcal{L}_{\text{cont}} \,=\, \mathbb{E}_{\text{collocation}}\big[(\partial_x u + \partial_y v)^2\big] \,\ge\, 0$$
 
 </div>
 
-<div class="mt-1" style="font-size: 0.82em;">
+<div class="mt-1" style="font-size: 0.94em;">
 
-$$\lambda \,\leftarrow\, \mathrm{clip}\big(\lambda + \rho\,\overline{\mathcal{L}}_{\text{cont}},\; 0,\; \Lambda_{\max}\big)$$
+$$\lambda \,\leftarrow\, \mathrm{clip}\big(\lambda + 0.1\,\overline{\mathcal{L}}_{\text{cont}},\; 0,\; 10\big)$$
 
 </div>
 
-<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:5px;
-     align-items:baseline; font-size:0.76rem; line-height:1.25;">
-<b style="color:#7F1084;"><span class="raw">𝓛<sub>cont</sub></span></b><span style="color:#374151;">mean squared continuity residual on the collocation points</span>
-<b style="color:#7F1084;"><span class="raw">λ</span></b><span style="color:#374151;">multiplier, raised by dual ascent every 100 steps</span>
-<b style="color:#7F1084;"><span class="raw">ρ</span> = 0.1</b><span style="color:#374151;">penalty strength</span>
-<b style="color:#7F1084;"><span class="raw" style="text-decoration:overline;">𝓛</span><span class="raw"><sub>cont</sub></span></b><span style="color:#374151;">EMA of <span class="raw">𝓛<sub>cont</sub></span>, <span class="raw">β</span> = 0.5, smooths the update</span>
-<b style="color:#7F1084;"><span class="raw">Λ</span><sub>max</sub> = 10</b><span style="color:#374151;">safety clip <span style="color:#9CA3AF;">— <span class="raw">λ</span> settles near 0.39, far below it</span></span>
+<div class="mt-3 pt-2" style="border-top:1px solid #E5E0EC; color:#6B7280; font-size:.74rem; line-height:1.3;">
+<span class="raw">𝓛<sub>cont</sub></span>: continuity residual &nbsp;·&nbsp; <span class="raw">λ</span>: dual multiplier &nbsp;·&nbsp; <span class="raw" style="text-decoration:overline;">𝓛</span><span class="raw"><sub>cont</sub></span>: EMA (<span class="raw">β</span> = 0.5)
 </div>
 
-<div class="mt-2 pt-2 text-xs leading-snug" style="color:#6B7280; border-top:1px solid #E5E0EC;">
-<b style="color:#E97132;"><span class="raw">𝓛<sub>cont</sub></span> ≥ 0, so <span class="raw">λ</span> never decreases</b> — an accumulated-multiplier schedule, not a textbook Lagrangian whose multiplier changes sign.
+<div class="mt-2" style="color:#E97132; font-size:.82rem; font-weight:700; line-height:1.25;">
+<span class="raw">𝓛<sub>cont</sub></span> ≥ 0 &nbsp;⇒&nbsp; <span class="raw">λ</span> only increases.
 </div>
 </Card>
 
 <Card>
-<LabelTiny>IS THE CONSTRAINT DOING ANYTHING?</LabelTiny>
+<LabelTiny>CONTINUITY DIAGNOSTIC</LabelTiny>
 
-<div class="mt-3 text-xs" style="color:#6B7280;">
-Divergence ratio <span class="raw">‖∇·u‖₂ / ‖∇u‖<sub>F</sub><sup>DNS</sup></span> — residual divergence over the DNS velocity-gradient magnitude, same grid.
+<div class="al-proof">
+<div class="pair">
+<div class="case">
+<div class="tag">DNS reference</div>
+<div class="value">0.38 %</div>
+</div>
+<div class="equals">≈</div>
+<div class="case ours">
+<div class="tag">PI-CON</div>
+<div class="value">0.39 %</div>
+</div>
+</div>
+<div class="hero-label">Divergence ratio · PI-CON: five training seeds</div>
+
+<div class="check">
+<div class="label">What this checks</div>
+<div class="text">PI-CON stays at the matched DNS reference level, confirming that the AL continuity constraint is active.</div>
 </div>
 
-<div class="mt-2" style="display:grid; grid-template-columns:1fr max-content; column-gap:12px; row-gap:9px; align-items:baseline; font-size: 0.92rem; font-variant-numeric:tabular-nums;">
-<span style="color:#6B7280;">DNS, full cascade</span><span style="color:#9CA3AF;">1.04 %</span>
-<span style="color:#6B7280;">DNS, band-limited to k ≤ 16</span><span style="color:#9CA3AF;">0.38 %</span>
-<span style="color:#1F1B2E; font-weight:600;">PI-CON, same bandwidth</span><span style="color:#7F1084; font-weight:700;">0.39 %</span>
-</div>
-
-<div class="mt-4 pt-3 text-xs leading-snug" style="color:#6B7280; border-top: 1px solid #E5E0EC;">
-At the finite-difference floor of its resolved bandwidth — <b>not</b> below DNS.
+<div class="role"><b style="color:#7F1084;">Role in this study:</b> a physical-consistency diagnostic alongside reconstruction accuracy.</div>
+<div class="caveat">A diagnostic comparison—not a full-field fidelity metric.</div>
 </div>
 
 </Card>
@@ -1623,9 +1620,10 @@ At the finite-difference floor of its resolved bandwidth — <b>not</b> below DN
 
 <!--
 [AL on continuity · 1.5min]
-• 右卡三列就是「約束有沒有作用」的答案
+• 右卡只要讀 0.38% ≈ 0.39%：PI-CON 的 divergence ratio 對上 matched DNS reference
+• 因此可說 AL continuity constraint active；這是 physical-consistency diagnostic，不是全場精度指標
 ⚠️ 問 SIMPLE/PISO（版上已無，只能口述）：
-　 ① 它逐點投影，我們是平均意義　② 逐點不可微、進不了 GradNorm　③ 用三個數字答不用類比答
+　 ① 它逐點投影，我們是平均意義　② 逐點不可微、進不了 GradNorm
 ⚠️ 絕不可說 sub-DNS 或「比 DNS 更不可壓縮」
 ⚠️ Λ_max 從未撞到（λ 停在 0.386 = clip 的 3.9 %）
 • 問 ρ → 拉到 1 可把 div 壓到 0.28 %，但犧牲場精度
@@ -1635,49 +1633,75 @@ At the finite-difference floor of its resolved bandwidth — <b>not</b> below DN
 
 <NavBar active="method" />
 
-<SectionTag>§ Training · optimisation &amp; multi-task balancing</SectionTag>
+<SectionTag>§ Training · convergence &amp; loss balance</SectionTag>
 
-# SOAP + Schedule-Free + GradNorm — why second-order matters
+# Optimization: second-order updates and loss balance
 
-<div class="grid grid-cols-2 gap-5 mt-3 text-sm">
+<style>
+.opt-frame { margin-top:16px; }
+.opt-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+.opt-grid .hero { color:#7F1084; font-size:1.62rem; font-weight:700; line-height:1.05; }
+.opt-grid .subtitle { margin-top:3px; color:#6B7280; font-size:.76rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+.opt-grid .ref { color:#9CA3AF; font-weight:400; letter-spacing:0; text-transform:none; white-space:nowrap; }
+.opt-grid .mechanism { display:grid; grid-template-columns:1fr max-content 1fr max-content 1fr; gap:7px; align-items:center; margin-top:18px; }
+.opt-grid .mechanism .node { min-height:72px; display:flex; align-items:center; justify-content:center; padding:7px; border:1px solid #E5E0EC; border-radius:8px; background:#fff; color:#374151; font-size:.73rem; line-height:1.22; text-align:center; }
+.opt-grid .mechanism .node.emph { border-color:#C9A6CC; background:#FAF2FB; color:#7F1084; font-weight:700; }
+.opt-grid .mechanism .arrow { color:#7F1084; font-size:1.05rem; font-weight:700; }
+.opt-grid .takeaway { margin-top:15px; padding-top:10px; border-top:1px solid #E5E0EC; color:#374151; font-size:.82rem; line-height:1.32; }
+.opt-grid .secondary { margin-top:12px; color:#9CA3AF; font-size:.70rem; line-height:1.25; }
+.opt-grid .chips { display:flex; flex-wrap:wrap; justify-content:center; gap:6px; margin-top:13px; }
+.opt-grid .chip { padding:3px 7px; border:1px solid #E5E0EC; border-radius:999px; color:#374151; font-size:.72rem; background:#fff; }
+.opt-grid .equation { margin-top:14px; text-align:center; font-size:.90em; }
+.opt-grid .equation :deep(.katex-display) { margin:.2em 0; }
+</style>
+
+<div class="opt-frame">
+<div class="opt-grid">
 
 <Card>
-<LabelTiny>SOAP + SCHEDULE-FREE &nbsp;<span class="opacity-50">[Wang 2025, Defazio 2024]</span></LabelTiny>
+<LabelTiny>1 · CONVERGENCE</LabelTiny>
+<div class="hero">SOAP</div>
+<div class="subtitle">Shampoo-style 2nd-order preconditioner <span class="ref">[Vyas et al., 2024]</span></div>
 
-<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
-<b style="color:#7F1084;">SOAP</b><span>Shampoo-style <b>2nd-order preconditioner</b>, Adam in the preconditioner eigenbasis</span>
-<b style="color:#7F1084;">Schedule-Free</b><span>Polyak–Ruppert averaging, no lr decay</span>
-<b style="color:#7F1084;">Why both</b><span>anisotropic valleys at Re = 10⁴, Adam zigzags, SOAP overshoots, SF averaging stabilises</span>
+<div class="mechanism">
+<div class="node">gradient<br>statistics</div><div class="arrow">→</div>
+<div class="node emph">Shampoo<br>preconditioner</div><div class="arrow">→</div>
+<div class="node">Adam update<br>in its eigenbasis</div>
 </div>
 
-<div class="mt-3 px-3 py-2 rounded text-xs leading-snug" style="background: rgba(127,16,132,0.06);">
-<b style="color:#7F1084;">Better stability than vanilla Adam</b> in the multi-task PINN setting.
-</div>
+<div class="takeaway"><b style="color:#7F1084;">Role:</b> condition the anisotropic loss geometry before each update.</div>
+<div class="secondary">Schedule-Free: auxiliary Polyak–Ruppert averaging.</div>
 </Card>
 
 <Card>
-<LabelTiny>GRADNORM &nbsp;— auto-weighting 4 loss tasks &nbsp;<span class="opacity-50">[Chen 2018]</span></LabelTiny>
+<LabelTiny>2 · LOSS BALANCE</LabelTiny>
+<div class="hero">GradNorm</div>
+<div class="subtitle">Adaptive weights for four loss tasks <span class="ref">[Chen et al., 2018]</span></div>
 
-<div class="mt-3 text-base">
+<div class="equation">
 
-$$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \mathcal{L}_i^{(0)})^{\alpha},$$
+$$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \mathcal{L}_i^{(0)})^{\alpha}$$
 
 </div>
 
-<div class="mt-3" style="display:grid; grid-template-columns:max-content 1fr; column-gap:12px; row-gap:8px; align-items:baseline;">
-<b style="color:#7F1084;">Every 1 000 steps</b><span>equalise <b>gradient-norm magnitude</b> across {data, NS-u, NS-v, cont}</span>
-<b style="color:#7F1084;">Why</b><span>hand-tuned weights are brittle — too small ⇒ data overfit, too large ⇒ near-zero collapse</span>
+<div class="mechanism">
+<div class="node">data<br>NS-u<br>NS-v<br>continuity</div><div class="arrow">→</div>
+<div class="node emph">adapt<br><span class="raw">w<sub>i</sub></span></div><div class="arrow">→</div>
+<div class="node">matched<br>gradient norms</div>
 </div>
+<div class="takeaway"><b style="color:#7F1084;">Every 1 000 steps:</b> rebalance the four training tasks.</div>
 </Card>
 
+</div>
 </div>
 
 <FooterLogos />
 
 <!--
 [最佳化 · 2min]
-• SOAP + SF：二階 + Polyak，chaotic 窄谷需要
-• GradNorm：4-task 梯度等化，每 1000 步
+• 這頁只講兩件事：SOAP 管收斂，GradNorm 管多任務平衡
+• SOAP 是 Shampoo-style 二階預條件器，處理 Re=10⁴ 下 anisotropic loss geometry；Schedule-Free 僅為次要 averaging wrapper
+• GradNorm 每 1000 步重新平衡 data、NS-u、NS-v、continuity 四個任務的 gradient magnitude
 ⚠️ 不要報「−20 % KE」（thesis 未收）
 -->
 
@@ -1730,18 +1754,19 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <div class="dimsum">
 <span>Total trainable parameters <b>3.14 M</b></span>
-<span>Query grid <b>128 × 128</b> <span class="cite">(DNS: 256 × 256)</span></span>
 </div>
 </Card>
 
 <Card>
-<LabelTiny>Training</LabelTiny>
+<LabelTiny>Training parameters</LabelTiny>
 <div class="pgrid">
-<div class="k">Supervision</div><div class="v"><b>sensor MSE + NS residual only</b></div>
-<div class="k">Optimiser</div><div class="v">SOAP + Schedule-Free, lr = 10⁻³, warm-up 2 000</div>
-<div class="k">Collocation</div><div class="v">1 024 points per step</div>
-<div class="k">Budget</div><div class="v">20 000 iterations × <b>n = 5 seeds</b> (42, 1, 2, 3, 4)</div>
-<div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB), ~2 h 45 m per seed</div>
+<div class="k">Collocation</div><div class="v">1 024 points / optimizer step</div>
+<div class="k">Iterations</div><div class="v">20 000 / run</div>
+<div class="k">LR warm-up</div><div class="v">2 000 steps</div>
+<div class="k">Time marching</div><div class="v">2 000 steps &nbsp;(<span class="raw">t</span>: 0.5 → 5)</div>
+<div class="k">Seeds</div><div class="v">42, 1, 2, 3, 4 &nbsp;(<b>n = 5</b> independent runs)</div>
+<div class="k">Reported</div><div class="v">mean ± 1σ over n = 5 runs</div>
+<div class="k">Hardware</div><div class="v"><b style="color:#7F1084;">Single</b> RTX 3090 (24 GB), ~2 h 45 m / run</div>
 </div>
 </Card>
 
@@ -1752,7 +1777,7 @@ $$\|w_i\,\nabla\!_{\theta_r}\,\mathcal{L}_i\| \;\propto\; (\mathcal{L}_i / \math
 
 <!--
 [模型與訓練配置 · 1min]
-• 只給別處沒有的：模型尺寸與訓練預算
+• 左邊交代模型尺寸；右邊只保留實驗預算與計算條件
 • 每一列對應架構圖的一個方塊
 ⚠️ 2 個 attention block 屬 CfC branch，不是 spatial encoder
 • 備答：inner 512・SOAP β=(0.9,0.999)・GradNorm init (1,.01,.01,.01)・AL ρ=0.1 clip=10
@@ -1898,7 +1923,7 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <div></div>
 </div>
 
-<div class="foot mt-2">Bottom row flips sign: CfC costs <b style="color:#E97132;">+0.99</b> alone, buys <b style="color:#7F1084;">−1.32</b> with cross-attention.</div>
+<div class="foot mt-2">Bottom row flips sign: CfC costs <b style="color:#E97132;">+0.99</b> alone, buys <b style="color:#7F1084;">−1.32</b> with cross-attention. Contrasts use unrounded seed means.</div>
 </Card>
 </div>
 
@@ -1920,6 +1945,7 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <div class="k">B3 &nbsp;PI-CON</div><div class="n" style="color:#7F1084;">5.71 ± 0.12 %</div>
 <div class="k">B0 &nbsp;vanilla DeepONet</div><div class="n">8.23 ± 0.22 %</div>
 <div class="k tot">gap</div><div class="n tot" style="color:#7F1084;">−30.7 % rel</div>
+<div class="k">significance</div><div class="n" style="color:#7F1084;">p = 3 × 10⁻⁷</div>
 </div>
 </Card>
 
@@ -1951,15 +1977,15 @@ Re = 10⁴, K = 100, LES-derived QR-pivot placement (DNS-free), 1024 collocation
 <Card>
 <LabelTiny>KEY OBSERVATIONS</LabelTiny>
 <div class="mt-2 text-xs leading-snug space-y-1">
-<div>, Main vortex structure recovered</div>
-<div>, Small scales (k &gt; 5) smoothed — sensor Nyquist scale</div>
-<div>, Error sits on <b>high-shear edges</b>, not random</div>
-<div>, |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
+<div>• Main vortex structure recovered</div>
+<div>• Small scales (k &gt; 5) smoothed — sensor Nyquist scale</div>
+<div>• Error sits on <b>high-shear edges</b>, not random</div>
+<div>• |u, v error| ≪ |ω error| (ω amplifies derivatives)</div>
 </div>
 </Card>
 
 <div class="mt-3 text-xs leading-snug" style="color:#6B7280;">
-Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics n = 5.
+Source: PI-CON baseline (B3 + LES_T50 + 1024 collocation points), seed 42 field visualization; metrics use n = 5.
 </div>
 
 </div>
@@ -1995,15 +2021,16 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 
 <style>
 .bg2 { display: grid; grid-template-columns: max-content 1fr; column-gap: 14px; row-gap: 4px; align-items: baseline; margin-top: 6px; margin-bottom: 0; }
-.bg2 .k { font-size: 0.90rem; color: #6B7280; white-space: nowrap; }
+.bg2 .k { font-size: 0.90rem; color: #1F1B2E; white-space: nowrap; }
 .bg2 .v { font-size: 0.90rem; color: #1F1B2E; line-height: 1.3; }
+.bg2 .omega { color:#7F1084; font-weight:700; }
 </style>
 
 <div class="grid grid-cols-5 gap-4 mt-3">
 
 <div class="col-span-3">
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Band-resolved relative error vs time &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
+<LabelTiny>Band-resolved relative error vs time &nbsp;<span class="opacity-60">(main baseline, n = 5)</span></LabelTiny>
 <img :src="'/images/band_energy_rel_error_vs_time.png'" class="mt-1" style="width: 100%; max-height: 248px; object-fit: contain;" />
 </Card>
 </div>
@@ -2011,13 +2038,13 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 <div class="col-span-2 space-y-2">
 
 <Card style="padding-top: 0.6rem; padding-bottom: 0.6rem;">
-<LabelTiny>Key metrics &nbsp;<span class="opacity-60">(EXP-245, n = 5)</span></LabelTiny>
+<LabelTiny>Key metrics &nbsp;<span class="opacity-60">(main baseline, n = 5)</span></LabelTiny>
 <div class="bg2">
-<div class="k">KE MAPE</div><div class="v"><b style="color:#7F1084;">5.71 ± 0.12 %</b></div>
+<div class="k">KE MAPE</div><div class="v">5.71 ± 0.12 %</div>
 <div class="k">u rel-L₂</div><div class="v">13.65 ± 0.06 %</div>
 <div class="k">v rel-L₂</div><div class="v">17.52 ± 0.10 %</div>
-<div class="k">ω rel-L₂</div><div class="v">41.79 ± 0.12 %</div>
-<div class="k">div ratio</div><div class="v"><b style="color:#7F1084;">0.39 ± 0.006 %</b></div>
+<div class="k omega">ω rel-L₂</div><div class="v omega">41.79 ± 0.12 %</div>
+<div class="k">div ratio</div><div class="v">0.39 ± 0.006 %</div>
 </div>
 </Card>
 
@@ -2047,7 +2074,7 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · EXP-245 baseline (B3 + LES_T50, 1024 collo)</SectionTag>
+<SectionTag>§ Results · main baseline (B3 + LES_T50, 1024 collocation points)</SectionTag>
 
 # Temporal diagnostics
 
@@ -2124,14 +2151,15 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 <tr>
 <td>Random uniform <span class="sub">fallback</span></td>
 <td>No</td>
-<td>7.95 ± 0.68</td>
+<td>7.95 ± 0.76</td>
 <td>17.20</td>
 <td>21.62</td>
 </tr>
 </tbody>
 </table>
 
-<div class="foot mt-4">Same B3 backbone, 1024 collocation points, 20 000 iterations, n = 5 seeds; sensor values are drawn from the K = 100 positions only. KE MAPE reported as mean ± standard deviation.</div>
+<div class="foot mt-3">Same B3 backbone, K = 100, 1024 collocation points, 20 000 iterations. LES/DNS rows vary <b>training seed</b> at fixed placement; Random varies <b>placement seed</b> at fixed training seed.</div>
+<div class="mt-2 text-sm font-semibold" style="color:#7F1084;">Placement variability is 6.4× training variability: 0.76 % vs 0.12 %.</div>
 
 <FooterLogos />
 
@@ -2147,7 +2175,7 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · vs classical sensor-only interpolation</SectionTag>
+<SectionTag>§ Results · sensor-only baselines and DNS oracle</SectionTag>
 
 # Kinetic energy error versus pointwise accuracy
 
@@ -2156,21 +2184,23 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 .fb th { text-align: right; font-weight: 700; color: #6B7280; font-size: 0.86rem; text-transform: uppercase;
          letter-spacing: 0.04em; padding: 0 10px 8px 10px; border-bottom: 1px solid #D8D2E0; }
 .fb th.m { text-align: left; }
-.fb td { padding: 8px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
+.fb td { padding: 7px 10px; border-bottom: 1px solid #F1EDF5; color: #374151; text-align: right;
          font-variant-numeric: tabular-nums; }
 .fb td.m { text-align: left; color: #1F1B2E; white-space: nowrap; }
 .fb tr.ours td { background: #F7EDF8; border-bottom: none; font-weight: 700; }
+.fb tr.oracle td { background: #FFF7F1; border-top: 1px solid #F4C3A9; color:#374151; }
+.fb tr.oracle td.m { color:#A84B18; font-weight:700; }
 .fb .win { color: #7F1084; font-weight: 700; }
 .fb .trap { color: #E97132; font-weight: 700; }
-.setup { display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:6px;
-         margin-top:14px; font-size:.80rem; line-height:1.3; color:#374151; }
+.setup { display:grid; grid-template-columns:max-content 1fr; column-gap:14px; row-gap:4px;
+         margin-top:9px; font-size:.76rem; line-height:1.25; color:#374151; }
 .setup .n { color:#7F1084; font-weight:700; white-space:nowrap; }
 </style>
 
 <table class="fb">
   <thead>
     <tr>
-      <th class="m">Method &nbsp;<span style="font-weight:400; text-transform:none; letter-spacing:0;">(same K = 100 sensors, no DNS access)</span></th>
+      <th class="m">Method &nbsp;<span style="font-weight:400; text-transform:none; letter-spacing:0;">(K = 100 sensors; oracle marked)</span></th>
       <th>KE %<br/><span style="font-weight:400; text-transform:none; letter-spacing:0; color:#E97132;">lower ≠ better</span></th><th><span class="raw">rel-L₂ of u</span></th><th><span class="raw">rel-L₂ of v</span></th><th><span class="raw">rel-L₂ of ω</span></th>
     </tr>
   </thead>
@@ -2187,6 +2217,10 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
       <td class="m">Divergence-free trigonometric least squares (trig-LSQ)</td>
       <td class="trap">4.42</td><td>25.87</td><td>31.96</td><td>63.41</td>
     </tr>
+    <tr class="oracle">
+      <td class="m">Gappy-POD, r = 100 <span style="font-weight:400; color:#E97132;">(val-only DNS time-interpolation oracle)</span></td>
+      <td class="win">0.229</td><td class="win">1.70</td><td class="win">2.90</td><td>—</td>
+    </tr>
     <tr class="ours">
       <td class="m">PI-CON <span style="color:#9CA3AF; font-weight:400;">(ours, n = 5)</span></td>
       <td>5.71</td><td class="win">13.65</td><td class="win">17.52</td><td class="win">41.77</td>
@@ -2195,19 +2229,23 @@ Source, EXP-245 baseline (B3 + LES_T50 + 1024 collo), seed 42 field viz, metrics
 </table>
 
 <div class="setup">
-<div class="n">RBF</div><div>multiquadric kernel fitted through all 100 sensor values; shape <span class="raw">ε</span> = 10, of order one sensor spacing</div>
-<div class="n">IDW</div><div>weighted average of the 100 values, weight <span class="raw">∝</span> 1/d²; exact at the sensors, flat in between</div>
-<div class="n">trig-LSQ</div><div>least squares on a divergence-free Fourier basis truncated at k<sub>max</sub> = 5, the K = 100 Nyquist scale</div>
+<div class="n">RBF</div><div>multiquadric interpolation (<span class="raw">ε</span> = 10)</div>
+<div class="n">IDW</div><div>inverse-distance weighting (<span class="raw">∝</span> 1/d²)</div>
+<div class="n">trig-LSQ</div><div>divergence-free Fourier LSQ (k<sub>max</sub> = 5)</div>
+<div class="n" style="color:#E97132;">Gappy-POD</div><div>DNS-trained POD oracle (r = 100; 160 full fields)</div>
 </div>
 
 
-<div class="foot mt-1">Shape parameters fixed from a-priori scales, not tuned against DNS. Source, appendix <span class="raw">tab:fair_baselines</span>.</div>
+<div class="foot mt-1">Validation: 41 held-out times; reconstruct from each time’s K sensors, not a forecast.</div>
 
 <FooterLogos />
 
 <!--
 [經典內插對照 · 1.5min]
-• 唯一「同 sensor・同指標・同 Re」的並排比較
+• 前三列與 PI-CON 才是「同 sensor・同指標」的工程比較
+• r=100 是保留 100 個 joint (u,v) POD spatial modes，不是 100 個時間點
+• Gappy-POD 每個 t 也只讀 K sensor；但 basis 已由 t∈[0,5] 的 160 個 interleaved DNS full fields 學好 → temporal-interpolation oracle，不是公平 head-to-head
+• 41 個 val times 是每 0.125 一個；它用該時刻 sensor 重建，而非 t=0 free-run 到 t=5
 • RBF 5.08／trig-LSQ 4.42 的 KE 更低，但 u rel-L₂ 是我們兩倍 → 收縮到 inter-sensor mean
 • 口頭補：u rel-L₂ 降 47 %（vs trig-LSQ）／74 %（vs IDW）
 ⚠️ **47/74 只有 u 一個場**；三場平均是 42 % / 65 %
@@ -2275,7 +2313,7 @@ Single-seed, read as a trend, not a fit. The same budget argument carries across
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · cross-Reynolds feasibility (O2)</SectionTag>
+<SectionTag>§ Results · cross-Reynolds feasibility</SectionTag>
 
 # Cross-Reynolds feasibility
 
@@ -2347,7 +2385,7 @@ Single-seed, read as a trend, not a fit. The same budget argument carries across
   同 K=100 下：Re 10³→10⁴ 誤差 2.36→5.71%（越高越難）；10⁶ 需 K=200 才維持 ~6%
 ⚠️ Re=10⁶ 的 v rel-L₂ 58% 遠高於 u 15.6%：高 Re 下 u/v 不對稱大。被問就誠實答，不掩飾
    （數字出處 experiment_log_v2:208）。KE 才是本頁 headline，不是 pointwise
-• 數字：10⁴ log:132、10⁶ log:208。Re=10³ 待 EXP-301 seed 42 評估
+• 數字：10⁴ log:132、10⁶ log:208；Re=10³ 為 EXP-301 final-protocol seed 42 結果
 -->
 
 ---
@@ -2452,21 +2490,21 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Reconstructed vorticity under sensor noise
+# What 10 % sensor noise changes: input → reconstruction
 
-<img :src="'/images/noise_vorticity_comparison.png'" class="mt-3" style="display:block; width:100%; max-width:100%; margin:0 auto; max-height:300px; object-fit:contain;" />
+<img :src="'/images/noise_input_output_comparison.png'" class="mt-2" style="display:block; width:100%; max-width:100%; margin:0 auto; max-height:325px; object-fit:contain;" />
 
-<div class="foot mt-2" style="text-align:center;">Reconstructed vorticity <span class="raw">ω</span> at <span class="raw">t</span> = 5, seed 42; each row shares one colour scale.</div>
+<div class="foot mt-2" style="text-align:center;">Left: equivalent full-field visualization of the 10 % noise level. The actual training protocol applies the same noise model only to K = 100 measured <span class="raw">u,v</span> values.</div>
 
 <FooterLogos />
 
 <!--
 [噪音下的渦度場 · 1min]
-• 一句話：**六格看起來一樣** —— 10 % 噪音沒有把場毀掉（口頭講，不印在版上）
-• 誤差是結構性的（渦核、剪切層），不是隨機雜訊
-⚠️ 圖上不標各欄 rel-L₂：t=5 單幀單 seed，1 % 那格（37.50 %）比 0 %（38.03 %）低，
-   會招來「噪音怎麼讓結果變好」。逐級數字看前一頁的表（n=5，單調）
-⚠️ 被問單幀 → 誠實答單幀波動大，論文用 "monotone in the aggregate"（chapter04:443）
+• 左邊是教授要求的 full-field noise 視覺化：clean DNS u/v 與加入等效 10 % Gaussian noise 後的場
+• 必須主動說這是 illustration；實際模型仍只看到 K=100 個 noisy sensor values，不吃 full field
+• 10 % 指每個 channel 的 σ_noise = 0.1 σ_signal，實驗中是在 normalization 前注入
+• 右邊：clean 與 10 % noisy input 的重建主結構接近；誤差仍集中在渦核與剪切層
+⚠️ 這是 t=5、seed 42 的視覺例子；統計結論仍以前一頁 n=5 表格為準
 -->
 
 ---
@@ -2479,7 +2517,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <style>
 /* 兩欄的寬度 = 波數帶的分割比例，截止線因此一路貫穿到底 —— 帶子是結構，不是裝飾。
-   顏色兩個意思：紫 = 截止線以內（可解析）, 橘 = 截止線以外（觀測不到）。 */
+   顏色兩個意思：紫 = 截止線以內（可解析）, 灰 = 此感測預算下約束不足。 */
 .sp { display: grid; grid-template-columns: 41.6% 58.4%; }
 .band { height: 34px; }
 .band .lo { background: rgba(127,16,132,0.14); border: 1px solid #7F1084; border-right: 2px solid #E97132;
@@ -2492,7 +2530,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 .kx b { color: #E97132; }
 .col { padding: 8px 14px 0 0; }
 .col.r { padding-left: 16px; border-left: 2px solid #E97132; }
-.col h4 { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 8px; }
+.col h4 { font-size: 0.9rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 9px; }
 .col .row { font-size: 0.9rem; line-height: 1.5; color: #374151; }
 .col .row b { font-weight: 700; }
 .ar { color: #C9C6D0; font-weight: 400; }
@@ -2500,7 +2538,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <div class="sp band mt-3">
   <div class="lo"><span class="lbl" style="color:#7F1084;">RESOLVED, 98.9 % of the energy</span></div>
-  <div class="hi"><span class="lbl" style="color:#9CA3AF;">UNOBSERVED</span></div>
+  <div class="hi"><span class="lbl" style="color:#9CA3AF;">POORLY CONSTRAINED</span></div>
 </div>
 <div class="sp kx">
   <span>k = 1</span>
@@ -2512,7 +2550,6 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 <div class="col">
 <h4 style="color:#7F1084;">Supported</h4>
 <div class="row"><b style="color:#7F1084;">KE &amp; mean-flow monitoring</b><br/><span class="ar">→</span> 5.71 ± 0.12 %</div>
-<div class="row mt-2"><b style="color:#7F1084;">Phase-locked control</b> @ k<sub>f</sub><br/><span class="ar">→</span> amp 0.99, phase ≲ 0.09 rad</div>
 <div class="row mt-2"><b style="color:#7F1084;">Incompressibility check</b><br/><span class="ar">→</span> div 0.39 % = FD floor</div>
 <div class="row mt-2"><b style="color:#7F1084;">Streaming deployment</b><br/><span class="ar">→</span> causal, queries at any t</div>
 </div>
@@ -2532,7 +2569,7 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <!--
 [工程適用範圍 · 2min]
-• 左＝支援：KE 監測／phase-locked control／不可壓縮檢查／streaming
+• 左＝支援：KE 與 mean-flow 監測／不可壓縮檢查／streaming
 • 右＝不支援：小尺度統計／細渦絲／聲學定位
 • 收尾：加 sensor，不是加大網路
 -->
@@ -2558,27 +2595,27 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <div class="num">1.</div>
 <div class="body">
-Developed <b>PI-CON</b>, a CfC–DeepONet operator with cross-attention readout and an augmented-Lagrangian continuity constraint, trained on sensors and the NS residual alone.
+Developed <b>PI-CON</b>, trained only on sensors and the NS residual; matched-budget ablation improves KE error from 8.23 % to <b>5.71 %</b> <i>(p = 3 × 10⁻⁷)</i>.
 </div>
 
 <div class="num">2.</div>
 <div class="body">
-Reconstructed Re = 10⁴ Kolmogorov flow from <b>K = 100</b> sensors to <b>5.71 ± 0.12 %</b> KE error over five seeds, no DNS field in the training loss.
+Reconstructed Re = 10⁴ Kolmogorov flow from <b>K = 100</b> sensors to <b>5.71 ± 0.12 %</b> KE error over five seeds, without DNS full-field supervision.
 </div>
 
 <div class="num">3.</div>
 <div class="body">
-Isolated the architectural gain by a matched-budget 2 × 2 ablation: 8.23 % <span style="color:#C9C6D0;">→</span> <b>5.71 %</b> <i>(p = 3 × 10⁻⁷)</i>, cross-attention dominant.
+Verified count-limited bandwidth: at K = 100, effective cutoffs <b>4.7–7.8</b> bracket √(K/π) = 5.64; increasing K from 100 to 400 reduces KE error by <b>70 %</b>.
 </div>
 
 <div class="num">4.</div>
 <div class="body">
-Quantified the sensing configuration: count sets bandwidth <i>(K = 100 → 400 cuts KE error <b>70 %</b>)</i>; placement and 10 % noise <i>(6.08 %)</i> affect reliability, not feasibility.
+Quantified reliability: placement variability is <b>6.4×</b> training variability, while 10 % sensor noise remains below the target <i>(6.08 % KE error)</i>.
 </div>
 
 <div class="num">5.</div>
 <div class="body">
-Showed cross-Reynolds feasibility at <b>Re = 10⁶</b> <i>(6.10 %, single seed)</i>; eight configurations all within <b>1.76 – 7.95 %</b>, under the 10 % target.
+Conducted a <b>cross-Reynolds feasibility check</b> beyond the primary Re = 10⁴ setting <i>(a retuned configuration, not a controlled scaling study)</i>.
 </div>
 
 </div>
@@ -2587,10 +2624,7 @@ Showed cross-Reynolds feasibility at <b>Re = 10⁶</b> <i>(6.10 %, single seed)<
 
 <!--
 [貢獻 · 2min]
-• 五條各講「做了什麼 + 結果如何」
-• 問「論文四條為何只講三點」→ 第四條是判讀方式，已在內插頁講過。**不可說論文沒有**
-• Re=10⁶ 說 extension，不是 benchmark
-⚠️ 數字出處：log:132／580／1561／208／385・chapter04:117／247
-⚠️ 第 4 條用「降 70 %」避開 single-seed 與 n=5 混用
-⚠️ 未裁決：p24 寫 −2.52，論文寫 −2.53
+• 逐條回扣 O1–O3：精度與架構增益／sensor-count bandwidth／placement 與 noise；最後補跨 Re feasibility
+• Cross-Re 是額外 feasibility extension；只說確認過，不把它包裝成 controlled scaling 或 generalisation
+⚠️ 數字出處：log:132／399–419／580／1561；chapter04:324／494–496
 -->
