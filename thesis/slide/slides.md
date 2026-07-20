@@ -2252,6 +2252,108 @@ Single-seed, read as a trend, not a fit. The same budget argument carries across
 
 <NavBar active="results" />
 
+<SectionTag>§ Results · sensor count axis (O2)</SectionTag>
+
+# K-scaling — reconstructed vorticity
+
+<img :src="'/images/kscaling_vorticity_comparison.png'" class="mt-3" style="display:block; width:100%; max-width:94%; margin:0 auto; max-height:300px; object-fit:contain;" />
+
+<div class="foot mt-2" style="text-align:center;">Reconstructed vorticity <span class="raw">ω</span> at <span class="raw">t</span> = 5, single seed at the final protocol; each row shares one colour scale.</div>
+
+<FooterLogos />
+
+<!--
+[K-scaling 渦度場 · 1min]
+• 場層級：加 sensor 只讓小尺度**稍微銳利**，不是戲劇性改善
+⚠️ ω rel-L₂ 38→31→30 %（K=200→400 幾乎飽和），與能譜頁 KE 5.90→2.47→1.76 % 不同量級：
+   KE 低波數主導（大幅改善）、渦度高波數（受限）。這正是「中高頻受 sensor 上限限制」
+• 講法：「能譜頁看到 cutoff 右移，這頁看到它在渦度場上長什麼樣 —— 大結構都對，高剪切核心最難」
+⚠️ 圖上不標各欄 rel-L₂：single-seed 單幀
+-->
+
+---
+
+<NavBar active="results" />
+
+<SectionTag>§ Results · cross-Reynolds feasibility (O2)</SectionTag>
+
+# Cross-Reynolds feasibility
+
+<style>
+.cre { width:100%; border-collapse:collapse; margin-top:24px; font-size:1.08rem;
+       font-variant-numeric:tabular-nums; }
+.cre th { text-align:right; font-weight:700; color:#374151; font-size:0.94rem;
+          padding:0 18px 13px; border-bottom:1.5px solid #1F1B2E; white-space:nowrap; }
+.cre th:first-child { text-align:left; }
+.cre td { padding:17px 18px; border-bottom:1px solid #E5E0EC; color:#374151; text-align:right; }
+.cre td:first-child { text-align:left; color:#1F1B2E; font-weight:600; }
+.cre tr:last-child td { border-bottom:1.5px solid #1F1B2E; }
+.cre tr.main td { background:rgba(127,16,132,0.07); }
+.cre tr.main td:first-child { color:#7F1084; }
+.cre .pend { color:#9CA3AF; font-style:italic; }
+.cre .sub { font-weight:400; color:#9CA3AF; font-size:0.86em; }
+</style>
+
+<table class="cre">
+<thead>
+<tr>
+<th>Reynolds number</th>
+<th>Sensors <span class="raw">K</span></th>
+<th>Seeds</th>
+<th>KE MAPE (%)</th>
+<th><span class="raw">u</span> rel-L₂ (%)</th>
+<th><span class="raw">v</span> rel-L₂ (%)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><span class="raw">Re</span> = 10³</td>
+<td>100</td>
+<td>1</td>
+<td>2.36</td>
+<td>5.79</td>
+<td>5.07</td>
+</tr>
+<tr class="main">
+<td><span class="raw">Re</span> = 10⁴ <span class="sub">main pipeline</span></td>
+<td>100</td>
+<td>5</td>
+<td>5.71 ± 0.12</td>
+<td>13.65</td>
+<td>17.52</td>
+</tr>
+<tr>
+<td><span class="raw">Re</span> = 10⁶</td>
+<td>200</td>
+<td>1</td>
+<td>6.10</td>
+<td>15.62</td>
+<td>58.17</td>
+</tr>
+</tbody>
+</table>
+
+<div class="foot mt-4">Feasibility across two orders of magnitude in Reynolds number, not a controlled scaling study: the sensor budget and seed count differ by row. <span class="raw">Re</span> = 10⁶ is single-seed with a retuned configuration (<span class="raw">K</span> = 200, <span class="raw">d</span> = 384, 50 000 steps).</div>
+
+<FooterLogos />
+
+<!--
+[Cross-Re · 1.5min]
+• 主訊息：**同一架構跨兩個數量級的 Re 都 feasible**，KE 皆 ~6%（10⁴ 5.71、10⁶ 6.10）
+⚠️ 必講成 **feasibility 不是 generalisation**（chapter05:20）：每列的 K、seed、config 都不同，
+   不是受控 scaling 研究。Re=10⁶ 是 single-seed、retuned（K=200, d=384, 50k）
+• Re=10³ = EXP-301 final-protocol 重跑（KE 2.36 / u 5.79 / v 5.07，single seed；eval job 4552，final.pt）
+  取代不可比的舊 EXP-230（9.61%，d=64/5k/無AL）→ 同 config 重跑後 2.36%，比 10⁴ 還低
+  同 K=100 下：Re 10³→10⁴ 誤差 2.36→5.71%（越高越難）；10⁶ 需 K=200 才維持 ~6%
+⚠️ Re=10⁶ 的 v rel-L₂ 58% 遠高於 u 15.6%：高 Re 下 u/v 不對稱大。被問就誠實答，不掩飾
+   （數字出處 experiment_log_v2:208）。KE 才是本頁 headline，不是 pointwise
+• 數字：10⁴ log:132、10⁶ log:208。Re=10³ 待 EXP-301 seed 42 評估
+-->
+
+---
+
+<NavBar active="results" />
+
 <SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
 # Reconstruction accuracy under sensor noise
@@ -2348,30 +2450,23 @@ KE seed spread ± 0.03–0.21 across levels; the 0 % → 1 % step is smaller tha
 
 <NavBar active="results" />
 
-<SectionTag>§ Results · what the noise does to the field</SectionTag>
+<SectionTag>§ Results · sensor noise axis (O3)</SectionTag>
 
-# Vorticity under increasing sensor noise
+# Reconstructed vorticity under sensor noise
 
-<Card style="padding: 0.6rem 0.8rem;" class="mt-2">
-<img :src="'/images/noise_vorticity_comparison.png'" style="width: 100%; max-height: 272px; object-fit: contain;" />
-</Card>
+<img :src="'/images/noise_vorticity_comparison.png'" class="mt-3" style="display:block; width:100%; max-width:100%; margin:0 auto; max-height:300px; object-fit:contain;" />
 
-<div class="mt-3" style="font-size:1.05rem; color:#374151;">
-The field is <b style="color:#7F1084;">visually unchanged</b> from 0 % to 10 % noise.
-</div>
-
-<div class="foot mt-1">Single snapshot at <span class="raw">t</span> = 5, seed 42. Each row shares one colour scale.</div>
+<div class="foot mt-2" style="text-align:center;">Reconstructed vorticity <span class="raw">ω</span> at <span class="raw">t</span> = 5, seed 42; each row shares one colour scale.</div>
 
 <FooterLogos />
 
 <!--
 [噪音下的渦度場 · 1min]
-• 一句話：**六格看起來一樣** —— 10 % 噪音沒有把場毀掉
-• 誤差是結構性的（渦核、剪切層），不是隨機雜訊；位置與 sensor 上限限制的地方相同
-• 兩列各自共用色階，否則欄與欄不可比
-⚠️ 圖上**不標各欄 rel-L₂**：這是 t=5 單幀單 seed，1 % 那格（37.50 %）比 0 %（38.03 %）低，
-   會招來「噪音怎麼讓結果變好」。逐級數字看前一頁的表（全時空、n=5，那裡是單調的）
-⚠️ 被問單幀數字 → 誠實答單幀波動大，論文用 "monotone in the aggregate"（chapter04:443）
+• 一句話：**六格看起來一樣** —— 10 % 噪音沒有把場毀掉（口頭講，不印在版上）
+• 誤差是結構性的（渦核、剪切層），不是隨機雜訊
+⚠️ 圖上不標各欄 rel-L₂：t=5 單幀單 seed，1 % 那格（37.50 %）比 0 %（38.03 %）低，
+   會招來「噪音怎麼讓結果變好」。逐級數字看前一頁的表（n=5，單調）
+⚠️ 被問單幀 → 誠實答單幀波動大，論文用 "monotone in the aggregate"（chapter04:443）
 -->
 
 ---
