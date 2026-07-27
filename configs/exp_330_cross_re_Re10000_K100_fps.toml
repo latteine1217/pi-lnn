@@ -1,0 +1,93 @@
+# EXP-330 — cross-Re clean ladder: Re=10000, K=100, FPS, N=256. Same protocol as EXP-320~328.
+# EXP-301 — Re=1000 at the FINAL protocol (matched to EXP-245).
+# What: identical training recipe to EXP-245; only the flow, its DNS and the
+#       LES-derived K=100 placement change. Purpose: a cross-Re comparison that
+#       is protocol-matched, replacing legacy EXP-230 (d_model=64, 5k iters,
+#       32 collocation, no AL/GradNorm -> KE 9.61%, not comparable).
+# Matched: k_f=2, A=0.1, L=1.0, T=5, K=100, LES-derived QR-pivot placement,
+#          d_model=256, 20k iters, 1024 collocation, SOAP+SF, GradNorm, AL.
+# Differs by necessity: DNS N=128 (Re=1000 needs less resolution) with 101
+#          snapshots; evaluation grid is therefore 64^2 after block_avg.
+# Seed 42.
+# configs/exp_245_b3_les_T50.toml
+# What: EXP-245 — B3 (full architecture) + LES_T50 sensor (對應 EXP-200_a 的「工程可遷移」對照)
+# Why: EXP-200_a~e 都用 DNS QR-pivot oracle sensor — 不符工程現場「無 DNS」假設。
+#      EXP-245~250 sweep 用 EXP-221 sensor (LES_N256 T=50 stat-converged) 重跑 6 個 architecture，
+#      single seed (=42) 對齊 EXP-200_a/EXP-201_a/EXP-202/EXP-203/EXP-204/EXP-205 主 seed。
+#
+# 派生 from EXP-200_a, 唯一改動:
+#   - sensor_jsons / sensor_npzs → LES_T50 sensor (= EXP-221)
+#   - artifacts_dir → exp245
+
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000_fps/sensors_spacefill_K100_N256_Re10000_matched.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000_fps/sensors_spacefill_K100_N256_Re10000_matched_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 42
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/cross_re_exp330_Re10000_K100_fps"

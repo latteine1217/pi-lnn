@@ -481,6 +481,20 @@ Enstrophy rel-err ($42\%$) is higher than at $Re=10^{4}$, consistent with the wi
 This is a single-seed feasibility check; multi-seed confirmation at $Re=10^{6}$ remains an open follow-up.
 The key result is that matched low-frequency accuracy (KE $6.10\%$ vs.\ $5.71\%$) is achievable at $Re=10^{6}$ by scaling the sensor budget to the spatial under-sampling severity.
 
+\paragraph{Sensor budget across Reynolds number.}
+The $Re=10^{6}$ case above retunes sensor count and capacity simultaneously, so it does not isolate how the required budget itself varies with $Re$. A protocol-matched sweep separates the two. Five Reynolds numbers, $Re \in \{10^{2},\,5\times10^{2},\,10^{3},\,10^{4},\,10^{6}\}$, are each reconstructed at $K \in \{10,\,50,\,100\}$ under one fixed configuration: coverage-optimal farthest-point placement, an observation window matched to five eddy turnover times, and the architecture, optimiser, collocation count, and seed of the $Re=10^{4}$ baseline. Every reference field is a resolved DNS ($k_{\max}/k_d \ge 2.0$ on the simulation grid). Holding placement, window, capacity, and seed fixed leaves sensor count and Reynolds number as the only varied factors.
+
+Figure~\ref{fig:crossre_sensor_budget} reports the outcome. The budget needed to reach the $10\%$ engineering threshold rises with Reynolds number: $K \le 10$ at $Re=10^{2}$, $K \in (10, 50]$ at $Re=5\times10^{2}$ and $10^{3}$, $K \in (50, 100]$ at $Re=10^{4}$, and $K > 100$ at $Re=10^{6}$. The ordering follows the sampling-band argument of \S\ref{subsec:nyquist_scaling}: what a fixed budget must cover is the spectral support of the field, and the saturated bandwidth of these flows widens with $Re$. Reading the required budget against the band edge $K \gtrsim \pi n_{99}^{2}/2$, where $n_{99}$ is the integer wavenumber enclosing $99\%$ of the energy, places $Re=10^{4}$ ($n_{99}\approx6$) at $K\approx57$, consistent with the measured interval $(50, 100]$.
+
+Two boundaries limit the reading. Each point is single-seed, so the curves carry no seed statistics and the threshold crossings are bracketed by the tested grid rather than resolved within it. The $Re=10^{2}$ case relaxes to the steady laminar Kolmogorov solution over the matched window, and its reconstruction is therefore not representative of the turbulent regime; it is retained as the laminar end member. At $K=10$ every turbulent case exceeds $40\%$ error, and differences within that range are not interpreted.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.72\linewidth]{figures/results/crossre_sensor_budget.pdf}
+    \caption{Kinetic-energy relative error (dimensionless, reported in percent) against sensor count $K$ (dimensionless) at five Reynolds numbers. All runs use farthest-point placement, an observation window of five eddy turnover times, $d_\text{model}=256$, $20\,000$ iterations, $1\,024$ collocation points, and seed 42; reference fields are resolved DNS. The dotted line marks the $10\%$ threshold. Metrics are evaluated over the full observation window. Single seed per point.}
+    \label{fig:crossre_sensor_budget}
+\end{figure}
+
 
 \paragraph{Diagnostic boundaries.}
 Several diagnostic findings define the boundary of the final recipe without changing the main result. The Kolmogorov forcing parameters are not recovered from $K=100$ sensors under the tested setup (near-zero flat-region initialisation): accurate velocity reconstruction did not certify recovery of $A$ or $k_f$, though structural identifiability is not established. Extending Augmented-Lagrangian enforcement from continuity to the Navier--Stokes momentum residual is not promoted as a main-recipe improvement: the final-protocol rerun gives mixed single-seed results, so the final pipeline keeps the $n=5$-validated continuity-only AL recipe and leaves momentum residuals to GradNorm weighting. These functional-parameter and recipe diagnostics are reported in Appendix~\ref{app:diagnostic_ablation_forward_cfd} rather than used as Chapter~\ref{ch:results} evidence.

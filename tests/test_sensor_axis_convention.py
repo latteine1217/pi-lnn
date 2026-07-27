@@ -58,6 +58,21 @@ CROSS_RE_CASES = [
      "sensors_qrpivot_K100_N128_t0-5"),  # 2026-03-29 legacy DNS-pivot
 ]
 
+# Low-Re sensor-budget ladder (2026-07-25): FPS placement, K∈{100,50,10} × Re∈{1000,500,100}
+# on matched-turnover DNS windows (§1.4). DNS in data/dns/cross_re/, N=128 (512→ds4).
+_CROSS_RE_LADDER = {
+    1000: (Path("data/dns/cross_re/kolmogorov_dns_Re1000_N128_T10p3_matched.npy"),
+           Path("data/kolmogorov_sensors/re1000")),
+    500:  (Path("data/dns/cross_re/kolmogorov_dns_Re500_N128_T17p28_matched.npy"),
+           Path("data/kolmogorov_sensors/re500")),
+    100:  (Path("data/dns/cross_re/kolmogorov_dns_Re100_N128_T55p8_matched.npy"),
+           Path("data/kolmogorov_sensors/re100")),
+}
+for _re, (_dns, _dir) in _CROSS_RE_LADDER.items():
+    for _K in (100, 50, 10):
+        CROSS_RE_CASES.append(
+            (_dns, _dir, f"sensors_spacefill_K{_K}_N128_Re{_re}_matched"))
+
 
 @pytest.fixture(scope="module")
 def dns_data():

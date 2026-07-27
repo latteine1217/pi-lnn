@@ -204,6 +204,104 @@ KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 
 ---
 
+## 1.4 Low-Re sensor-budget ladder — Stage 0 flow-state 診斷（2026-07-24）
+
+> **目的**：驗證「低 Re 下更少 sensor（K）即可達同等重建精度」的假設。原始計畫為 Re ∈ {10³, 500, 100} × K ∈ {100, 50, 10}（single seed）。**Stage 0 = 訓練前的 flow-state gate**：先確認各 Re 的流場是否為非平庸湍流、量測 matched-turnover 窗長與可觀測帶寬，避免把層流退化案例當 scaling 資料點。**尚未進入訓練階段**。
+>
+> **腳本**：[`scripts/diagnose_dns_flow_state.py`](../scripts/diagnose_dns_flow_state.py)（flow-state 診斷）、[`scripts/solve_matched_turnover_window.py`](../scripts/solve_matched_turnover_window.py)（解 T* 使 `T*/τ_eddy = 5.0`，對齊 Re=10⁴ 的 T=5）、[`tools/dns_generator/downsample_dns.py`](../tools/dns_generator/downsample_dns.py)（512→128 stride 降採樣，schema 對齊主線）。
+> **DNS 產物**（home-gpu `~/kolmogorov_cross_re/`，N=512，協議 `dealias 3/2 + band_limited_random + k_cut=8.0`，與主線一致；生成器 = `~/gi_test_re10000/` 版本，md5 與 repo 相同）：`src_re{1000,500,100}_N512.npy`。
+
+### Stage 0 診斷結果（production N=512）
+
+| Re | ν | T*（matched 5 τ）| `T/τ_end` | 飽和 `n_99` | `forcing_mode_frac` | 判定 |
+|---|---|---|---|---|---|---|
+| 10³ | 1e-3 | 10.30 | 4.52 | 3–4 | 0.03 | 時變湍流 ✅ 可入 scaling |
+| 500 | 2e-3 | 17.28 | 5.01 | 3 | 0.10 | 準穩態 ⚠️（15 τ 內場僅變 23%）|
+| 100 | 1e-2 | 55.80 | 5.00 | 2 | **1.0000** | **層流不動點 ❌ 不入 scaling** |
+
+**判讀**：
+- **Re=100 是解析層流 Kolmogorov 解**（`fmode=1.0000`：全部能量在 forcing 模態；`KE_tend/KE_laminar=1.0000`；t=27.9 與 t=55.2 場凍結不動）。N=512 與 N=128 probe 兩解析度一致 → 對它做「重建」任何方法（含線性內插）都近零誤差，**必須排除在 `K*(Re)` 擬合外**，僅留一個 K=10 的層流極限 sanity check。
+- **可觀測帶寬機制**：DNS IC 用 `k_cut=8`，故 t=0 各 Re 的 `n_99=8`；此後隨衰減收窄。observability wall `k ≲ √(2K/π)`（K=100→7.98, K=50→5.64, K=10→2.52）與 Re 無關（純幾何）。低 Re 飽和帶寬更窄（`n_99` 越低）→ 同 K 涵蓋更高能量比例。可預測規則：**`K* ≈ π·n_99²/2`**（n99=8→K~100, n99=3→K~14, n99=2→K~6）。
+- **[RISK] Path-A 反饋**：matched-turnover 要求低 Re 跑更久，但無大尺度阻尼 → 更久 = 更多衰減 = 更窄帶寬（Re=10³ 從 t=5 的 n99=3 掉到 t=15 的 n99=2）。低端 ladder 落在退化區，主要是資料協議（band-limited IC）鎖住帶寬所致，非 Re 物理本身。
+- **待決策**：ladder 低端（Re=100/500）科學價值有限，是否上移至 Re ∈ {10³, 3×10³, 10⁴} 仍屬湍流區以驗 `K* ≈ π n99²/2`；使用者當前選擇維持原版 {10³, 500, 100}，Re=100 標為退化案例。
+
+### 附帶發現：Re=10⁴ 是 box-mode condensate 主導；統計穩態 UNCERTIFIABLE（量測確認連 T=500 都不夠，需 T≳800）
+
+長軌跡 `longrun_re10000_N256_T100_dt1e3.npy`（T=100）+ dt 三方收斂測試（dt ∈ {1e-3, 5e-4, 2.5e-4}，同 IC N=256 seed 42）。此 DNS **有持續 Kolmogorov forcing（k_f=2）但無大尺度阻尼**（生成器 RHS 只有 `conv + forcing`，無 `-r·u`）。經 cfd-validation skill 逐項驗證（2026-07-24）：
+
+**數值可信度（前提）**：max|div| = **1.4e-15**（機器精度）；能量平衡 `dKE/dt = P − 2νZ` median 殘差 **0.43%**（封閉）；解析度 **k_max/k_d = 3.4**（良好，非欠解析）。→ 以下判讀建立在可信 DNS 上。
+
+- **物理圖像 = box-mode condensate（逆轉移，非 differential decay）**：`E(k=1)` **絕對值** t=0→peak 成長 **×258**（0.00085→0.220）。黏滯只能移除能量，絕對成長只能來自非線性逆轉移 → **differential viscous decay 被排除**。能量在 t≈5 內凝聚進 k=1 箱尺度模態（`E(k=1)/KE`: 0.005→0.85）。
+- **機制細節（修正）**：譜斜率 k∈[3,30] 實測 **−5.2**（R²=0.99，非 k⁻³ 慣性區；k_f=2 太低，k=1 以下僅單模）→ 是**直接凝聚進 gravest mode**，不是透過延伸逆級聯慣性區。前版「逆級聯 condensate」語感對但機制描述已更正。
+- **統計穩態 = UNCERTIFIABLE，且量測確認連 T=500 都不夠**（T=500 診斷 `tauint_re10000_N256_T500_dt1e3.npy`，2026-07-25）：
+  - ⚠️ **該診斷 dt=1e-3 在 t=260 數值爆掉**（KE excursion 衝到 0.56，超出平流 CFL；生成器無 adaptive dt）。**dt=1e-3 選錯**，穩定跑此 KE 量級需 dt=2.5e-4。有效資料僅 t∈[0,260]。
+  - 有效段 t∈[50,260]（T=210 tu，pre-blowup）量得：**KE mean 0.206, std 0.093（±45% 波動，min 0.109 max 0.561）**；**τ_int(Sokal) = 15.1 tu，自相關首次過零 37.4 tu**。
+  - T/τ_int = 13.9，但認證需 `T ≥ 50·τ_int ≈ 756 tu` → **UNCERTIFIABLE**。即穩定跑一支 T≥800 tu（dt=2.5e-4，~3.2M 步，~70 hr）才可能認證統計穩態。
+- **「Re=10⁴ 跑到接近穩態需要 t 多少」的答案**：condensate τ_int≈15–37 tu、KE 波動 ±45%，統計穩態的認證門檻 T≥800 tu 在此成本下不實際 → **實務上無法認證為統計穩態**（非「不存在」，是成本不可及）。與 chapter03:193 及 LES（T=400 仍漂移）一致並更強。前二版「無穩態/T≳500」措辭為 overclaim，此版以量測 τ_int 更正並定量。
+- **衰減段 t≲5 為 dt-收斂**：4× dt 範圍內 KE 差 <1%（t=5 為 0.18%）→ **訓練窗 T=5 完全落在 condensate 形成前的 dt-收斂段，訓練資料嚴格可信，不受上述長時間慢動力學影響**。
+- **condensate 活躍段（t>25）為混沌**：三方 dt 逐點 KE 差**不隨 dt 縮小、順序錯亂**（t=40: d(1e-3,2.5e-4)=7.4% < d(5e-4,2.5e-4)=9.0%）→ Lyapunov 去相關，非截斷誤差。**瞬時峰值 KE 無確定值**（0.277/0.373/0.318 為不同 dt 的混沌實現），只有時間平均統計量（需長 horizon）才有意義。
+- 圖：KE(t) 三線 dt 比對 + E(k=1) 演化（scratchpad `dt3way.png`；尚未落 repo）。
+
+### Stage 1 結果：Re × K sensor-budget sweep（EXP-320~328，2026-07-25）
+
+9 支訓練（`EXP-320~328`，B3 + exp_301 協議 + FPS 佈點 + matched-turnover 窗，single seed 42，20k iters，lab-server r740 各 ~2 hr，0 NaN）。評估用 `final.pt`（job 4630）。**KE rel-err（≤10% = 工程可用）**：
+
+| Re | K=100 | K=50 | K=10 | EXP IDs |
+|---|---|---|---|---|
+| **10³** | 2.42 % ✅ | 6.27 % ✅ | **61.7 % ❌** | 320/321/322 |
+| **500** | 1.18 % ✅ | 4.89 % ✅ | **42.4 % ❌** | 323/324/325 |
+| **100**（層流退化）| 0.76 % ✅ | 1.67 % ✅ | **8.49 % ✅** | 326/327/328 |
+
+**主結論 — 低 Re 用更少 K，但機制是譜帶寬 n99 非 Re 本身**（驗證 Stage 0 預測 `K* ≈ π·n99²/2`）：
+- **K=10 是分水嶺**：湍流的 Re=500/10³ 在 K=10 崩掉（42/62 %），只有層流 Re=100 撐住（8.49 %）。K=10 的 observability wall `n≤√(2·10/π)=2.52` 無法涵蓋湍流場的 n99=3。
+- **K\* 由飽和 n99 決定**：Re=500 與 Re=10³ 同 n99≈3 → K\* 同落 (10,50]（符合 `π·3²/2≈14`）；Re=100 n99=2（層流）→ K\*≤10（符合 `π·2²/2≈6`）。Re=500 vs 10³ 的 K\* 幾乎一樣 → **K budget 由 n99 而非 Re 直接決定**。
+- **每固定 K 低 Re 誤差單調更低**（K=50: 6.27→4.89→1.67 %）。
+
+**誠實標註**：
+- Re=100 三格為**層流退化**（fmode=1.0），K=10 成功部分因重建 2-模態層流場，不入嚴格 scaling 判讀。
+- Re=100 的 `v_rel_l2` 爆表（EXP-326: 247882）是**除以零假象**（層流解 v≈0，rel-L2 分母趨零），該格只有 KE/u 有意義；反佐證層流判定。
+- 圖：[`docs/figures/crossre_clean5.png`](figures/crossre_clean5.png) ⭐ **主圖（受控五-Re，全 resolved DNS）**；`crossre_clean4.png`（四-Re 版，基於已更正的 Re=10⁶ 誤判，勿用）、`crossre_Ksweep.png`（低 Re 三條）、`crossre_full.png`（早期異質版）。
+
+### Stage 2：受控高 Re 補完（EXP-330~335，2026-07-27）
+
+為消除「低 Re ladder（FPS/matched）vs 既有高 Re（LES_T50/T=5）」的 confound，Re=10⁴ 與 10⁶ **以同協議重跑**（FPS 佈點、d=256、20k、1024 collo、seed 42、K∈{10,50,100}）。6 支全 COMPLETED、0 OOM/NaN（Re=10⁶ 的 N=512 + 1024 collo 未爆記憶體）。
+
+**受控 cross-Re 表（KE rel-err %，全部同協議）**：
+
+| Re | K=100 | K=50 | K=10 | EXP IDs |
+|---|---|---|---|---|
+| **100**（層流退化）| 0.76 ✅ | 1.67 ✅ | 8.49 ✅ | 326/327/328 |
+| **500** | 1.18 ✅ | 4.89 ✅ | 42.4 ❌ | 323/324/325 |
+| **10³** | 2.42 ✅ | 6.27 ✅ | 61.7 ❌ | 320/321/322 |
+| **10⁴** | 4.54 ✅ | 11.2 ❌ | 72.3 ❌ | 330/331/332 |
+| **10⁶** | 13.7 ❌ | 18.9 ❌ | 58.0 ❌ | 333/334/335 |
+
+**解析度稽核（2026-07-27，修正前一版錯誤）** — 判定必須用 **模擬網格 `source_N`**，不是儲存網格 `config["N"]`（檔案皆為 stride-4 降採樣儲存）：
+
+| Re | 模擬 N | 儲存 N | `k_d` | `k_max(src)/k_d` | 儲存截斷 k | 判定 |
+|---|---|---|---|---|---|---|
+| 100 | 512 | 128 | 2 | 98.9 | 42 | ✅ resolved DNS |
+| 500 | 512 | 128 | 5 | 37.5 | 42 | ✅ resolved DNS |
+| 10³ | 512 | 128 | 7 | 23.3 | 42 | ✅ resolved DNS |
+| 10⁴ | 1024 | 256 | 30 | 11.3 | 85 | ✅ resolved DNS |
+| **10⁶** | **2048** | 512 | 336 | **2.03** | 170 | ✅ **resolved DNS** |
+
+> ⚠️ **前一版誤判已更正**：曾以儲存網格 N=512 算得 `k_max/k_d=0.51` 並宣稱 Re=10⁶「欠解析、真 DNS 需 N≈2014、乾淨五-Re 物理上不可得」——**三項皆錯**。`source_N=2048` 才是模擬網格，ratio 2.03 合格。**五支全部是 resolved DNS，受控五-Re 圖成立。**
+
+**判讀**：
+- **五條曲線全部同協議 + 全部 resolved DNS** → 受控 cross-Re sweep 成立，[`crossre_clean5.png`](figures/crossre_clean5.png) 為論文主圖。
+- **K\* 隨 Re 上升**：達 10% 目標所需 K —— Re=100: ≤10；Re=500/10³: (10,50]；**Re=10⁴: (50,100]**（K=50 為 11.2% 剛好未達）；**Re=10⁶: >100**。與 Stage 0 的 `K* ≈ π·n99²/2` 一致（Re=10⁴ 飽和 n99≈6 → K*≈57，落在 (50,100] ✓）。
+- **Re=10⁶ 斜率較平、與其他曲線交叉**：K=10 時 58.0 %（反而優於 Re=10⁴ 的 72.3 %），K=100 時 13.7 %（最差）。K=10 全屬 catastrophic-failure regime（>40 %），該區數值不宜過度解讀。
+- **殘留次要 caveat（非解析度問題）**：(a) Re=10⁶ 儲存場低通於 k=170 < 其 `k_d`=336，即 ground truth 為**精確低通濾波後**的 DNS——動力學正確，僅捨去耗散區；對 sensor-budget 判讀影響可忽略（K=100 的 observability wall n≈8，比截斷點低 21×），但 **ω/enstrophy 類高波數加權 metric 在 Re=10⁶ 與其他 Re 不嚴格可比**。(b) Re=10⁶ 窗 T/τ=6.14（其餘為 5.0）。
+- **附帶對照（FPS vs LES_T50，同 Re 同 K）**：Re=10⁴ K=100 —— FPS(EXP-330) **4.54 %** vs LES_T50(EXP-245, n=5) **5.71 ± 0.12 %**。與 Re=10⁴ 既有的 EXP-298（FPS 4.69 %）一致，**再度確認 FPS 幾何佈點不劣於 LES-derived QR-pivot，且完全免模擬**。
+
+**Open**：全部 single seed（42）；宣稱 mean±std 需補 seed 1–4。Re=10⁴ K∈(50,100) 未細掃，K\* 轉折點僅界定在區間。
+- Artifacts（lab-server）：`artifacts/kolmogorov/cross_re_exp32{0-8}_*/`；eval `artifacts/eval_cross_re/exp_32{0-8}/summary.json`。
+
+**Open**：single seed（42）。若要宣稱 mean±std 需補 multi-seed。Stage 2（K 下掃補 Re=10⁴ 下支、釘 K\* 轉折點）未動工。
+
+---
+
 # §2 延伸驗證（Extended Validation）: Re=10⁶
 
 > **2026-05-23 finalized**: 完整 Re=10⁶ ablation ladder (EXP-262/264/265/267/268), LES T=50 home-gpu 7.18 hr 完成 (50 T_L stat-converged)。
