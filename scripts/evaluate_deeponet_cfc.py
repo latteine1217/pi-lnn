@@ -72,6 +72,15 @@ def parse_args() -> argparse.Namespace:
         help="Evaluation device.",
     )
     parser.add_argument(
+        "--eval-block-factor", type=int, default=2,
+        help=(
+            "評估網格的 block-average 粗化倍率（預設 2 = 既有行為）。"
+            " eval grid = stored_N / factor。跨 Re 比較時用來把不同儲存解析度的 DNS"
+            " 對齊到同一張評估網格，例如 stored 512 用 factor 4、stored 256 用 factor 2"
+            " 皆得 128^2。"
+        ),
+    )
+    parser.add_argument(
         "--eval-stride", type=int, default=1,
         help=(
             "每隔幾個 sensor time step 評估一次（預設 1=全部）。"
@@ -131,30 +140,37 @@ def choose_device(name: str) -> torch.device:
     return torch.device("cpu")
 
 
-def block_avg(field: np.ndarray) -> np.ndarray:
-    """What: 2x2 block average，支援 [..., 2N, 2N] batch shape。
+def block_avg(field: np.ndarray, factor: int = 2) -> np.ndarray:
+    """What: f x f block average，支援 [..., fN, fN] batch shape。
 
     Why: 向量化避免逐 frame Python loop；既有 [2N, 2N] 用法仍兼容。
+         factor 可調是為了讓不同儲存解析度的 DNS 評估在同一張網格上（cross-Re 比較），
+         預設 2 與既有行為逐位元相同。
     """
-    n_half_x = field.shape[-2] // 2
-    n_half_y = field.shape[-1] // 2
-    new_shape = (*field.shape[:-2], n_half_x, 2, n_half_y, 2)
+    f = int(factor)
+    n_x = field.shape[-2] // f
+    n_y = field.shape[-1] // f
+    new_shape = (*field.shape[:-2], n_x, f, n_y, f)
     return field.reshape(new_shape).mean(axis=(-3, -1))
 
 
-def coarse_reference_grid(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """What: 產生與 2x2 block average 對齊的 coarse query grid。
+def coarse_reference_grid(
+    x: np.ndarray, y: np.ndarray, factor: int = 2
+) -> tuple[np.ndarray, np.ndarray]:
+    """What: 產生與 f x f block average 對齊的 coarse query grid。
 
     Why: `block_avg()` 代表的是 coarse cell 的平均值，不是原始 fine grid node。
-         若仍在 `x[::2], y[::2]` 上 query，prediction 與 reference 會固定錯半格，
+         若仍在 `x[::f], y[::f]` 上 query，prediction 與 reference 會固定錯半格，
          系統性污染 RMSE、渦度與頻譜診斷。
     """
-    if len(x) % 2 != 0 or len(y) % 2 != 0:
+    f = int(factor)
+    if len(x) % f != 0 or len(y) % f != 0:
         raise ValueError(
-            f"coarse_reference_grid 需要偶數長度 grid，收到 len(x)={len(x)}, len(y)={len(y)}"
+            f"coarse_reference_grid 需要長度可被 factor={f} 整除的 grid，"
+            f"收到 len(x)={len(x)}, len(y)={len(y)}"
         )
-    x_coarse = 0.5 * (x[0::2] + x[1::2])
-    y_coarse = 0.5 * (y[0::2] + y[1::2])
+    x_coarse = x.reshape(-1, f).mean(axis=1)
+    y_coarse = y.reshape(-1, f).mean(axis=1)
     return x_coarse.astype(np.float32), y_coarse.astype(np.float32)
 
 
@@ -881,6 +897,7 @@ def main() -> None:
     x_g, y_g = coarse_reference_grid(
         dns["x"].astype(np.float32),
         dns["y"].astype(np.float32),
+        factor=args.eval_block_factor,
     )
     xx, yy = np.meshgrid(x_g, y_g, indexing="ij")
     xy_flat = np.stack([xx.ravel(), yy.ravel()], axis=1).astype(np.float32)
@@ -1032,9 +1049,9 @@ def main() -> None:
         u_pred_series.append(query_field(0, float(t_val)).astype(np.float32))
         v_pred_series.append(query_field(1, float(t_val)).astype(np.float32))
         p_pred_series.append(query_field(2, float(t_val)).astype(np.float32))
-        u_ref_series.append(block_avg(dns["u"][dns_idx].astype(np.float32)))
-        v_ref_series.append(block_avg(dns["v"][dns_idx].astype(np.float32)))
-        p_ref_series.append(block_avg(dns["p"][dns_idx].astype(np.float32)))
+        u_ref_series.append(block_avg(dns["u"][dns_idx].astype(np.float32), factor=args.eval_block_factor))
+        v_ref_series.append(block_avg(dns["v"][dns_idx].astype(np.float32), factor=args.eval_block_factor))
+        p_ref_series.append(block_avg(dns["p"][dns_idx].astype(np.float32), factor=args.eval_block_factor))
 
     u_pred_arr = np.stack(u_pred_series, axis=0)
     v_pred_arr = np.stack(v_pred_series, axis=0)

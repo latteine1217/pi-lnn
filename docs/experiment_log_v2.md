@@ -295,7 +295,39 @@ KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 - **殘留次要 caveat（非解析度問題）**：(a) Re=10⁶ 儲存場低通於 k=170 < 其 `k_d`=336，即 ground truth 為**精確低通濾波後**的 DNS——動力學正確，僅捨去耗散區；對 sensor-budget 判讀影響可忽略（K=100 的 observability wall n≈8，比截斷點低 21×），但 **ω/enstrophy 類高波數加權 metric 在 Re=10⁶ 與其他 Re 不嚴格可比**。(b) Re=10⁶ 窗 T/τ=6.14（其餘為 5.0）。
 - **附帶對照（FPS vs LES_T50，同 Re 同 K）**：Re=10⁴ K=100 —— FPS(EXP-330) **4.54 %** vs LES_T50(EXP-245, n=5) **5.71 ± 0.12 %**。與 Re=10⁴ 既有的 EXP-298（FPS 4.69 %）一致，**再度確認 FPS 幾何佈點不劣於 LES-derived QR-pivot，且完全免模擬**。
 
-**Open**：全部 single seed（42）；宣稱 mean±std 需補 seed 1–4。Re=10⁴ K∈(50,100) 未細掃，K\* 轉折點僅界定在區間。
+### Stage 3：統一評估網格 + 時間幀對齊 + 多 metric K\*（job 4664，2026-07-28）
+
+前兩階段的評估**網格隨 Re 而異**（`block_avg` 寫死 2× → eval grid = 儲存 N/2：低 Re 64²、Re=10⁴ 128²、Re=10⁶ 256²），且 Re=10⁴ 有 201 幀而其餘約 100 幀。兩者都是 cross-Re 比較的 confound。
+
+**修法**：`scripts/evaluate_deeponet_cfc.py` 新增 `--eval-block-factor`（預設 2 = 既有行為，實測 `np.array_equal` 與舊版逐位元相同，含 grid 對齊）。低 Re factor=1、Re=10⁴ factor=2、Re=10⁶ factor=4 → **全部 128²**；Re=10⁴ 併用 `--eval-stride 2` → 幀數對齊到 101±4。
+
+**統一 128² 後的 KE rel-err（%）**：
+
+| Re | K=100 | K=50 | K=10 | vs 舊網格（K=100）|
+|---|---|---|---|---|
+| 100（層流）| 0.73 | 1.91 | 8.71 | 0.76 → 0.73 |
+| 500 | 1.26 | 5.07 | 42.54 | 1.18 → 1.26 |
+| 10³ | 2.59 | 6.46 | 61.81 | 2.42 → 2.59 |
+| 10⁴ | 4.56 | 11.29 | 72.37 | 4.54 → 4.56 |
+| 10⁶ | 13.50 | 18.71 | 57.93 | 13.65 → 13.50 |
+
+→ **變化皆 ≤0.2 pp，排序完全不變** ⇒ 網格 confound 排除，「K\* 隨 Re 上升」不是 metric 解析度假象。
+
+**K\*（達 10% 的最小受測 K）依 metric 而異 — 缺口確認成立**：
+
+| Re | KE | u | ω |
+|---|---|---|---|
+| 100（層流）| 10 | 10 | 10 |
+| 500 | 50 | 50 | **100** |
+| 10³ | **50** | **100** | **>100** |
+| 10⁴ | **100** | **>100** | **>100** |
+| 10⁶ | >100 | >100 | >100 |
+
+- **KE 系統性低估所需 sensor 數，達 2× 以上**。KE 是能量加權積分、由最大尺度主導（Re=10⁴ 實測 `E(k=1)/KE≈0.85`），對高波數不敏感。
+- 論文 §Higher-Reynolds Feasibility 已據此加寫 `\paragraph{The budget depends on which quantity is required.}` + Table 4.11，圖改為雙面板（KE | ω）。
+- Re=100 的 `v` 欄不報：層流解 v≈0，rel-L₂ 分母趨零（EXP-326 得 2.5e7 %），為除以零假象。
+
+**Open**：全部 single seed（42）**且單一 placement 實現**（FPS seed 42）。依專案既有結論「placement variance ≫ training variance」（O3, EXP-266），補 placement 變異的優先度高於補 training seed。其餘已知缺口：K 網格粗（3 點，區間寬 5×，無法擬合指數）、高 Re 可能受容量限制（全用 d=256/20k，而論文 Re=10⁶ 主結果需 d=384/50k，K 與容量未解耦）、IC 頻寬跨 Re 相同（`ic_k_cutoff=8`）故五案例皆為 transient 而非統計穩態、未與 RBF/IDW/trig-LSQ fair baseline 對照。
 - Artifacts（lab-server）：`artifacts/kolmogorov/cross_re_exp32{0-8}_*/`；eval `artifacts/eval_cross_re/exp_32{0-8}/summary.json`。
 
 **Open**：single seed（42）。若要宣稱 mean±std 需補 multi-seed。Stage 2（K 下掃補 Re=10⁴ 下支、釘 K\* 轉折點）未動工。

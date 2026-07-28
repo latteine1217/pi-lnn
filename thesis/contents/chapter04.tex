@@ -484,14 +484,37 @@ The key result is that matched low-frequency accuracy (KE $6.10\%$ vs.\ $5.71\%$
 \paragraph{Sensor budget across Reynolds number.}
 The $Re=10^{6}$ case above retunes sensor count and capacity simultaneously, so it does not isolate how the required budget itself varies with $Re$. A protocol-matched sweep separates the two. Five Reynolds numbers, $Re \in \{10^{2},\,5\times10^{2},\,10^{3},\,10^{4},\,10^{6}\}$, are each reconstructed at $K \in \{10,\,50,\,100\}$ under one fixed configuration: coverage-optimal farthest-point placement, an observation window matched to five eddy turnover times, and the architecture, optimiser, collocation count, and seed of the $Re=10^{4}$ baseline. Every reference field is a resolved DNS ($k_{\max}/k_d \ge 2.0$ on the simulation grid). Holding placement, window, capacity, and seed fixed leaves sensor count and Reynolds number as the only varied factors.
 
-Figure~\ref{fig:crossre_sensor_budget} reports the outcome. The budget needed to reach the $10\%$ engineering threshold rises with Reynolds number: $K \le 10$ at $Re=10^{2}$, $K \in (10, 50]$ at $Re=5\times10^{2}$ and $10^{3}$, $K \in (50, 100]$ at $Re=10^{4}$, and $K > 100$ at $Re=10^{6}$. The ordering follows the sampling-band argument of \S\ref{subsec:nyquist_scaling}: what a fixed budget must cover is the spectral support of the field, and the saturated bandwidth of these flows widens with $Re$. Reading the required budget against the band edge $K \gtrsim \pi n_{99}^{2}/2$, where $n_{99}$ is the integer wavenumber enclosing $99\%$ of the energy, places $Re=10^{4}$ ($n_{99}\approx6$) at $K\approx57$, consistent with the measured interval $(50, 100]$.
+All reconstructions are evaluated on a common $128^{2}$ grid and on time samples aligned to $101 \pm 4$ frames, so that neither the metric resolution nor the temporal sampling density varies with Reynolds number.
 
-Two boundaries limit the reading. Each point is single-seed, so the curves carry no seed statistics and the threshold crossings are bracketed by the tested grid rather than resolved within it. The $Re=10^{2}$ case relaxes to the steady laminar Kolmogorov solution over the matched window, and its reconstruction is therefore not representative of the turbulent regime; it is retained as the laminar end member. At $K=10$ every turbulent case exceeds $40\%$ error, and differences within that range are not interpreted.
+Figure~\ref{fig:crossre_sensor_budget}(a) reports kinetic energy. The budget needed to reach the $10\%$ engineering threshold rises with Reynolds number: $K \le 10$ at $Re=10^{2}$, $K \in (10, 50]$ at $Re=5\times10^{2}$ and $10^{3}$, $K \in (50, 100]$ at $Re=10^{4}$, and $K > 100$ at $Re=10^{6}$. The ordering follows the sampling-band argument of \S\ref{subsec:nyquist_scaling}: what a fixed budget must cover is the spectral support of the field, and the saturated bandwidth of these flows widens with $Re$. Reading the required budget against the band edge $K \gtrsim \pi n_{99}^{2}/2$, where $n_{99}$ is the integer wavenumber enclosing $99\%$ of the energy, places $Re=10^{4}$ ($n_{99}\approx6$) at $K\approx57$, consistent with the measured interval $(50, 100]$.
+
+\paragraph{The budget depends on which quantity is required.}
+Kinetic energy is an energy-weighted integral dominated by the largest scales, so a budget sufficient for it need not suffice for quantities weighted towards high wavenumber. Panel (b) repeats the sweep for vorticity, and the thresholds move: at $Re=5\times10^{2}$ the requirement rises from $K=50$ to $K=100$, and at $Re=10^{3}$ from $K=50$ to beyond the tested range. Velocity sits between the two, with $Re=10^{3}$ requiring $K=100$ against $K=50$ for kinetic energy. Sensor budgets quoted on a kinetic-energy criterion are therefore lower bounds on what a vorticity-accurate reconstruction demands, by a factor of two or more over the tested range. Table~\ref{tab:crossre_kstar} lists the thresholds per quantity.
+
+Three boundaries limit the reading. Each point is single-seed and uses one placement realisation, so the curves carry neither seed nor placement statistics, and the threshold crossings are bracketed by the tested grid rather than resolved within it. The $Re=10^{2}$ case relaxes to the steady laminar Kolmogorov solution over the matched window; its reconstruction is not representative of the turbulent regime and is retained as the laminar end member, and its transverse velocity error is not reported because the reference $v$ vanishes there. At $K=10$ every turbulent case exceeds $40\%$ error, and differences within that range are not interpreted.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Smallest tested sensor count $K$ (dimensionless) reaching $10\%$ relative error, by reconstructed quantity. Entries are bracketed by the tested grid $K \in \{10, 50, 100\}$. The $Re=10^{2}$ row is the laminar end member; its $v$ entry is omitted because the reference transverse velocity vanishes.}
+    \label{tab:crossre_kstar}
+    \small
+    \begin{tabular}{lccc}
+    \toprule
+    \textbf{Reynolds number} & \textbf{Kinetic energy} & \textbf{Velocity $u$} & \textbf{Vorticity} \\
+    \midrule
+    $10^{2}$ (laminar)  & $10$    & $10$    & $10$    \\
+    $5\times10^{2}$     & $50$    & $50$    & $100$   \\
+    $10^{3}$            & $50$    & $100$   & $>100$  \\
+    $10^{4}$            & $100$   & $>100$  & $>100$  \\
+    $10^{6}$            & $>100$  & $>100$  & $>100$  \\
+    \bottomrule
+    \end{tabular}
+\end{table}
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.72\linewidth]{figures/results/crossre_sensor_budget.pdf}
-    \caption{Kinetic-energy relative error (dimensionless, reported in percent) against sensor count $K$ (dimensionless) at five Reynolds numbers. All runs use farthest-point placement, an observation window of five eddy turnover times, $d_\text{model}=256$, $20\,000$ iterations, $1\,024$ collocation points, and seed 42; reference fields are resolved DNS. The dotted line marks the $10\%$ threshold. Metrics are evaluated over the full observation window. Single seed per point.}
+    \includegraphics[width=\linewidth]{figures/results/crossre_sensor_budget.pdf}
+    \caption{Relative error (dimensionless, reported in percent) against sensor count $K$ (dimensionless) at five Reynolds numbers, for (a) kinetic energy and (b) vorticity. All runs use farthest-point placement, an observation window of five eddy turnover times, $d_\text{model}=256$, $20\,000$ iterations, $1\,024$ collocation points, and seed 42; reference fields are resolved DNS. Both panels are evaluated on a common $128^{2}$ grid over $101 \pm 4$ time samples spanning the observation window. The dotted line marks the $10\%$ threshold. Single seed and one placement realisation per point.}
     \label{fig:crossre_sensor_budget}
 \end{figure}
 
