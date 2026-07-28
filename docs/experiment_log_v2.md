@@ -327,7 +327,55 @@ KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 - 論文 §Higher-Reynolds Feasibility 已據此加寫 `\paragraph{The budget depends on which quantity is required.}` + Table 4.11，圖改為雙面板（KE | ω）。
 - Re=100 的 `v` 欄不報：層流解 v≈0，rel-L₂ 分母趨零（EXP-326 得 2.5e7 %），為除以零假象。
 
-**Open**：全部 single seed（42）**且單一 placement 實現**（FPS seed 42）。依專案既有結論「placement variance ≫ training variance」（O3, EXP-266），補 placement 變異的優先度高於補 training seed。其餘已知缺口：K 網格粗（3 點，區間寬 5×，無法擬合指數）、高 Re 可能受容量限制（全用 d=256/20k，而論文 Re=10⁶ 主結果需 d=384/50k，K 與容量未解耦）、IC 頻寬跨 Re 相同（`ic_k_cutoff=8`）故五案例皆為 transient 而非統計穩態、未與 RBF/IDW/trig-LSQ fair baseline 對照。
+### Stage 4：fair baseline 對照 + n99 定義收緊（2026-07-29，無新訓練）
+
+兩項純分析，補上 Stage 1–3 遺留的缺口 8（無對照組）與缺口 6（n99 定義含糊）。腳本：[`scripts/crossre_classical_baselines.py`](../scripts/crossre_classical_baselines.py)、[`scripts/crossre_n99_definition.py`](../scripts/crossre_n99_definition.py)。metric 公式與網格逐式對齊 `evaluate_deeponet_cfc.py`（同 128²、同 `block_avg` factor、同 rel-L₂／KE 定義），故可直接並比。
+
+**(A) Fair classical baselines（RBF / IDW / trig-LSQ，皆 DNS-free）**
+
+15 格全掃。勝負統計（**turbulent only**，Re ≥ 500，共 12 格）：
+
+| 量 | PI-CON 為最佳的格數 |
+|---|---|
+| KE | **1 / 12** |
+| u rel-L₂ | **12 / 12** |
+| ω rel-L₂ | **11 / 12** |
+
+代表數字（K=100）：
+
+| Re | KE: PI-CON / RBF / trig | u: PI-CON / RBF / trig | ω: PI-CON / RBF / trig |
+|---|---|---|---|
+| 5×10² | 1.26 / 4.12 / **0.43** | **2.50** / 6.80 / 5.35 | **4.71** / 11.24 / 8.97 |
+| 10³ | 2.59 / 6.32 / **1.37** | **4.99** / 11.86 / 12.46 | **11.13** / 21.10 / 22.97 |
+| 10⁴ | 4.56 / 9.97 / **3.10** | **14.46** / 25.97 / 32.16 | **43.45** / 57.21 / 64.24 |
+| 10⁶ | 13.50 / 11.90 / **3.88** | **25.51** / 31.44 / 39.45 | **62.60** / 65.11 / 72.75 |
+
+**判讀**：
+- **PI-CON 的優勢是逐點，不是能量。** 一個只擬合可觀測頻帶的線性最小二乘（trig-LSQ）在 KE 上贏 11/12 格，但 u 差 1.3–2.5×、ω 差 1.2–2.2×。**與 thesis 既有 trade-off framing 一致**（§Results 禁區：KE 落後不可寫成失敗），現在有跨 5 Re 的量化支撐，並強化 contribution ④。
+- **KE 幾乎無法區辨方法優劣** → 獨立佐證 Stage 3 的缺口 7 結論（KE 門檻是下界）。
+- **K=10 的高誤差是資訊限制，非方法失敗**：該處所有方法都在 28–90 %，PI-CON 在 u 上仍領先 10–30 pp。
+- **trig-LSQ 在 K=10 崩潰有明確機制**：band edge `⌊√(10/π)⌋ = 1 < k_f = 2`，基底**無法表示 forcing mode**，故 u 誤差 >100 %（比預測零還差）。
+- **IDW 全域最差**（50–85 %），不具參考價值。
+- Re=10²（層流）trig-LSQ 全面最佳——2-模態場對帶限最小二乘是平凡問題，再次佐證該格為退化案例。
+
+**(B) `n99` 定義（`K ≈ π n99²/2` 的輸入）**
+
+四個候選在窗內的表現與各自推出的 K\*：
+
+| Re | n99 start / end / tmean / emean | K\*(end) | K\*(tmean) | K\* 實測(KE) |
+|---|---|---|---|---|
+| 10² | 8 / 2 / 2.1 / 5.7 | 6 | 7 | 10 |
+| 5×10² | 8 / 3 / 3.3 / 4.2 | 14 | 17 | 50 |
+| 10³ | 8 / 4 / 4.0 / 4.9 | 25 | 25 | 50 |
+| 10⁴ | 8 / 6 / 8.0 / 8.1 | 57 | 100 | 100 |
+| 10⁶ | 8 / 7 / 10.0 / 9.9 | 77 | 156 | >100 |
+
+- **`n99_start` 廢棄**：五個 Re **全為 8** → K\* 恆為 101，零鑑別力。此為 IC `ic_k_cutoff=8` 跨 Re 相同這個 confound 的**直接證據**。
+- **`n99_emean` 廢棄**：非單調（Re=10² 的 51 > Re=5×10² 的 28）。
+- **採用 `n99_tmean`（窗內時間平均）**：單調、Re=10⁴ 命中 100、Re=10⁶ 給 156（與 >100 相容）。
+- **但仍須誠實標註**：即使最佳定義，中段 Re 低估 2–3×（Re=5×10²：17 vs 50）→ **`K ≈ π n99²/2` 是尺度關係，非定量預測器**，與專案對 `√(K/π)` 的既有紀律（禁稱硬上限，只能說 scale）一致。
+
+**Open**：全部 single seed（42）**且單一 placement 實現**（FPS seed 42）。placement 變異的 20 支（EXP-340~359，K=50 × 5 Re × placement seed 1–4）已備妥 config 與 sensor 並通過 axis 檢查，但**使用者決定不跑 multi-run 類實驗**，jobs 已 `scancel`（Elapsed 全 0，零 GPU 消耗、無 artifact）。依專案既有結論「placement variance ≫ training variance」（O3, EXP-266），此為最高優先的未補缺口。其餘已知缺口：K 網格粗（3 點，區間寬 5×，無法擬合指數）、高 Re 可能受容量限制（全用 d=256/20k，而論文 Re=10⁶ 主結果需 d=384/50k，K 與容量未解耦）、IC 頻寬跨 Re 相同（`ic_k_cutoff=8`）故五案例皆為 transient 而非統計穩態、未與 RBF/IDW/trig-LSQ fair baseline 對照。
 - Artifacts（lab-server）：`artifacts/kolmogorov/cross_re_exp32{0-8}_*/`；eval `artifacts/eval_cross_re/exp_32{0-8}/summary.json`。
 
 **Open**：single seed（42）。若要宣稱 mean±std 需補 multi-seed。Stage 2（K 下掃補 Re=10⁴ 下支、釘 K\* 轉折點）未動工。
