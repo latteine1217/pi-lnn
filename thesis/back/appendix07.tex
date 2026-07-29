@@ -1,59 +1,107 @@
-\chapter{Boundary Diagnostics and Interpolation Baselines}
+\chapter{Recipe Boundaries, Sensor Time-Sampling, and Interpolation Baselines}
 \label{app:diagnostic_ablation_forward_cfd}
 
 \section{Boundary Diagnostics}
 \label{sec:diagnostics}
 
-The diagnostics below define what the final recipe does \emph{not} claim. They are single-seed or local-sweep checks under the final LES-pivot, $1024$-collocation, $20\,000$-iteration protocol unless otherwise noted, and are therefore used to set boundaries rather than to support Chapter~\ref{ch:results} main evidence.
+The diagnostics below define what the final recipe does \emph{not} claim. Each is a single-seed or local-sweep check under the final LES-pivot, $1024$-collocation, $20\,000$-iteration protocol unless otherwise noted, and sets a boundary rather than supporting Chapter~\ref{ch:results} main evidence. The multi-seed main baseline remains $5.71 \pm 0.12\%$ KE error at divergence ratio $0.39\%$. Percentages throughout; divergence ratio $= \Vert\nabla\!\cdot\!\mathbf{u}\Vert_2 / \Vert\nabla\mathbf{u}\Vert_F^{\rm DNS}$.
+
+\paragraph{Continuity-AL strength.}
+\label{sec:al_strength_appendix}
+Disabling the Augmented-Lagrangian (AL) dual update (continuity still balanced by GradNorm) and then varying the penalty $\rho$ around the main $\rho=0.1$ setting traces a monotone divergence--accuracy trade-off (Table~\ref{tab:al_strength}). Divergence falls as the constraint tightens, from $0.72\%$ with AL off to $0.28\%$ at $\rho=1.0$, while the KE error is lowest at the main $\rho=0.1$ and rises on either side. The AL-off divergence of $0.72\%$ stays below the $1.04\%$ DNS full-cascade finite-difference floor, consistent with a band-limited reconstruction (\S\ref{sec:sub_dns_div}). $\rho$ is a physics--data knob, not a source of improved reconstruction.
 
 \begin{table}[!htbp]
     \centering
-    \caption{Boundary diagnostics for alternative recipe choices at $Re=10\,000$, $K=100$. Metrics are percentages unless noted. The multi-seed main baseline remains $5.71 \pm 0.12\%$ KE error.}
-    \label{tab:boundary_diagnostics}
+    \caption{Continuity-AL strength sweep at $Re=10\,000$, $K=100$, single seed, under the final protocol. The main pipeline uses $\rho=0.1$.}
+    \label{tab:al_strength}
     \footnotesize
-    \setlength{\tabcolsep}{3pt}
-    \renewcommand{\arraystretch}{1.08}
-    \begin{tabularx}{\textwidth}{p{2.6cm}p{4.6cm}p{3.2cm}X}
+    \begin{tabular}{lcc}
     \toprule
-    \textbf{Diagnostic} & \textbf{Probe} & \textbf{Observed range} & \textbf{Reading} \\
+    \textbf{Setting} & \textbf{KE error \%} & \textbf{Div ratio \%} \\
     \midrule
-    Multi-constraint AL
-    & Add AL terms to NS momentum and/or continuity, with alternative GradNorm task sets.
-    & KE $5.47$--$6.31$; div ratio $0.39$--$0.57$.
-    & NS-momentum AL is not categorically unstable, but the effect is a divergence--accuracy trade-off rather than a validated improvement. \\
-    \midrule
-    Continuity-AL strength
-    & Vary $\rho$ around the main $\rho=0.1$ setting: $0.03$, $0.30$, $1.00$.
-    & KE $5.88$--$6.12$; div ratio decreases $0.45 \to 0.28$.
-    & Larger $\rho$ tightens divergence but costs field accuracy; $\rho$ is a physics--data knob, not a source of improved reconstruction. \\
-    \midrule
-    Forcing recovery
-    & Learn $A$, $k_f$, or both from near-zero initialisation ($A_{\rm init}=0.001$, $k_{f,\rm init}=0.01$).
-    & Learned values collapse near $A=0.001$, $k_f=0.01$ while KE stays $5.74$--$5.85$.
-    & Accurate velocity reconstruction does not certify recovery of the forcing parameters; structural identifiability is not established. \\
-    \midrule
-    Filtering vs.\ smoothing
-    & Compare deployable filtering against offline bidirectional smoothing.
-    & Filtering KE $5.71 \pm 0.12$; smoothing KE $5.74$.
-    & Future-sensor access gives no clear gain in this single-seed diagnostic; filtering remains the deployable default. \\
+    AL off (GradNorm continuity only) & $6.29$ & $0.72$ \\
+    $\rho = 0.03$                      & $5.88$ & $0.45$ \\
+    $\rho = 0.10$ (main)              & $5.71$ & $0.39$ \\
+    $\rho = 0.30$                      & $5.93$ & $0.33$ \\
+    $\rho = 1.00$                      & $6.12$ & $0.28$ \\
     \bottomrule
-    \end{tabularx}
+    \end{tabular}
 \end{table}
 
-\paragraph{Recipe implication.}
-The final pipeline therefore keeps continuity-only AL with $\rho=0.1$, fixed forcing parameters, and filtering-mode CfC. These choices are conservative: they are supported by the $n=5$ main baseline, avoid non-deployable future-sensor access, and do not promote single-seed alternatives into recipe claims.
-
-\paragraph{Detailed diagnostic anchors.}
+\paragraph{Multi-constraint AL.}
 \label{sec:multi_al_negative}
-\label{sec:al_strength_appendix}
+Adding AL terms to the Navier--Stokes momentum residual and/or continuity, under alternative GradNorm task sets, spans KE $5.47$--$6.31\%$ and divergence ratio $0.39$--$0.57\%$. NS-momentum AL is not categorically unstable, but its effect is a divergence--accuracy trade-off rather than a validated improvement, so the final pipeline keeps continuity-only AL.
+
+\paragraph{Forcing recovery.}
 \label{sec:forcing_identifiability}
+Learning the forcing amplitude $A$, wavenumber $k_f$, or both from near-zero initialisation ($A_{\rm init}=0.001$, $k_{f,\rm init}=0.01$) leaves the learned values collapsed near their initialisation while KE error stays $5.74$--$5.85\%$. Accurate velocity reconstruction does not certify recovery of the forcing parameters; structural identifiability is not established.
+
+\paragraph{Filtering vs.\ smoothing.}
 \label{sec:filtering_smoothing}
-Table~\ref{tab:boundary_diagnostics} is the canonical summary for the diagnostic boundary cases referenced from Chapter~\ref{ch:results} and Chapter~\ref{ch:discussion_conclusion}.
+Deployable filtering ($5.71 \pm 0.12\%$ KE error) and offline bidirectional smoothing ($5.74\%$, single seed) are comparable: future-sensor access gives no clear gain, and filtering remains the deployable default.
+
+\paragraph{Recipe implication.}
+The final pipeline keeps continuity-only AL with $\rho=0.1$, fixed forcing parameters, and filtering-mode CfC. These choices are conservative: supported by the $n=5$ main baseline, avoiding non-deployable future-sensor access, and not promoting single-seed alternatives into recipe claims.
+
+\section{Sensor Time-Sampling Diagnostics}
+\label{sec:time_sampling_diagnostics}
+
+The two checks below vary how densely and how regularly the sensors report in time, holding the placement, the sensor count, and every other setting at the main configuration. Both are single seed and set the range over which the reconstruction tolerates degraded temporal supervision.
+
+\paragraph{Temporal sampling density.}
+\label{sec:temporal_density}
+The stored trajectory carries $N_t = 201$ snapshots over $T = 5$~s (Table~\ref{tab:dns_params}), a cadence fixed by the DNS storage interval rather than tuned. Sub-sampling the sensor time series along the time axis to $101$, $51$, $26$, and $11$ snapshots (interval $\Delta t = 0.05$--$0.5$~s), while holding the window $[0,5]$~s and every other setting at the main configuration, isolates the supervision density (Figure~\ref{fig:temporal_density}). Low-band and KE errors are unchanged from $201$ down to $51$ snapshots ($\Delta t \le 0.1$~s; low-band $3.9$--$4.3\%$, KE $5.9$--$6.5\%$, single seed), rise moderately at $26$ ($6.1\%$, $8.3\%$), and increase sharply at $11$ ($\Delta t = 0.5$~s), where the low-band error reaches $16.0\%$ and crosses the $10\%$ criterion. The degradation onset near $\Delta t \sim 0.2$--$0.5$~s corresponds to under-sampling relative to the eddy-turnover time $t_{\rm eddy} \approx 1.99$~s, a temporal counterpart to the spatial sensor-count scale. The $201$-snapshot cadence sits in an over-resolved regime with margin to roughly $51$ snapshots; it is not a tuned quantity, and the reconstruction is insensitive to it across the resolved range.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/results/temporal_density_ablation.pdf}
+    \caption{Temporal sampling-density check at $Re=10\,000$, $K=100$, single seed, under the final protocol. KE and low-frequency band relative error versus the number of sensor snapshots $N_t$ over the fixed window $T=5$~s (top axis: sampling interval $\Delta t$). Only the sensor time-sampling density varies; all other settings match the main baseline. Dotted line: $10\%$ low-band criterion; shading: $\Delta t \le 0.1$~s.}
+    \label{fig:temporal_density}
+\end{figure}
+
+\paragraph{Intermittent sensor availability.}
+\label{sec:intermittent_sensors}
+The density check above removes snapshots uniformly, whereas deployed sensors drop packets at irregular times and leave gaps of unequal length. Discarding a random fraction of the $201$ frames ($30$, $50$, $70$, $90\%$; one fixed mask per fraction, longest gap $4$, $7$, $12$, and $38$ frames) and retraining under the main protocol tests the continuous-time property claimed for the sensor branch in \S\ref{subsec:cfc_encoder}: the CfC branch advances its state with the measured $\Delta t$, whereas the vanilla DeepONet branch reads the most recent frame at or before the query time and holds its input fixed across a gap.
+
+Evaluation queries the full $201$-frame DNS grid while the branch context stays built from the intermittent sensor sequence, so neither model gains information from the denser query grid; errors are then separated by whether the query time was retained or discarded. Both models train for $20\,000$ iterations, and the vanilla branch is widened to $3.17$\,M parameters against the $3.14$\,M of the full model, so training budget and capacity are held fixed and the remaining difference is attributable to the branch design.
+
+Table~\ref{tab:intermittent_staleness} and Figure~\ref{fig:intermittent_staleness} report the error against gap length, counted from the last retained sample. At $70\%$ dropout the full model stays within $7.4$--$8.5\%$ across gaps of one to nine frames, while the vanilla branch rises monotonically from $10.2$ to $14.0\%$; reconstruction quality is insensitive to gap length for the continuous-time branch over this range. At $90\%$ dropout, where the longest gap reaches $38$ frames, both degrade ($10.1 \to 21.2\%$ and $13.5 \to 26.6\%$): continuous-time evolution reduces the penalty for missing samples without removing it once the silence approaches the eddy-turnover scale. All values come from a single seed and no significance is claimed; the check supports the branch-design argument of \S\ref{subsec:cfc_encoder} rather than the main reconstruction result.
+
+\begin{table}[!htbp]
+    \centering
+    \caption{Reconstruction error versus sensor-gap length at $Re=10\,000$, $K=100$, single seed, under the final protocol at $20\,000$ iterations and matched parameter count. Gap length is counted in stored frames ($1$ frame $=0.025$~s); zero denotes a time at which a sensor sample was retained. Entries are kinetic-energy relative error in percent; $n$ is the number of evaluation times per bin.}
+    \label{tab:intermittent_staleness}
+    \footnotesize
+    \begin{tabular}{lcccccc}
+    \toprule
+    \multicolumn{7}{l}{$70\%$ dropout (longest gap $12$ frames)} \\
+    \midrule
+    Gap length (frames)      & $0$    & $1$    & $2$    & $3$    & $4$--$5$ & $6$--$9$ \\
+    $n$                      & $61$   & $42$   & $32$   & $23$   & $24$   & $15$ \\
+    Full PI-CON (B3)         & $7.42$ & $7.78$ & $8.08$ & $8.51$ & $8.22$ & $7.60$ \\
+    Vanilla DeepONet (B0)    & $10.22$ & $11.25$ & $11.96$ & $12.94$ & $13.48$ & $13.96$ \\
+    \midrule
+    \multicolumn{7}{l}{$90\%$ dropout (longest gap $38$ frames)} \\
+    \midrule
+    Gap length (frames)      & $0$    & $1$--$3$ & $4$--$7$ & $8$--$15$ & $16$--$40$ & \\
+    $n$                      & $21$   & $54$   & $33$   & $37$   & $56$   & \\
+    Full PI-CON (B3)         & $10.12$ & $11.21$ & $15.65$ & $17.56$ & $21.17$ & \\
+    Vanilla DeepONet (B0)    & $13.54$ & $14.91$ & $19.91$ & $23.14$ & $26.63$ & \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/results/intermittent_staleness.pdf}
+    \caption{Reconstruction error versus sensor-gap length at $Re=10\,000$, $K=100$, single seed, for $70\%$ (left) and $90\%$ (right) random temporal sensor dropout. Horizontal axis: frames since the last retained sensor sample ($1$ frame $=0.025$~s), where zero denotes a retained time. Vertical axis: kinetic-energy relative error. Both models are trained for $20\,000$ iterations at matched parameter count.}
+    \label{fig:intermittent_staleness}
+\end{figure}
 
 \section{Engineering-Transferable Interpolation Baselines}
 \label{app:fair_baselines}
 
-Three classical reconstructions respect the same sensor-only constraint as PI-CON (no DNS access at training or inference): radial basis function (RBF) interpolation with a multiquadric kernel, inverse distance weighting (IDW), and a divergence-free trigonometric least-squares fit on a truncated Fourier basis ($k_{\max}=5$, matching the $K=100$ Nyquist scale). Table~\ref{tab:fair_baselines} compares them with PI-CON on the same $K=100$ LES-derived sensors used for the main baseline, so the comparison isolates the reconstruction method at a fixed sensor placement. The RBF shape parameter ($\varepsilon=10$, of order one sensor spacing) and the truncation ($k_{\max}=5$, the $K=100$ Nyquist scale) are fixed from these a-priori scales rather than tuned to minimise DNS error, keeping the baselines sensor-only.
+Three classical reconstructions respect the same sensor-only constraint as PI-CON (no DNS access at training or inference): radial basis function (RBF) interpolation with a multiquadric kernel, inverse distance weighting (IDW), and a divergence-free trigonometric least-squares fit on a truncated Fourier basis ($k_{\max}=5$, matching the $K=100$ sampling band edge). Table~\ref{tab:fair_baselines} compares them with PI-CON on the same $K=100$ LES-derived sensors used for the main baseline, so the comparison isolates the reconstruction method at a fixed sensor placement. The RBF shape parameter ($\varepsilon=10$, of order one sensor spacing) and the truncation ($k_{\max}=5$, the $K=100$ sampling band edge) are fixed from these a-priori scales rather than tuned to minimise DNS error, keeping the baselines sensor-only.
 
 \begin{table}[!htbp]
     \centering

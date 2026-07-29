@@ -174,7 +174,7 @@ KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 
 | 主張 | 狀態 |
 |---|---|
-| K=100 upper bound on **mid/high (k>5)** | ✅ **仍成立**（Nyquist 硬上限 $k_{\max}=\lfloor\sqrt{K/\pi}\rfloor=5$）|
+| K=100 upper bound on **mid/high (k>5)** | ✅ **仍成立**（sampling band edge $\lfloor\sqrt{K/\pi}\rfloor=5$；必要條件非硬上限）|
 | K=100 upper bound on **low (k≤5)** | ❌ falsify（band_low 3.62→2.41 %）|
 | K=100 upper bound on **整體 KE** | ❌ falsify（low band 佔 ~99 % 能量, 10.77→5.97 %）|
 
@@ -738,14 +738,14 @@ Re=10⁶ (EXP-268, K=200, LES T=50, 50k): KE 6.10 %   ← 差距僅 0.39 pp ≈ 
 
 ### Layer 1 (✅ strong, paper-grade): Spectrum-domain Nyquist cut-off ∝ √K
 
-| K | Sensor spacing d = L/√K | Nyquist k_max ≈ π/d ~ √(K/π) | Spectrum visual verification |
+| K | Sensor spacing d = L/√K | Band edge √(K/π) | Spectrum visual verification |
 |---|---|---|---|
 | 100 | 0.10 | **5.64** | E(k) reconstruction 在 k ≤ 5.64 緊貼 DNS, k > 5.64 開始 deviate |
 | 200 | 0.071 | **7.98** | cut-off 推至 k ≈ 8, 對應 inertial/dissipation 邊界附近 |
 | 400 | 0.050 | **11.28** | cut-off 進入 forward enstrophy cascade |
 
-- **這是嚴謹 sampling theorem 在 spectrum domain 的應用**（random sampling 推廣, Cohen 2009 / Manohar 2018 compressive sensing bound）
-- **Paper §Theory 強 claim**: 「PI-CON spectrum reconstruction follows Nyquist k_max ≈ √(K/π) — the cut-off separates accurately reconstructed (k ≤ k_max) from irrecoverable (k > k_max) bands.」
+- **推導依 Landau (1967) necessary density condition**（取樣密度 ≥ 頻譜支撐測度；單位面積 K 點 → $\pi k_{\max}^2 \le K$）。**舊寫法 `k_max ≈ π/d` 已刪**：該式代數不自洽（$\pi/(L/\sqrt{K}) = \pi\sqrt{K}$，非 $\sqrt{K/\pi}$），且原標的 "Cohen 2009" 無法核實。完整版見 thesis §1.1（式 1.2）。
+- **Paper §Theory claim（措辭已收斂）**: 「PI-CON spectrum reconstruction tracks the sensor-count sampling band edge $\sqrt{K/\pi}$; the effective cutoff is set by conditioning and noise (實測 $k_{\rm cut} \approx 4.7$), and the vector-valued observability edge is $\sqrt{2K/\pi} \approx 8$.」禁用 "irrecoverable"、"硬上限"。
 
 ### Layer 2 (❌ wrong, 之前 over-claim): Scalar KE ∝ 1/√K 不是 universal scaling
 
@@ -1687,7 +1687,7 @@ cos<0 時投影掉互相抵銷分量，取代 `l_total.backward()`；AL/BC 不�
 **width 軸**：128 退步（11.18%）、512 微改善（9.44%），256→512 邊際效益 0.4pp，接近 plateau。
 **rank 軸**：128/256/512 差距 <0.25pp → **完全 plateau**，改 rank 無意義。
 **liquid τ（exp_285）**：KE 10.23% 比 baseline **略退步** 0.4pp → §1 修法在 10k steps / zero-init 下的 falsification。非長期否定 liquid τ 概念，但在此設定無收益。
-**整體**：全部落在 9.4~11.2% 的 1.8pp 窄區間 → **metric plateau 且貼近 K=100 Nyquist ceiling（理論最佳 7.77%）→ 瓶頸是資訊論硬上限，不是架構容量**。
+**整體**：全部落在 9.4~11.2% 的 1.8pp 窄區間 → **metric plateau 且貼近 K=100 spectral-truncation ceiling（理論最佳 7.77%）→ 瓶頸是 sensor 資訊量，不是架構容量**。
 
 **決定**：不再在 width/rank/liquid τ 方向投資。突破路徑為 K-scaling（EXP-269/270 系列）。
 詳見 `docs/research/2026-06-01-cfc-capacity-study.md §4.1`。
@@ -1757,6 +1757,7 @@ Each training job uses `partition=r740`, `gpu=1`, `cpus=8`, `mem=48G` (half-node
 
 | EXP | KE % | u L2 % | v L2 % | omega L2 % | div ratio % | Key note |
 |---|---:|---:|---:|---:|---:|---|
+| 302 AL off (GN-cont only) | 6.288 | 13.396 | 17.322 | 40.781 | 0.724 | AL-off endpoint of rho sweep; div highest, field metrics unchanged (see EXP-302 section) |
 | 291 rho=0.03 | 5.882 | 13.401 | 17.235 | 41.112 | 0.454 | lower rho improves pointwise but weakens div |
 | 291 rho=0.3 | 5.931 | 13.958 | 18.111 | 42.646 | 0.331 | stronger rho lowers div, worsens field metrics |
 | 291 rho=1.0 | 6.119 | 14.358 | 18.698 | 43.694 | 0.280 | strongest div, clearest accuracy cost |
@@ -1778,3 +1779,141 @@ Each training job uses `partition=r740`, `gpu=1`, `cpus=8`, `mem=48G` (half-node
 ### EXP-295 classical squeeze refresh
 
 `artifacts/under_determined_proof/baseline_squeeze.json` was regenerated successfully. Classical interpolation remains KE-misleading: several methods have competitive KE but much worse pointwise/vorticity errors than PI-CON. The RBF Gaussian epsilon sweep also shows extreme sensitivity to interpolation hyperparameters, so only carefully labelled classical baselines should be reported.
+
+---
+
+## EXP-302 — AL-off endpoint for the continuity-AL sweep（appendix diagnostic）
+
+**日期**: 2026-07-22 ｜ **狀態**: ✅ 已評估（train job 4554 COMPLETED 2:39:36；eval job 4555 COMPLETED）
+
+**Why**: appendix07 的 continuity-AL rho sweep（EXP-291）最低只到 rho=0.03，缺「完全關掉 AL」那一格。chapter04:215 宣稱「AL 把散度壓到 FD floor，證明約束 active」但無 AL-off 對照。本實驗補該端點。
+
+**Config**: `configs/exp_302_noal_gnonly.toml`（本地）→ lab-server。與 EXP-245/EXP-291 **唯一差 `use_augmented_lagrangian`**（false）：continuity 仍由 GradNorm cont task 平衡（`gradnorm_tasks=[data,ns_u,ns_v,cont]`、`continuity_weight=0`），只拔掉 AL dual ascent。其餘（LES_T50 sensor、1024 collo、20k、seed 42、SOAP/ScheduleFree）與 rho sweep 逐字相同。單變因對照。
+
+**Eval**: `scripts/slurm/eval_302_noal.sbatch` → `artifacts/eval_thesis_refresh/exp_302_noal_gnonly/summary.json`。與 EXP-290~294 同一 evaluator call signature（`evaluate_deeponet_cfc.py`、`final.pt`、`--export_arrays`、`--device cuda`）→ 與 0.39% 主線同源可比。
+
+**結果**（time-averaged mean，已填入上方 EXP-291/292/293/294 表首列）:
+
+| 指標 | EXP-302 無 AL | EXP-245 主線 ρ=0.1 | Δ |
+|---|---:|---:|---|
+| div ratio % | **0.724** | 0.39 | +0.33 pp（≈ 砍半的反向） |
+| KE % | 6.288 | 5.71 | +0.58 pp（single seed，雜訊級，不宣稱） |
+| u L2 % | 13.396 | 13.65 | ≈ 持平 |
+| v L2 % | 17.322 | 17.52 | ≈ 持平 |
+| omega L2 % | 40.781 | 41.77 | ≈ 持平 |
+
+div_ratio_ref_mean（DNS full-cascade FD floor）= 1.037%，與 chapter03:333 的 1.04% 一致。
+
+**Interpretation**:
+- div 單調鏈完整：AL off 0.72% → ρ=0.03 0.45% → ρ=0.1 0.39%（main）→ ρ=0.3 0.33% → ρ=1.0 0.28%。AL-off 為最高端點，且仍**低於** DNS full-cascade FD floor 1.04%（band-limited 假象，禁寫 sub-DNS）。
+- **關掉 AL 主要影響 div（升約一倍），不影響場精度**：u/v/omega 幾乎不動、KE 差 0.58pp 屬 single-seed 雜訊。AL 的作用是收緊不可壓縮性，不是改善重建品質。
+- **限制**: single seed，appendix diagnostic 位階（同 EXP-291/292/294），不可升為 Chapter 4 main claim；措辭停在現象描述，不下「AL dual ascent 才是主因」的因果判斷。
+- 已寫入 appendix07 Table `tab:boundary_diagnostics` 的 Continuity-AL strength 列（純現象描述）。
+
+---
+
+## EXP-303/304/305/306 — 時間取樣密度 ablation（軸 A，temporal snapshot count）
+
+**日期**: 2026-07-24 ｜ **狀態**: ✅ 已評估（train jobs 4559–4562 COMPLETED；eval job 4563 COMPLETED）｜ **位階**: single-seed positive finding（未 multi-seed）
+
+**Why**: 口試提問「data snapshot 為何取 201？其他數字呢？」。201 = DNS 儲存 cadence 副產品（`T=5 / Δt_store=0.025 + 1`，save_interval=100, dt=2.5e-4），從未做過不同 snapshot 數的實驗。本 sweep 固定窗長 [0,5]，只改 sensor 時間監督密度，量重建品質對取樣密度的敏感度——即空間 sensor-count Nyquist 故事的**時間對偶**。
+
+**Config**: `configs/exp_303_b3_tdensity_101f.toml`（101f）、`exp_304`（51f）、`exp_305`（26f）、`exp_306`（11f）。派生 from EXP-245，**唯一改動 sensor_jsons/npzs → 時間軸 stride 子取樣**（`scripts/subsample_sensor_time.py`，stride k=2/4/8/20 → 101/51/26/11 frames，皆整除 200 保留 t=0/t=5 端點、維持等距）。`dns_paths`（201f）、`T_total=5.0`、架構、optimizer、loss 權重全部與 EXP-245 逐字相同（單變因）。物理監督走 `time_marching` 連續採樣、與 sensor 時間格無關 → 只有 data 監督密度變動。axis-convention 驗證 `max|sensor_u − DNS[::k]| = 5.6e-8`。
+
+**Eval**: `scripts/evaluate_deeponet_cfc.py`、`final.pt`、`--export_arrays`、`--device cuda`（logs/eval_tdensity.sbatch）。**Scheme A**：每個 run 在自己的 sensor 時間格上評估（共同端點 t=5）；`_last` 指標在 t=5 跨 run 直接可比，`_mean` 指標平均支撐不同。baseline EXP-245 於同一 eval batch 用其原生 201f grid 重評，作為本 sweep 內部 apples-to-apples 錨點。
+
+**結果**（time-averaged mean；baseline 為本 batch 重評的 seed=42 單 seed 值）:
+
+| EXP | frames | Δt (s) | KE % | KE_val % | low-band % | u‖v‖ω L2 @t=5 % | div ratio % |
+|---|---:|---:|---:|---:|---:|---|---:|
+| 245 | 201 | 0.025 | 5.90 | 6.53 | 3.89 | 7.10 / 16.08 / 38.03 | 0.385 |
+| 303 | 101 | 0.05 | 6.06 | 7.33 | 3.98 | 6.75 / 14.31 / 36.34 | 0.454 |
+| 304 | 51 | 0.10 | 6.47 | 6.65 | 4.34 | 7.76 / 16.82 / 38.45 | 0.691 |
+| 305 | 26 | 0.20 | 8.28 | 6.88 | 6.07 | 8.45 / 18.45 / 39.30 | 1.097 |
+| 306 | 11 | 0.50 | 18.16 | 13.45 | 16.04 | 12.62 / 29.49 / 50.22 | 4.821 |
+
+圖: `thesis/figures/results/temporal_density_ablation.{pdf,png}`（`scripts/plot_temporal_density_ablation.py`）。
+
+**Interpretation**:
+- **平台 → 崖**，假設成立。平台區（201→51f, Δt≤0.1）：KE 5.90→6.47%、low-band 3.89→4.34%，4× 稀疏化幾乎無代價。膝部（26f, Δt=0.2）：KE +2.4pp、low-band +2.2pp，但 low-band 6.07% **仍守 10% 低頻準則**。崖（11f, Δt=0.5）：KE 3×（18.16%）、low-band 4×（16.04%，**破 10% 準則**）、div 0.39→4.82%（空間 ∇·u，非時間導數 → 真實物理退化）。
+- **對口試問題**：201 非調校值，但事後證明穩落過取樣區、甚至有餘裕（降到 ~51f 品質幾乎不變）。崖介於 Δt=0.2~0.5，對應 eddy turnover `t_eddy≈1.99`（協議 T/t_eddy=2.51）下的時間欠取樣（Δt=0.5 ≈ t_eddy/4 已 alias）。
+- **限制（連同結果一起講）**:
+  - **Single seed（=42）**。201/101/51 之間 ≤0.6pp 差落在 seed 雜訊帶（EXP-245 multi-seed KE std ±0.11pp）內，**不宣稱可分辨**；可宣稱者為「粗化到 ~51f 無大退化、26f 起退、11f 崩」與崖的存在（量級 ≫ 雜訊）。
+  - **Scheme A**：`_mean` 支撐不同；但共同時刻 t=5 的 `_last`（u_L2: 7.10→6.75→7.76→8.45→12.62）呈同趨勢 → 結論兩視角一致。
+  - 11f 的 `KE_val` < `KE_mean` 因 val split 僅 ~2 frame，過噪，勿過度解讀。
+- **Next（未執行）**: (1) 對膝部/崖 2–3 點（51/26/11f）補 multi-seed n=5，讓平台邊緣與崖起點帶 error bar 才 paper-ready；(2) scheme B（context 稀疏、query 全 201）測時間內插能力，需改 evaluator query-time 來源。
+
+---
+
+## EXP-310~317 — 間斷 sensor（random temporal dropout）下的 CfC vs vanilla（軸 A 續，methodology justification）
+
+**日期**: 2026-07-29 ｜ **狀態**: ✅ 已評估（B0 20k train 4631–4634、B0 capacity-matched train 4672–4675、eval 4610 / 4641 / 4710 皆 COMPLETED）｜ **位階**: single-seed methodology justification，**非三大軸（數量/位置/噪音）結果**
+
+**Why**: EXP-303~306 的「Next (2)」——時間取樣密度 ablation 只測等距稀疏，未測**不規則中斷**。真實感測器會隨機掉包，gap 長度不等。此組直接測「為何選 CfC」：CfC 以真實 Δt 做連續時間演化，vanilla DeepONet 的 branch 只吃 co-temporal snapshot、跨 gap 時退化為 zero-order hold（`src/pi_con/vanilla_deeponet.py:158`，`searchsorted(right=True)-1` 後向填充；trunk 仍收連續 `t_q`）。
+
+**Config**: B3 `configs/exp_310~313_b3_intermit_drop{30,50,70,90}.toml`；B0 `exp_314~317`（10k，初版）、`exp_314b~317b_*_20k.toml`（等預算）、`exp_314c~317c_*_20k_pmatch.toml`（等預算＋等容量）。派生 from EXP-245/246，**唯一改動 sensor → 時間軸隨機丟棄**（`scripts/make_intermittent_sensors.py`，檔名 `..._drop{N}s0`）。B3/B0 於各 dropout 用**同一份遮罩檔**。遮罩統計（對 201 幀 DNS）：
+
+| dropout | 保留幀 | 丟棄幀 | max gap run |
+|---|---:|---:|---:|
+| 30% | 141 | 60 | 4 |
+| 50% | 101 | 100 | 7 |
+| 70% | 61 | 140 | 12 |
+| 90% | 21 | 180 | 38 |
+
+**Eval**: **Scheme B**（EXP-303~306 的「Next (2)」，本次實作並 commit：`ed1d901`，分支 `feat/eval-on-dns-grid`）。`--eval-on-dns-grid` 只把 query 時刻換成完整 DNS 201 格；CfC/branch context（`h_states, s_time`）仍在 `evaluate_deeponet_cfc.py:911` 由間斷 sensor 序列建構一次、**不受此 flag 影響**（query 走 closure 延後呼叫）→ 模型可用資訊未增加。gap/seen 依 json 的 `dropped/retained_frame_idx` 於後處理切分。一律用 `final.pt`。
+
+管線正確性核對（逐項在程式碼/資料上驗過）：context 未污染；`keep+drop=201` 且無重疊；`npz time == t_dns[keep]` 精確相等；4 個 series 的 `time` 與 `t_dns` 完全相同 → 索引拆分無偏移。
+
+**Confounder 控制**（這是本組的主要工作量）:
+
+| 項目 | B3 | B0 初版 | B0 最終 |
+|---|---|---|---|
+| iterations | 20k | 10k | 20k |
+| 參數量 | 3.139 M | 1.279 M | **3.169 M**（+1.0%） |
+| 改動方式 | — | — | 僅 `query_mlp_hidden_dim` 256→440（深度/rank 不動） |
+
+**結果**（gap / seen 時刻 time-averaged KE rel-err，單 seed=42；B0 為等預算等容量版）:
+
+| dropout | B3 gap | B0 gap | B3 seen | B0 seen | 等容量 B0/B3 (gap) |
+|---|---:|---:|---:|---:|---:|
+| 30% | 7.20 | 11.68 | 6.07 | 8.41 | 1.62 |
+| 50% | 6.78 | 11.16 | 6.20 | 8.94 | 1.65 |
+| 70% | 8.03 | 12.49 | 7.42 | 10.22 | 1.56 |
+| 90% | 16.43 | 21.16 | 10.12 | 13.54 | 1.29 |
+
+**三層拆解**（原始 B0@10k/1.28M 與 B3 的 gap-time 差，單位 percentage points）:
+
+| dropout | raw | 預算 | 容量 | 架構/間斷 | 架構佔比 |
+|---|---:|---:|---:|---:|---:|
+| 30% | 7.51 | 0.76 | 2.26 | 4.49 | 60% |
+| 50% | 7.46 | 0.66 | 2.43 | 4.38 | 59% |
+| 70% | 8.63 | 0.88 | 3.28 | 4.46 | 52% |
+| 90% | 10.58 | 1.91 | 3.94 | 4.74 | 45% |
+
+**機制證據（主要結果）**：誤差 vs staleness（距上一個保留幀的幀數；staleness=0 即 seen 時刻）。**同一幀比較 B3/B0，時間位置 confound 精確抵消**：
+
+| 70% dropout, staleness | 0 | 1 | 2 | 3 | 4–5 | 6–9 |
+|---|---:|---:|---:|---:|---:|---:|
+| n | 61 | 42 | 32 | 23 | 24 | 15 |
+| B3 | 7.42 | 7.78 | 8.08 | 8.51 | 8.22 | 7.60 |
+| B0 | 10.22 | 11.25 | 11.96 | 12.94 | 13.48 | 13.96 |
+
+| 90% dropout, staleness | 0 | 1–3 | 4–7 | 8–15 | 16–40 |
+|---|---:|---:|---:|---:|---:|
+| n | 21 | 54 | 33 | 37 | 56 |
+| B3 | 10.12 | 11.21 | 15.65 | 17.56 | 21.17 |
+| B0 | 13.54 | 14.91 | 19.91 | 23.14 | 26.63 |
+
+圖: `thesis/figures/results/intermittent_staleness.{pdf,png}`（主圖）、`intermittent_gaptime_equal_budget.{pdf,png}`、`intermittent_cfc_vs_vanilla.{pdf,png}`。
+
+**Interpretation**:
+- **假設成立，但要用 staleness 講、不能用聚合平均講**。聚合 gap-time 只說明「B3 < B0」，無法排除「B3 全面較好」（B3 在 seen 時刻本來就贏）。真正的證據是斜率：70% dropout 下 B3 在 gap 1–9 幀**近乎持平**（7.4→7.6%），B0 **單調惡化**（10.2→14.0%，+3.7 pp）。可寫的結論是「CfC 使重建品質對感測中斷長度不敏感」，不是「CfC 在 gap 時刻誤差減半」。
+- **容量效應 > 預算效應**。B0 從 10k→20k 只買到 0.66–1.91 pp（10k 已近自身飽和），但容量 1.28→3.17 M 買到 2.26–3.94 pp。等容量後 B0/B3 從 1.94–2.10× 降到 1.56–1.65×。**canonical B0 vs B3 ablation 的 2.45× 參數量落差，對任何「架構」歸因都是必須揭露的 confounder。**
+- **極端 dropout 下連續時間失效**：90%（max gap 38 幀 ≈ t_eddy/2 量級）兩者都大幅惡化（B3 10.1→21.2），B0/B3 收斂到 1.29×。連續時間演化救不了任意長的 gap。
+- **B0 的退化不只是「資料稍舊」**：DNS 的 KE 本身每幀僅漂 0.17%、3 幀 0.51%、38 幀 5.66%，遠小於 B0 在同間隔的數個 percentage point 退化 → 推測主因是 branch snapshot 與 trunk query time 不一致時的脆性，而非資訊陳舊本身。**此為解讀，未獨立驗證。**
+
+**限制（連同結果一起講）**:
+- **Single seed（=42）**，無 error bar。1.29–1.65× 的量級遠大於 EXP-245 multi-seed KE std（±0.11pp），但**不宣稱統計顯著**。
+- **gap/seen 比值有時間位置偏誤，不可引用**：`corr(t, err)` 強烈為負（B3 −0.88 / B0 −0.78 @drop30；B3 −0.82 / B0 −0.57 @drop70），而 gap 幀平均時刻晚於 seen 幀（+0.10 ~ +0.44）→ gap 幀落在本質誤差較低的區段，該比值**低估** gap 代價。staleness 表不受此影響（同幀比較）。
+- **定位**：屬「為何選 CfC」的 methodology justification / robustness 診斷，**不是** thesis 三大軸（數量·位置·噪音）結果。若入論文應放 appendix 或 §Method 佐證，且必須標明 single seed。
+- **Next（未執行）**: (1) 關鍵 dropout（30/70）補 multi-seed n=3~5，才 paper-ready；(2) 量 pointwise（u/v/ω rel-L2）的 staleness 曲線，確認結論不限於 KE 這一個 observable。
