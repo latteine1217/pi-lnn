@@ -90,6 +90,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--eval-on-dns-grid",
+        action="store_true",
+        help=(
+            "Scheme-B：評估時刻改用完整 DNS grid（而非 sensor_time）。CfC/branch context"
+            " (h_states, s_time) 仍由訓練用的 sensor 序列建構、不變；只有 query 時刻換成 DNS 全格。"
+            " 用於間斷 sensor（random dropout）測試：可在被丟棄的 gap 時刻 query，量 CfC 連續時間"
+            " 外插 vs vanilla zero-order-hold 的差異。gap/seen 拆分於後處理用 json 的 dropped/retained 索引。"
+        ),
+    )
+    parser.add_argument(
         "--apply-denormalization",
         action="store_true",
         help=(
@@ -1022,6 +1032,12 @@ def main() -> None:
     #         （np.gradient(field, time_vals) 接 nonuniform）。stride=1 等於原行為。
     if args.eval_stride < 1:
         raise ValueError(f"--eval-stride 必須 ≥ 1，收到 {args.eval_stride}")
+    if getattr(args, "eval_on_dns_grid", False):
+        # Scheme-B：eval 時刻脫離 sensor grid，改用完整 DNS grid。context (h_states, s_time)
+        # 已於上方 model.encode 由間斷 sensor 序列建好、此處不動；只換 query 時刻與對應 DNS 參考。
+        # 使被丟棄的 gap 時刻也被 query → 可量 gap-time 重建（間斷 sensor 測試核心）。
+        sensor_time = t_dns.astype(np.float32)
+        sensor_to_dns_idx = np.arange(len(t_dns), dtype=np.int64)
     eval_tidx = np.arange(0, len(sensor_time), args.eval_stride, dtype=np.int64)
     sensor_time = sensor_time[eval_tidx]                      # subsample
     sensor_to_dns_idx = sensor_to_dns_idx[eval_tidx]
@@ -1586,8 +1602,15 @@ def main() -> None:
     _sensor_vals_phys = (
         sensor_vals * sensor_std + sensor_mean   # broadcast [K, T_full, C]
     )
-    _u_true_K = _sensor_vals_phys[:, eval_tidx, 0].T.astype(np.float32)   # [T_eval, K]
-    _v_true_K = _sensor_vals_phys[:, eval_tidx, 1].T.astype(np.float32)
+    if getattr(args, "eval_on_dns_grid", False):
+        # Scheme-B：eval 時刻是 DNS grid、不是 sensor times → 這個 sanity check 沒有對應真值，
+        # 且 eval_tidx 已改為 DNS 長度，直接索引 sensor 陣列會越界。以 NaN 佔位跳過。
+        _KN = (len(sensor_time), sensor_pos.shape[0])
+        _u_true_K = np.full(_KN, np.nan, dtype=np.float32)
+        _v_true_K = np.full(_KN, np.nan, dtype=np.float32)
+    else:
+        _u_true_K = _sensor_vals_phys[:, eval_tidx, 0].T.astype(np.float32)   # [T_eval, K]
+        _v_true_K = _sensor_vals_phys[:, eval_tidx, 1].T.astype(np.float32)
     _u_pred_K = query_at_sensor_positions(0, sensor_time)
     _v_pred_K = query_at_sensor_positions(1, sensor_time)
     _sensor_mse_u = np.mean((_u_pred_K - _u_true_K) ** 2, axis=1)  # [T_eval]
