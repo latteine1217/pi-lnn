@@ -2,17 +2,27 @@
 
 What:
     Centralized NeurIPS/ICLR-standard rcParams (DPI≥300, sans-serif Helvetica,
-    4-side spines, inner ticks, subtle grid, square legend frame, etc.). All
-    evaluator entry-point scripts must `apply_journal_rcparams()` before any
-    plt.subplots() call.
+    4-side spines, inner ticks, subtle grid, square legend frame, etc.), the
+    thesis-wide colour palette, venue figure widths, and a vector-first
+    `save_figure`. All figure-producing scripts must `apply_journal_rcparams()`
+    before any plt.subplots() call.
 
 Why:
     Multiple evaluators (evaluate_deeponet_cfc, evaluate_cylinder, aim_diagnostic)
     previously each had their own (or no) rcParams. Style drift between figures
     in the same paper looks unprofessional. Centralizing here forces consistency
     and makes future style tweaks one-line.
+
+    A second, conflicting profile (`scripts/journal_style.py`) briefly coexisted
+    with this one: it selected serif Times, dropped the top/right spines, moved
+    ticks outward and removed the legend frame. A figure drawn under it was
+    visibly foreign among the thesis result figures. Its genuinely useful parts
+    (the venue width table and vector-first saving) were folded in here and the
+    conflicting rcParams profile was dropped, so exactly one style exists.
 """
 from __future__ import annotations
+
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 
@@ -137,3 +147,60 @@ SCHEMATIC = {
     "line": "#253142",
     "muted": OKABE_ITO["grey"],
 }
+
+# Marker + linestyle cycle paired with SERIES, so multi-series figures stay
+# distinguishable in grayscale. The square marker is demoted below o/^/D, which
+# read cleaner at thesis figure sizes.
+_MARKERS = ["o", "^", "D", "v", "s", "P", "X"]
+_LINESTYLES = ["-", "--", "-.", ":", "-", "--", "-."]
+STYLE_CYCLE: list[tuple[str, str, str]] = list(zip(SERIES, _MARKERS, _LINESTYLES))
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Figure geometry and output
+# ══════════════════════════════════════════════════════════════════════
+
+# Physical figure widths in inches, per venue.
+WIDTHS_IN: dict[str, dict[str, float]] = {
+    "thesis":  {"single": 5.50, "half": 2.70},  # NTHU thesis \textwidth
+    "iclr":    {"single": 5.50, "half": 2.70},
+    "neurips": {"single": 5.50, "half": 2.70},
+    "ieee":    {"single": 3.50, "double": 7.16},
+    "nature":  {"single": 3.46, "double": 7.20},  # 89 mm / 183 mm
+    "jfm":     {"single": 5.00, "half": 2.40},
+    "tmlr":    {"single": 6.50, "half": 3.20},
+}
+
+
+def figwidth(venue: str = "thesis", kind: str = "single") -> float:
+    """Return the physical figure width in inches for venue/kind.
+
+    `kind` is 'single'/'half' for single-column venues and 'single'/'double'
+    for two-column ones. An unknown combination raises rather than falling back,
+    because a silently wrong width only shows up after the figure is placed.
+    """
+    venue = venue.lower()
+    if venue not in WIDTHS_IN:
+        raise KeyError(f"unknown venue {venue!r}; known: {sorted(WIDTHS_IN)}")
+    table = WIDTHS_IN[venue]
+    if kind not in table:
+        raise KeyError(
+            f"venue {venue!r} has no width {kind!r}; available: {sorted(table)}"
+        )
+    return table[kind]
+
+
+def save_figure(fig, stem: str, formats: tuple[str, ...] = ("pdf", "png")) -> list[Path]:
+    """Save `fig` to <stem>.<ext> for each format; returns the written paths.
+
+    PDF first enforces the vector-first rule for submission assets; the PNG is a
+    convenience preview (slide decks, quick review), not the thesis asset.
+    """
+    out = Path(stem)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for ext in formats:
+        path = out.with_suffix(f".{ext}")
+        fig.savefig(path)
+        written.append(path)
+    return written
