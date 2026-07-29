@@ -1008,8 +1008,8 @@ Parfenyev）的比較是規格對照，不是數值比較（Re 差 7.7× 以上�
    be treated as an extension, not a multi-seed benchmark"）。也不要說成 "generalisation"，
    config 是 retuned 過的（thesis/CLAUDE.md O2 明載）。
 
-O2 數量軸。主視覺＝三連能譜（scripts/plot_spectrum_k_scaling_triptych.py，
-投影片專用；論文用 fig:k_scaling_spectra 的三張 subfigure）。講法：指綠線 —— 5.64 → 7.98 →
+O2 數量軸。主視覺＝三連能譜（`scripts/plot_spectrum_k_scaling.py --layout slide`，
+投影片專用；論文用 fig:k_scaling_spectra 的三張 subfigure，同腳本 `--layout paper`）。講法：指綠線 —— 5.64 → 7.98 →
 11.28 一路右移，而藍色 PI-CON 正好在綠線處脫離黑色 DNS，三格都是。這就是 chapter04:169
 「the reconstruction bandwidth tracks the sensor-count Nyquist scale」。
 KE 5.90 / 2.47 / 1.76 % 已標進 panel 標題（出處 tab:k_scaling_nyquist, chapter04.tex:285）。
