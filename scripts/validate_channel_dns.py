@@ -10,7 +10,14 @@ Why:  確認抓取的 strided downsample DNS 物理正確（軸序對、流向�
 注意：stride-4 downsample + finite-diff，divergence 不會達 spectral 機器精度
       （truncation error 必然），重點看 U⁺(y⁺) 與 Reynolds stress 物理形狀。
 
+資料現址: 3D channel 主線已移至 pi-lnn-jax，DNS frames 與 metadata.json 隨之搬到
+      `../pi-lnn-jax/data/channel_dns/`（2026-07-29）。下方預設路徑保留原樣，因為
+      fetch_channel_dns_jhtdb.py 重新抓取時仍會落在本專案的 data/channel_dns；
+      要驗證既有 frames 請顯式給路徑。
+
 用法: uv run python scripts/validate_channel_dns.py [npy_path]
+      uv run python scripts/validate_channel_dns.py \\
+          ../pi-lnn-jax/data/channel_dns/channel_dns_t0001.npy
 """
 from __future__ import annotations
 
