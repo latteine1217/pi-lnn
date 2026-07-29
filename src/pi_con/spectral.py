@@ -25,6 +25,14 @@ Why:
     6. 不做 pair-count 補償——Durran et al. 的補償會破壞 Parseval，而
        eq:parseval 在本研究是 load-bearing（band energy 是 E(k)Δk 的部分和，
        需與 KE 交叉核對）
+
+跨專案可比性（pi-lnn-jax）:
+    `pi_lnn_jax.evaluate.compute_energy_spectrum` 走相反的 corner 取捨：它的 bin
+    延伸到對角 √2·n/2 並保留 k=0，以維持完整 Parseval（用來偵測 checkerboard 這類
+    能量全在對角的病態場）。兩者在 **k = 1…n/2 的重疊區逐位一致**（實測
+    max|ΔE| = 2.1e-17，涵蓋 DNS、白噪音、checkerboard 三種場），差異只在該區之外：
+    corner 段對 Kolmogorov 場佔 KE 的 0.00%、對白噪音 19%、對 checkerboard 100%。
+    因此 resolved band 內的比較可直接互通，兩專案各自的取捨不需統一。
 """
 from __future__ import annotations
 
