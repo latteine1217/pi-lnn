@@ -18,28 +18,36 @@ Definitions compared:
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.spectral import radial_energy_spectrum  # noqa: E402
+
 
 def radial_spectrum(u: np.ndarray, v: np.ndarray) -> np.ndarray:
-    n = u.shape[-1]
-    uh, vh = np.fft.fft2(u) / n**2, np.fft.fft2(v) / n**2
-    e = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
-    kx = np.fft.fftfreq(n, d=1.0 / n)
-    KX, KY = np.meshgrid(kx, kx, indexing="ij")
-    idx = np.round(np.sqrt(KX**2 + KY**2)).astype(int)
-    return np.array([e[idx == k].sum() for k in range(n // 2 + 1)])
+    """Return E(k) for k = 1 … n/2. 實作見 pi_con.spectral（全 repo 單一份）。"""
+    _, e_k = radial_energy_spectrum(u, v)
+    return e_k
 
 
 def n_frac(E: np.ndarray, frac: float) -> int:
+    """Smallest integer wavenumber whose cumulative energy reaches `frac`.
+
+    `E` is indexed from k=1, so the array index must be shifted by one to become
+    a wavenumber. The earlier local spectrum started its bins at k=0, which made
+    index and wavenumber coincide; the k=0 shell carries no energy on a periodic
+    domain (measured 3.4e-38 of KE), so dropping it leaves the returned n99
+    unchanged once the shift is applied.
+    """
     tot = E.sum()
     if tot <= 0:
         return 0
     c = np.cumsum(E) / tot
     hit = np.nonzero(c >= frac)[0]
-    return int(hit[0]) if hit.size else len(E) - 1
+    return int(hit[0]) + 1 if hit.size else len(E)
 
 
 def main():

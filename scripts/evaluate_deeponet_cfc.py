@@ -34,6 +34,7 @@ TRAIN_RATIO_FALLBACK = 0.8
 # 期刊風格繪圖（NeurIPS/ICLR）— 透過 shared helper 套用全域 rcParams。
 # Why: 三個 evaluator script 共用同一 style 避免 figure 在同一篇 paper 中 drift。
 from pi_con.plot_style import apply_journal_rcparams, DNS, PICON
+from pi_con.spectral import radial_energy_spectrum
 apply_journal_rcparams()
 
 
@@ -276,41 +277,17 @@ def ns_residual_fields(
 
 
 def energy_spectrum_1d(u: np.ndarray, v: np.ndarray, dx: float) -> tuple[np.ndarray, np.ndarray]:
-    """What: 計算 1D radial-averaged energy spectrum E(k)。
+    """1D radial-averaged energy spectrum E(k) — delegates to the canonical impl.
 
-    Why: 替代原 Python for-loop（每 spectrum N/2 次 mask + sum），改用 np.bincount
-         在 ravel 後一次 scatter-add，速度提升 ~10-50×；保留 ordinary wavenumber
-         單位（cycles/domain）對齊 k_f=2.0。
+    保留此名稱與簽章：plot_energy_spectrum、plot_spectrum_k_scaling 與其 triptych
+    變體都從此處 import。實作本身已移到 pi_con.spectral，全 repo 單一份。
 
-    Normalization (Parseval check)：
-        uh = fft2(u) / n²  →  Σ |uh|² = mean(|u|²)
-        所以 Σ E(k) ≈ 0.5 (mean u² + mean v²) = KE（narrow-band 場）。`/n²` 是對的。
-
-    Bin truncation (I2 + IMP-1 caveat)：
-        kk = √(kx²+ky²) 最大可達 √2 · n/2（角落超過 Nyquist）。
-        bin_idx > n//2 的 bin 物理上沒有意義（超過 Nyquist），mask 掉而非塞 last bin。
-        **副作用**：對 broad-band 場（如 white noise），落在 isotropic Nyquist 與 corner
-        之間的能量 (~19% 量級) 會被 mask 掉，造成 Σ E(k) < KE。
-        對 Kolmogorov narrow-band 場（能量集中在 k~k_f 附近）影響微小。
-        若需嚴格 Parseval consistency 在所有場上，請用 1D unwrap 而非 isotropic bin。
+    Caveat（源自論文定義，非此處的取捨）：超出 isotropic Nyquist 的 corner mode 被
+    捨棄而非折回末個 shell。對 broad-band 場（如白噪音）會有約 21% 的能量不計入
+    ΣE(k)；對 Kolmogorov 這類能量集中的場影響可忽略。需要量化時用
+    pi_con.spectral.parseval_residual。
     """
-    n = u.shape[0]
-    k1d = np.fft.fftfreq(n, d=dx)
-    uh = np.fft.fft2(u) / n**2
-    vh = np.fft.fft2(v) / n**2
-    e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
-    kx, ky = np.meshgrid(k1d, k1d, indexing="ij")
-    kk = np.sqrt(kx**2 + ky**2)
-    # n_bins 對應 [k=1, k=2, ..., k=n//2]（Nyquist 上限），共 n//2 個 bin。
-    n_bins = n // 2
-    # bin_idx ∈ [1, n//2] valid；> n//2（含對角線超 Nyquist 區）mask out。
-    bin_idx = np.floor(kk + 0.5).astype(np.int64)
-    valid = (bin_idx >= 1) & (bin_idx <= n_bins)
-    flat_idx = np.where(valid, bin_idx - 1, 0)  # shift 到 [0, n_bins-1]
-    weights = np.where(valid, e2d, 0.0).ravel()
-    e_k = np.bincount(flat_idx.ravel(), weights=weights, minlength=n_bins).astype(np.float64)
-    edges = np.arange(0.5, n_bins + 1.5, 1.0)  # length n_bins+1（centers = 1, 2, ..., n//2）
-    return 0.5 * (edges[:-1] + edges[1:]), e_k
+    return radial_energy_spectrum(u, v, dx=dx)
 
 
 def spectrum_value_at_k(k_vals: np.ndarray, e_vals: np.ndarray, k_target: float) -> float:

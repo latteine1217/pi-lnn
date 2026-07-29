@@ -11,30 +11,24 @@ Why:  cross-Re 的 K*(Re) 曲線只有在各 Re 的流場「同樣是非平庸�
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.spectral import radial_energy_spectrum  # noqa: E402
+
 
 def radial_spectrum(u, v, L=1.0):
-    """Return (n_bins, E(n)) with n the integer wavenumber (physical k = 2*pi*n/L)."""
-    N = u.shape[-1]
-    uh = np.fft.fft2(u) / N**2
-    vh = np.fft.fft2(v) / N**2
-    e = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2)
+    """Return (n_bins, E(n)) with n the integer wavenumber (physical k = 2*pi*n/L).
 
-    kx = np.fft.fftfreq(N, d=1.0 / N)
-    ky = np.fft.fftfreq(N, d=1.0 / N)
-    KX, KY = np.meshgrid(kx, ky, indexing="ij")
-    kmag = np.sqrt(KX**2 + KY**2)
-
-    nmax = N // 2
-    bins = np.arange(0, nmax + 1)
-    idx = np.round(kmag).astype(int)
-    E = np.zeros(nmax + 1)
-    for n in bins:
-        E[n] = e[idx == n].sum()
-    return bins, E
+    實作見 pi_con.spectral（全 repo 單一份）。原本此處的 bin 自 n=0 起，含 mean
+    mode；週期域上該 shell 不帶能量（實測佔 KE 的 3.4e-38），且下游的
+    band_fraction / spectral_bandwidth 都以 `bins` 作遮罩而非拿索引當波數，故移除
+    該 bin 不改變任何輸出。
+    """
+    return radial_energy_spectrum(u, v)
 
 
 def band_fraction(bins, E, n_cut):

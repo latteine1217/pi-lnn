@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 from pi_con.plot_style import apply_journal_rcparams
+from pi_con.spectral import radial_energy_spectrum
 
 T_EDDY = 1.99  # s
 K_SENSOR = np.sqrt(100 / np.pi)  # ~5.64 1/m, K=100 Nyquist
@@ -36,19 +37,8 @@ OUT = ROOT / "thesis" / "figures" / "results" / "dns_les_vorticity_compare"
 
 
 def radial_spectrum(u, v):
-    N = u.shape[-1]
-    uh, vh = np.fft.fft2(u), np.fft.fft2(v)
-    e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2) / (N ** 4)
-    km = np.fft.fftfreq(N, d=1.0 / N)
-    kx, ky = np.meshgrid(km, km, indexing="ij")
-    krad = np.sqrt(kx ** 2 + ky ** 2)
-    edges = np.arange(0.5, N // 2 + 1.5, 1.0)
-    kb = 0.5 * (edges[:-1] + edges[1:])
-    idx = np.digitize(krad.ravel(), edges) - 1
-    ok = (idx >= 0) & (idx < len(kb))
-    spec = np.zeros(len(kb))
-    np.add.at(spec, idx[ok], e2d.ravel()[ok])
-    return kb, spec
+    """Thin alias for the canonical implementation (see pi_con.spectral)."""
+    return radial_energy_spectrum(u, v)
 
 
 def slope(k, E, lo=3, hi=30):

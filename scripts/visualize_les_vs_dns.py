@@ -20,6 +20,7 @@ Output:
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -28,38 +29,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-# 期刊風格 — 對齊 scripts/evaluate_deeponet_cfc.py 約定
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.sans-serif": ["Helvetica", "Arial", "DejaVu Sans"],
-    "font.size": 10,
-    "axes.titlesize": 10,
-    "axes.labelsize": 10,
-    "axes.linewidth": 0.7,
-    "axes.grid": True,
-    "grid.linewidth": 0.4,
-    "grid.alpha": 0.3,
-    "grid.color": "#999999",
-    "xtick.labelsize": 9,
-    "ytick.labelsize": 9,
-    "xtick.direction": "in",
-    "ytick.direction": "in",
-    "xtick.top": True,
-    "ytick.right": True,
-    "xtick.major.width": 0.6,
-    "ytick.major.width": 0.6,
-    "xtick.major.size": 3.0,
-    "ytick.major.size": 3.0,
-    "legend.fontsize": 8,
-    "legend.frameon": True,
-    "legend.framealpha": 0.9,
-    "legend.edgecolor": "#666666",
-    "legend.fancybox": False,
-    "lines.linewidth": 1.4,
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight",
-    "figure.dpi": 100,
-})
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.plot_style import apply_journal_rcparams  # noqa: E402
+from pi_con.spectral import radial_energy_spectrum  # noqa: E402
+
+# 此處原本手抄了一份 JOURNAL_RCPARAMS，且漏掉 pdf.fonttype=42（會輸出部分期刊
+# 拒收的 Type-3 字型）。改為呼叫單一來源。
+apply_journal_rcparams()
 
 
 def compute_div_max_series(u: np.ndarray, v: np.ndarray, L: float) -> np.ndarray:
@@ -76,21 +52,8 @@ def compute_div_max_series(u: np.ndarray, v: np.ndarray, L: float) -> np.ndarray
 
 
 def compute_radial_spectrum(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Single snapshot radial E(k) — returns (k_bins, E)."""
-    N = u.shape[-1]
-    uh = np.fft.fft2(u)
-    vh = np.fft.fft2(v)
-    e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2) / (N ** 4)
-    k_mode = np.fft.fftfreq(N, d=1.0 / N)
-    kx, ky = np.meshgrid(k_mode, k_mode, indexing="ij")
-    k_rad = np.sqrt(kx ** 2 + ky ** 2)
-    bin_edges = np.arange(0.5, N // 2 + 1.5, 1.0)
-    k_bins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-    bin_idx = np.digitize(k_rad.ravel(), bin_edges) - 1
-    valid = (bin_idx >= 0) & (bin_idx < len(k_bins))
-    spec = np.zeros(len(k_bins))
-    np.add.at(spec, bin_idx[valid], e2d.ravel()[valid])
-    return k_bins, spec
+    """Single snapshot radial E(k) — 實作見 pi_con.spectral（全 repo 單一份）。"""
+    return radial_energy_spectrum(u, v)
 
 
 def loglog_slope(k: np.ndarray, E: np.ndarray, k_lo: float, k_hi: float) -> tuple[float, float]:

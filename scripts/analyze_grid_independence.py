@@ -23,10 +23,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.spectral import radial_energy_spectrum  # noqa: E402
 
 
 # ── Plot style (journal NeurIPS/ICLR per MEMORY.md) ──────────────────
@@ -103,21 +107,8 @@ def relative_L2(u_pred: np.ndarray, u_ref: np.ndarray) -> float:
 
 # ── Energy spectrum (per-bin radial average) ─────────────────────────
 def compute_energy_spectrum(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Returns (k_bins, E(k)) for one frame."""
-    N = u.shape[-1]
-    uh = np.fft.fft2(u)
-    vh = np.fft.fft2(v)
-    e2d = 0.5 * (np.abs(uh) ** 2 + np.abs(vh) ** 2) / (N ** 4)
-    k_mode = np.fft.fftfreq(N, d=1.0 / N)
-    kx, ky = np.meshgrid(k_mode, k_mode, indexing="ij")
-    k_rad = np.sqrt(kx ** 2 + ky ** 2)
-    bin_edges = np.arange(0.5, N // 2 + 1.5, 1.0)
-    k_bins = 0.5 * (bin_edges[:-1] + bin_edges[1:])
-    bin_idx = np.digitize(k_rad.ravel(), bin_edges) - 1
-    valid = (bin_idx >= 0) & (bin_idx < len(k_bins))
-    spec = np.zeros(len(k_bins))
-    np.add.at(spec, bin_idx[valid], e2d.ravel()[valid])
-    return k_bins, spec
+    """Returns (k_bins, E(k)) for one frame. 實作見 pi_con.spectral（單一份）。"""
+    return radial_energy_spectrum(u, v)
 
 
 # ── Time-series metrics ──────────────────────────────────────────────

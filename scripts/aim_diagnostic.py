@@ -26,6 +26,7 @@ from pathlib import Path
 
 from picon_kolmogorov import create_picon_model, load_picon_config
 from pi_con.plot_style import apply_journal_rcparams
+from pi_con.spectral import radial_energy_spectrum
 
 # Journal style: NeurIPS/ICLR 標準（DPI≥300、Helvetica、4 邊 spines、inner ticks）
 apply_journal_rcparams()
@@ -114,25 +115,8 @@ def aim_correct(u_pred: np.ndarray, v_pred: np.ndarray,
 # ── Band energy 計算 ──────────────────────────────────────────────────────────
 
 def energy_spectrum_1d(u: np.ndarray, v: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """計算一維旋轉平均能量譜。"""
-    N = u.shape[0]
-    u_hat = np.fft.fft2(u) / N**2
-    v_hat = np.fft.fft2(v) / N**2
-    energy = 0.5 * (np.abs(u_hat)**2 + np.abs(v_hat)**2)
-
-    kx_1d = np.fft.fftfreq(N) * N
-    KX, KY = np.meshgrid(kx_1d, kx_1d, indexing='ij')
-    k_abs = np.sqrt(KX**2 + KY**2).ravel()
-    e_flat = energy.ravel()
-
-    k_int = np.round(k_abs).astype(int)
-    k_max = N // 2
-    k_vals = np.arange(1, k_max + 1)
-    e_vals = np.zeros(k_max)
-    for i, k in enumerate(k_vals):
-        mask = (k_int == k)
-        e_vals[i] = e_flat[mask].sum() if mask.any() else 0.0
-    return k_vals, e_vals
+    """計算一維旋轉平均能量譜。實作見 pi_con.spectral（全 repo 單一份）。"""
+    return radial_energy_spectrum(u, v)
 
 
 def band_errors(k_vals, e_pred, e_ref,
