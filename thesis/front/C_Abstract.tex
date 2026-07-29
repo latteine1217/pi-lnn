@@ -2,9 +2,9 @@
 
 工程現場之湍流場重建須自稀疏感測器（$K \sim 10^2$）進行低延遲推論，且訓練階段不能依賴 Direct Numerical Simulation（DNS）全場監督。本論文提出 \textbf{PI-CON}（\textbf{P}hysics-\textbf{I}nformed \textbf{C}ontinuous-time \textbf{O}perator \textbf{N}etwork），以 Deep Operator Network（DeepONet）任意點場解碼，結合 Closed-form Continuous-time（CfC）連續時間感測器編碼器與距離偏置 cross-attention。PI-CON 僅以感測器量測與 Navier--Stokes（NS）residual 訓練；其 CfC 編碼器一次讀入整段感測時序，避開高雷諾數物理約束網路常用之時間窗順序訓練。本研究並量化 sensing configuration（數量、位置與噪聲）如何決定重建品質。
 
-於 $Re=10\,000$ 之 2D Kolmogorov 受迫湍流、$K=100$ 感測器下，PI-CON 在純感測器加物理約束的監督下達到工程目標：經五個 random seed，其 Kinetic Energy（KE）相對誤差為 $\mathbf{5.71 \pm 0.11\%}$，energy-dominant 低波數段維持單位數相對誤差。訓練完成後，模型可於單次前傳查詢任意時空點，無需重新求解流場。同架構可延伸至 $Re=10^6$（於 $K=200$ 感測器達 KE 相對誤差 $6.10\%$）。
+於 $Re=10\,000$ 之 2D Kolmogorov 受迫湍流、$K=100$ 感測器下，PI-CON 在純感測器加物理約束的監督下達到工程目標：經五個 random seed，其 Kinetic Energy（KE）相對誤差為 $\mathbf{5.71 \pm 0.12\%}$，energy-dominant 低波數段維持單位數相對誤差。訓練完成後，模型可於單次前傳查詢任意時空點，無需重新求解流場。同架構可延伸至 $Re=10^6$（於 $K=200$ 感測器達 KE 相對誤差 $6.10\%$）。
 
-sensing configuration 決定解析度與可靠度，而非可行性。中高頻段（$k > k_{\max}^{\rm sensor}\approx 5.64$）受 $K=100$ 感測器資訊量限制：$\sqrt{K/\pi}$ 為 Nyquist 型尺度，有效頻寬由 conditioning 與噪聲決定，而非架構不足；$K$ 由 $100$ 增至 $200$、$400$ 之掃描證實 cutoff 隨 $\sqrt{K/\pi}$ 尺度移動。佈點僅決定感測器位置；感測值取自一個代表實驗上無法取得之真實流場的 DNS 場，但全場從不參與訓練監督。在三種佈點策略（DNS-pivot oracle、不需 DNS 之 Large-Eddy Simulation（LES）佈點、隨機佈點）下，重建皆維持在工程目標內；佈點變異約為訓練隨機性之六倍，加性感測器噪聲至 $10\%$ 對 KE 之影響仍不到一個百分點。
+sensing configuration 決定解析度與可靠度，而非可行性。中高頻段（$k > k_{\max}^{\rm sensor}\approx 5.64$）受 $K=100$ 感測器資訊量限制：取樣密度條件（每個可解析模態至少需一個取樣）將頻帶邊界定於此尺度，有效頻寬則由 conditioning 與噪聲決定，而非架構不足；$K$ 由 $100$ 增至 $200$、$400$ 之掃描證實 cutoff 隨感測器數之平方根移動。佈點僅決定感測器位置；感測值取自一個代表實驗上無法取得之真實流場的 DNS 場，但全場從不參與訓練監督。在三種佈點策略（DNS-pivot oracle、不需 DNS 之 Large-Eddy Simulation（LES）佈點、隨機佈點）下，重建皆維持在工程目標內；佈點變異約為訓練隨機性之六倍，加性感測器噪聲至 $10\%$ 對 KE 之影響仍不到一個百分點。
 
 \smallskip
 

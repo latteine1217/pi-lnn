@@ -71,7 +71,31 @@ The realised $U_{\rm rms} < U^\star$ because the forced turbulence saturates bel
 \end{table}
 
 \paragraph{Solver and storage.}
-The solver runs on $N_{\rm run}=1024^2$ with $\Delta t_{\rm DNS}=2.5\times 10^{-4}$, downsampled $4\times$ to $N_{\rm stored}=256^2$ snapshots every $\Delta t_{\rm store}=0.025$~s ($201$ frames over $T=5$). \emph{This $256^2$ trajectory never enters training}; only (a) sensor extraction and (b) offline a posteriori evaluation are permitted.
+The solver runs on $N_{\rm run}=1024^2$ with $\Delta t_{\rm DNS}=2.5\times 10^{-4}$, downsampled $4\times$ to $N_{\rm stored}=256^2$ snapshots every $\Delta t_{\rm store}=0.025$~s ($201$ frames over $T=5$; Appendix~\ref{sec:temporal_density} examines the reconstruction's sensitivity to this cadence). \emph{This $256^2$ trajectory never enters training}; only (a) sensor extraction and (b) offline a posteriori evaluation are permitted.
+
+\paragraph{Wavenumber convention and radial energy spectrum.}
+\label{subsec:spectrum_definition}
+Spectral quantities are reported in the ordinary (cyclic) wavenumber. On the periodic box of edge $L$, the discrete Fourier modes are indexed by $\mathbf{k}=(k_x,k_y)$ with components in $L^{-1}\mathbb{Z}$, so $k=\vert\mathbf{k}\vert$ carries units of $\mathrm{m}^{-1}$ and takes integer values on the unit box used throughout. This is the convention in which the forcing $f_x = A\sin(2\pi k_f y)$ has $k_f = 2$~m$^{-1}$: the forcing wavenumber, the abscissa of every spectrum plot, the band edges below, and the sensor-count scale $\sqrt{K/\pi}$ are all the same quantity. For a snapshot on an $n\times n$ grid the variance-preserving transform is
+\begin{equation}
+    \hat{u}_{\mathbf{k}} \;=\; \frac{1}{n^2}\sum_{\mathbf{x}} u(\mathbf{x})\,e^{-2\pi i\,\mathbf{k}\cdot\mathbf{x}},
+    \label{eq:fft_norm}
+\end{equation}
+and the radial energy spectrum accumulates the modal energy of both velocity components into annular shells of width $\Delta k = 1$~m$^{-1}$ centred on integer $k$,
+\begin{equation}
+    E(k) \;=\; \frac{1}{\Delta k}\sum_{\mathbf{k}\,:\;k-\frac{\Delta k}{2}\,\le\,\vert\mathbf{k}\vert\,<\,k+\frac{\Delta k}{2}} \tfrac{1}{2}\Big(\vert\hat{u}_{\mathbf{k}}\vert^2 + \vert\hat{v}_{\mathbf{k}}\vert^2\Big),
+    \qquad k = 1,\dots,n/2 .
+    \label{eq:radial_spectrum}
+\end{equation}
+Equation~\eqref{eq:radial_spectrum} is the shell-integrated energy spectrum function~\cite{Pope2000} specialised to two dimensions~\cite{Kraichnan1967,Boffetta2012ARFM}, discretised by the annular-summation algorithm of Errico~\cite{Errico1985} in the form set out by Durran et al.~\cite{Durran2017}. Three discretisation choices follow that reference. The half-open shell $k-\tfrac{\Delta k}{2}\le\vert\mathbf{k}\vert<k+\tfrac{\Delta k}{2}$ in \eqref{eq:radial_spectrum} is their annulus definition. The prefactor $n^{-2}$ in \eqref{eq:fft_norm} places the transform in the normalisation for which the discrete Parseval relation takes the form \eqref{eq:parseval}; the opposite convention, in which the factor is attached to the inverse transform, is the default of common FFT libraries and yields a spectral density differing by a factor $n^{2}$~\cite{Durran2017}. Shells are retained only to the isotropic Nyquist wavenumber $k = n/2$, beyond which the discrete mesh samples the annuli incompletely~\cite{Durran2017}; corner modes with $\vert\mathbf{k}\vert > n/2$ are therefore discarded rather than folded into the last shell, and the mean mode $\mathbf{k}=\mathbf{0}$ is excluded. Departing from that reference on one point, the wavenumber here is cyclic where its discrete development is angular; the choice is dictated by consistency with $k_f$ and with $\sqrt{K/\pi}$, and rescales $k$ without altering the algorithm. Because $\Delta k = 1$~m$^{-1}$, $E(k)$ is numerically equal to the energy held in shell $k$ while carrying the units of a spectral density, m$^3$/s$^2$. The discrete Parseval relation then reads
+\begin{equation}
+    \sum_k E(k)\,\Delta k \;=\; \tfrac{1}{2}\big\langle u^2 + v^2 \big\rangle_{\Omega} \;=\; \mathrm{KE},
+    \label{eq:parseval}
+\end{equation}
+an identity that the discarded corner modes would break only for a broadband field, and which is satisfied to the reported precision for the energy-concentrated fields treated here.
+
+One refinement available in the same reference is not adopted. Annular summation carries a systematic discretisation noise, because the number of wavenumber pairs falling in shell $k$ does not grow smoothly with $k$; Durran et al.~\cite{Durran2017} remove it by dividing each shell by its pair count, at the stated cost that the discrete Parseval relation no longer holds. Equation~\eqref{eq:radial_spectrum} keeps the uncompensated form because \eqref{eq:parseval} is load-bearing here: the band energies of \S\ref{subsec:spectral_diagnostics} are partial sums of $E(k)\Delta k$ and are cross-checked against the kinetic energy. The compensation is a multiplicative function of $k$ alone, applied identically to reconstruction and reference, so it leaves comparisons at fixed $k$ unchanged and enters band-aggregated quantities only by reweighting wavenumbers within a band. A single implementation evaluates \eqref{eq:radial_spectrum} for DNS, LES, and reconstructed fields, so every spectrum compared in this work shares one convention.
+
+One quantity does not follow \eqref{eq:radial_spectrum}. The Pope resolution criterion $k_{\max}\eta$ in Table~\ref{tab:dns_verification} is quoted in its source form~\cite{Pope2000}, where $k_{\max}$ is the \emph{angular} dealiased maximum wavenumber $2\pi\cdot\tfrac{2}{3}\cdot N/2$ of the solver grid, a factor $2\pi$ (and a dealiasing factor $\tfrac{2}{3}$) away from the cyclic $k$ that labels the spectra. The distinction matters when reading the table against the figures: the same $N=256$ grid carries cyclic shells to $k=128$~m$^{-1}$ but reports $k_{\max}\eta = 1.91$. All other wavenumbers in this work are cyclic.
 
 \paragraph{DNS verification.}
 \label{subsec:dns_verification}
@@ -235,7 +259,7 @@ A same-initial-condition diagnostic bounds the pointwise lifetime of even a refe
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=\textwidth]{figures/results/dns_les_vorticity_compare.pdf}
-    \caption{Same-initial-condition LES against the DNS ($Re=10^4$, periodic domain $[0,1]^2$~m). (a) Vorticity fields of the DNS (top) and the LES (bottom) at matched times $t\in\{0,1,2,3,4,5\}$~s; each time column is normalised by the DNS RMS vorticity, with colour showing $\omega/\omega_{\rm rms}^{\rm DNS}$ (dimensionless). (b) Radial energy spectrum $E(k)$ (m$^3$/s$^2$) of the LES and DNS at the matched final time $t=5$~s, with $k\in[3,30]$ slope fits and the $k^{-3}$ enstrophy-cascade reference; the vertical dotted line marks the $K=100$ sensor Nyquist $k_{\rm sensor}\approx 5.64$~m$^{-1}$. Eddy-turnover time $t_{\rm eddy}=1.99$~s.}
+    \caption{Same-initial-condition LES against the DNS ($Re=10^4$, periodic domain $[0,1]^2$~m). (a) Vorticity fields of the DNS (top) and the LES (bottom) at matched times $t\in\{0,1,2,3,4,5\}$~s; each time column is normalised by the DNS RMS vorticity, with colour showing $\omega/\omega_{\rm rms}^{\rm DNS}$ (dimensionless). (b) Radial energy spectrum $E(k)$ (m$^3$/s$^2$) of the LES and DNS at the matched final time $t=5$~s, with $k\in[3,30]$ slope fits and the $k^{-3}$ enstrophy-cascade reference; the vertical dotted line marks the $K=100$ sensor sampling band edge $k_{\rm sensor}\approx 5.64$~m$^{-1}$. Eddy-turnover time $t_{\rm eddy}=1.99$~s.}
     \label{fig:les_vort_compare}
 \end{figure}
 
@@ -345,15 +369,16 @@ The root-mean-square of the NS momentum and continuity residuals at $N_c$ colloc
 with $\mathcal{R}_u$, $\mathcal{R}_v$, $\mathcal{R}_c$ defined in \eqref{eq:res_u}--\eqref{eq:cont_res}. The residual norm in \eqref{eq:ns_rms} is also written $\mathrm{div\_rms}$ for the continuity variant. Values are compared against the DNS reference computed on the downsampled grid.
 
 \subsection{Spectral Diagnostics}
+\label{subsec:spectral_diagnostics}
 
 \paragraph{Per-band relative error.}
-The KE spectrum is grouped along the K=100 sensor-count Nyquist scale $k_{\max}^{\rm sensor} = \lfloor \sqrt{K/\pi} \rfloor = \lfloor 5.64 \rfloor = 5$ (the integer band edge; the unfloored $\sqrt{K/\pi}\approx 5.64$ appears in the spectral plots). This scale is the two-dimensional Nyquist wavenumber for $K$ samples over a unit-area domain (one sample per $\pi/K$ wavenumber cell), the spatial-sampling analogue of the one-dimensional Nyquist limit. It counts one sample per sensor and serves here as a band edge, not an observability wall: because each sensor reports both velocity components and the field is divergence-free, linear observability extends to $k\lesssim 8$, with sharply degraded conditioning across that range (Appendix~\ref{app:info_ceiling_diagnostics}). The bands are: a low band ($k \le 5$, below the Nyquist scale $k_{\max}^{\rm sensor}\approx 5.64$, which carries $\approx 99\%$ of the total energy at $t=5$, and $\approx 95\%$ time-averaged over $t\in[0,5]$, the lower mean reflecting the broadband initial condition during spin-up; fully sensor-resolvable), a mid band ($5 < k \le 16$, transitional), and a high band ($k > 16$, well above the Nyquist scale). For each band,
+The radial spectrum $E(k)$ of \eqref{eq:radial_spectrum} is grouped into bands, with $E_{\rm band}$ denoting the partial sum of $E(k)\Delta k$ over the wavenumbers of that band. The grouping follows the $K=100$ sampling band edge~\eqref{eq:sensor_nyquist}, floored to the integer wavenumber $\lfloor 5.64 \rfloor = 5$ (the unfloored $\sqrt{K/\pi}\approx 5.64$ appears in the spectral plots). As set out in \S\ref{sec:underdetermined}, this edge follows from the sampling-density requirement of one sample per resolvable mode~\cite{Shannon1949, Landau1967} and serves here as a band edge, not an observability wall: because each sensor reports both velocity components and the field is divergence-free, linear observability extends to $k\lesssim 8$, with sharply degraded conditioning across that range (Appendix~\ref{app:info_ceiling_diagnostics}). The bands are: a low band ($k \le 5$, below the sampling band edge $k_{\max}^{\rm sensor}\approx 5.64$, which carries $\approx 99\%$ of the total energy at $t=5$, and $\approx 95\%$ time-averaged over $t\in[0,5]$, the lower mean reflecting the broadband initial condition during spin-up; fully sensor-resolvable), a mid band ($5 < k \le 16$, transitional), and a high band ($k > 16$, well above the sampling band edge). For each band,
 \begin{equation}
     \mathrm{band\_rel\_err}(t) \;=\; \frac{|E_{\text{band, pred}}(t) - E_{\text{band, DNS}}(t)|}{E_{\text{band, DNS}}(t)}.
 \end{equation}
 
 \paragraph{Forcing-mode amplitude and phase.}
-Since $k_f = 2$ carries the sustained energy injection, its reconstruction is reported separately. From the Fourier coefficient $\hat{u}_{k_f}$,
+Since $k_f = 2$ carries the sustained energy injection, its reconstruction is reported separately. From the Fourier coefficient $\hat{u}_{k_f} \equiv \hat{u}_{\mathbf{k}}$ of \eqref{eq:fft_norm} at the forcing mode $\mathbf{k} = (0, k_f)$,
 \begin{equation}
     \mathrm{amp\_ratio}(t) \;=\; \frac{|\hat{u}^{\text{pred}}_{k_f}|}{|\hat{u}^{\text{DNS}}_{k_f}|},\quad
     \mathrm{phase\_err}(t) \;=\; \arg(\hat{u}^{\text{pred}}_{k_f}) - \arg(\hat{u}^{\text{DNS}}_{k_f}).

@@ -10,7 +10,7 @@
 ## TL;DR
 
 - KE rel-err 對 Re=10000 Kolmogorov 這種混沌場是 **necessary-not-sufficient** 的零階統計量，單獨使用會**把優劣排反**。
-- 實測：`forward_cfd_baseline`（POD rank-40 IC + ETDRK4 forward）KE rel-err **3.85%**，但 u/v rel-L2 = **153%/204%**、u 空間相關 **−0.58**（場與參考反相關）。
+- 實測：`forward_cfd_baseline`（**gappy POD** rank-40 IC + **open-loop** ETDRK4 forward）KE rel-err **3.85%**，但 u/v rel-L2 = **153%/204%**、u 空間相關 **−0.58**（場與參考反相關）。
 - 同協議下 Pi-LNN B3 真實值（seed3/4 `summary.json`）u/v rel-L2 = **12.4%/22.9%**、KE ≈ **10.7%**。**用 KE 看 baseline 贏，用 field-L2 看 Pi-LNN 完勝 ~9–12×。**
 - **歸因坑**：論文 contribution 2 把 classical 的低 KE 歸因為 *over-smoothing（predicting spatial mean）*。這對 trig-LSQ reconstruction 成立，但對 forward-CFD baseline **不成立**——它的低 KE 是 **chaotic phase decorrelation**（能譜解析充分，相位被混沌放大打亂），且任務是 **forecast** 而非 reconstruction。
 
@@ -50,15 +50,17 @@ B3 = `artifacts/kolmogorov/deeponet-cfc-re10000-exp09[78]-b3-seed[34]/deeponet-c
 
 論文 abstract/contribution 2 的低-KE 解釋是 *classical methods optimize KE through over-smoothing*。比對 `scripts/baseline_squeeze.py` 後確認：論文既有 baseline 與 forward_cfd_baseline 分屬**三類**——前兩類是 reconstruction（每個 t 都見該 t 的 sensor），第三類是 forecast：
 
-| | 論文 fair (RBF×3 / IDW / div-free trig-LSQ×3) | 論文 cheat (Gappy POD r=100) | forward_cfd_baseline (home-gpu) |
+| | 論文 fair (RBF×3 / IDW / div-free trig-LSQ×3) | 論文 cheat (gappy POD r=100) | forward_cfd_baseline (gappy POD r=40 + open-loop) |
 |---|---|---|---|
 | 任務 | per-snapshot **reconstruction**（每個 t 用該 t 的 sensor） | per-snapshot **reconstruction** | **t=0-only forecast**（僅 t=0 sensor 盲推到 t=5） |
-| 用 DNS basis | 否（engineering-transferable, "fair"） | 是（DNS-trained POD rank-100, "cheat"） | **是**（DNS-trained POD rank-40，但只用於 IC） |
+| 用 DNS basis | 否（engineering-transferable, "fair"） | 是（DNS-trained gappy POD rank-100, "cheat"） | **是**（DNS-trained gappy POD rank-40，但只用於 IC） |
 | 低 KE 機制 | **over-smoothing**（往 spatial mean 收，砍小尺度能量） | 近完美（DNS basis 直接張成解空間） | **chaotic decorrelation**（譜滿、相位被 Lyapunov 打亂） |
 | KE rel-err | trig-LSQ k≤5 (80 modes) **3.93%** | **0.12%** | **3.85%** |
 | u rel-L2 | trig-LSQ **~28%**（= EXP-080 17% +11pp） | **0.85%** | **153%** |
 | IC 不可壓 | n/a（每步重建） | n/a | **max|div|=1.7×10⁻²**（rank-40 截斷不保無散；ref 5×10⁻¹³） |
 
+> **命名（2026-07-18 統一）**：後兩欄是**同一個重建方法**的兩種用法——都是 gappy POD（Everson & Sirovich, *JOSA A* 12:1657–1664, 1995），差別只在 rank（100 vs 40）與「每個 t 重做一次」vs「只在 t=0 做一次、之後 open-loop 自由前推」。`forward_cfd_baseline` / "forward CFD" 是本專案的**內部簡稱，不是文獻方法名**；正式描述為 **gappy-POD initialisation + open-loop (free-run) forward integration**（後者是 data assimilation 的標準 no-assimilation 對照組）。artifact / script 檔名沿用舊名不改，避免破壞既有引用。
+>
 > Pi-LNN（B3 u-L2 12.4% / EXP-080 17%）與前兩類同為 **reconstruction**（皆見 t=5 sensor）→ 任務對等，論文這部分比較合理。`forward_cfd_baseline` 是唯一的 **forecast**，自成一類，不屬於論文現有任何一格。
 >
 > **二度印證 KE 誤導**：forward_cfd_baseline 的 KE 3.85% ≈ trig-LSQ 的 3.93%（幾乎相同），但 u rel-L2 是 153% vs ~28%。只看 KE 會把「forecast 去相關」誤判為「≈ trig-LSQ reconstruction」，完全錯置。

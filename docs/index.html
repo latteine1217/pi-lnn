@@ -1475,8 +1475,10 @@ footer a { color: var(--ink-mid); }
         <h2>Mid-high frequency error is bounded by sensor count, not by architecture.</h2>
       </div>
       <p class="lede">
-        K = 100 sensors give a Nyquist-Shannon effective bandwidth of
-        <code>k<sub>max</sub> ≈ √(K/π) = 5.64</code>. The spectral truncation lower bound at
+        The sampling-density condition (Shannon 1949; Landau 1967, for non-uniform sample sets)
+        requires one sample per resolvable mode, so K = 100 sensors over the unit-area domain
+        give a band edge of <code>k<sub>max</sub> = √(K/π) = 5.64</code> — a necessary condition,
+        not a hard ceiling. The spectral truncation lower bound at
         <code>k<sub>cut</sub> = 4</code> is <strong>KE rel-err ≥ 7.77 %</strong>; our EXP-080 attains
         10.68 %, reaching <strong>73 % of the bound</strong>. The Re = 10,000 velocity field is highly
         sparse in a db4 wavelet basis (Gini ≈ 0.983); compressed-sensing theory needs
@@ -1534,7 +1536,8 @@ footer a { color: var(--ink-mid); }
           <tr><td class="label">Sensor rank constraint (div-free param)</td><td>2K = 200</td></tr>
           <tr><td class="label"><strong>Null-space dim (unobservable)</strong></td><td class="warn"><strong>1,392 / 1,592 = 87.4 %</strong></td></tr>
           <tr><td class="label">Explicit div-free invisible ε at K=100 sensors</td><td>KE(ε) = 0.13 (DNS scale); max|ε(x_k)| ≈ 1e-16</td></tr>
-          <tr><td class="label">Nyquist sensor bandwidth k<sub>max</sub>(K)</td><td>≈ √(K/π) = 5.64</td></tr>
+          <tr><td class="label">Sampling band edge k<sub>max</sub>(K) (Landau density)</td><td>√(K/π) = 5.64</td></tr>
+          <tr><td class="label">Vector-valued observability edge √(2K/π)</td><td>≈ 7.98 (SVD full-rank at k ≲ 8)</td></tr>
           <tr><td class="label">Spectral truncation lower bound at k<sub>cut</sub> = 4</td><td class="warn">KE rel-err ≥ 7.77 %</td></tr>
           <tr><td class="label"><strong>EXP-080 attainment</strong></td><td class="good"><strong>10.68 % = 73 % of the bound</strong></td></tr>
         </tbody>

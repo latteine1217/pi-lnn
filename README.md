@@ -46,7 +46,7 @@ Active baseline is **EXP-245** — B3 architecture + LES_T50 sensor placement + 
 
 | Config | KE rel-err | div ratio | k_f amp | Role |
 |---|---:|---:|---:|---|
-| **EXP-245** (LES_T50, n=5, 1024 collo, 20k) | **5.71 ± 0.11 %** | **0.39 ± 0.006 %** | **0.991 ± 0.005** | **Active baseline** — engineering-transferable end-to-end (LES-derived placement, sensor-only training) |
+| **EXP-245** (LES_T50, n=5, 1024 collo, 20k) | **5.71 ± 0.12 %** | **0.39 ± 0.006 %** | **0.991 ± 0.005** | **Active baseline** — engineering-transferable end-to-end (LES-derived placement, sensor-only training) |
 | EXP-271 (DNS-pivot oracle, n=5) | _RUNNING_ (slurm 3696–3700) | _RUNNING_ | _RUNNING_ | Oracle reference for fair LES-vs-DNS placement comparison (assumes DNS access, not field-deployable) |
 | EXP-080 (legacy, single seed, 64 collo, 10k) | 10.68 % | _0.067 (absolute, not ratio)_ | 0.937 | Historical headline — **superseded** by EXP-245 (1024 collo + 20k + LES placement) |
 
@@ -58,7 +58,7 @@ See [`docs/experiment_log_v2.md`](docs/experiment_log_v2.md) for the full EXP-20
 
 ## Architectural Significance — B3 vs B0 (legacy 64-collocation group, 2026-05-15)
 
-> ⚠️ This 5-seed analysis is computed on the **legacy 64-collocation group** (EXP-200_a~e = legacy B3 from EXP-080/093/094/097/098 vs EXP-201_a~e = legacy B0). The **active main result** is EXP-245 (1024 collo + 20k iter, KE rel-err **5.71 ± 0.11 %**, see Main Baseline above). The table below establishes the **architectural gap** (CfC-DeepONet-PINN vs Vanilla DeepONet) under fixed legacy training budget — absolute KE numbers below are not the headline.
+> ⚠️ This 5-seed analysis is computed on the **legacy 64-collocation group** (EXP-200_a~e = legacy B3 from EXP-080/093/094/097/098 vs EXP-201_a~e = legacy B0). The **active main result** is EXP-245 (1024 collo + 20k iter, KE rel-err **5.71 ± 0.12 %**, see Main Baseline above). The table below establishes the **architectural gap** (CfC-DeepONet-PINN vs Vanilla DeepONet) under fixed legacy training budget — absolute KE numbers below are not the headline.
 
 **B3 (CfC-DeepONet-PINN, legacy EXP-080 recipe) vs B0 (Vanilla DeepONet)** — 5 random seeds (1, 2, 3, 4, 42) per architecture, Welch's t-test with Bonferroni correction k=4.
 
@@ -71,7 +71,12 @@ See [`docs/experiment_log_v2.md`](docs/experiment_log_v2.md) for the full EXP-20
 | div L² (sec.) | 0.064 ± 0.001 | 0.066 ± 0.001 | −0.002 | [−0.003, −0.001] | −1.98 | 0.014 |
 | ek_ratio_kf (sec.) | 0.96 ± 0.06 | 0.92 ± 0.02 | +0.04 | [−0.03, +0.12] | +0.98 | 0.18 (n.s.) |
 
-Raw statistics: [`artifacts/seed_statistics.json`](artifacts/seed_statistics.json); compute script: [`scripts/compute_seed_statistics.py`](scripts/compute_seed_statistics.py).
+> **Provenance note.** The legacy table above is retained for historical reference; the eval artifacts it was computed from are no longer present in the tree, so it is **not currently reproducible**. [`scripts/compute_seed_statistics.py`](scripts/compute_seed_statistics.py) now targets the **equal-budget ablation** (EXP-281/282/283 vs EXP-245 — B0/B1/B2/B3, 1024 collocation, 20k iter, n=5), which is the group the thesis reports. Run it to regenerate those statistics:
+>
+> ```bash
+> uv run python scripts/compute_seed_statistics.py          # → artifacts/analysis/seed_statistics.json
+> uv run python scripts/compute_seed_statistics.py --strict # fail if any run lacks provenance
+> ```
 
 **Reading the table:** all four primary pointwise metrics show Cohen's d > 10 (an order of magnitude beyond the "large effect" threshold of 0.8). The architectural gap is decisively non-artefactual. div L² and ek_ratio_kf are secondary (uncorrected); B3's marginally higher div is the expected cost of the AL-recipe push toward spectral fidelity.
 
@@ -100,9 +105,11 @@ Encoder amortized cost is **0.06 % of total inference** (70.7 ms / 581.2 s) — 
 
 **vs DNS reference:** DNS fp64 ETDRK4 (256² grid, dt = 2.5 × 10⁻⁴, 20 000 steps, ~1 h on workstation CPU) → our 9.7-min full reconstruction is a **~6× wall-time acceleration**. Raw benchmark: [`artifacts/benchmark_inference_exp094.json`](artifacts/benchmark_inference_exp094.json).
 
-### vs Forward CFD POD Baseline (2026-05-15, "cheating" reference)
+### vs Open-Loop Gappy-POD Baseline (2026-05-15, "cheating" reference)
 
-Pipeline: DNS snapshots (n=200) → SVD rank-40 modes (div-free) → K=100 sensor LSQ → ETDRK4 forward 20 000 steps to t = 5.
+Not a bespoke method — a composition of two established ones: **gappy POD** (Everson & Sirovich, *JOSA A* 12:1657–1664, 1995) to reconstruct the initial field from partial observations, then **open-loop** (free-run) forward integration, the standard no-assimilation control in data assimilation. Short-named *forward CFD* below.
+
+Pipeline: DNS snapshots (n=200) → SVD rank-40 modes (div-free) → K=100 sensor gappy-POD LSQ → ETDRK4 forward 20 000 steps to t = 5, with no sensor data assimilated after t = 0.
 
 | Metric @ t = 5 | Forward CFD (rank=40, "cheating") | PI-CON B3 5-seed | Verdict |
 |---|---:|---:|---|
@@ -121,7 +128,7 @@ T = 5 corresponds to ~2.5 eddy-turnover times; this is the chaotic regime. Forwa
 | Method | KE % | u L² % | v L² % | ω L² % | Params |
 |---|---:|---:|---:|---:|---:|
 | B3 = EXP-080 / EXP-094 (legacy 64-collo, 5-seed mean) | 10.77 ± 0.52 | 20.69 ± 0.46 | 24.79 ± 0.51 | 52.65 ± 0.56 | 3.14 M |
-| **B3 = EXP-245 (Active, LES_T50 + 1024 collo + 20k, 5-seed mean)** ⭐ | **5.71 ± 0.11** | **13.65 ± 0.06** | **17.52 ± 0.10** | **41.79 ± 0.12** | 3.14 M |
+| **B3 = EXP-245 (Active, LES_T50 + 1024 collo + 20k, 5-seed mean)** ⭐ | **5.71 ± 0.12** | **13.65 ± 0.06** | **17.52 ± 0.10** | **41.77 ± 0.12** | 3.14 M |
 | B2 = cross-attn only (no CfC) | 11.95 | 21.61 | 26.17 | 54.18 | 2.74 M |
 | B1 = CfC only (no cross-attn) | 12.65 | 22.71 | 28.95 | 56.56 | 3.14 M |
 | B0 = Vanilla DeepONet (5-seed mean) | 18.52 ± 0.66 | 25.50 ± 0.46 | 31.48 ± 0.70 | 58.38 ± 0.57 | 1.28 M |
@@ -155,11 +162,12 @@ K=100 reconstruction is **provably ill-posed**. Even with incompressibility enfo
 | Sensor rank constraint | K = 100 (2K = 200 with div-free param) |
 | **Null-space dim (div-free)** | **1,392 / 1,592 = 87.4 % DoF unobservable** |
 | Explicit div-free invisible perturbation ε | KE(ε) = 0.13 = DNS scale; max\|ε(x_k)\| ~ 1e-16 |
-| Nyquist sensor bandwidth k_max(K) | ≈ √(K/π) = **5.64** |
+| Sampling band edge k_max(K) — Landau density, one sample per resolvable mode | √(K/π) = **5.64** (necessary condition, not a ceiling) |
+| Vector-valued observability edge √(2K/π) | ≈ **7.98** — matches SVD full-rank at k ≲ 8 |
 | **Spectral truncation lower bound at k_cut = 4** | **KE rel-err ≥ 7.77 %** |
 | **Spectral truncation lower bound at k_cut = 5** | **KE rel-err ≥ 4.85 %** |
 | EXP-080 attainment (legacy, 64 collo, 10k) | 10.68 % — 73 % of the k_cut=4 bound |
-| **EXP-245 attainment (active, 1024 collo, 20k, n=5)** | **5.71 ± 0.11 %** — between k_cut=4 (7.77 %) and k_cut=5 (4.85 %) → **effective cutoff k_eff ≈ 4.7, ~83 % of Nyquist k_max = 5.64** |
+| **EXP-245 attainment (active, 1024 collo, 20k, n=5)** | **5.71 ± 0.12 %** — between k_cut=4 (7.77 %) and k_cut=5 (4.85 %) → **effective cutoff k_eff ≈ 4.7, ~83 % of the sampling band edge 5.64** |
 
 Higher fidelity at mid-high frequencies requires **more sensors, not better architecture** — K-scaling with recipe re-tuning is identified as the productive direction for future work (Future Work item 1).
 
@@ -316,7 +324,7 @@ configs/
 
 scripts/
   evaluate_deeponet_cfc.py        # main evaluator (∇p / div_ratio metrics, 2026-05-15)
-  compute_seed_statistics.py      # 5-seed Welch's t-test + Bonferroni
+  compute_seed_statistics.py      # B0/B1/B2/B3 × 5-seed Welch t-test + Bonferroni + 2×2 decomposition
   benchmark_inference.py          # encoder/query/full-sequence timing
   run_seeds_3_4.sh                # serial sweep with per-run eval
   baseline_comparison{,_full}.py  # RBF / IDW / trig LSQ baselines
@@ -342,7 +350,7 @@ artifacts/
   kolmogorov/deeponet-cfc-re10000-exp080-al-4task-rho01/   # Pareto sweet spot
   kolmogorov/deeponet-cfc-re10000-exp{097,098,099,100}*/   # 5-seed extension
   eval-rerun-2026-05-{07,08,09,10,11,12}/                  # round-7 evaluator reruns
-  seed_statistics.json                                     # 5-seed Welch test output
+  analysis/seed_statistics.json                            # Welch test output (regenerate; artifacts/ is gitignored)
   benchmark_inference_exp094.json                          # inference timing
   under_determined_proof/                                  # SVD + null-space figures
 ```

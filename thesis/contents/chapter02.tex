@@ -74,18 +74,18 @@ where $L^* = 1$ m is the domain length scale, $U^* = 1$ m/s the reference veloci
 with $A = 0.1$, $k_f = 2$ in the main experiments at $Re=10\,000$.
 
 \paragraph{Observation model.}
-Measurements occupy $K$ fixed spatial locations $\mathcal{S} = \{\mathbf{x}_k\}_{k=1}^K$ at $N_t$ discrete time stamps $\{t_n\}_{n=1}^{N_t}$; each entry is $\mathbf{y}_{k,n} = (u(\mathbf{x}_k, t_n), v(\mathbf{x}_k, t_n))^T$. Per the engineering constraint of \S\ref{sec:engineering_constraint}, observed channels are restricted to $u$ and $v$; $\omega$ and $p$ are not measured.
+Measurements occupy $K$ fixed spatial locations $\mathcal{S} = \{\mathbf{x}_s\}_{s=1}^K$ at $N_t$ discrete time stamps $\{t_n\}_{n=1}^{N_t}$; each entry is $\mathbf{y}_{s,n} = (u(\mathbf{x}_s, t_n), v(\mathbf{x}_s, t_n))^T$. Per the engineering constraint of \S\ref{sec:engineering_constraint}, observed channels are restricted to $u$ and $v$; $\omega$ and $p$ are not measured.
 
 \paragraph{Reconstruction target.}
 The reconstruction operator is
 \begin{equation}
     \label{eq:operator_def}
-    \mathcal{G}_\theta : \;\big(\{\mathbf{y}_{k,n}\},\,\mathcal{S},\,\{t_n\}\big) \longmapsto (u, v, p)(\mathbf{x}, t)
+    \mathcal{G}_\theta : \;\big(\{\mathbf{y}_{s,n}\},\,\mathcal{S},\,\{t_n\}\big) \longmapsto (u, v, p)(\mathbf{x}, t)
 \end{equation}
 The operator in \eqref{eq:operator_def} is queriable at arbitrary $(\mathbf{x}, t) \in \Omega\times[0,T]$ and required to (i) match sensor observations on $\mathcal{S}\times\{t_n\}$ and (ii) satisfy the discrete residual of \eqref{eq:ns_main}. The parameters $\theta$ minimize the loss in \S\ref{sec:loss}.
 
 \paragraph{Reconstruction target under an under-sampled snapshot.}
-With $\mathbf{u}_t \in \mathbb{R}^N$ on the stored $256^2$ grid ($N = 65\,536$) and sensing operator $\mathbf{C}\in\{0,1\}^{K\times N}$, the snapshot equation $\mathbf{y}_t = \mathbf{C}\mathbf{u}_t$ is under-sampled: the compressed-sensing recovery threshold (\S\ref{sec:underdetermined}) sits roughly an order of magnitude above the $K=100$ budget, so exact pointwise recovery is not the goal. The achievable target is the energy-dominant low-wavenumber content: the architecture and physics constraints supply the structural prior that makes this band reconstructable, while the unresolved high-wavenumber modes lie beyond the sensor-count Nyquist scale $k_{\max}\approx\sqrt{K/\pi}$ (\S\ref{sec:underdetermined}).
+With $\mathbf{u}_t \in \mathbb{R}^N$ on the stored $256^2$ grid ($N = 65\,536$) and sensing operator $\mathbf{C}\in\{0,1\}^{K\times N}$, the snapshot equation $\mathbf{y}_t = \mathbf{C}\mathbf{u}_t$ is under-sampled: the compressed-sensing recovery threshold (\S\ref{sec:underdetermined}) sits roughly an order of magnitude above the $K=100$ budget, so exact pointwise recovery is not the goal. The achievable target is the energy-dominant low-wavenumber content: the architecture and physics constraints supply the structural prior that makes this band reconstructable, while the unresolved high-wavenumber modes lie beyond the sensor-count sampling band edge~\eqref{eq:sensor_nyquist} (\S\ref{sec:underdetermined}).
 
 \section{QR-pivot Sensor Placement}
 \label{sec:sensor_placement}
@@ -147,35 +147,35 @@ PI-CON comprises three sub-networks: (i) a sensor branch (spatial encoder, then 
 The spatial set encoder converts the $K$ simultaneous point measurements into per-sensor feature vectors that retain each sensor's location, so the decoder can later weight each sensor by its proximity to a query point: the discrete analogue of attaching a basis function to every measurement station.
 
 \paragraph{Inputs.}
-At a single time stamp, sensor observations are $\mathbf{s} \in \mathbb{R}^{K\times 2}$ (already normalized) at locations $\{\mathbf{x}_k\}_{k=1}^K \in \Omega$.
+At a single time stamp, sensor observations are $\mathbf{s} \in \mathbb{R}^{K\times 2}$ (already normalized) at locations $\{\mathbf{x}_s\}_{s=1}^K \in \Omega$.
 
 \paragraph{Position encoding (Learnable Fourier embedding).}
-The periodic domain calls for a learnable Fourier embedding. Each sensor location $\mathbf{x}_k = (x, y)$ is first periodicized as
+The periodic domain calls for a learnable Fourier embedding. Each sensor location $\mathbf{x}_s = (x, y)$ is first periodicized as
 \begin{equation*}
-    \mathbf{e}(\mathbf{x}_k) \;=\; \big[\sin\!\tfrac{2\pi x}{L},\,\cos\!\tfrac{2\pi x}{L},\,\sin\!\tfrac{2\pi y}{L},\,\cos\!\tfrac{2\pi y}{L}\big]^T \;\in\;\mathbb{R}^4,
+    \mathbf{e}(\mathbf{x}_s) \;=\; \big[\sin\!\tfrac{2\pi x}{L},\,\cos\!\tfrac{2\pi x}{L},\,\sin\!\tfrac{2\pi y}{L},\,\cos\!\tfrac{2\pi y}{L}\big]^T \;\in\;\mathbb{R}^4,
 \end{equation*}
 then linearly projected into the Fourier feature space:
 \begin{equation}
     \label{eq:learnable_fourier}
-    \gamma(\mathbf{x}_k) \;=\; \big[\cos(\mathbf{W}\,\mathbf{e}(\mathbf{x}_k)),\;\sin(\mathbf{W}\,\mathbf{e}(\mathbf{x}_k))\big]^T \;\in\;\mathbb{R}^{d_{\text{emb}}},
+    \gamma(\mathbf{x}_s) \;=\; \big[\cos(\mathbf{W}\,\mathbf{e}(\mathbf{x}_s)),\;\sin(\mathbf{W}\,\mathbf{e}(\mathbf{x}_s))\big]^T \;\in\;\mathbb{R}^{d_{\text{emb}}},
 \end{equation}
 where $\mathbf{W}\in\mathbb{R}^{(d_{\text{emb}}/2)\times 4}$ is initialized with $\mathcal{N}(0, \sigma^2)$ entries ($\sigma=2.0$) and learned jointly with the rest of the network ($d_{\text{emb}} = 128$). The trainable projection in \eqref{eq:learnable_fourier} adapts the frequency mixture and mitigates spectral bias~\cite{Rahaman2019Spectral}, unlike fixed-$\sigma$ Fourier features~\cite{tancik2020fourierfeaturesletnetworks}.
 
 \paragraph{Token MLP and residual encoding.}
 Concatenating position encoding and sensor measurement gives
 \begin{equation*}
-    \mathbf{f}_k \;=\; [\gamma(\mathbf{x}_k);\,\mathbf{s}_k] \;\in\;\mathbb{R}^{d_{\text{emb}}+2},
+    \mathbf{f}_s \;=\; [\gamma(\mathbf{x}_s);\,\mathbf{s}_s] \;\in\;\mathbb{R}^{d_{\text{emb}}+2},
 \end{equation*}
 projected to width $d_{\text{model}} = 256$ by
 \begin{equation*}
-    \mathbf{e}_k^{(0)} \;=\; \mathrm{Linear}\!\big(\mathrm{SiLU}(\mathrm{Linear}(\mathrm{LayerNorm}(\mathbf{f}_k)))\big).
+    \mathbf{e}_s^{(0)} \;=\; \mathrm{Linear}\!\big(\mathrm{SiLU}(\mathrm{Linear}(\mathrm{LayerNorm}(\mathbf{f}_s)))\big).
 \end{equation*}
 The token then passes through $L_s = 1$ residual MLP block:
 \begin{equation}
     \label{eq:residual_block}
-    \mathbf{e}_k^{(\ell)} \;=\; \mathbf{e}_k^{(\ell-1)} + \mathrm{MLP}\!\big(\mathrm{LayerNorm}(\mathbf{e}_k^{(\ell-1)})\big),\quad \ell=1,\ldots,L_s.
+    \mathbf{e}_s^{(\ell)} \;=\; \mathbf{e}_s^{(\ell-1)} + \mathrm{MLP}\!\big(\mathrm{LayerNorm}(\mathbf{e}_s^{(\ell-1)})\big),\quad \ell=1,\ldots,L_s.
 \end{equation}
-The residual update in \eqref{eq:residual_block} is followed by an output projection (LayerNorm $\to$ Linear$_{d\to 2d}$ $\to$ SiLU $\to$ Linear$_{2d\to d}$) that yields the spatial token $\mathbf{z}_k \in \mathbb{R}^{d_{\text{model}}}$.
+The residual update in \eqref{eq:residual_block} is followed by an output projection (LayerNorm $\to$ Linear$_{d\to 2d}$ $\to$ SiLU $\to$ Linear$_{2d\to d}$) that yields the spatial token $\mathbf{z}_s \in \mathbb{R}^{d_{\text{model}}}$.
 
 \paragraph{Design rationale.}
 Tokens stay per-sensor rather than pooled, because the downstream cross-attention (\S\ref{subsec:cross_attn}) requires a per-query attention distribution over individual sensors: unrecoverable once pooled.
@@ -195,7 +195,7 @@ with $\mathbf{Z} = [\mathbf{z}_1\,|\,\cdots\,|\,\mathbf{z}_K]^T \in\mathbb{R}^{K
 \label{subsec:cfc_encoder}
 
 \paragraph{Motivation.}
-The CfC branch compresses each sensor's time history into a compact state that tracks recent dynamics while tolerating irregular sampling intervals. Sensor time series $\mathbf{s}_k(t_n)$, $n=1,\ldots,N_t$, arrive on irregular clocks: packets drop, groups report on different cadences, and inference must accept whatever timestamps arrive. Discrete RNNs (GRU, LSTM) cannot absorb such irregular sampling; Neural ODE~\cite{Chen2018NODE} offers a continuous-time view at the cost of an ODE solver per step. CfC~\cite{Hasani2022CfC} provides a closed-form solution to LTC dynamics~\cite{Hasani2021LTC} at per-step cost comparable to a discrete RNN, and is therefore adopted here.
+The CfC branch compresses each sensor's time history into a compact state that tracks recent dynamics while tolerating irregular sampling intervals. Sensor time series $\mathbf{s}_s(t_n)$, $n=1,\ldots,N_t$, arrive on irregular clocks: packets drop, groups report on different cadences, and inference must accept whatever timestamps arrive. Discrete RNNs (GRU, LSTM) cannot absorb such irregular sampling; Neural ODE~\cite{Chen2018NODE} offers a continuous-time view at the cost of an ODE solver per step. CfC~\cite{Hasani2022CfC} provides a closed-form solution to LTC dynamics~\cite{Hasani2021LTC} at per-step cost comparable to a discrete RNN, and is therefore adopted here.
 
 This choice also keeps training tractable on the stiff high-$Re$ case: stabilized MLP-based PINNs reach this regime by splitting the time domain into sequential windows and fitting one network per window (PirateNet~\cite{Wang2024JMLR} uses ten intervals, each initialized from the previous window's solution, and the second-order-optimized variant~\cite{wang2025gradientalignmentpinns} relies on time-marching and curriculum training), so their cost scales with the number of windows.
 
@@ -215,15 +215,15 @@ With cell input $\mathbf{c}_t \in \mathbb{R}^{d_{\text{in}}}$, hidden state $\ma
 where $\mathbf{c}$ denotes the cell input (distinct from the spatial coordinate $\mathbf{x}$ used elsewhere) and $\mathbf{h}$ the recurrent hidden state. In the CfC update \eqref{eq:cfc}, $\boldsymbol{\sigma}$ blends a fast-response candidate state $f_1$ with a slow-relaxation candidate $f_2$. Because the time gap $\Delta t$ enters $\boldsymbol{\sigma}$ directly, a longer silence between sensor samples shifts the blend toward the relaxed state; this is how the cell absorbs irregular sampling instead of assuming a fixed clock. The element-wise time constants $\boldsymbol{\tau}_a = \exp(\boldsymbol{\tau}_a^{(\theta)})$ come from a learnable log-space parameter $\boldsymbol{\tau}_a^{(\theta)}\in\mathbb{R}^{d_{\text{model}}}$. It is initialized as $\mathrm{linspace}(\log\tau_{\min}, \log\tau_{\max}, d_{\text{model}})$ with $[\log\tau_{\min}, \log\tau_{\max}] = [-1, 1]$, so that $\tau \in [e^{-1}, e^{1}] \approx [0.37, 2.72]$; the exponential parametrization enforces positivity. The term $\mathbf{t}_b(\cdot) = \mathbf{W}_t[\mathbf{c};\mathbf{h}] + \mathbf{b}_t$ is a learnable input-dependent affine time shift.
 
 \paragraph{Multi-layer multi-time scan.}
-Let $L_t$ denote the number of CfC layers ($L_t = 1$ in the main experiment). Each layer performs (i) token self-attention vectorized over time, (ii) addition of a Reynolds-number bias $\mathbf{r}_e = \mathrm{Linear}(Re_{\text{norm}}) \in \mathbb{R}^{d_{\text{model}}}$ that lets the network adapt its time scales across $Re$, and (iii) a CfC forward scan. The CfC cell input at sensor $k$, time index $n$ is $\mathbf{c}_{k,n} = \mathbf{z}'_k + \mathbf{r}_e \in \mathbb{R}^{d_{\text{model}}}$ ($d_{\text{in}} = d_{\text{model}}$), the self-attention-refined spatial token tiled across $N_t$ time steps and shifted by the $Re$ bias:
+Let $L_t$ denote the number of CfC layers ($L_t = 1$ in the main experiment). Each layer performs (i) token self-attention vectorized over time, (ii) addition of a Reynolds-number bias $\mathbf{r}_e = \mathrm{Linear}(Re_{\text{norm}}) \in \mathbb{R}^{d_{\text{model}}}$ that lets the network adapt its time scales across $Re$, and (iii) a CfC forward scan. The CfC cell input at sensor $s$, time index $n$ is $\mathbf{c}_{s,n} = \mathbf{z}'_s + \mathbf{r}_e \in \mathbb{R}^{d_{\text{model}}}$ ($d_{\text{in}} = d_{\text{model}}$), the self-attention-refined spatial token tiled across $N_t$ time steps and shifted by the $Re$ bias:
 \begin{equation*}
-    \mathbf{h}_{k,n} \;=\; \mathrm{CfCCell}(\mathbf{c}_{k,n},\,\mathbf{h}_{k,n-1};\,\Delta t_n),
-    \quad n=1,\ldots,N_t,\;k=1,\ldots,K,
+    \mathbf{h}_{s,n} \;=\; \mathrm{CfCCell}(\mathbf{c}_{s,n},\,\mathbf{h}_{s,n-1};\,\Delta t_n),
+    \quad n=1,\ldots,N_t,\;s=1,\ldots,K,
 \end{equation*}
 with $\Delta t_n = t_n - t_{n-1}$. The output is the branch token-state tensor $\mathbf{H}\in\mathbb{R}^{N_t\times K\times d_{\text{model}}}$.
 
 \paragraph{Bidirectional option (smoothing mode).}
-An optional backward scan from $t_{N_t}$ to $t_1$ produces $\mathbf{h}^{(B)}_{k,n}$, added to the forward state $\mathbf{h}^{(F)}_{k,n}$. This mode applies to offline batch reconstruction (smoothing); deployment-oriented filtering uses the forward scan alone.
+An optional backward scan from $t_{N_t}$ to $t_1$ produces $\mathbf{h}^{(B)}_{s,n}$, added to the forward state $\mathbf{h}^{(F)}_{s,n}$. This mode applies to offline batch reconstruction (smoothing); deployment-oriented filtering uses the forward scan alone.
 
 \subsection{Trunk Path: Query Encoding}
 \label{subsec:trunk_path}
@@ -267,20 +267,20 @@ the decoder then reads $\mathbf{H}_q = \mathbf{H}[n^*(q),\,:,\,:] \in \mathbb{R}
 \paragraph{Isotropic relative-position bias.}
 The cross-attention does \emph{not} use a directional relative position $(r_x, r_y)$. The isotropic distance kernel is a deliberate modelling simplification: although the Kolmogorov forcing $f_x = A\sin(2\pi k_f y)$ makes the flow statistically anisotropic, a directional bias would implicitly encode the non-uniform $x$-distribution of the QR-pivot sensors as a spurious directional attention term, whereas the isotropic norm $|\mathbf{r}|$ admits no such mechanism.
 
-For query position $\mathbf{x}_q$ and sensor positions $\{\mathbf{x}_k\}$, the relative position $\mathbf{r}_{qk} = \mathbf{x}_q - \mathbf{x}_k$ folds onto the torus by
+For query position $\mathbf{x}_q$ and sensor positions $\{\mathbf{x}_s\}$, the relative position $\mathbf{r}_{qs} = \mathbf{x}_q - \mathbf{x}_s$ folds onto the torus by
 \begin{equation*}
-    \mathbf{r}_{qk} \;\leftarrow\; \mathbf{r}_{qk} - L\cdot\mathrm{round}(\mathbf{r}_{qk}/L),
+    \mathbf{r}_{qs} \;\leftarrow\; \mathbf{r}_{qs} - L\cdot\mathrm{round}(\mathbf{r}_{qs}/L),
 \end{equation*}
 and a smooth norm follows:
 \begin{equation}
     \label{eq:smooth_norm}
-    r_{qk} \;=\; \sqrt{\Vert\mathbf{r}_{qk}\Vert_2^2 + \varepsilon},\quad \varepsilon = 10^{-8}.
+    r_{qs} \;=\; \sqrt{\Vert\mathbf{r}_{qs}\Vert_2^2 + \varepsilon},\quad \varepsilon = 10^{-8}.
 \end{equation}
-The $\varepsilon$ in \eqref{eq:smooth_norm} is required: when a collocation point coincides with a sensor ($\mathbf{r}_{qk}=\mathbf{0}$), the second-order autograd of $\Vert\mathbf{r}\Vert_2$, $(\Vert r\Vert^2 I - rr^T)/\Vert r\Vert^3$, evaluates to $0/0$ and yields a NaN inside the NS residual (observed on a non-periodic-domain test case where sensors and collocation points overlap with high probability). The smooth norm has a finite second derivative $\varepsilon^{-1/2}$ at $r = 0$, eliminating the NaN source.
+The $\varepsilon$ in \eqref{eq:smooth_norm} is required: when a collocation point coincides with a sensor ($\mathbf{r}_{qs}=\mathbf{0}$), the second-order autograd of $\Vert\mathbf{r}\Vert_2$, $(\Vert r\Vert^2 I - rr^T)/\Vert r\Vert^3$, evaluates to $0/0$ and yields a NaN inside the NS residual (observed on a non-periodic-domain test case where sensors and collocation points overlap with high probability). The smooth norm has a finite second derivative $\varepsilon^{-1/2}$ at $r = 0$, eliminating the NaN source.
 
 The scalar distance maps to a scalar attention bias:
 \begin{equation*}
-    b_{qk} \;=\; \mathrm{MLP}_{\text{relpos}}(\mathrm{LayerNorm}(r_{qk})) \;\in\;\mathbb{R},
+    b_{qs} \;=\; \mathrm{MLP}_{\text{relpos}}(\mathrm{LayerNorm}(r_{qs})) \;\in\;\mathbb{R},
 \end{equation*}
 where $\mathrm{MLP}_{\text{relpos}}$ is LayerNorm $\to$ Linear$_{1\to d}$ $\to$ SiLU $\to$ Linear$_{d\to 1}$.
 
@@ -288,17 +288,17 @@ where $\mathrm{MLP}_{\text{relpos}}$ is LayerNorm $\to$ Linear$_{1\to d}$ $\to$ 
 Queries come from the trunk feature; keys and values from the branch token states. Let $\mathrm{TokenProj}:\mathbb{R}^{d_{\text{model}}}\!\to\!\mathbb{R}^{d_{\text{hidden}}}$ denote a single linear layer (with LayerNorm) applied per branch token before key/value projection:
 \begin{align}
     \mathbf{Q}_q &= \mathbf{W}_Q\,\mathrm{LayerNorm}(\mathbf{q}_{\text{trunk}}),\\
-    \mathbf{K}_k &= \mathbf{W}_K\,\mathrm{TokenProj}(\mathbf{H}_q[k]),\quad
-    \mathbf{V}_k = \mathbf{W}_V\,\mathrm{TokenProj}(\mathbf{H}_q[k]).
+    \mathbf{K}_s &= \mathbf{W}_K\,\mathrm{TokenProj}(\mathbf{H}_q[s]),\quad
+    \mathbf{V}_s = \mathbf{W}_V\,\mathrm{TokenProj}(\mathbf{H}_q[s]).
 \end{align}
 The attention weights are
 \begin{equation}
     \label{eq:attention}
-    A_{qk} \;=\; \mathrm{softmax}_k\!\Big(\frac{\mathbf{Q}_q^T\mathbf{K}_k}{\sqrt{d_{\text{hidden}}}} + b_{qk}\Big),
+    A_{qs} \;=\; \mathrm{softmax}_s\!\Big(\frac{\mathbf{Q}_q^T\mathbf{K}_s}{\sqrt{d_{\text{hidden}}}} + b_{qs}\Big),
 \end{equation}
 and the branch context is
 \begin{equation*}
-    \mathbf{c}_{\text{branch}}(q) \;=\; \sum_{k=1}^K A_{qk}\,\mathbf{V}_k + \mathrm{MLP}_{\text{ctx}}\!\Big(\sum_{k=1}^K A_{qk}\,\mathbf{V}_k\Big),
+    \mathbf{c}_{\text{branch}}(q) \;=\; \sum_{s=1}^K A_{qs}\,\mathbf{V}_s + \mathrm{MLP}_{\text{ctx}}\!\Big(\sum_{s=1}^K A_{qs}\,\mathbf{V}_s\Big),
 \end{equation*}
 where $\mathrm{MLP}_{\text{ctx}}$ is a residual refinement of the attention output. Equation~\eqref{eq:attention} is the only place where the isotropic relative-position bias changes the attention logits.
 
@@ -346,7 +346,7 @@ where $\mathcal{L}_{\text{AL}}$ is the Augmented-Lagrangian-style continuity pen
 
 \subsection{Sensor Data Loss with Initial-Condition Emphasis}
 
-For $N$ randomly drawn observation triples $(\mathbf{x}_k, t_n, c)$ with $c \in \{0, 1\}$ ($u, v$):
+For $N$ randomly drawn observation triples $(\mathbf{x}_s, t_n, c)$ with $c \in \{0, 1\}$ ($u, v$):
 \begin{equation}
     \label{eq:data_loss}
     \mathcal{L}_{\text{data}} \;=\; \frac{1}{N}\sum_{i=1}^{N} w_i\,\Big(\hat{u}_{c_i}(\mathbf{x}_i,t_i;\theta) - u^{\text{obs}}_{c_i}(\mathbf{x}_i,t_i)\Big)^2,
@@ -456,7 +456,7 @@ Algorithm~\ref{alg:training} summarizes the full procedure.
 \small
 \caption{PI-CON training loop (filtering mode)}
 \label{alg:training}
-\KwIn{Sensor data $\mathbf{D}=\{\mathbf{y}_{k,n}\}$, positions $\mathcal{S}$, times $\{t_n\}$, iterations $S$.}
+\KwIn{Sensor data $\mathbf{D}=\{\mathbf{y}_{s,n}\}$, positions $\mathcal{S}$, times $\{t_n\}$, iterations $S$.}
 \KwOut{Trained parameters $\theta^*$.}
 Initialize $\theta$; set $\mathbf{w}=[1, 0.057, 0.057, 0.01]$\;
 \lIf{AL enabled}{set $\lambda \leftarrow 0$, $\tilde{C}_{\text{ema}} \leftarrow 0$}

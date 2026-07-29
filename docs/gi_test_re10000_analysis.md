@@ -83,11 +83,27 @@
 
 ### 3.1 數學基礎
 
-對 2D 域，K 個 random sensors 對應的 Nyquist limit：
+對 2D 域，K 個 sensors 對應的取樣密度 band edge：
 
-$$ k_\text{Nyquist}^\text{K} = \sqrt{K/\pi} $$
+$$ k_\text{max}^\text{sensor} = \sqrt{K/\pi} $$
 
-推導：K 個 sensors 在 2D 圓盤密度 `K/(πr²)`，平均 sensor 間距 `d ≈ √(π/K)`，對應 Nyquist `k_max = π/d = √(πK)/π × π = √(K/π)`（簡化版；正式版可推到 Shannon-Whittaker sampling for irregularly sampled 2D field，結果同階）。
+**推導（取樣密度版）**。註：thesis §1.1 只交代**來源**（Nyquist–Shannon → Landau 密度條件 → 套用到 K 點），不列下面的計數步驟；以下完整版供內部查核用：
+
+1. 一維 Shannon 取樣定理（Shannon 1949）的本質是「每個可解析模態至少一個取樣」，均勻格點只是最容易計數的排法。
+2. Landau (1967, *Acta Math.* 117, 37–52) 的 necessary density condition 推廣到任意散佈、任意維度：取樣點集能穩定重建頻譜支撐在 $S$ 的場，其取樣密度必須 ≥ $|S|$（Lebesgue 測度）。稀疏感測器既不均勻也不在格點上，需要的正是這個形式。
+3. 單位面積域上 K 個 sensors → 取樣密度 = K；頻譜限制在圓盤 $|k| \le k_\text{max}$ → 模態數 ≈ $\pi k_\text{max}^2$。要求 $\pi k_\text{max}^2 \le K$ 即得上式（cyclic wavenumber convention）。
+
+**兩個 caveat（必須一起講）**：
+- 這是**必要條件**不是保證。實際可重建頻寬由 conditioning 與噪聲決定（實測 effective cutoff $k_\text{cut} \approx 4.7$）。禁稱「硬上限 / ceiling」。
+- 它把每個 sensor 只算 1 個純量取樣；實際每個 sensor 報 $(u,v)$ 兩分量、而無散度平面場只有 1 個純量自由度（stream function）→ 量測數是 $2K$ → 向量版計數為 $\sqrt{2K/\pi} \approx 7.98$，與 thesis appendix06 用 SVD 量到的 rank-full 邊界 $k \lesssim 8$ 一致（$\pi \times 7.98^2 = 200 = 2K$）。
+
+**兩個「2」不要混淆**（口試被問過）：
+- 一維 Nyquist 的 `密度 ≥ 2B`：2 來自**雙邊頻譜** $S=[-B,B]$、$|S|=2B$。
+- 二維 $\sqrt{K/\pi}$ **沒有 2**：圓盤 $|k|\le k_{\max}$ 本身已對稱含 $\pm k$，雙邊性被面積 $\pi k_{\max}^2$ 吸收，再乘 2 是重複計算。
+- $\sqrt{2K/\pi}$ 的 2：**每個 sensor 給幾個數**，與頻譜無關。
+- 自洽性檢查：把二維邏輯退回一維 → $|S|=2B$、密度 $=N$ → $B \le N/2$，正是 Nyquist。同一條規則，2 在一維顯形、在二維被面積吸收。
+
+> **舊版本已刪除**：早期寫成「sensor 間距 `d ≈ √(π/K)` → `k_max = π/d`」，該式代數不自洽（$\pi/\sqrt{\pi/K} = \sqrt{\pi K}$，非 $\sqrt{K/\pi}$），且無文獻依據。
 
 ### 3.2 為什麼這個論證對訓練 pipeline 特別有效
 
@@ -117,7 +133,7 @@ $$ L = L_\text{data} + L_\text{physics} $$
 ### 3.4 反駁可能的攻擊
 
 **Attack 1**: "K-Nyquist 推導不嚴格"  
-→ 即使用 conservative $k = \sqrt{K} = 10$（不是 5.64），E(k≤10) 也是 ~99.7% 能量，N=256 仍 < 0.1% diff。論證在 1× ~ 10× K-Nyquist 範圍都成立。
+→ 已改用 Landau (1967) density condition 的自由度計數版（§3.1），非 hand-wave 間距估計。且穩健性不依賴此推導：即使用 conservative $k = \sqrt{K} = 10$（不是 5.64），E(k≤10) 也是 ~99.7% 能量，N=256 仍 < 0.1% diff。論證在 1× ~ 10× K-Nyquist 範圍都成立。
 
 **Attack 2**: "NN 可能 in physics loss 處 require 高 k accuracy"  
 → PDE residual 是 PDE-truth, 不是 DNS-comparison。residual 計算用 NN 自己的 derivatives，不依賴 DNS 高 k 精度。L_physics 跟 DNS grid 無關。

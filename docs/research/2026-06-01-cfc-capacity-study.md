@@ -80,7 +80,7 @@ trunk latent 分解成 hidden dim `p` × tensor rank `r`。**實證最佳 = 大 
 ⚠️ 工程可遷移性：用 DNS 全場做 POD basis 屬**工程不可遷移**，僅能 offline 診斷，不可進訓練（見 AGENTS.md ENGINEERING_VISION）。
 
 ### 3.4 PI-DeepONet 合法性背書（3-0）
-PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual 學 operator（Wang et al., Sci. Adv. 2021）→ 與本專案 sensor MSE + physics residual 設定完全相容。但有 spectral bias 高頻限制，與 K=100 Nyquist ceiling 是**兩個不同來源**，需分離歸因（§4 K-scaling）。
+PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual 學 operator（Wang et al., Sci. Adv. 2021）→ 與本專案 sensor MSE + physics residual 設定完全相容。但有 spectral bias 高頻限制，與 K=100 spectral-truncation ceiling 是**兩個不同來源**，需分離歸因（§4 K-scaling）。
 
 ---
 
@@ -102,7 +102,7 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 | 觀察 | 結論 | 下一步 |
 |---|---|---|
 | 加 width/rank/liquid 後 metric 持續改善 | 容量未榨乾 | 繼續擴 |
-| metric plateau 但離 K=100 Nyquist ceiling（KE 7.77%）仍有距離 | 架構/訓練瓶頸 | 回 §1/§2 |
+| metric plateau 但離 K=100 spectral-truncation ceiling（KE 7.77%）仍有距離 | 架構/訓練瓶頸 | 回 §1/§2 |
 | metric plateau 且貼近 ceiling | 已達資訊論硬上限 | K-scaling，非改架構 |
 
 **關鍵分離實驗**：固定架構容量做 **K-scaling（K ∈ {100, 200, 400}）**。中高頻隨 K 改善 → 資訊上限；不隨 K 改善 → 架構 spectral bias。目前本專案論述把兩者混在一起，此實驗可分離歸因。
@@ -121,7 +121,7 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 | 284 | **rank 512（↑）** | 9.68 | 6.56 | 82.8 | ≫100 | 0.0676 |
 | **285** | **liquid τ（↑）** | **10.23** | **7.13** | **83.1** | ≫100 | 0.0679 |
 
-> band_high ≫100% 為 K=100 Nyquist ceiling 正常現象（sensor k_max≈5.64，高頻資訊論硬上限）。
+> band_high ≫100% 為 K=100 spectral-truncation ceiling 正常現象（sensor sampling band edge k_max≈5.64；ceiling 由 spectral truncation 量化，非 Nyquist 硬上限）。
 
 #### 判讀（對照 §4 判讀表）
 
@@ -133,7 +133,7 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 
 **整體判讀**：全部 6 個 KE 落在 **9.4~11.2% 的 1.8pp 窄區間**，三個旋鈕改善幅度均 ≤1pp。
 
-→ 符合判讀表第三行：**metric plateau 且貼近 K=100 Nyquist ceiling（理論最佳 7.77%）→ 瓶頸是資訊論硬上限，改架構已無顯著空間。**
+→ 符合判讀表第三行：**metric plateau 且貼近 K=100 spectral-truncation ceiling（理論最佳 7.77%）→ 瓶頸是資訊論硬上限，改架構已無顯著空間。**
 
 #### 結論與下一步
 
@@ -156,7 +156,7 @@ PI-DeepONet 可在**完全無 paired full-field 監督**下只靠 PDE residual �
 
 **Open questions**：
 1. CfC/RNN 當 branch 時，separable DeepONet 的「大 p 小 r」是否仍成立（branch 是 sequence encoder 而非靜態 MLP）？無直接證據。
-2. PI-DeepONet spectral bias 與 K=100 Nyquist ceiling 如何分離 → §4 K-scaling。
+2. PI-DeepONet spectral bias 與 K=100 spectral-truncation ceiling 如何分離 → §4 K-scaling。
 3. time-constant 初始範圍、bidirectional、stacking 深度的具體推薦值，本輪無可靠 primary source（config 現用 default `(-1,1)`，註解建議 turbulence 用 `(-3,1)`，仍待自證）。
 
 ---

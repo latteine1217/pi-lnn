@@ -23,7 +23,7 @@ Alternative angles:
 
 **Engineering-relevant accuracy.** Our method achieves engineering-deployable performance: low-frequency energy band rel-err **5.7%**, KE rel-err **10.68%**, with **11–14pp better pointwise field accuracy** than fair baselines (RBF, IDW, divergence-free trigonometric LSQ at the sensor information bound). Against the lowest-KE fair baseline (div-free trig LSQ, 80 modes, KE 3.93%), our model trades ~7pp KE for 11pp better u rel-L2 — revealing that classical methods optimize KE through over-smoothing and that **linear Fourier basis is structurally suboptimal for pointwise reconstruction** even when matched to sensor capacity. We propose multi-metric evaluation (u_L2, v_L2, ω_L2, ek_ratio_kf) as standard practice. Inference is real-time-compatible: encoder 70.7±3.8 ms, query 1.5 ms/snapshot on Apple M-series MPS.
 
-**Bounded by sensor information, not architecture.** Mid-high frequency reconstruction is intrinsically limited by sensor count, not by our architectural choices. Nyquist-Shannon gives K=100 → effective spectral bandwidth $k_{\max} \approx \sqrt{K/\pi} \approx 5.64$. We characterize this analytically: 87.4% of div-free Fourier degrees of freedom (1,392 of 1,592 within $|\mathbf{k}| \le 16$) lie in the null space of the K=100 sensor sampling operator. The corresponding **KE rel-err theoretical ceiling at this sensor budget is 7.77%**; our model achieves 10.68%, attaining 73% of the bound. **Higher fidelity at mid-high $k$ requires more sensors, not better architecture** — we identify K-scaling with recipe re-tuning as the productive future direction.
+**Bounded by sensor information, not architecture.** Mid-high frequency reconstruction is intrinsically limited by sensor count, not by our architectural choices. The sampling-density condition (Shannon 1949; Landau 1967 for non-uniform sample sets) gives K=100 → spectral band edge $k_{\max} \approx \sqrt{K/\pi} \approx 5.64$. We characterize this analytically: 87.4% of div-free Fourier degrees of freedom (1,392 of 1,592 within $|\mathbf{k}| \le 16$) lie in the null space of the K=100 sensor sampling operator. The corresponding **KE rel-err theoretical ceiling at this sensor budget is 7.77%**; our model achieves 10.68%, attaining 73% of the bound. **Higher fidelity at mid-high $k$ requires more sensors, not better architecture** — we identify K-scaling with recipe re-tuning as the productive future direction.
 
 **Saturation validated empirically.** A systematic 6-lever ablation (regularization ρ, multi-head cross-attention, Fourier bandwidth, K-scaling, trunk capacity, modified MLP) confirms the architecture operates near the sensor-bounded regime — all levers fall within ±1.5pp KE. Multi-seed reproducibility (N=5 per architecture, seeds 1, 2, 3, 4, 42) gives **B3 (Ours) vs B0 (Vanilla DeepONet) gap of +7.75pp KE** (Welch's t-test p<0.001 with Bonferroni correction, Cohen's d=13.1, very large effect). For reference, "cheating" baselines that use full DNS for training (Gappy POD, rank=100) achieve KE ≈ 0.12% — but are not engineering-transferable.
 
@@ -156,11 +156,15 @@ $$\omega_{\rm rel-l2}(k_{\rm cut}) = \sqrt{\frac{\sum_{k > k_{\rm cut}} k^2 E(k)
 
 ### 3.4 Sensor Information Bound
 
-For K randomly sampled point sensors on a 2D periodic domain, Nyquist–Shannon gives an effective bandwidth:
+For K point sensors on a 2D periodic domain, the sampling-density requirement gives a band edge. **Never state the formula without its provenance.** Thesis §1.1 (eq. 1.2) gives the lineage only — Nyquist–Shannon → Landau density condition → applied to K sensors over an area — and does **not** walk through the counting steps. Full version, for internal checking:
 
-$$k_{\max}^{\rm sensor}(K) \approx \sqrt{K/\pi}$$
+1. Shannon (1949): a band-limited signal needs one sample per resolvable mode; the uniform grid is only the easiest arrangement to count.
+2. Landau (1967, *Acta Math.* 117, 37–52): for **arbitrary, non-uniform** sample sets in any dimension, stable sampling requires sample density ≥ Lebesgue measure of the spectral support. This is the form sparse point sensors need.
+3. Unit-area domain, K sensors → density $K$; spectrum on disk $|k| \le k_{\max}$ → $\pi k_{\max}^2$ modes; require $\pi k_{\max}^2 \le K$:
 
-For $K=100$: $k_{\max} \approx 5.64$. This is the **sensor-count Nyquist scale**, not a ceiling: it counts each sensor as one sample and ignores incompressibility. The strict linear-observability wall is higher — $k \lesssim 8 \approx \sqrt{2K/\pi}$ (2K=200 (u,v) observations vs M=196 divergence-free DOF, SVD full-rank; thesis appendix06) — and the effective cutoff is lower still ($k_{\rm cut} \approx 4.7$), set by conditioning ($\kappa$ 7 @k≤5 → 7×10² @k≤8). Reserve "ceiling" for the $k \lesssim 8$ wall and the compressed-sensing / spectral-truncation bounds.
+$$k_{\max}^{\rm sensor}(K) = \sqrt{K/\pi}$$
+
+For $K=100$: $k_{\max} \approx 5.64$. This is the **sensor-count sampling band edge** (a necessary condition), not a ceiling: it counts each sensor as one sample and ignores incompressibility. The strict linear-observability wall is higher — $k \lesssim 8 \approx \sqrt{2K/\pi}$ (2K=200 (u,v) observations vs M=196 divergence-free DOF, SVD full-rank; thesis appendix06) — and the effective cutoff is lower still ($k_{\rm cut} \approx 4.7$), set by conditioning ($\kappa$ 7 @k≤5 → 7×10² @k≤8). Reserve "ceiling" for the $k \lesssim 8$ wall and the compressed-sensing / spectral-truncation bounds.
 
 ### 3.5 Our Model's Effective Resolution
 

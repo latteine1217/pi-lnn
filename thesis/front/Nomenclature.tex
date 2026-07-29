@@ -58,7 +58,9 @@ $Re$ & Reynolds number based on $L = 1$\,m and $U = 1$\,m/s \\
 $k_f$ & Forcing wavenumber (1/m) in Kolmogorov flow ($k_f=2$\,m$^{-1}$ in main runs) \\
 $\mathbf{f}$ & Body forcing (m/s$^2$), $\mathbf{f} = (A\sin(2\pi k_f y), 0)^T$ with $A = 0.1$\,m/s$^2$ \\
 $K$ & Number of sparse velocity sensors \\
-$\mathcal{S} = \{\mathbf{x}_k\}_{k=1}^K$ & Sensor locations \\
+$\mathcal{S} = \{\mathbf{x}_s\}_{s=1}^K$ & Sensor locations \\
+$s \in \{1,\dots,K\}$ & Sensor index; paired with the query index $q$ in $\mathbf{r}_{qs}$, $A_{qs}$ \\
+$q$ & Query index, labelling an evaluation point $(\mathbf{x}_q, t_q)$ \\
 $N_{\rm run} = 1024\times 1024$ & DNS solver run grid \\
 $N = 256\times 256$ & Stored DNS snapshot grid (downsampled $\times 4$; used as the training reference) \\
 $N_t$ & Number of sensor sampling time stamps \\
@@ -70,14 +72,17 @@ $d_{\text{hidden}}$ & Trunk MLP hidden width \\
 $d_t$ & Time-projection embedding dim ($=16$) \\
 $R$ & DeepONet operator rank ($=d_{\text{model}}$ default) \\
 $L_s, L_a, L_t, L_q$ & Layer counts: spatial encoder / token attention / temporal CfC / trunk MLP \\
-$h_k(t) \in \mathbb{R}^d$ & CfC token state for sensor $k$ at time $t$ \\
+$h_s(t) \in \mathbb{R}^d$ & CfC token state for sensor $s$ at time $t$ \\
 $\theta$ & Trainable network parameters \\
 $c \in \{0,1,2\}$ & Channel index for $(u, v, p)$ in the operator output \\
 $\sigma$ & Disambiguated locally (singular value, std, CfC sigmoid, or envelope band) \\
 $\mathcal{L}_{\text{data}}$ & Sensor-MSE loss on $u,v$ \\
 $\mathcal{L}_{\text{NS},u}, \mathcal{L}_{\text{NS},v}$ & Momentum residuals (Eulerian form) \\
 $\mathcal{L}_{\text{cont}}$ & Continuity residual $\partial_x u + \partial_y v$ \\
-$E(k)$ & Radial energy spectrum at wavenumber $k$ \\
+$\mathbf{k}, k$ & Ordinary (cyclic) wavenumber vector and its magnitude $k=\vert\mathbf{k}\vert$ (1/m); integer-valued on the unit box (\S\ref{subsec:spectrum_definition}). Denotes a wavenumber throughout; sensors are indexed by $s$ \\
+$E(k)$ & Radial energy spectrum, m$^3$/s$^2$, on unit-width shells $\Delta k = 1$\,m$^{-1}$, Eq.~\eqref{eq:radial_spectrum} \\
+$k_{\max}^{\rm sensor}$ & Sensor-count sampling band edge $\sqrt{K/\pi}$ (1/m), Eq.~\eqref{eq:sensor_nyquist}; $\approx 5.64$\,m$^{-1}$ at $K=100$ \\
+$k_{\max}$ & Angular dealiased grid maximum wavenumber (rad/m), used only in the Pope criterion $k_{\max}\eta$ \\
 $\Vert\cdot\Vert_2, \Vert\cdot\Vert_\infty$ & $L_2$ and $L_\infty$ norms over the spatial grid \\
 \end{tabularx}
 \end{minipage}
