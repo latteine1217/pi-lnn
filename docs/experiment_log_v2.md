@@ -375,6 +375,50 @@ KE rel-err:   5.71 ± 0.12 %   (n=5, σ=0.12 pp, 95% CI [5.56, 5.85] %)
 - **採用 `n99_tmean`（窗內時間平均）**：單調、Re=10⁴ 命中 100、Re=10⁶ 給 156（與 >100 相容）。
 - **但仍須誠實標註**：即使最佳定義，中段 Re 低估 2–3×（Re=5×10²：17 vs 50）→ **`K ≈ π n99²/2` 是尺度關係，非定量預測器**，與專案對 `√(K/π)` 的既有紀律（禁稱硬上限，只能說 scale）一致。
 
+### Stage 5：現代 baseline —— gappy POD（LES 基底）與 EnKF（2026-07-30，無新訓練）
+
+回應「baseline 全是 1960–70 年代內插法」的質疑，補兩個帶流場模型的方法。腳本：[`scripts/crossre_gappy_pod_les.py`](../scripts/crossre_gappy_pod_les.py)、[`scripts/crossre_enkf.py`](../scripts/crossre_enkf.py)。
+
+**(A) Gappy POD on LES basis（9 格，Re ∈ {10³, 10⁴, 10⁶} × K）**
+
+DNS-basis POD/DMD 是 **oracle 不是 baseline**（`baseline_comparison.py` 既有的 Gappy POD 就標為 "UPPER BOUND: uses DNS basis"）。改用管線本就會產出的 LES 建基底 → 工程可遷移。Re=100/500 無 LES，且該 Re 下 N=128 的「LES」實質即 DNS（k_d 僅 2 與 5），不存在有意義的便宜代理，故不做。
+
+| Re | K=100: PI-CON u | gappy POD u | **LES 基底投影下限** |
+|---|---|---|---|
+| 10³ | **4.99 %** | 17.55 % | 12.00 % |
+| 10⁴ | **14.46 %** | 40.41 % | 32.91 % |
+| 10⁶ | **25.51 %** | 76.26 % | 58.05 % |
+
+- **PI-CON 的逐點誤差在三個 Re 都低於 LES 基底的投影下限**（約 0.43 倍）。投影下限是「係數完美恢復時仍剩的誤差」→ 這是對**整類 LES-subspace 降階模型**的界限，與實作無關。
+- **[修正] 截斷規則**：初版用 `r = min(r99, K)` 得 r=16（LES 能量集中於 condensate，r99 僅 16），KE 28.50 %，我差點誤判為「LES 基底不適用」。r 掃描顯示 oracle projection 在 r=400 僅 2.68 % → 基底可用，是截斷太緊。改 `r = K`（2K 觀測對 r 模態，2:1 過定）後 KE 2.55 %。r > K 時 gappy 發散（r=200 → 90 %）。
+- 自洽測試：用 LES 自身 sensor 重建 LES snapshot，r=100 得 **0.10 %** → 實作正確。
+
+**(B) EnKF — 單一參照點（Re=10³, K=100）**
+
+前向模型為自寫渦度形式偽譜 RK4，**對 DNS 驗證**：每觀測間隔漂移 0.005 %（Re=10³）、0.027 %（Re=10⁴）→ 濾波器拿到近乎精確的模型。
+
+初版（N_e=40, obs noise 1 %, 自製 Gaussian taper）**12 格中 4 格 NaN**。查文獻後定位為已知現象與設定錯誤：
+
+| 症狀 | 文獻對應 |
+|---|---|
+| NaN 爆炸 | **catastrophic filter divergence**：稀疏觀測導致高波數虛假能量注入，**增加 ensemble 成員可抑制**（Hasegawa 2023）|
+| obs noise 1 % | 文獻用 **10 %**；過度自信的 R 導致過擬合 |
+| 自製 Gaussian taper（無限支撐、只 taper `P^f H^T` 未 taper `H P^f H^T`）| localization 應用**緊緻支撐**函數並一致套用（Hamill 2001），或改用 LETKF 的局部分析（Hunt 2007）|
+| 我原本用全窗平均 | DA 標準做法為**丟棄 spin-up**；冷啟動瞬態不代表濾波器性能 |
+
+依文獻設定（N_e=96、obs noise 10 %、丟棄前半窗）重跑：
+
+| 設定 | KE | u | 最終幀 u |
+|---|---|---|---|
+| N_e=40, obs 1 %（初版）| 3.82 % | 44.78 % | 52.80 %（停滯）|
+| **N_e=96, obs 10 %（文獻）** | **2.53 %** | **26.29 %** | **22.52 %（仍在下降）** |
+| PI-CON | 2.59 % | 4.99 % | — |
+
+- **KE 2.53 % 已略優於 PI-CON**，但逐點 26.29 % 仍差 5 倍 → **與其他四個方法族同一型態**（能量相當、逐點差），使「KE 不具鑑別力」的結論不依賴任何單一 baseline 的調參品質。
+- 「振幅保住、相位跑掉」經文獻確認為此類濾波器的**已知特性**（Hasegawa 2023），非本實作缺陷。
+- **範圍限定**：單一 config、窗末仍未收斂 → 為 EnKF 可達精度的**下界**，**不可用於方法排名**。完整比較需 LETKF 局部分析（Hunt 2007）。
+- 文獻已加入 `thesis/back/references.bib`：`Hunt2007LETKF`、`Hamill2001Localization`、`Houtekamer2001Sequential`、`Hasegawa2023LBMLETKF`。
+
 **Open**：全部 single seed（42）**且單一 placement 實現**（FPS seed 42）。placement 變異的 20 支（EXP-340~359，K=50 × 5 Re × placement seed 1–4）已備妥 config 與 sensor 並通過 axis 檢查，但**使用者決定不跑 multi-run 類實驗**，jobs 已 `scancel`（Elapsed 全 0，零 GPU 消耗、無 artifact）。依專案既有結論「placement variance ≫ training variance」（O3, EXP-266），此為最高優先的未補缺口。其餘已知缺口：K 網格粗（3 點，區間寬 5×，無法擬合指數）、高 Re 可能受容量限制（全用 d=256/20k，而論文 Re=10⁶ 主結果需 d=384/50k，K 與容量未解耦）、IC 頻寬跨 Re 相同（`ic_k_cutoff=8`）故五案例皆為 transient 而非統計穩態、未與 RBF/IDW/trig-LSQ fair baseline 對照。
 - Artifacts（lab-server）：`artifacts/kolmogorov/cross_re_exp32{0-8}_*/`；eval `artifacts/eval_cross_re/exp_32{0-8}/summary.json`。
 
