@@ -56,7 +56,10 @@ thesis/slide/*.pptx
 thesis/main.*
 !thesis/main.tex
 thesis/.tmp_pdf_pages*/
+thesis/tmp/
 .tmp_slide_check/
 references.bib
 !thesis/back/references.bib
 texput.log
+_build/
+.playwright-mcp/
