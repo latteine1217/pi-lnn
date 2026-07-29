@@ -5,10 +5,14 @@ Adds vorticity & ek_ratio analysis to baseline_comparison.py results.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 from scipy.interpolate import RBFInterpolator
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.spectral import radial_energy_spectrum  # noqa: E402
 
 SENSOR_JSON = Path("data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100.json")
 DNS_PATH = Path("data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy")
@@ -68,26 +72,6 @@ def compute_vorticity(u, v, dx=dx):
     return dvdx - dudy
 
 
-def energy_spectrum_1d(u, v, dx=dx):
-    """1D radial spectrum from 2D field via FFT."""
-    N = u.shape[0]
-    u_hat = np.fft.fft2(u) / N**2
-    v_hat = np.fft.fft2(v) / N**2
-    e_hat = 0.5 * (np.abs(u_hat)**2 + np.abs(v_hat)**2)  # per-mode energy
-    # Radial binning
-    kx = np.fft.fftfreq(N, d=dx) * (2 * np.pi)
-    ky = np.fft.fftfreq(N, d=dx) * (2 * np.pi)
-    KX, KY = np.meshgrid(kx, ky, indexing="ij")
-    Kmag = np.sqrt(KX**2 + KY**2) / (2 * np.pi)  # in cycles/L unit
-    Kmag_int = Kmag.astype(int)
-    k_max = N // 2
-    spectrum = np.zeros(k_max)
-    for k in range(1, k_max + 1):
-        mask = (Kmag_int == k)
-        spectrum[k - 1] = e_hat[mask].sum()
-    return np.arange(1, k_max + 1), spectrum
-
-
 # Train/val
 val_indices = np.linspace(0, T-1, 41, dtype=int)
 val_mask = np.zeros(T, dtype=bool); val_mask[val_indices] = True
@@ -128,9 +112,12 @@ def ke_rel_err(u_p, v_p, u_t, v_t, indices):
     return float(np.abs((ke_p - ke_t) / ke_t).mean())
 
 
-# Energy spectrum at last snapshot for ek_ratio
-k_dns, ek_dns_t5 = energy_spectrum_1d(u_dns[-1], v_dns[-1])
-k_rbf, ek_rbf_t5 = energy_spectrum_1d(u_rbf[-1], v_rbf[-1])
+# Energy spectrum at last snapshot for ek_ratio。用 pi_con.spectral 的單一實作：
+# 此處原本自帶一份，以 `.astype(int)` 做 bin 索引（截斷而非四捨五入），shell 偏移
+# 半個 bin。比值的分子分母雖同用該實作而部分抵消，但 DNS 與 RBF 的能量分布不同，
+# 抵消不完全。
+k_dns, ek_dns_t5 = radial_energy_spectrum(u_dns[-1], v_dns[-1])
+k_rbf, ek_rbf_t5 = radial_energy_spectrum(u_rbf[-1], v_rbf[-1])
 ek_ratio_rbf = float(ek_rbf_t5[1] / ek_dns_t5[1])  # k_f = 2 (index 1)
 
 # Print full comparison
