@@ -1,0 +1,83 @@
+# configs/exp_298d_b3_spacefill_seed3.toml
+# What: EXP-298_d — B3 + FPS space-filling placement (DNS-free, 無需任何模擬), seed=3
+# Why: EXP-298 (seed=42) 單 seed 顯示 space-filling 在能量指標上優於 LES_T50 與 DNS oracle
+#      (KE 4.54 % vs 5.90 % vs 4.69 %)，但在 pointwise (u/v/omega) 上最差 — 疑似 KE↔pointwise
+#      trade-off 的一個端點。單 seed 不足以宣稱，本組補 _b~_e 組成 n=5 給出 sigma。
+#
+# Hypothesis: space-filling 的 KE 優勢 > sigma_training (0.11 %)，且 pointwise 劣勢同樣真實
+#             → placement 軸是 trade-off 而非單方面勝出。
+# Falsifiability: 若 n=5 後 KE 差距落入 sigma_training 雜訊帶，則 seed=42 的優勢是運氣。
+#
+# 派生 from EXP-298 (= _a, seed=42), 唯一改動: seed → 3; artifacts_dir → exp298d
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_spacefill_K100_N256_t0-5_si100.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_spacefill_K100_N256_t0-5_si100_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 3
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp298d-b3-spacefill-seed3-20k"

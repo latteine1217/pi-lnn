@@ -151,7 +151,7 @@ def plot_recoverability(curves: dict[int, dict], k_axis: np.ndarray, out_png: Pa
     # (a) 不放 legend — 全部 entry 收到圖下方的 figure-level legend，避免遮蔽 E(k) 曲線。
     handles_main, labels_main = axL.get_legend_handles_labels()
     handles_main.append(Line2D([0], [0], color="0.5", linestyle="--", linewidth=1.1))
-    labels_main.append(r"$k_{\mathrm{Nyq}}(K)$")
+    labels_main.append(r"$k_{\max}^{\mathrm{sensor}}(K)$")
     axL.set_xlim(1, k_axis.max())
     axL.set_xlabel(r"Wavenumber  $k = \|\mathbf{k}\|$  (1/m)")
     axL.set_ylabel(r"Normalized energy in shell  $E(k)/E_{\mathrm{tot}}$")
@@ -196,7 +196,7 @@ def plot_recoverability(curves: dict[int, dict], k_axis: np.ndarray, out_png: Pa
         # 標籤刻意不用 "ceiling"：F_DNS 是「尺度以下可得的能量」而非上界，
         # 與 chapter04.tex:263/268 的用字一致；"ceiling" 在論文裡指 appendix06 的 k≲8。
         labels_main.append(
-            f"$K{{=}}{K}$: $k_{{\\mathrm{{Nyq}}}}={k_nyq:.2f}$, "
+            f"$K{{=}}{K}$: $k_{{\\max}}^{{\\mathrm{{sensor}}}}={k_nyq:.2f}$, "
             f"$F_{{\\mathrm{{DNS}}}}={ceil_val*100:.1f}\\%$"
         )
     # ncol=2：matplotlib legend 逐欄填,故左欄=曲線語彙、右欄=各 K 數值。

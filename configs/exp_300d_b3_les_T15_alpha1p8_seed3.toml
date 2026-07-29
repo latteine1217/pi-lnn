@@ -1,0 +1,88 @@
+# configs/exp_300d_b3_les_T15_alpha1p8_seed3.toml
+# What: EXP-300_d — B3 + LES_T15 placement with alpha=1.8 (T50-aligned), seed=3
+# Why: EXP-299 (LES_T15, n=5) 比 EXP-245 (LES_T50) 差 KE +1.18 pp (t=8.2)，但那支 T=15 的 LES
+#      同時帶 alpha=30 過耗散 + bardina closure + r_scale=10 → 退步無法歸因給 T。
+#      本組的 LES 除 N (256->128) 與 T_end (50->15) 外，alpha/closure/friction/dealias/seed
+#      全部對齊 T50 reference，是唯一能把 T 單獨隔離的一臂。
+#
+# Hypothesis: 若 EXP-300 ~= EXP-245 → EXP-299 的退步來自 alpha bug，T=15 本身夠用。
+#             若 EXP-300 ~= EXP-299 → 退步來自 T=15 本身（統計窗不足），alpha 非主因。
+# Falsifiability: 兩者皆不成立（落在中間）→ T 與 alpha 各有貢獻，需再拆。
+#
+# LES: data/les/kolmogorov_les_Re10000_N128_T15_alpha1p8_T50aligned.npy
+#      (N=128, T_end=15, alpha=1.8, hyperviscosity, r_scale=35, dealias 2/3, seed=42, random IC)
+# Sensor: t_spinup=7.5（與 EXP-299 相同窗口）；axis convention test 9/9 PASS。
+#
+# 派生 from EXP-245_d, 唯一改動: sensor_jsons / sensor_npzs / artifacts_dir
+[train]
+sensor_jsons = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n128_T15_alpha1p8.json",
+]
+sensor_npzs = [
+  "data/kolmogorov_sensors/re10000/sensors_qrpivot_K100_N256_t0-5_si100_les_n128_T15_alpha1p8_dns_values.npz",
+]
+dns_paths = ["data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy"]
+re_values = [10000.0]
+observed_sensor_channels = ["u", "v"]
+fourier_harmonics = 16
+fourier_embed_dim = 128
+use_temporal_anchor = true
+T_total = 5.0
+temporal_anchor_harmonics = 2
+d_model = 256
+d_time = 16
+num_spatial_cfc_layers = 1
+num_temporal_cfc_layers = 1
+num_token_attention_layers = 2
+token_attention_heads = 4
+num_query_mlp_layers = 1
+query_mlp_hidden_dim = 256
+output_head_gain = 1.0
+operator_rank = 256
+data_loss_weight = 1.0
+physics_loss_weight = 0.057
+continuity_weight = 0.0
+poisson_loss_weight = 0.0
+t_early_weight = 10.0
+t_early_threshold = 0.05
+physics_collocation_strategy = "random"
+time_marching = true
+time_marching_start = 0.5
+time_marching_warmup = 0.3
+time_marching_warmup_steps = 2000   # fixed-step, 不隨 iterations 變動
+domain_length = 1.0
+kolmogorov_k_f = 2.0
+kolmogorov_A = 0.1
+iterations = 20000
+num_physics_points = 1024
+learning_rate = 1e-3
+lr_schedule = "soap"
+use_schedule_free = true
+soap_betas = [0.9, 0.999]
+soap_precondition_frequency = 2
+lr_warmup_steps = 2000
+soap_use_step_decay = true
+lr_decay_steps = 2000
+lr_decay_gamma = 0.9
+min_learning_rate = 1e-6
+max_grad_norm = 1.0
+use_gradnorm = true
+gradnorm_update_freq = 1000
+gradnorm_ema_momentum = 0.9
+gradnorm_tasks = ["data", "ns_u", "ns_v", "cont"]
+gradnorm_init_weights = [1.0, 0.057, 0.057, 0.01]
+gradnorm_min_weight = 0.0
+gradnorm_max_weight = 0.0
+use_augmented_lagrangian = true
+al_constraints = ["cont"]
+al_init_lambda = 0.0
+al_rho = 0.1
+al_update_freq = 100
+al_lambda_clip = 10.0
+al_ema_momentum = 0.5
+al_allow_cont_in_gradnorm = true
+checkpoint_period = 500
+seed = 3
+device = "mps"
+use_sensor_physics = false
+artifacts_dir = "artifacts/kolmogorov/deeponet-cfc-re10000-exp300d-b3-les-T15-a1p8-seed3-20k"
