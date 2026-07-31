@@ -22,28 +22,25 @@ must match the factor used for the corresponding PI-CON evaluation.
 """
 
 import argparse
+import sys
 import json
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.fields import block_avg, vorticity_fd  # noqa: E402
+
+
+def coarse_reference_grid_1d(x: np.ndarray, factor: int) -> np.ndarray:
+    """One-axis form of pi_con.fields.coarse_reference_grid."""
+    f = int(factor)
+    return x if f == 1 else x.reshape(-1, f).mean(axis=1)
+
 from scipy.interpolate import RBFInterpolator
 
 
-def block_avg(field: np.ndarray, factor: int) -> np.ndarray:
-    """f x f block average; mirrors the evaluator so grids match."""
-    f = int(factor)
-    n_x, n_y = field.shape[-2] // f, field.shape[-1] // f
-    return field.reshape(*field.shape[:-2], n_x, f, n_y, f).mean(axis=(-3, -1))
 
-
-def coarse_grid(x: np.ndarray, factor: int) -> np.ndarray:
-    return x.reshape(-1, int(factor)).mean(axis=1)
-
-
-def vorticity(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
-    dvdx = (np.roll(v, -1, axis=-2) - np.roll(v, 1, axis=-2)) / (2 * dx)
-    dudy = (np.roll(u, -1, axis=-1) - np.roll(u, 1, axis=-1)) / (2 * dx)
-    return dvdx - dudy
 
 
 def tile_periodic(pts: np.ndarray, vals: np.ndarray, L: float):
@@ -106,7 +103,7 @@ def main():
     d = np.load(args.dns, allow_pickle=True).item()
     x = np.asarray(d["x"], float)
     L = float(x[-1] - x[0] + (x[1] - x[0]))
-    xg = coarse_grid(x.astype(np.float32), args.block_factor)
+    xg = coarse_reference_grid_1d(x.astype(np.float32), args.block_factor)
     XX, YY = np.meshgrid(xg, xg, indexing="ij")
     query = np.stack([XX.ravel(), YY.ravel()], axis=1)
     n = len(xg)
@@ -124,14 +121,14 @@ def main():
     for ti in tidx:
         ur = block_avg(np.asarray(d["u"][ti], np.float32), args.block_factor)
         vr = block_avg(np.asarray(d["v"][ti], np.float32), args.block_factor)
-        omr = vorticity(ur, vr, dx)
+        omr = vorticity_fd(ur, vr, dx)
         ke_ref = 0.5 * np.mean(ur ** 2 + vr ** 2)
         for name, fn in (("rbf", lambda p, v: recon_rbf(pts, v, query, L)),
                          ("idw", lambda p, v: recon_idw(pts, v, query, L)),
                          ("trig", lambda p, v: recon_trig_lsq(pts, v, query, L, K))):
             up = fn(pts, su[:, ti]).reshape(n, n)
             vp = fn(pts, sv[:, ti]).reshape(n, n)
-            omp = vorticity(up, vp, dx)
+            omp = vorticity_fd(up, vp, dx)
             ke_p = 0.5 * np.mean(up ** 2 + vp ** 2)
             res[name]["ke"].append(abs(ke_p - ke_ref) / max(ke_ref, 1e-12))
             res[name]["u"].append(np.sqrt(np.sum((up - ur) ** 2)) / max(np.sqrt(np.sum(ur ** 2)), 1e-12))

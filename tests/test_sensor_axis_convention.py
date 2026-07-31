@@ -17,10 +17,14 @@ Invariant tested:
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+from pi_con.sensors import indices_from_coords, sample_series  # noqa: E402
 
 
 RE10000_DNS = Path("data/dns/kolmogorov_dns_fp64_etdrk4_Re10000_N256_T5_dt2p5e4_si100_ds4.npy")
@@ -168,4 +172,68 @@ def test_sensor_axis_convention_cross_re(dns_path: Path, sensor_dir: Path, file_
             f"{file_stem}: NPZ {name} 不對齊 JSON 物理位置。"
             f"err_correct={err_correct:.3e}, err_swap={err_swap:.3e}. "
             f"若 err_swap << err_correct，此檔為 row/col swap，需重新生成。"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Directory sweep — the hand-maintained lists above enumerate stems, so a sensor
+# file nobody remembered to add is a file nobody checks. That is not hypothetical:
+# on 2026-07-31 `sensors_podpivot_K100_N256_t0-5_si100_les_n256_podpivot` was found
+# stored at the transpose of its own coordinates while this suite passed 20/20,
+# because its stem appeared in neither list. This sweep enumerates the directory
+# instead, so enrolment is automatic and an unlisted artefact cannot hide.
+# ---------------------------------------------------------------------------
+
+_DNS_FOR_DIR = {
+    RE10000_DIR: RE10000_DNS,
+    RE1000_DIR: RE1000_DNS,
+}
+
+
+def _discover_sensor_pairs():
+    """Every (dns, json, npz) triple present on disk, whatever its stem."""
+    found = []
+    for sensor_dir, dns_path in _DNS_FOR_DIR.items():
+        if not sensor_dir.exists():
+            continue
+        for json_path in sorted(sensor_dir.glob("sensors_*.json")):
+            stem = json_path.stem
+            npz_path = next(
+                (c for c in (sensor_dir / f"{stem}_dns_values.npz",
+                             sensor_dir / f"{stem}.npz") if c.exists()),
+                None,
+            )
+            if npz_path is not None:
+                found.append(pytest.param(dns_path, json_path, npz_path, id=stem))
+    return found
+
+
+@pytest.mark.parametrize("dns_path,json_path,npz_path", _discover_sensor_pairs())
+def test_every_sensor_file_on_disk_obeys_the_convention(dns_path, json_path, npz_path):
+    if not dns_path.exists():
+        pytest.skip(f"DNS file missing: {dns_path}")
+    d = np.load(dns_path, allow_pickle=True).item()
+    xs = np.asarray(d["x"], dtype=np.float64)
+    ys = np.asarray(d["y"], dtype=np.float64)
+    coords = np.asarray(
+        json.loads(json_path.read_text())["selected_coordinates"], dtype=np.float64
+    )
+    npz = np.load(npz_path, allow_pickle=True)
+    if npz["u"].shape[0] != coords.shape[0]:
+        pytest.skip(
+            f"{json_path.stem}: K mismatch json={coords.shape[0]} npz={npz['u'].shape[0]}"
+        )
+
+    x_idx, y_idx = indices_from_coords(coords, xs, ys)
+    for name in ("u", "v"):
+        field = np.asarray(d[name], dtype=np.float64)
+        if field.shape[0] != npz[name].shape[1]:
+            pytest.skip(f"{json_path.stem}: T mismatch for {name}")
+        err_correct = np.abs(sample_series(field, x_idx, y_idx) - npz[name]).max()
+        err_swap = np.abs(sample_series(field, y_idx, x_idx) - npz[name]).max()
+        assert err_correct < 1e-5, (
+            f"{json_path.stem}: NPZ {name} does not sit at the coordinates its JSON "
+            f"records. err_correct={err_correct:.3e}, err_swap={err_swap:.3e}. "
+            f"err_swap << err_correct means the file is stored transposed and must be "
+            f"regenerated; see pi_con.sensors for the convention."
         )

@@ -20,9 +20,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.sensors import coords_from_indices, flat_to_indices, sample_series  # noqa: E402
 
 
 def random_select(N: int, K: int, rng: np.random.Generator) -> np.ndarray:
@@ -69,13 +73,12 @@ def main() -> None:
     indices = random_select(N, K, rng)
     print(f"  Uniform random selected K={K} sensors with placement_seed={args.placement_seed}")
 
-    # ── flat index → (i, j) → 物理座標 ─────────────────
-    row_idx, col_idx = np.unravel_index(indices, (N, N))
-    coords = np.stack([x_arr[col_idx], y_arr[row_idx]], axis=1)  # [K, 2]
+    # flat index → (x_idx, y_idx) → 物理座標，全部經 pi_con.sensors（理由見 qrpivot 版）。
+    x_idx, y_idx = flat_to_indices(indices, N)
+    coords = coords_from_indices(x_idx, y_idx, x_arr, y_arr)  # [K, 2]
 
-    # ── 擷取 sensor 時序 (u, v) ─────────────────────────
-    sensor_u = u_full[:, row_idx, col_idx].T.astype(np.float32)  # [K, T]
-    sensor_v = v_full[:, row_idx, col_idx].T.astype(np.float32)
+    sensor_u = sample_series(u_full, x_idx, y_idx).astype(np.float32)  # [K, T]
+    sensor_v = sample_series(v_full, x_idx, y_idx).astype(np.float32)
 
     # 最近鄰距離診斷（與 QR 對照）
     from scipy.spatial import cKDTree  # type: ignore[import]

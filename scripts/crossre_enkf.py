@@ -19,10 +19,14 @@ command line, not tuned against the reference.
 """
 
 import argparse
+import sys
 import json
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.fields import block_avg, vorticity_fd  # noqa: E402
 
 
 class Spectral2D:
@@ -76,17 +80,6 @@ def vort_from_uv(u, v, solver):
     return 1j * solver.KX * vh - 1j * solver.KY * uh
 
 
-def vorticity_fd(u, v, dx):
-    return ((np.roll(v, -1, axis=-2) - np.roll(v, 1, axis=-2))
-            - (np.roll(u, -1, axis=-1) - np.roll(u, 1, axis=-1))) / (2 * dx)
-
-
-def block_avg(field, factor):
-    f = int(factor)
-    if f == 1:
-        return field
-    nx, ny = field.shape[-2] // f, field.shape[-1] // f
-    return field.reshape(*field.shape[:-2], nx, f, ny, f).mean(axis=(-3, -1))
 
 
 def main():

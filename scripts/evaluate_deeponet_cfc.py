@@ -25,7 +25,14 @@ from picon_kolmogorov import create_picon_model, load_picon_config
 #      所有常數從 dataset 內部抽（dataset 自己用 RE_MEAN/RE_STD 算 re_norm，
 #      evaluator 直接用 ds.re_norm）。
 from kolmogorov_dataset import KolmogorovDataset
-from pi_con import find_dns_time_idx   # 共用 module（避免兩 evaluator 重複實作 → drift）
+from pi_con import find_dns_time_idx
+from pi_con.fields import (  # canonical numpy grid kernels
+    block_avg,
+    coarse_reference_grid,
+    divergence_fd,
+    laplacian_periodic,
+    vorticity_fd,
+)   # 共用 module（避免兩 evaluator 重複實作 → drift）
 
 # 訓練端 hardcoded train_ratio=0.8（pi_con/training.py:88）。evaluator 對齊。
 TRAIN_RATIO_FALLBACK = 0.8
@@ -149,77 +156,6 @@ def choose_device(name: str) -> torch.device:
     if torch.backends.mps.is_available():
         return torch.device("mps")
     return torch.device("cpu")
-
-
-def block_avg(field: np.ndarray, factor: int = 2) -> np.ndarray:
-    """What: f x f block average，支援 [..., fN, fN] batch shape。
-
-    Why: 向量化避免逐 frame Python loop；既有 [2N, 2N] 用法仍兼容。
-         factor 可調是為了讓不同儲存解析度的 DNS 評估在同一張網格上（cross-Re 比較），
-         預設 2 與既有行為逐位元相同。
-    """
-    f = int(factor)
-    n_x = field.shape[-2] // f
-    n_y = field.shape[-1] // f
-    new_shape = (*field.shape[:-2], n_x, f, n_y, f)
-    return field.reshape(new_shape).mean(axis=(-3, -1))
-
-
-def coarse_reference_grid(
-    x: np.ndarray, y: np.ndarray, factor: int = 2
-) -> tuple[np.ndarray, np.ndarray]:
-    """What: 產生與 f x f block average 對齊的 coarse query grid。
-
-    Why: `block_avg()` 代表的是 coarse cell 的平均值，不是原始 fine grid node。
-         若仍在 `x[::f], y[::f]` 上 query，prediction 與 reference 會固定錯半格，
-         系統性污染 RMSE、渦度與頻譜診斷。
-    """
-    f = int(factor)
-    if len(x) % f != 0 or len(y) % f != 0:
-        raise ValueError(
-            f"coarse_reference_grid 需要長度可被 factor={f} 整除的 grid，"
-            f"收到 len(x)={len(x)}, len(y)={len(y)}"
-        )
-    x_coarse = x.reshape(-1, f).mean(axis=1)
-    y_coarse = y.reshape(-1, f).mean(axis=1)
-    return x_coarse.astype(np.float32), y_coarse.astype(np.float32)
-
-
-def kinetic_energy(u: np.ndarray, v: np.ndarray) -> float:
-    return float(0.5 * np.mean(u ** 2 + v ** 2))
-
-
-def enstrophy_fd(u: np.ndarray, v: np.ndarray, dx: float) -> float:
-    omega = vorticity_fd(u, v, dx)
-    return float(0.5 * np.mean(omega ** 2))
-
-
-def vorticity_fd(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
-    """What: 用中心差分近似 2D 渦度場，支援 [..., N, N] batch shape。
-
-    Why: 渦度是局部旋渦結構最直接的診斷量；批次化避免 evaluator 對 T 個 frame 各呼叫一次。
-    """
-    dvdx = (np.roll(v, -1, axis=-2) - np.roll(v, 1, axis=-2)) / (2 * dx)
-    dudy = (np.roll(u, -1, axis=-1) - np.roll(u, 1, axis=-1)) / (2 * dx)
-    return dvdx - dudy
-
-
-def divergence_fd(u: np.ndarray, v: np.ndarray, dx: float) -> np.ndarray:
-    """What: 用中心差分近似 2D 不可壓縮條件殘差，支援 [..., N, N] batch。"""
-    dudx = (np.roll(u, -1, axis=-2) - np.roll(u, 1, axis=-2)) / (2 * dx)
-    dvdy = (np.roll(v, -1, axis=-1) - np.roll(v, 1, axis=-1)) / (2 * dx)
-    return dudx + dvdy
-
-
-def laplacian_periodic(field: np.ndarray, dx: float) -> np.ndarray:
-    """What: 以 periodic stencil 計算 2D Laplacian，支援 [..., N, N] batch。"""
-    return (
-        np.roll(field, -1, axis=-2)
-        + np.roll(field, 1, axis=-2)
-        + np.roll(field, -1, axis=-1)
-        + np.roll(field, 1, axis=-1)
-        - 4.0 * field
-    ) / (dx**2)
 
 
 def time_derivative_series(field_series: np.ndarray, time_vals: np.ndarray) -> np.ndarray:

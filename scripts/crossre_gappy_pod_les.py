@@ -24,27 +24,24 @@ least-squares coefficient absorbs the flip, so the reconstruction is unchanged.
 """
 
 import argparse
+import sys
 import json
 from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+from pi_con.fields import block_avg, vorticity_fd  # noqa: E402
 
-def block_avg(field: np.ndarray, factor: int) -> np.ndarray:
+
+def coarse_reference_grid_1d(x: np.ndarray, factor: int) -> np.ndarray:
+    """One-axis form of pi_con.fields.coarse_reference_grid."""
     f = int(factor)
-    if f == 1:
-        return field
-    n_x, n_y = field.shape[-2] // f, field.shape[-1] // f
-    return field.reshape(*field.shape[:-2], n_x, f, n_y, f).mean(axis=(-3, -1))
+    return x if f == 1 else x.reshape(-1, f).mean(axis=1)
 
 
-def coarse_grid(x: np.ndarray, factor: int) -> np.ndarray:
-    return x if int(factor) == 1 else x.reshape(-1, int(factor)).mean(axis=1)
 
 
-def vorticity(u, v, dx):
-    return ((np.roll(v, -1, axis=-2) - np.roll(v, 1, axis=-2))
-            - (np.roll(u, -1, axis=-1) - np.roll(u, 1, axis=-1))) / (2 * dx)
 
 
 def main():
@@ -62,7 +59,7 @@ def main():
 
     # --- reference (DNS) on the shared evaluation grid ---
     d = np.load(args.dns, allow_pickle=True).item()
-    xg = coarse_grid(np.asarray(d["x"], np.float64), args.dns_block_factor)
+    xg = coarse_reference_grid_1d(np.asarray(d["x"], np.float64), args.dns_block_factor)
     n = len(xg)
     L = float(xg[-1] - xg[0] + (xg[1] - xg[0]))
     dx = L / n
@@ -114,7 +111,7 @@ def main():
         tgt = np.concatenate([ur.ravel(), vr.ravel()])[:, None]
         prj = Phi_r @ (Phi_r.T @ (tgt - mean)) + mean
         proj_e.append(float(np.linalg.norm(prj - tgt) / max(np.linalg.norm(tgt), 1e-12)))
-        omr, omp = vorticity(ur, vr, dx), vorticity(up, vp, dx)
+        omr, omp = vorticity_fd(ur, vr, dx), vorticity_fd(up, vp, dx)
         ke_r = 0.5 * np.mean(ur**2 + vr**2)
         ke_e.append(abs(0.5 * np.mean(up**2 + vp**2) - ke_r) / max(ke_r, 1e-12))
         u_e.append(np.sqrt(np.sum((up - ur) ** 2)) / max(np.sqrt(np.sum(ur**2)), 1e-12))
